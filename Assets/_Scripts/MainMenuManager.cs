@@ -1,41 +1,64 @@
 using UnityEngine;
 using Unity.Netcode;
 using UnityEngine.SceneManagement;
+using Steamworks;
+using TMPro;
 
-// MainMenuManager
-// タイトル画面のボタン管理を行うコード。
 public class MainMenuManager : MonoBehaviour
 {
-    // タイトル画面用のカメラ
-    // HOST時に削除して、Player側カメラへ切り替える
+    [Header("Common")]
     public Camera menuCamera;
 
-    // HOSTボタン
-    // Hostとしてゲームを開始する
+    [Header("Steam Lobby")]
+    [SerializeField] private bool useSteamLobby;
+    [SerializeField] private TMP_InputField lobbyIdInput;
+
     public void Host()
     {
-        // メニュー用カメラを削除
         if (menuCamera != null)
         {
             Destroy(menuCamera.gameObject);
         }
 
-        // Host開始
+        if (useSteamLobby)
+        {
+            SteamLobby.Instance.CreateLobby();
+            return;
+        }
+
         NetworkManager.Singleton.StartHost();
 
-        // GameRoomへ移動
         NetworkManager.Singleton.SceneManager.LoadScene("GameRoom", LoadSceneMode.Single);
     }
 
-    // JOINボタン
-    // Clientとしてゲームへ参加する
     public void Join()
     {
+        if (useSteamLobby)
+        {
+            JoinSteamLobby();
+            return;
+        }
+
         NetworkManager.Singleton.StartClient();
     }
 
-    // QUITボタン
-    // ゲームを終了する
+    private void JoinSteamLobby()
+    {
+        if (lobbyIdInput == null)
+        {
+            Debug.LogError("[MainMenuManager] Lobby ID Input is not assigned.");
+            return;
+        }
+
+        if (!ulong.TryParse(lobbyIdInput.text, out ulong lobbyId))
+        {
+            Debug.LogError($"[MainMenuManager] Invalid Lobby ID: {lobbyIdInput.text}");
+            return;
+        }
+
+        SteamLobby.Instance.JoinLobby(new CSteamID(lobbyId));
+    }
+
     public void Quit()
     {
         Application.Quit();

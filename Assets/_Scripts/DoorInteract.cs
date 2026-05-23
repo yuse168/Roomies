@@ -30,7 +30,7 @@ public class DoorInteract : NetworkBehaviour
     }
 
     // ドア開閉
-    [ServerRpc(RequireOwnership = false)]
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
     public void ToggleDoorServerRpc()
     {
         isOpen.Value = !isOpen.Value;

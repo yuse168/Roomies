@@ -27,8 +27,9 @@ public class DayManager : NetworkBehaviour
         currentDay.OnValueChanged += OnDayChanged;
     }
 
-    private void OnDestroy()
+    public override void OnDestroy()
     {
+        base.OnDestroy();
         currentDay.OnValueChanged -= OnDayChanged;
     }
 
@@ -44,7 +45,7 @@ public class DayManager : NetworkBehaviour
         }
     }
 
-    [ServerRpc(RequireOwnership = false)]
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
     private void NextDayServerRpc()
     {
         // まだ3日以内なら普通に進む
@@ -71,7 +72,7 @@ public class DayManager : NetworkBehaviour
     // 家賃徴収
     private void ChargeRent()
     {
-        PlayerMoney[] players = FindObjectsByType<PlayerMoney>(FindObjectsSortMode.None);
+        PlayerMoney[] players = FindObjectsByType<PlayerMoney>();
 
         foreach (PlayerMoney player in players)
         {
