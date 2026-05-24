@@ -77,6 +77,7 @@ public class PlayerInteract : NetworkBehaviour
     {
         if (interactText == null) return;
 
+        // 持ち中
         if (heldObject != null)
         {
             interactText.gameObject.SetActive(true);
@@ -94,6 +95,7 @@ public class PlayerInteract : NetworkBehaviour
 
         if (Physics.Raycast(ray, out RaycastHit hit, interactDistance))
         {
+            // 持てる物
             CarryableObject carryable = hit.collider.GetComponentInParent<CarryableObject>();
 
             if (carryable != null)
@@ -103,12 +105,23 @@ public class PlayerInteract : NetworkBehaviour
                 return;
             }
 
+            // ドア
             DoorInteract door = hit.collider.GetComponentInParent<DoorInteract>();
 
             if (door != null)
             {
                 interactText.gameObject.SetActive(true);
                 interactText.text = "E 使用";
+                return;
+            }
+
+            // 納品ボタン
+            DeliveryButton deliveryButton = hit.collider.GetComponentInParent<DeliveryButton>();
+
+            if (deliveryButton != null)
+            {
+                interactText.gameObject.SetActive(true);
+                interactText.text = "E 納品";
                 return;
             }
         }
@@ -124,11 +137,25 @@ public class PlayerInteract : NetworkBehaviour
 
         if (Physics.Raycast(ray, out RaycastHit hit, interactDistance))
         {
+            // ドア
             DoorInteract door = hit.collider.GetComponentInParent<DoorInteract>();
 
             if (door != null)
             {
                 door.ToggleDoorServerRpc();
+                return;
+            }
+
+            // 納品ボタン
+            DeliveryButton deliveryButton = hit.collider.GetComponentInParent<DeliveryButton>();
+
+            if (deliveryButton != null)
+            {
+                PlayerEarning playerEarning = GetComponent<PlayerEarning>();
+
+                deliveryButton.PressButton(playerEarning);
+
+                return;
             }
         }
     }
@@ -201,5 +228,12 @@ public class PlayerInteract : NetworkBehaviour
 
         heldObject.DropServerRpc(dropPosition, throwDirection);
         heldObject = null;
+    }
+    //重いもの持った時足遅くなる
+
+    public int GetHeldWeightLevel()
+    {
+        if (heldObject == null) return 0;
+        return heldObject.weightLevel;
     }
 }

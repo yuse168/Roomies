@@ -6,14 +6,17 @@ public class DeliveryButton : NetworkBehaviour
     [Header("納品エリア")]
     [SerializeField] private DeliveryZone deliveryZone;
 
-    [Header("報酬")]
+    [Header("通常報酬")]
     [SerializeField] private int rewardMoney = 100;
 
-    public void PressButton(PlayerMoney playerMoney)
-    {
-        if (playerMoney == null) return;
+    [Header("レア報酬")]
+    [SerializeField] private int rareRewardMoney = 300;
 
-        PressButtonServerRpc(playerMoney.NetworkObjectId);
+    public void PressButton(PlayerEarning playerEarning)
+    {
+        if (playerEarning == null) return;
+
+        PressButtonServerRpc(playerEarning.NetworkObjectId);
     }
 
     [ServerRpc(RequireOwnership = false)]
@@ -31,18 +34,44 @@ public class DeliveryButton : NetworkBehaviour
             return;
         }
 
-        if (NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(playerNetworkObjectId, out NetworkObject playerObj))
-        {
-            PlayerMoney playerMoney = playerObj.GetComponent<PlayerMoney>();
+        int finalReward = rewardMoney;
 
-            if (playerMoney != null)
+        DeliveryItem deliveryItem = deliveryZone.GetCurrentItem();
+
+        Debug.Log("deliveryItem: " + deliveryItem);
+
+        if (deliveryItem != null)
+        {
+            Debug.Log("納品時レア判定: " + deliveryItem.IsRareItem());
+        }
+        else
+        {
+            Debug.Log("DeliveryItem が取得できませんでした");
+        }
+
+        if (deliveryItem != null && deliveryItem.IsRareItem())
+        {
+            finalReward = rareRewardMoney;
+        }
+
+        if (NetworkManager.Singleton.SpawnManager.SpawnedObjects
+            .TryGetValue(playerNetworkObjectId, out NetworkObject playerObj))
+        {
+            PlayerEarning playerEarning = playerObj.GetComponent<PlayerEarning>();
+
+            if (playerEarning != null)
             {
-                playerMoney.AddMoneyServerRpc(rewardMoney);
+                playerEarning.AddEarning(finalReward);
+            }
+
+            if (SharedMoneyManager.Instance != null)
+            {
+                SharedMoneyManager.Instance.AddSharedMoney(finalReward);
             }
         }
 
         deliveryZone.RemoveBox();
 
-        Debug.Log("納品成功 +" + rewardMoney);
+        Debug.Log("納品成功 +" + finalReward);
     }
 }
