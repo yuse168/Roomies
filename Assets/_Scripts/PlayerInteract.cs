@@ -124,6 +124,16 @@ public class PlayerInteract : NetworkBehaviour
                 interactText.text = "E 納品";
                 return;
             }
+
+            // スロット
+            SlotMachine slot = hit.collider.GetComponentInParent<SlotMachine>();
+
+            if (slot != null)
+            {
+                interactText.gameObject.SetActive(true);
+                interactText.text = "E スロット";
+                return;
+            }
         }
 
         interactText.gameObject.SetActive(false);
@@ -155,6 +165,15 @@ public class PlayerInteract : NetworkBehaviour
 
                 deliveryButton.PressButton(playerEarning);
 
+                return;
+            }
+
+            // スロット
+            SlotMachine slot = hit.collider.GetComponentInParent<SlotMachine>();
+
+            if (slot != null)
+            {
+                slot.Interact();
                 return;
             }
         }
@@ -229,11 +248,12 @@ public class PlayerInteract : NetworkBehaviour
         heldObject.DropServerRpc(dropPosition, throwDirection);
         heldObject = null;
     }
-    //重いもの持った時足遅くなる
 
+    // 重いもの持った時足遅くなる
     public int GetHeldWeightLevel()
     {
         if (heldObject == null) return 0;
+
         return heldObject.weightLevel;
     }
 }

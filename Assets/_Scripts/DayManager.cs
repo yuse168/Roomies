@@ -11,8 +11,13 @@ public class DayManager : NetworkBehaviour
     [Header("家賃設定")]
     [SerializeField] private int rentAmount = 500;
 
+    [Header("ターン時間")]
+    [SerializeField] private float turnDuration = 300f;
+
     [Header("UI")]
     [SerializeField] private TextMeshProUGUI dayText;
+
+    [SerializeField] private TextMeshProUGUI timerText;
 
     private NetworkVariable<int> currentDay = new NetworkVariable<int>(
         1,
@@ -20,7 +25,8 @@ public class DayManager : NetworkBehaviour
         NetworkVariableWritePermission.Server
     );
 
-    // 0 = 朝, 1 = 夜
+    // 0 = 朝
+    // 1 = 夜
     private NetworkVariable<int> currentTime = new NetworkVariable<int>(
         0,
         NetworkVariableReadPermission.Everyone,
@@ -33,6 +39,12 @@ public class DayManager : NetworkBehaviour
         NetworkVariableWritePermission.Server
     );
 
+    private NetworkVariable<float> remainingTime = new NetworkVariable<float>(
+        300f,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
+
     private void Start()
     {
         currentDay.OnValueChanged += OnDayChanged;
@@ -40,6 +52,15 @@ public class DayManager : NetworkBehaviour
         isGameOver.OnValueChanged += OnGameOverChanged;
 
         UpdateDayUI();
+        UpdateTimerUI();
+    }
+
+    public override void OnNetworkSpawn()
+    {
+        if (IsServer)
+        {
+            remainingTime.Value = turnDuration;
+        }
     }
 
     private void OnDestroy()
@@ -51,26 +72,46 @@ public class DayManager : NetworkBehaviour
 
     private void Update()
     {
-        if (!IsHost) return;
         if (isGameOver.Value) return;
 
-        if (Keyboard.current != null && Keyboard.current.nKey.wasPressedThisFrame)
+        // 全員UI更新
+        UpdateTimerUI();
+
+        // Nキー進行
+        if (Keyboard.current != null &&
+            Keyboard.current.nKey.wasPressedThisFrame)
         {
-            NextTimeServerRpc();
+            if (IsServer)
+            {
+                NextTime();
+            }
+        }
+
+        // サーバーだけ時間減少
+        if (!IsServer) return;
+
+        remainingTime.Value -= Time.deltaTime;
+
+        if (remainingTime.Value <= 0f)
+        {
+            NextTime();
         }
     }
 
-    [ServerRpc(RequireOwnership = false)]
-    private void NextTimeServerRpc()
+    private void NextTime()
     {
         if (isGameOver.Value) return;
 
+        remainingTime.Value = turnDuration;
+
+        // 朝→夜
         if (currentTime.Value == 0)
         {
             currentTime.Value = 1;
             return;
         }
 
+        // 夜→次の日
         if (currentDay.Value < maxDay)
         {
             currentDay.Value++;
@@ -104,11 +145,14 @@ public class DayManager : NetworkBehaviour
         if (SharedMoneyManager.Instance.CanPay(rentAmount))
         {
             SharedMoneyManager.Instance.PayRent(rentAmount);
+
             Debug.Log("家賃支払い成功");
+
             return true;
         }
 
         Debug.Log("共同口座のお金が足りない！");
+
         return false;
     }
 
@@ -117,6 +161,7 @@ public class DayManager : NetworkBehaviour
         if (!IsServer) return;
 
         isGameOver.Value = true;
+
         Debug.Log("GAME OVER");
     }
 
@@ -133,6 +178,7 @@ public class DayManager : NetworkBehaviour
     private void OnGameOverChanged(bool oldValue, bool newValue)
     {
         UpdateDayUI();
+        UpdateTimerUI();
     }
 
     private void UpdateDayUI()
@@ -145,7 +191,31 @@ public class DayManager : NetworkBehaviour
             return;
         }
 
-        string timeText = currentTime.Value == 0 ? "朝" : "夜";
-        dayText.text = "DAY " + currentDay.Value + " " + timeText;
+        string timeText =
+            currentTime.Value == 0 ? "朝" : "夜";
+
+        dayText.text =
+            "DAY " + currentDay.Value + " " + timeText;
+    }
+
+    private void UpdateTimerUI()
+    {
+        if (timerText == null) return;
+
+        if (isGameOver.Value)
+        {
+            timerText.text = "";
+            return;
+        }
+
+        int totalSeconds =
+            Mathf.CeilToInt(remainingTime.Value);
+
+        int minutes = totalSeconds / 60;
+        int seconds = totalSeconds % 60;
+
+        timerText.text =
+            minutes.ToString("00") + ":" +
+            seconds.ToString("00");
     }
 }

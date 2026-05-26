@@ -84,6 +84,15 @@ public class DeliveryZone : NetworkBehaviour
         SpawnNewBox();
     }
 
+    public void RespawnBox()
+    {
+        if (!IsServer) return;
+
+        CurrentBox = null;
+
+        SpawnNewBox();
+    }
+
     private void SpawnNewBox()
     {
         if (deliveryBoxPrefab == null)
@@ -115,6 +124,8 @@ public class DeliveryZone : NetworkBehaviour
 
         if (deliveryItem != null)
         {
+            deliveryItem.SetOwnerZone(this);
+
             bool isRare =
                 Random.Range(0, 100) < rarePercent;
 

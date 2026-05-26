@@ -16,6 +16,13 @@ public class DeliveryItem : NetworkBehaviour
     private NetworkVariable<bool> isRareItem = new NetworkVariable<bool>(false);
     private bool isBroken = false;
 
+    private DeliveryZone ownerZone;
+
+    public void SetOwnerZone(DeliveryZone zone)
+    {
+        ownerZone = zone;
+    }
+
     public override void OnNetworkSpawn()
     {
         isRareItem.OnValueChanged += OnRareChanged;
@@ -49,26 +56,14 @@ public class DeliveryItem : NetworkBehaviour
 
     private void UpdateVisual(bool rare)
     {
-        Debug.Log("見た目更新 rare = " + rare);
-
-        if (normalVisual == null)
-        {
-            Debug.LogError("normalVisual が設定されていません");
-        }
-        else
+        if (normalVisual != null)
         {
             normalVisual.SetActive(!rare);
-            Debug.Log("normalVisual: " + normalVisual.name + " / active = " + normalVisual.activeSelf);
         }
 
-        if (rareVisual == null)
-        {
-            Debug.LogError("rareVisual が設定されていません");
-        }
-        else
+        if (rareVisual != null)
         {
             rareVisual.SetActive(rare);
-            Debug.Log("rareVisual: " + rareVisual.name + " / active = " + rareVisual.activeSelf);
         }
     }
 
@@ -88,6 +83,11 @@ public class DeliveryItem : NetworkBehaviour
         }
 
         Debug.Log("レアアイテムが壊れた -¥" + penaltyMoney);
+
+        if (ownerZone != null)
+        {
+            ownerZone.RespawnBox();
+        }
 
         NetworkObject.Despawn(true);
     }
