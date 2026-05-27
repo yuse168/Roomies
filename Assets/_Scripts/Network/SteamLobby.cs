@@ -161,9 +161,48 @@ public class SteamLobby : MonoBehaviour
         NetworkManager.Singleton.NetworkConfig.ConnectionApproval = true;
         NetworkManager.Singleton.ConnectionApprovalCallback = ApprovalCheck;
 
+        // ホスト開始をコルーチンに変更して、Steamリレーネットワークの準備完了を待つ
+        StartCoroutine(StartHostRoutine());
+    }
+
+    private IEnumerator StartHostRoutine()
+    {
+        // Steamリレーの準備完了を最大10秒待つ
+        float elapsed = 0f;
+        const float relayTimeout = 10f;
+
+        while (elapsed < relayTimeout)
+        {
+            SteamRelayNetworkStatus_t status;
+            ESteamNetworkingAvailability avail =
+                SteamNetworkingUtils.GetRelayNetworkStatus(out status);
+
+            if (avail == ESteamNetworkingAvailability.k_ESteamNetworkingAvailability_Current)
+            {
+                Debug.Log("[SteamLobby] ホスト側Steamリレー準備完了");
+                break;
+            }
+
+            if (avail == ESteamNetworkingAvailability.k_ESteamNetworkingAvailability_Failed)
+            {
+                Debug.LogWarning("[SteamLobby] ホスト側Steamリレー初期化失敗 — 直接バインドで試みます");
+                break;
+            }
+
+            Debug.Log("[SteamLobby] ホスト側Steamリレー待機中... " + avail);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        var networkManager = NetworkManager.Singleton;
+        if (networkManager == null || !networkManager.isActiveAndEnabled)
+        {
+            SetOperationInProgress(false);
+            yield break;
+        }
+
         // ホスト開始
-        bool started =
-            NetworkManager.Singleton.StartHost();
+        bool started = networkManager.StartHost();
 
         Debug.Log(
             "[SteamLobby] StartHost: " +
@@ -173,11 +212,11 @@ public class SteamLobby : MonoBehaviour
         if (!started)
         {
             SetOperationInProgress(false);
-            return;
+            yield break;
         }
 
         // シーン移動
-        NetworkManager.Singleton.SceneManager.LoadScene(
+        networkManager.SceneManager.LoadScene(
             gameSceneName,
             LoadSceneMode.Single
         );
@@ -557,6 +596,9 @@ public class SteamLobby : MonoBehaviour
             "[SteamLobby] 検索コード: " +
             targetCode
         );
+
+        // 検索範囲を全世界（Worldwide）に設定して、遠方のプレイヤーも検索可能にする
+        SteamMatchmaking.AddRequestLobbyListDistanceFilter(ELobbyDistanceFilter.k_ELobbyDistanceFilterWorldwide);
 
         // 修正版
         SteamMatchmaking.AddRequestLobbyListStringFilter(
