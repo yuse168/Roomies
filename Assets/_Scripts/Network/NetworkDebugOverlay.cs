@@ -3,6 +3,7 @@ using System.Text;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Steamworks;
 
 public class NetworkDebugOverlay : MonoBehaviour
 {
@@ -94,6 +95,7 @@ public class NetworkDebugOverlay : MonoBehaviour
         statusBuilder.AppendLine($"Mode: {GetMode(networkManager)}");
         statusBuilder.AppendLine($"LocalClientId: {networkManager.LocalClientId}");
         statusBuilder.AppendLine($"ConnectedClients: {networkManager.ConnectedClientsIds.Count}");
+        AppendSteamStatus();
 
         if (networkManager.LocalClient != null)
         {
@@ -104,6 +106,22 @@ public class NetworkDebugOverlay : MonoBehaviour
         }
 
         GUILayout.Label(statusBuilder.ToString());
+    }
+
+    private void AppendSteamStatus()
+    {
+        if (!SteamManager.Initialized)
+        {
+            statusBuilder.AppendLine("Steam: not initialized");
+            return;
+        }
+
+        string personaName = SteamLobby.Instance != null
+            ? SteamLobby.Instance.LocalPersonaName
+            : SteamFriends.GetPersonaName();
+
+        statusBuilder.AppendLine($"SteamName: {personaName}");
+        statusBuilder.AppendLine($"SteamID: {SteamUser.GetSteamID()}");
     }
 
     private static string GetMode(NetworkManager networkManager)
