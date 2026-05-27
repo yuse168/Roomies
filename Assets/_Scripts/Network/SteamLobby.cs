@@ -319,10 +319,23 @@ public class SteamLobby : MonoBehaviour
             return;
         }
 
+        networkManager.OnClientConnectedCallback -=
+            OnClientConnected;
+        networkManager.OnClientConnectedCallback +=
+            OnClientConnected;
+
         networkManager.OnClientDisconnectCallback -=
             OnClientDisconnect;
         networkManager.OnClientDisconnectCallback +=
             OnClientDisconnect;
+    }
+
+    private void OnClientConnected(ulong clientId)
+    {
+        Debug.Log(
+            "[SteamLobby] クライアント接続成功 ClientID: " +
+            clientId
+        );
     }
 
     /// <summary>
@@ -333,27 +346,37 @@ public class SteamLobby : MonoBehaviour
         NetworkManager.ConnectionApprovalResponse response
     )
     {
+        int currentCount =
+            NetworkManager.Singleton.ConnectedClients.Count;
+
+        Debug.Log(
+            "[SteamLobby] ApprovalCheck: 現在の接続数=" +
+            currentCount + " / 最大=" + maxMembers
+        );
+
         response.Pending = true;
 
-        // 最大人数
-        if (NetworkManager.Singleton.ConnectedClients.Count
-            >= maxMembers)
+        if (currentCount >= maxMembers)
         {
+            Debug.LogWarning(
+                "[SteamLobby] ApprovalCheck: 満員のため拒否"
+            );
             response.Approved = false;
             response.Pending = false;
             return;
         }
 
         response.Approved = true;
-
         response.CreatePlayerObject = true;
-
         response.PlayerPrefabHash = null;
-
         response.Position = null;
         response.Rotation = null;
-
         response.Pending = false;
+
+        Debug.Log(
+            "[SteamLobby] ApprovalCheck: 承認 ClientID=" +
+            request.ClientNetworkId
+        );
     }
 
     /// <summary>
@@ -363,6 +386,17 @@ public class SteamLobby : MonoBehaviour
         ulong clientId
     )
     {
+        string reason =
+            NetworkManager.Singleton.DisconnectReason;
+
+        Debug.LogWarning(
+            "[SteamLobby] クライアント切断 ClientID=" +
+            clientId + " 理由=" +
+            (string.IsNullOrEmpty(reason) ? "(なし)" : reason)
+        );
+
+        NetworkManager.Singleton.OnClientConnectedCallback -=
+            OnClientConnected;
         NetworkManager.Singleton.OnClientDisconnectCallback -=
             OnClientDisconnect;
 
