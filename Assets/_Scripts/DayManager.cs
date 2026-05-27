@@ -11,8 +11,13 @@ public class DayManager : NetworkBehaviour
     [Header("家賃設定")]
     [SerializeField] private int rentAmount = 500;
 
+    [Header("ターン時間")]
+    [SerializeField] private float turnDuration = 300f;
+
     [Header("UI")]
     [SerializeField] private TextMeshProUGUI dayText;
+
+    [SerializeField] private TextMeshProUGUI timerText;
 
     private NetworkVariable<int> currentDay = new NetworkVariable<int>(
         1,
@@ -20,85 +25,199 @@ public class DayManager : NetworkBehaviour
         NetworkVariableWritePermission.Server
     );
 
+    // 0 = 朝
+    // 1 = 夜
+    private NetworkVariable<int> currentTime = new NetworkVariable<int>(
+        0,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
+
+    private NetworkVariable<bool> isGameOver = new NetworkVariable<bool>(
+        false,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
+
+    private NetworkVariable<float> remainingTime = new NetworkVariable<float>(
+        300f,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
+
     private void Start()
     {
-        UpdateDayUI(currentDay.Value);
-
         currentDay.OnValueChanged += OnDayChanged;
+        currentTime.OnValueChanged += OnTimeChanged;
+        isGameOver.OnValueChanged += OnGameOverChanged;
+
+        UpdateDayUI();
+        UpdateTimerUI();
+    }
+
+    public override void OnNetworkSpawn()
+    {
+        if (IsServer)
+        {
+            remainingTime.Value = turnDuration;
+        }
     }
 
     public override void OnDestroy()
     {
         base.OnDestroy();
         currentDay.OnValueChanged -= OnDayChanged;
+        currentTime.OnValueChanged -= OnTimeChanged;
+        isGameOver.OnValueChanged -= OnGameOverChanged;
     }
 
     private void Update()
     {
-        if (!IsHost) return;
+        if (isGameOver.Value) return;
 
-        // テスト用
-        // Nキーで次の日へ
-        if (Keyboard.current != null && Keyboard.current.nKey.wasPressedThisFrame)
+        // 全員UI更新
+        UpdateTimerUI();
+
+        // Nキー進行
+        if (Keyboard.current != null &&
+            Keyboard.current.nKey.wasPressedThisFrame)
         {
-            NextDayServerRpc();
+            if (IsServer)
+            {
+                NextTime();
+            }
+        }
+
+        // サーバーだけ時間減少
+        if (!IsServer) return;
+
+        remainingTime.Value -= Time.deltaTime;
+
+        if (remainingTime.Value <= 0f)
+        {
+            NextTime();
         }
     }
 
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
     private void NextDayServerRpc()
     {
-        // まだ3日以内なら普通に進む
+        if (isGameOver.Value) return;
+
+        remainingTime.Value = turnDuration;
+
+        // 朝→夜
+        if (currentTime.Value == 0)
+        {
+            currentTime.Value = 1;
+            return;
+        }
+
+        // 夜→次の日
         if (currentDay.Value < maxDay)
         {
             currentDay.Value++;
-
-            Debug.Log("DAY " + currentDay.Value);
+            currentTime.Value = 0;
         }
         else
         {
-            // 3日終了時
-            Debug.Log("3日終了！");
+            bool rentPaid = ChargeRent();
 
-            ChargeRent();
+            if (!rentPaid)
+            {
+                GameOver();
+                return;
+            }
 
-            // 次のサイクルへ戻す
             currentDay.Value = 1;
-
-            Debug.Log("新しい3日サイクル開始");
+            currentTime.Value = 0;
         }
     }
 
-    // 家賃徴収
-    private void ChargeRent()
+    private bool ChargeRent()
     {
         PlayerMoney[] players = FindObjectsByType<PlayerMoney>();
 
-        foreach (PlayerMoney player in players)
+        if (SharedMoneyManager.Instance == null)
         {
-            // 支払える場合
-            if (player.CanPay(rentAmount))
-            {
-                player.PayRent(rentAmount);
-
-                Debug.Log("家賃支払い成功");
-            }
-            else
-            {
-                Debug.Log("家賃が払えない！");
-            }
+            Debug.Log("SharedMoneyManagerがありません");
+            return false;
         }
+
+        if (SharedMoneyManager.Instance.CanPay(rentAmount))
+        {
+            SharedMoneyManager.Instance.PayRent(rentAmount);
+
+            Debug.Log("家賃支払い成功");
+
+            return true;
+        }
+
+        Debug.Log("共同口座のお金が足りない！");
+
+        return false;
+    }
+
+    private void GameOver()
+    {
+        if (!IsServer) return;
+
+        isGameOver.Value = true;
+
+        Debug.Log("GAME OVER");
     }
 
     private void OnDayChanged(int oldDay, int newDay)
     {
-        UpdateDayUI(newDay);
+        UpdateDayUI();
     }
 
-    private void UpdateDayUI(int day)
+    private void OnTimeChanged(int oldTime, int newTime)
+    {
+        UpdateDayUI();
+    }
+
+    private void OnGameOverChanged(bool oldValue, bool newValue)
+    {
+        UpdateDayUI();
+        UpdateTimerUI();
+    }
+
+    private void UpdateDayUI()
     {
         if (dayText == null) return;
 
-        dayText.text = "DAY " + day;
+        if (isGameOver.Value)
+        {
+            dayText.text = "GAME OVER";
+            return;
+        }
+
+        string timeText =
+            currentTime.Value == 0 ? "朝" : "夜";
+
+        dayText.text =
+            "DAY " + currentDay.Value + " " + timeText;
+    }
+
+    private void UpdateTimerUI()
+    {
+        if (timerText == null) return;
+
+        if (isGameOver.Value)
+        {
+            timerText.text = "";
+            return;
+        }
+
+        int totalSeconds =
+            Mathf.CeilToInt(remainingTime.Value);
+
+        int minutes = totalSeconds / 60;
+        int seconds = totalSeconds % 60;
+
+        timerText.text =
+            minutes.ToString("00") + ":" +
+            seconds.ToString("00");
     }
 }
