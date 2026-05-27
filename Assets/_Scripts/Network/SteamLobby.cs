@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Text;
 using Netcode.Transports;
 using Steamworks;
 using Unity.Netcode;
@@ -24,11 +25,16 @@ public class SteamLobby : MonoBehaviour
     // ロビー検索コールバック
     private CallResult<LobbyMatchList_t> m_crLobbyMatchList;
 
+    // ロビーチャットコールバック
+    private Callback<LobbyChatMsg_t> m_lobbyChatMessage;
+
     // ロビーデータキー
     private const string s_HostAddressKey = "HostAddress";
+    private const int s_LobbyChatMessageMaxBytes = 4096;
 
     public ulong LobbyID { get; private set; }
     public string LobbyCode { get; private set; }
+    public string LocalPersonaName { get; private set; }
     public bool IsBusy => operationInProgress ||
         (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening);
     public event Action<bool> BusyStateChanged;
@@ -48,6 +54,19 @@ public class SteamLobby : MonoBehaviour
 
             return instance;
         }
+    }
+
+    private void Awake()
+    {
+        if (instance != null && instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        instance = this;
+        transform.SetParent(null);
+        DontDestroyOnLoad(gameObject);
     }
 
     private void Start()
@@ -70,12 +89,18 @@ public class SteamLobby : MonoBehaviour
         m_crLobbyMatchList =
             CallResult<LobbyMatchList_t>.Create(OnLobbyMatchList);
 
+        m_lobbyChatMessage =
+            Callback<LobbyChatMsg_t>.Create(OnLobbyChatMessage);
+
         // Steamリレーネットワークを起動（ファイアウォール環境での接続に必要）
         SteamNetworkingUtils.InitRelayNetworkAccess();
 
+        LocalPersonaName = SteamFriends.GetPersonaName();
+
         Debug.Log(
             "[SteamLobby] Steam初期化成功: " +
-            SteamUser.GetSteamID()
+            LocalPersonaName + " (" +
+            SteamUser.GetSteamID() + ")"
         );
     }
 
@@ -322,6 +347,10 @@ public class SteamLobby : MonoBehaviour
         Debug.Log(
             "[SteamLobby] 部屋コード取得: " +
             LobbyCode
+        );
+
+        SendLobbyChatMessage(
+            "Join request from " + GetLocalPersonaName()
         );
 
         // Transport取得
@@ -652,6 +681,74 @@ public class SteamLobby : MonoBehaviour
         );
 
         JoinLobby(lobbyID, true);
+    }
+
+    private void SendLobbyChatMessage(string message)
+    {
+        if (LobbyID == 0 || string.IsNullOrWhiteSpace(message))
+        {
+            return;
+        }
+
+        byte[] messageBytes = Encoding.UTF8.GetBytes(message + "\0");
+        bool sent = SteamMatchmaking.SendLobbyChatMsg(
+            new CSteamID(LobbyID),
+            messageBytes,
+            messageBytes.Length
+        );
+
+        Debug.Log(
+            "[SteamLobby] ロビーチャット送信: " +
+            sent + " / " + message
+        );
+    }
+
+    private void OnLobbyChatMessage(LobbyChatMsg_t callback)
+    {
+        if (callback.m_ulSteamIDLobby != LobbyID)
+        {
+            return;
+        }
+
+        byte[] buffer = new byte[s_LobbyChatMessageMaxBytes];
+        int messageLength = SteamMatchmaking.GetLobbyChatEntry(
+            new CSteamID(callback.m_ulSteamIDLobby),
+            (int)callback.m_iChatID,
+            out CSteamID sender,
+            buffer,
+            buffer.Length,
+            out EChatEntryType chatEntryType
+        );
+
+        if (messageLength <= 0)
+        {
+            return;
+        }
+
+        string senderName = SteamFriends.GetFriendPersonaName(sender);
+        if (string.IsNullOrWhiteSpace(senderName))
+        {
+            senderName = sender.m_SteamID.ToString();
+        }
+
+        string message = Encoding.UTF8.GetString(buffer, 0, messageLength)
+            .TrimEnd('\0');
+        Debug.Log(
+            "[SteamLobby] ロビーチャット受信 (" +
+            chatEntryType + ") " + senderName + ": " + message
+        );
+    }
+
+    private string GetLocalPersonaName()
+    {
+        if (string.IsNullOrWhiteSpace(LocalPersonaName))
+        {
+            LocalPersonaName = SteamFriends.GetPersonaName();
+        }
+
+        return string.IsNullOrWhiteSpace(LocalPersonaName)
+            ? SteamUser.GetSteamID().ToString()
+            : LocalPersonaName;
     }
 
     private void SetOperationInProgress(bool value)
