@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using Netcode.Transports;
 using Steamworks;
 using Unity.Netcode;
@@ -68,6 +69,9 @@ public class SteamLobby : MonoBehaviour
 
         m_crLobbyMatchList =
             CallResult<LobbyMatchList_t>.Create(OnLobbyMatchList);
+
+        // Steamリレーネットワークを起動（ファイアウォール環境での接続に必要）
+        SteamNetworkingUtils.InitRelayNetworkAccess();
 
         Debug.Log(
             "[SteamLobby] Steam初期化成功: " +
@@ -304,19 +308,52 @@ public class SteamLobby : MonoBehaviour
         transport.ConnectToSteamID =
             ulong.Parse(hostAddress);
 
-        // クライアント接続
-        bool result =
-            networkManager.StartClient();
+        StartCoroutine(StartClientAfterRelayReady(networkManager));
+    }
 
-        Debug.Log(
-            "[SteamLobby] StartClient: " +
-            result
-        );
+    private IEnumerator StartClientAfterRelayReady(NetworkManager networkManager)
+    {
+        // Steamリレーの準備完了を最大10秒待つ
+        float elapsed = 0f;
+        const float relayTimeout = 10f;
+
+        while (elapsed < relayTimeout)
+        {
+            SteamRelayNetworkStatus_t status;
+            ESteamNetworkingAvailability avail =
+                SteamNetworkingUtils.GetRelayNetworkStatus(out status);
+
+            if (avail == ESteamNetworkingAvailability.k_ESteamNetworkingAvailability_Current)
+            {
+                Debug.Log("[SteamLobby] Steamリレー準備完了");
+                break;
+            }
+
+            if (avail == ESteamNetworkingAvailability.k_ESteamNetworkingAvailability_Failed)
+            {
+                Debug.LogWarning("[SteamLobby] Steamリレー初期化失敗 — 直接接続で試みます");
+                break;
+            }
+
+            Debug.Log("[SteamLobby] Steamリレー待機中... " + avail);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        if (networkManager == null || !networkManager.isActiveAndEnabled)
+        {
+            SetOperationInProgress(false);
+            yield break;
+        }
+
+        bool result = networkManager.StartClient();
+
+        Debug.Log("[SteamLobby] StartClient: " + result);
 
         if (!result)
         {
             SetOperationInProgress(false);
-            return;
+            yield break;
         }
 
         networkManager.OnClientConnectedCallback -=
@@ -328,6 +365,8 @@ public class SteamLobby : MonoBehaviour
             OnClientDisconnect;
         networkManager.OnClientDisconnectCallback +=
             OnClientDisconnect;
+
+        StartCoroutine(ConnectionTimeout(30f));
     }
 
     private void OnClientConnected(ulong clientId)
@@ -336,6 +375,31 @@ public class SteamLobby : MonoBehaviour
             "[SteamLobby] クライアント接続成功 ClientID: " +
             clientId
         );
+
+        StopAllCoroutines();
+    }
+
+    private IEnumerator ConnectionTimeout(float seconds)
+    {
+        yield return new WaitForSeconds(seconds);
+
+        if (NetworkManager.Singleton != null &&
+            NetworkManager.Singleton.IsClient &&
+            !NetworkManager.Singleton.IsConnectedClient)
+        {
+            Debug.LogError(
+                "[SteamLobby] 接続タイムアウト (" + seconds + "秒) — ホストに到達できませんでした"
+            );
+
+            NetworkManager.Singleton.OnClientConnectedCallback -=
+                OnClientConnected;
+            NetworkManager.Singleton.OnClientDisconnectCallback -=
+                OnClientDisconnect;
+
+            NetworkManager.Singleton.Shutdown();
+            SetOperationInProgress(false);
+            SceneManager.LoadScene(menuSceneName);
+        }
     }
 
     /// <summary>
