@@ -16,7 +16,6 @@ public class DayManager : NetworkBehaviour
 
     [Header("UI")]
     [SerializeField] private TextMeshProUGUI dayText;
-
     [SerializeField] private TextMeshProUGUI timerText;
 
     private NetworkVariable<int> currentDay = new NetworkVariable<int>(
@@ -66,6 +65,7 @@ public class DayManager : NetworkBehaviour
     public override void OnDestroy()
     {
         base.OnDestroy();
+
         currentDay.OnValueChanged -= OnDayChanged;
         currentTime.OnValueChanged -= OnTimeChanged;
         isGameOver.OnValueChanged -= OnGameOverChanged;
@@ -75,27 +75,28 @@ public class DayManager : NetworkBehaviour
     {
         if (isGameOver.Value) return;
 
-        // 全員UI更新
         UpdateTimerUI();
 
-        // Nキー進行
         if (Keyboard.current != null &&
             Keyboard.current.nKey.wasPressedThisFrame)
         {
             if (IsServer)
             {
-                NextTime();
+                NextDayServerRpc();
+            }
+            else
+            {
+                NextDayServerRpc();
             }
         }
 
-        // サーバーだけ時間減少
         if (!IsServer) return;
 
         remainingTime.Value -= Time.deltaTime;
 
         if (remainingTime.Value <= 0f)
         {
-            NextTime();
+            NextDayServerRpc();
         }
     }
 
@@ -106,14 +107,12 @@ public class DayManager : NetworkBehaviour
 
         remainingTime.Value = turnDuration;
 
-        // 朝→夜
         if (currentTime.Value == 0)
         {
             currentTime.Value = 1;
             return;
         }
 
-        // 夜→次の日
         if (currentDay.Value < maxDay)
         {
             currentDay.Value++;
@@ -136,8 +135,6 @@ public class DayManager : NetworkBehaviour
 
     private bool ChargeRent()
     {
-        PlayerMoney[] players = FindObjectsByType<PlayerMoney>();
-
         if (SharedMoneyManager.Instance == null)
         {
             Debug.Log("SharedMoneyManagerがありません");
@@ -193,11 +190,9 @@ public class DayManager : NetworkBehaviour
             return;
         }
 
-        string timeText =
-            currentTime.Value == 0 ? "朝" : "夜";
+        string timeText = currentTime.Value == 0 ? "朝" : "夜";
 
-        dayText.text =
-            "DAY " + currentDay.Value + " " + timeText;
+        dayText.text = "DAY " + currentDay.Value + " " + timeText;
     }
 
     private void UpdateTimerUI()
@@ -210,8 +205,7 @@ public class DayManager : NetworkBehaviour
             return;
         }
 
-        int totalSeconds =
-            Mathf.CeilToInt(remainingTime.Value);
+        int totalSeconds = Mathf.CeilToInt(remainingTime.Value);
 
         int minutes = totalSeconds / 60;
         int seconds = totalSeconds % 60;
