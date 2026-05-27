@@ -38,7 +38,7 @@ public class CarryableObject : NetworkBehaviour
         if (objectCollider == null) objectCollider = GetComponent<Collider>();
     }
 
-    [ServerRpc(RequireOwnership = false)]
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
     public void PickupServerRpc(ulong clientId, ulong playerNetworkObjectId)
     {
         if (isHeld.Value) return;
@@ -68,8 +68,8 @@ public class CarryableObject : NetworkBehaviour
         IgnoreHolderCollision(true);
     }
 
-    [ServerRpc(RequireOwnership = false)]
-    public void UpdateHeldPositionServerRpc(Vector3 position, Quaternion rotation, ServerRpcParams rpcParams = default)
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    public void UpdateHeldPositionServerRpc(Vector3 position, Quaternion rotation, RpcParams rpcParams = default)
     {
         if (!isHeld.Value) return;
         if (rpcParams.Receive.SenderClientId != holderClientId.Value) return;
@@ -78,8 +78,8 @@ public class CarryableObject : NetworkBehaviour
         transform.rotation = rotation;
     }
 
-    [ServerRpc(RequireOwnership = false)]
-    public void DropServerRpc(Vector3 dropPosition, Vector3 throwDirection, ServerRpcParams rpcParams = default)
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    public void DropServerRpc(Vector3 dropPosition, Vector3 throwDirection, RpcParams rpcParams = default)
     {
         if (!isHeld.Value) return;
         if (rpcParams.Receive.SenderClientId != holderClientId.Value) return;

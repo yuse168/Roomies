@@ -63,8 +63,9 @@ public class DayManager : NetworkBehaviour
         }
     }
 
-    private void OnDestroy()
+    public override void OnDestroy()
     {
+        base.OnDestroy();
         currentDay.OnValueChanged -= OnDayChanged;
         currentTime.OnValueChanged -= OnTimeChanged;
         isGameOver.OnValueChanged -= OnGameOverChanged;
@@ -98,7 +99,8 @@ public class DayManager : NetworkBehaviour
         }
     }
 
-    private void NextTime()
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    private void NextDayServerRpc()
     {
         if (isGameOver.Value) return;
 
@@ -134,7 +136,7 @@ public class DayManager : NetworkBehaviour
 
     private bool ChargeRent()
     {
-        if (!IsServer) return false;
+        PlayerMoney[] players = FindObjectsByType<PlayerMoney>();
 
         if (SharedMoneyManager.Instance == null)
         {

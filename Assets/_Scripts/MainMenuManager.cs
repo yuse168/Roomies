@@ -1,41 +1,77 @@
 using UnityEngine;
 using Unity.Netcode;
 using UnityEngine.SceneManagement;
+using Steamworks;
+using TMPro;
 
-// MainMenuManager
-// ƒ^ƒCƒgƒ‹‰æ–Ê‚Ìƒ{ƒ^ƒ“ŠÇ—‚ğs‚¤ƒR[ƒhB
 public class MainMenuManager : MonoBehaviour
 {
-    // ƒ^ƒCƒgƒ‹‰æ–Ê—p‚ÌƒJƒƒ‰
-    // HOST‚Éíœ‚µ‚ÄAPlayer‘¤ƒJƒƒ‰‚ÖØ‚è‘Ö‚¦‚é
+    [Header("Common")]
     public Camera menuCamera;
 
-    // HOSTƒ{ƒ^ƒ“
-    // Host‚Æ‚µ‚ÄƒQ[ƒ€‚ğŠJn‚·‚é
+    [Header("Steam Lobby")]
+    [SerializeField] private bool useSteamLobby;
+    [SerializeField] private TMP_InputField lobbyIdInput;
+
     public void Host()
     {
-        // ƒƒjƒ…[—pƒJƒƒ‰‚ğíœ
         if (menuCamera != null)
         {
             Destroy(menuCamera.gameObject);
         }
 
-        // HostŠJn
+        if (useSteamLobby)
+        {
+            SteamLobby.Instance.CreateLobby();
+            return;
+        }
+
         NetworkManager.Singleton.StartHost();
 
-        // GameRoom‚ÖˆÚ“®
         NetworkManager.Singleton.SceneManager.LoadScene("GameRoom", LoadSceneMode.Single);
     }
 
-    // JOINƒ{ƒ^ƒ“
-    // Client‚Æ‚µ‚ÄƒQ[ƒ€‚ÖQ‰Á‚·‚é
     public void Join()
     {
+        if (useSteamLobby)
+        {
+            JoinSteamLobby();
+            return;
+        }
+
         NetworkManager.Singleton.StartClient();
     }
 
-    // QUITƒ{ƒ^ƒ“
-    // ƒQ[ƒ€‚ğI—¹‚·‚é
+    private void JoinSteamLobby()
+    {
+        if (lobbyIdInput == null)
+        {
+            Debug.LogError("[MainMenuManager] Lobby ID Input is not assigned.");
+            return;
+        }
+
+        string inputText = lobbyIdInput.text.Trim();
+
+        if (string.IsNullOrWhiteSpace(inputText))
+        {
+            Debug.LogError("[MainMenuManager] Lobby ID/Code input is empty.");
+            return;
+        }
+
+        //18æ¡ã®ulongå€¤ï¼ˆLobbyIDï¼‰ã¨ã—ã¦ãƒ‘ãƒ¼ã‚¹å¯èƒ½ãªå ´åˆã¯å¾“æ¥é€šã‚Šã®ç›´æ¥æ¥ç¶šã‚’è¡Œã†ï¼ˆãƒ‡ãƒãƒƒã‚°ç”¨ï¼‰
+        if (ulong.TryParse(inputText, out ulong lobbyId) && inputText.Length >= 10)
+        {
+            Debug.Log($"[MainMenuManager] Parsing input as raw LobbyID: {lobbyId}");
+            SteamLobby.Instance.JoinLobby(new CSteamID(lobbyId));
+        }
+        else
+        {
+            //ãã‚Œä»¥å¤–ï¼ˆ5æ¡ã®è‹±æ•°å­—ç­‰ï¼‰ã®å ´åˆã¯éƒ¨å±‹ã‚³ãƒ¼ãƒ‰ã«ã‚ˆã‚‹æ¤œç´¢æ¥ç¶šã‚’è¡Œã†
+            Debug.Log($"[MainMenuManager] Parsing input as Room Code: {inputText}");
+            SteamLobby.Instance.JoinLobbyWithCode(inputText);
+        }
+    }
+
     public void Quit()
     {
         Application.Quit();
