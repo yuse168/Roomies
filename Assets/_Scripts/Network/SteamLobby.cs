@@ -294,25 +294,28 @@ public class SteamLobby : MonoBehaviour
             return;
         }
 
-        if (networkManager.IsListening)
-        {
-            Debug.LogWarning("[SteamLobby] StartClient skipped because NetworkManager is already listening.");
-            SetOperationInProgress(false);
-            return;
-        }
-
-        var transport =
-            (SteamNetworkingSocketsTransport)
-            networkManager.NetworkConfig.NetworkTransport;
-
-        transport.ConnectToSteamID =
-            ulong.Parse(hostAddress);
-
-        StartCoroutine(StartClientAfterRelayReady(networkManager));
+        StartCoroutine(StartClientRoutine(hostAddress));
     }
 
-    private IEnumerator StartClientAfterRelayReady(NetworkManager networkManager)
+    private IEnumerator StartClientRoutine(string hostAddress)
     {
+        var networkManager = NetworkManager.Singleton;
+        if (networkManager == null)
+        {
+            SetOperationInProgress(false);
+            yield break;
+        }
+
+        if (networkManager.IsListening)
+        {
+            Debug.Log("[SteamLobby] IsListening Before: True");
+            Debug.LogWarning("[SteamLobby] NetworkManager is already listening. Shutting down first...");
+            networkManager.Shutdown();
+
+            // Shutdown完了を待つために0.2秒待機
+            yield return new WaitForSeconds(0.2f);
+        }
+
         // Steamリレーの準備完了を最大10秒待つ
         float elapsed = 0f;
         const float relayTimeout = 10f;
@@ -346,25 +349,39 @@ public class SteamLobby : MonoBehaviour
             yield break;
         }
 
+        var transport =
+            (SteamNetworkingSocketsTransport)
+            networkManager.NetworkConfig.NetworkTransport;
+
+        if (transport == null)
+        {
+            Debug.LogError("[SteamLobby] Transportがありません");
+            SetOperationInProgress(false);
+            yield break;
+        }
+
+        transport.ConnectToSteamID = ulong.Parse(hostAddress);
+
+        // 重複登録を避けるため、一度-=してから+=する
+        networkManager.OnClientConnectedCallback -= OnClientConnected;
+        networkManager.OnClientConnectedCallback += OnClientConnected;
+
+        networkManager.OnClientDisconnectCallback -= OnClientDisconnect;
+        networkManager.OnClientDisconnectCallback += OnClientDisconnect;
+
         bool result = networkManager.StartClient();
 
         Debug.Log("[SteamLobby] StartClient: " + result);
 
         if (!result)
         {
+            Debug.LogError("[SteamLobby] StartClientに失敗しました");
             SetOperationInProgress(false);
+
+            networkManager.OnClientConnectedCallback -= OnClientConnected;
+            networkManager.OnClientDisconnectCallback -= OnClientDisconnect;
             yield break;
         }
-
-        networkManager.OnClientConnectedCallback -=
-            OnClientConnected;
-        networkManager.OnClientConnectedCallback +=
-            OnClientConnected;
-
-        networkManager.OnClientDisconnectCallback -=
-            OnClientDisconnect;
-        networkManager.OnClientDisconnectCallback +=
-            OnClientDisconnect;
 
         StartCoroutine(ConnectionTimeout(30f));
     }
@@ -464,7 +481,19 @@ public class SteamLobby : MonoBehaviour
         NetworkManager.Singleton.OnClientDisconnectCallback -=
             OnClientDisconnect;
 
-        NetworkManager.Singleton.Shutdown();
+        StartCoroutine(ShutdownRoutine());
+    }
+
+    private IEnumerator ShutdownRoutine()
+    {
+        var networkManager = NetworkManager.Singleton;
+        if (networkManager != null)
+        {
+            networkManager.Shutdown();
+            
+            // Shutdown完了を待つために0.2秒待機
+            yield return new WaitForSeconds(0.2f);
+        }
 
         SetOperationInProgress(false);
 
