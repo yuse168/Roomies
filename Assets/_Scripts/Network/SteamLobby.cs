@@ -12,30 +12,24 @@ public class SteamLobby : MonoBehaviour
     [SerializeField] private string menuSceneName = "MainMenuSteam";
     [SerializeField] private int maxMembers = 4;
 
-    // ロビー作成コールバック
     private CallResult<LobbyCreated_t> m_crLobbyCreated;
-
-    // ロビー入室コールバック
     private Callback<LobbyEnter_t> m_lobbyEnter;
-
-    // 招待参加コールバック
     private Callback<GameLobbyJoinRequested_t> m_gameLobbyJoinRequested;
-
-    // ロビー検索コールバック
     private CallResult<LobbyMatchList_t> m_crLobbyMatchList;
 
-    // ロビーデータキー
     private const string s_HostAddressKey = "HostAddress";
 
     public ulong LobbyID { get; private set; }
     public string LobbyCode { get; private set; }
+
     public bool IsBusy => operationInProgress ||
         (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening);
+
     public event Action<bool> BusyStateChanged;
 
-    // シングルトン
     private static SteamLobby instance;
     private bool operationInProgress;
+    private Coroutine connectionTimeoutCoroutine;
 
     public static SteamLobby Instance
     {
@@ -58,30 +52,16 @@ public class SteamLobby : MonoBehaviour
             return;
         }
 
-        m_crLobbyCreated =
-            CallResult<LobbyCreated_t>.Create(OnCreateLobby);
+        m_crLobbyCreated = CallResult<LobbyCreated_t>.Create(OnCreateLobby);
+        m_lobbyEnter = Callback<LobbyEnter_t>.Create(OnLobbyEntered);
+        m_gameLobbyJoinRequested = Callback<GameLobbyJoinRequested_t>.Create(OnGameLobbyJoinRequested);
+        m_crLobbyMatchList = CallResult<LobbyMatchList_t>.Create(OnLobbyMatchList);
 
-        m_lobbyEnter =
-            Callback<LobbyEnter_t>.Create(OnLobbyEntered);
-
-        m_gameLobbyJoinRequested =
-            Callback<GameLobbyJoinRequested_t>.Create(OnGameLobbyJoinRequested);
-
-        m_crLobbyMatchList =
-            CallResult<LobbyMatchList_t>.Create(OnLobbyMatchList);
-
-        // Steamリレーネットワークを起動（ファイアウォール環境での接続に必要）
         SteamNetworkingUtils.InitRelayNetworkAccess();
 
-        Debug.Log(
-            "[SteamLobby] Steam初期化成功: " +
-            SteamUser.GetSteamID()
-        );
+        Debug.Log("[SteamLobby] Steam初期化成功: " + SteamUser.GetSteamID());
     }
 
-    /// <summary>
-    /// ロビー作成
-    /// </summary>
     public void CreateLobby()
     {
         if (IsBusy)
@@ -109,65 +89,43 @@ public class SteamLobby : MonoBehaviour
         Debug.Log("[SteamLobby] ロビー作成開始");
     }
 
-    /// <summary>
-    /// ロビー作成完了
-    /// </summary>
-    private void OnCreateLobby(
-        LobbyCreated_t callback,
-        bool ioFailure
-    )
+    private void OnCreateLobby(LobbyCreated_t callback, bool ioFailure)
     {
-        if (ioFailure ||
-            callback.m_eResult != EResult.k_EResultOK)
+        if (ioFailure || callback.m_eResult != EResult.k_EResultOK)
         {
-            Debug.LogError(
-                "[SteamLobby] ロビー作成失敗"
-            );
-
+            Debug.LogError("[SteamLobby] ロビー作成失敗");
             SetOperationInProgress(false);
             return;
         }
 
         LobbyID = callback.m_ulSteamIDLobby;
 
-        Debug.Log(
-            "[SteamLobby] ロビー作成成功: " +
-            LobbyID
-        );
+        Debug.Log("[SteamLobby] ロビー作成成功: " + LobbyID);
 
-        // 部屋コード生成
         LobbyCode = GenerateRoomCode();
 
-        // ホストSteamID保存
         SteamMatchmaking.SetLobbyData(
             new CSteamID(LobbyID),
             s_HostAddressKey,
             SteamUser.GetSteamID().ToString()
         );
 
-        // 部屋コード保存
         SteamMatchmaking.SetLobbyData(
             new CSteamID(LobbyID),
             "LobbyCode",
             LobbyCode
         );
 
-        Debug.Log(
-            "[SteamLobby] 部屋コード: " +
-            LobbyCode
-        );
+        Debug.Log("[SteamLobby] 部屋コード: " + LobbyCode);
 
-        // 接続承認
         NetworkManager.Singleton.NetworkConfig.ConnectionApproval = true;
         NetworkManager.Singleton.ConnectionApprovalCallback = ApprovalCheck;
 
-        // ホスト開始をコルーチンに変更して、Steamリレーネットワークの準備完了を待つ
         StartCoroutine(StartHostRoutine());
     }
 
     private IEnumerator StartHostRoutine()
     {
-        // Steamリレーの準備完了を最大10秒待つ
         float elapsed = 0f;
         const float relayTimeout = 10f;
 
@@ -195,19 +153,23 @@ public class SteamLobby : MonoBehaviour
         }
 
         var networkManager = NetworkManager.Singleton;
+
         if (networkManager == null || !networkManager.isActiveAndEnabled)
         {
             SetOperationInProgress(false);
             yield break;
         }
 
-        // ホスト開始
+        var transport =
+            (SteamNetworkingSocketsTransport)
+            networkManager.NetworkConfig.NetworkTransport;
+
+        Debug.Log("[HOST] Using Transport: " + transport.GetType().Name);
+        Debug.Log("[HOST] SteamID: " + SteamUser.GetSteamID().m_SteamID);
+
         bool started = networkManager.StartHost();
 
-        Debug.Log(
-            "[SteamLobby] StartHost: " +
-            started
-        );
+        Debug.Log("[SteamLobby] StartHost: " + started);
 
         if (!started)
         {
@@ -215,16 +177,12 @@ public class SteamLobby : MonoBehaviour
             yield break;
         }
 
-        // シーン移動
         networkManager.SceneManager.LoadScene(
             gameSceneName,
             LoadSceneMode.Single
         );
     }
 
-    /// <summary>
-    /// ロビー参加
-    /// </summary>
     public void JoinLobby(CSteamID lobbyID)
     {
         JoinLobby(lobbyID, false);
@@ -248,37 +206,20 @@ public class SteamLobby : MonoBehaviour
 
         SteamMatchmaking.JoinLobby(lobbyID);
 
-        Debug.Log(
-            "[SteamLobby] ロビー参加開始: " +
-            lobbyID.m_SteamID
-        );
+        Debug.Log("[SteamLobby] ロビー参加開始: " + lobbyID.m_SteamID);
     }
 
-    /// <summary>
-    /// Steam招待参加
-    /// </summary>
-    private void OnGameLobbyJoinRequested(
-        GameLobbyJoinRequested_t callback
-    )
+    private void OnGameLobbyJoinRequested(GameLobbyJoinRequested_t callback)
     {
         JoinLobby(callback.m_steamIDLobby);
     }
 
-    /// <summary>
-    /// ロビー入室完了
-    /// </summary>
-    private void OnLobbyEntered(
-        LobbyEnter_t callback
-    )
+    private void OnLobbyEntered(LobbyEnter_t callback)
     {
-        if ((EChatRoomEnterResponse)
-            callback.m_EChatRoomEnterResponse
+        if ((EChatRoomEnterResponse)callback.m_EChatRoomEnterResponse
             != EChatRoomEnterResponse.k_EChatRoomEnterResponseSuccess)
         {
-            Debug.LogError(
-                "[SteamLobby] ロビー入室失敗"
-            );
-
+            Debug.LogError("[SteamLobby] ロビー入室失敗");
             SetOperationInProgress(false);
             return;
         }
@@ -289,24 +230,16 @@ public class SteamLobby : MonoBehaviour
                 s_HostAddressKey
             );
 
-        Debug.Log(
-            "[SteamLobby] ロビー入室成功 Host: " +
-            hostAddress
-        );
+        Debug.Log("[SteamLobby] ロビー入室成功 Host: " + hostAddress);
 
-        // 自分がホストなら終了
-        if (hostAddress ==
-            SteamUser.GetSteamID().ToString())
+        if (hostAddress == SteamUser.GetSteamID().ToString())
         {
             return;
         }
 
         if (string.IsNullOrWhiteSpace(hostAddress))
         {
-            Debug.LogError(
-                "[SteamLobby] HostAddressが空"
-            );
-
+            Debug.LogError("[SteamLobby] HostAddressが空");
             SetOperationInProgress(false);
             return;
         }
@@ -319,13 +252,10 @@ public class SteamLobby : MonoBehaviour
                 "LobbyCode"
             );
 
-        Debug.Log(
-            "[SteamLobby] 部屋コード取得: " +
-            LobbyCode
-        );
+        Debug.Log("[SteamLobby] 部屋コード取得: " + LobbyCode);
 
-        // Transport取得
         var networkManager = NetworkManager.Singleton;
+
         if (networkManager == null)
         {
             Debug.LogError("[SteamLobby] NetworkManagerがありません");
@@ -339,6 +269,7 @@ public class SteamLobby : MonoBehaviour
     private IEnumerator StartClientRoutine(string hostAddress)
     {
         var networkManager = NetworkManager.Singleton;
+
         if (networkManager == null)
         {
             SetOperationInProgress(false);
@@ -347,15 +278,11 @@ public class SteamLobby : MonoBehaviour
 
         if (networkManager.IsListening)
         {
-            Debug.Log("[SteamLobby] IsListening Before: True");
             Debug.LogWarning("[SteamLobby] NetworkManager is already listening. Shutting down first...");
             networkManager.Shutdown();
-
-            // Shutdown完了を待つために0.2秒待機
             yield return new WaitForSeconds(0.2f);
         }
 
-        // Steamリレーの準備完了を最大10秒待つ
         float elapsed = 0f;
         const float relayTimeout = 10f;
 
@@ -401,7 +328,9 @@ public class SteamLobby : MonoBehaviour
 
         transport.ConnectToSteamID = ulong.Parse(hostAddress);
 
-        // 重複登録を避けるため、一度-=してから+=する
+        Debug.Log("[CLIENT] ConnectToSteamID: " + transport.ConnectToSteamID);
+        Debug.Log("[CLIENT] Using Transport: " + transport.GetType().Name);
+
         networkManager.OnClientConnectedCallback -= OnClientConnected;
         networkManager.OnClientConnectedCallback += OnClientConnected;
 
@@ -422,17 +351,25 @@ public class SteamLobby : MonoBehaviour
             yield break;
         }
 
-        StartCoroutine(ConnectionTimeout(30f));
+        if (connectionTimeoutCoroutine != null)
+        {
+            StopCoroutine(connectionTimeoutCoroutine);
+        }
+
+        connectionTimeoutCoroutine = StartCoroutine(ConnectionTimeout(30f));
     }
 
     private void OnClientConnected(ulong clientId)
     {
-        Debug.Log(
-            "[SteamLobby] クライアント接続成功 ClientID: " +
-            clientId
-        );
+        Debug.Log("[SteamLobby] クライアント接続成功 ClientID: " + clientId);
 
-        StopAllCoroutines();
+        if (connectionTimeoutCoroutine != null)
+        {
+            StopCoroutine(connectionTimeoutCoroutine);
+            connectionTimeoutCoroutine = null;
+        }
+
+        SetOperationInProgress(false);
     }
 
     private IEnumerator ConnectionTimeout(float seconds)
@@ -447,10 +384,8 @@ public class SteamLobby : MonoBehaviour
                 "[SteamLobby] 接続タイムアウト (" + seconds + "秒) — ホストに到達できませんでした"
             );
 
-            NetworkManager.Singleton.OnClientConnectedCallback -=
-                OnClientConnected;
-            NetworkManager.Singleton.OnClientDisconnectCallback -=
-                OnClientDisconnect;
+            NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
+            NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnect;
 
             NetworkManager.Singleton.Shutdown();
             SetOperationInProgress(false);
@@ -458,9 +393,6 @@ public class SteamLobby : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// 接続承認
-    /// </summary>
     private void ApprovalCheck(
         NetworkManager.ConnectionApprovalRequest request,
         NetworkManager.ConnectionApprovalResponse response
@@ -478,9 +410,7 @@ public class SteamLobby : MonoBehaviour
 
         if (currentCount >= maxMembers)
         {
-            Debug.LogWarning(
-                "[SteamLobby] ApprovalCheck: 満員のため拒否"
-            );
+            Debug.LogWarning("[SteamLobby] ApprovalCheck: 満員のため拒否");
             response.Approved = false;
             response.Pending = false;
             return;
@@ -499,12 +429,7 @@ public class SteamLobby : MonoBehaviour
         );
     }
 
-    /// <summary>
-    /// 切断時
-    /// </summary>
-    private void OnClientDisconnect(
-        ulong clientId
-    )
+    private void OnClientDisconnect(ulong clientId)
     {
         string reason =
             NetworkManager.Singleton.DisconnectReason;
@@ -515,10 +440,8 @@ public class SteamLobby : MonoBehaviour
             (string.IsNullOrEmpty(reason) ? "(なし)" : reason)
         );
 
-        NetworkManager.Singleton.OnClientConnectedCallback -=
-            OnClientConnected;
-        NetworkManager.Singleton.OnClientDisconnectCallback -=
-            OnClientDisconnect;
+        NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
+        NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnect;
 
         StartCoroutine(ShutdownRoutine());
     }
@@ -526,41 +449,31 @@ public class SteamLobby : MonoBehaviour
     private IEnumerator ShutdownRoutine()
     {
         var networkManager = NetworkManager.Singleton;
+
         if (networkManager != null)
         {
             networkManager.Shutdown();
-            
-            // Shutdown完了を待つために0.2秒待機
             yield return new WaitForSeconds(0.2f);
         }
 
         SetOperationInProgress(false);
-
         SceneManager.LoadScene(menuSceneName);
     }
 
-    /// <summary>
-    /// 部屋コード生成
-    /// </summary>
     private string GenerateRoomCode()
     {
-        const string chars =
-            "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
         char[] code = new char[5];
 
         for (int i = 0; i < code.Length; i++)
         {
-            code[i] =
-                chars[UnityEngine.Random.Range(0, chars.Length)];
+            code[i] = chars[UnityEngine.Random.Range(0, chars.Length)];
         }
 
         return new string(code);
     }
 
-    /// <summary>
-    /// 部屋コード参加
-    /// </summary>
     public void JoinLobbyWithCode(string code)
     {
         if (IsBusy)
@@ -571,36 +484,26 @@ public class SteamLobby : MonoBehaviour
 
         if (!SteamManager.Initialized)
         {
-            Debug.LogError(
-                "[SteamLobby] Steam未初期化"
-            );
-
+            Debug.LogError("[SteamLobby] Steam未初期化");
             return;
         }
 
         if (string.IsNullOrWhiteSpace(code))
         {
-            Debug.LogError(
-                "[SteamLobby] コードが空"
-            );
-
+            Debug.LogError("[SteamLobby] コードが空");
             return;
         }
 
-        string targetCode =
-            code.ToUpper().Trim();
+        string targetCode = code.ToUpper().Trim();
 
         SetOperationInProgress(true);
 
-        Debug.Log(
-            "[SteamLobby] 検索コード: " +
-            targetCode
+        Debug.Log("[SteamLobby] 検索コード: " + targetCode);
+
+        SteamMatchmaking.AddRequestLobbyListDistanceFilter(
+            ELobbyDistanceFilter.k_ELobbyDistanceFilterWorldwide
         );
 
-        // 検索範囲を全世界（Worldwide）に設定して、遠方のプレイヤーも検索可能にする
-        SteamMatchmaking.AddRequestLobbyListDistanceFilter(ELobbyDistanceFilter.k_ELobbyDistanceFilterWorldwide);
-
-        // 修正版
         SteamMatchmaking.AddRequestLobbyListStringFilter(
             "LobbyCode",
             targetCode,
@@ -615,9 +518,6 @@ public class SteamLobby : MonoBehaviour
         m_crLobbyMatchList.Set(handle);
     }
 
-    /// <summary>
-    /// ロビー検索完了
-    /// </summary>
     private void OnLobbyMatchList(
         LobbyMatchList_t callback,
         bool ioFailure
@@ -625,20 +525,14 @@ public class SteamLobby : MonoBehaviour
     {
         if (ioFailure)
         {
-            Debug.LogError(
-                "[SteamLobby] 検索失敗"
-            );
-
+            Debug.LogError("[SteamLobby] 検索失敗");
             SetOperationInProgress(false);
             return;
         }
 
         if (callback.m_nLobbiesMatching <= 0)
         {
-            Debug.LogError(
-                "[SteamLobby] ロビーが見つかりません"
-            );
-
+            Debug.LogError("[SteamLobby] ロビーが見つかりません");
             SetOperationInProgress(false);
             return;
         }
@@ -646,10 +540,7 @@ public class SteamLobby : MonoBehaviour
         CSteamID lobbyID =
             SteamMatchmaking.GetLobbyByIndex(0);
 
-        Debug.Log(
-            "[SteamLobby] ロビー発見: " +
-            lobbyID.m_SteamID
-        );
+        Debug.Log("[SteamLobby] ロビー発見: " + lobbyID.m_SteamID);
 
         JoinLobby(lobbyID, true);
     }
@@ -665,26 +556,17 @@ public class SteamLobby : MonoBehaviour
         BusyStateChanged?.Invoke(IsBusy);
     }
 
-    /// <summary>
-    /// Steam招待UI
-    /// </summary>
     public void InviteFriends()
     {
         if (!SteamManager.Initialized)
         {
-            Debug.LogError(
-                "[SteamLobby] Steam未初期化"
-            );
-
+            Debug.LogError("[SteamLobby] Steam未初期化");
             return;
         }
 
         if (LobbyID == 0)
         {
-            Debug.LogError(
-                "[SteamLobby] ロビー未参加"
-            );
-
+            Debug.LogError("[SteamLobby] ロビー未参加");
             return;
         }
 
@@ -692,8 +574,6 @@ public class SteamLobby : MonoBehaviour
             new CSteamID(LobbyID)
         );
 
-        Debug.Log(
-            "[SteamLobby] 招待オーバーレイ表示"
-        );
+        Debug.Log("[SteamLobby] 招待オーバーレイ表示");
     }
 }
