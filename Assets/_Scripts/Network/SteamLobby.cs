@@ -386,7 +386,7 @@ public class SteamLobby : MonoBehaviour
         for (int i = 0; i < code.Length; i++)
         {
             code[i] =
-                chars[Random.Range(0, chars.Length)];
+                chars[UnityEngine.Random.Range(0, chars.Length)];
         }
 
         return new string(code);
