@@ -16,11 +16,14 @@ public class SteamLobby : MonoBehaviour
     private Callback<LobbyEnter_t> m_lobbyEnter;
     //ゲーム招待コールバック
     private Callback<GameLobbyJoinRequested_t> m_gameLobbyJoinRequested;
+    //ロビー検索コールバック
+    private CallResult<LobbyMatchList_t> m_crLobbyMatchList;
 
     //ロビーデータ設定用キー
     private const string s_HostAddressKey = "HostAddress";
 
     public ulong LobbyID { get; private set; }
+    public string LobbyCode { get; private set; }
 
     public void Start()
     {
@@ -30,6 +33,7 @@ public class SteamLobby : MonoBehaviour
             m_crLobbyCreated = CallResult<LobbyCreated_t>.Create(OnCreateLobby);
             m_lobbyEnter = Callback<LobbyEnter_t>.Create(OnLobbyEntered);
             m_gameLobbyJoinRequested = Callback<GameLobbyJoinRequested_t>.Create(OnGameLobbyJoinRequested);
+            m_crLobbyMatchList = CallResult<LobbyMatchList_t>.Create(OnLobbyMatchList);
             Debug.Log($"[SteamLobby] Steam initialized. My SteamID: {SteamUser.GetSteamID()}");
             return;
         }
@@ -63,15 +67,25 @@ public class SteamLobby : MonoBehaviour
             return;
         }
 
+        //ロビーID保存
+        LobbyID = pCallback.m_ulSteamIDLobby;
+        Debug.Log($"[SteamLobby] Lobby created. LobbyID: {LobbyID}");
+
+        //部屋コード生成
+        LobbyCode = GenerateRoomCode();
+        Debug.Log($"[SteamLobby] Generated Room Code: {LobbyCode}");
+
         //ホストのアドレス（SteamID）を登録
         SteamMatchmaking.SetLobbyData(
             new CSteamID(pCallback.m_ulSteamIDLobby),
             s_HostAddressKey,
             SteamUser.GetSteamID().ToString());
 
-        //ロビーID保存
-        LobbyID = pCallback.m_ulSteamIDLobby;
-        Debug.Log($"[SteamLobby] Lobby created. LobbyID: {LobbyID}");
+        //部屋コードを登録
+        SteamMatchmaking.SetLobbyData(
+            new CSteamID(pCallback.m_ulSteamIDLobby),
+            "LobbyCode",
+            LobbyCode);
 
         //サーバー開始コールバック
         NetworkManager.Singleton.NetworkConfig.ConnectionApproval = true;
@@ -139,6 +153,10 @@ public class SteamLobby : MonoBehaviour
         //ロビーID保存
         LobbyID = callback.m_ulSteamIDLobby;
 
+        //部屋コードを取得して保存
+        LobbyCode = SteamMatchmaking.GetLobbyData(new CSteamID(LobbyID), "LobbyCode");
+        Debug.Log($"[SteamLobby] Retrieved LobbyCode: {LobbyCode}");
+
         //Netcodeでクライアント接続
         var stp = (SteamNetworkingSocketsTransport)NetworkManager.Singleton.NetworkConfig.NetworkTransport;
         stp.ConnectToSteamID = ulong.Parse(hostAddress);
@@ -195,6 +213,93 @@ public class SteamLobby : MonoBehaviour
         NetworkManager.Singleton.Shutdown();
         //メインシーンに戻る
         SceneManager.LoadScene(menuSceneName);
+    }
+
+    /// <summary>
+    /// 5桁のランダムな英数字部屋コードを生成
+    /// </summary>
+    private string GenerateRoomCode()
+    {
+        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        var stringChars = new char[5];
+        for (int i = 0; i < stringChars.Length; i++)
+        {
+            stringChars[i] = chars[Random.Range(0, chars.Length)];
+        }
+        return new string(stringChars);
+    }
+
+    /// <summary>
+    /// 部屋コードを指定してロビーを検索し、参加する
+    /// </summary>
+    /// <param name="code">5桁の部屋コード</param>
+    public void JoinLobbyWithCode(string code)
+    {
+        if (!SteamManager.Initialized)
+        {
+            Debug.LogError("[SteamLobby] JoinLobbyWithCode failed because Steam is not initialized.");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            Debug.LogError("[SteamLobby] JoinLobbyWithCode failed: Code is empty.");
+            return;
+        }
+
+        string targetCode = code.ToUpper().Trim();
+        Debug.Log($"[SteamLobby] Starting search for lobby with code: {targetCode}");
+
+        //検索フィルターを設定: LobbyCode が targetCode と一致するロビーを検索
+        SteamMatchmaking.AddRequestLobbyListStringFilter("LobbyCode", targetCode, ELobbyComparisonFilter.k_ELobbyComparisonFilterEqual);
+        //検索結果の最大数を1件に制限
+        SteamMatchmaking.AddRequestLobbyListResultCountFilter(1);
+
+        //ロビーリストの取得をリクエスト
+        SteamAPICall_t hLobbyList = SteamMatchmaking.RequestLobbyList();
+        m_crLobbyMatchList.Set(hLobbyList);
+    }
+
+    //ロビー検索完了時のコールバック
+    private void OnLobbyMatchList(LobbyMatchList_t pCallback, bool bIOFailure)
+    {
+        if (bIOFailure)
+        {
+            Debug.LogError("[SteamLobby] Lobby search failed due to IO failure.");
+            return;
+        }
+
+        if (pCallback.m_nLobbiesMatching == 0)
+        {
+            Debug.LogError("[SteamLobby] No matching lobby found for the specified code.");
+            return;
+        }
+
+        //検索に一致した最初のロビーを取得して参加
+        CSteamID lobbyID = SteamMatchmaking.GetLobbyByIndex(0);
+        Debug.Log($"[SteamLobby] Found matching lobby! ID: {lobbyID.m_SteamID}. Joining now...");
+        JoinLobby(lobbyID);
+    }
+
+    /// <summary>
+    /// Steamのゲーム内フレンド招待オーバーレイを表示する
+    /// </summary>
+    public void InviteFriends()
+    {
+        if (!SteamManager.Initialized)
+        {
+            Debug.LogError("[SteamLobby] Cannot invite friends: Steam is not initialized.");
+            return;
+        }
+
+        if (LobbyID == 0)
+        {
+            Debug.LogError("[SteamLobby] Cannot invite friends: You are not currently in any lobby.");
+            return;
+        }
+
+        SteamFriends.ActivateGameOverlayInviteDialog(new CSteamID(LobbyID));
+        Debug.Log("[SteamLobby] Opened Steam friend invitation overlay.");
     }
 
     //簡易的なシングルトン

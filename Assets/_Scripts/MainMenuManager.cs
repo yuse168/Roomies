@@ -50,13 +50,26 @@ public class MainMenuManager : MonoBehaviour
             return;
         }
 
-        if (!ulong.TryParse(lobbyIdInput.text, out ulong lobbyId))
+        string inputText = lobbyIdInput.text.Trim();
+
+        if (string.IsNullOrWhiteSpace(inputText))
         {
-            Debug.LogError($"[MainMenuManager] Invalid Lobby ID: {lobbyIdInput.text}");
+            Debug.LogError("[MainMenuManager] Lobby ID/Code input is empty.");
             return;
         }
 
-        SteamLobby.Instance.JoinLobby(new CSteamID(lobbyId));
+        //18桁のulong値（LobbyID）としてパース可能な場合は従来通りの直接接続を行う（デバッグ用）
+        if (ulong.TryParse(inputText, out ulong lobbyId) && inputText.Length >= 10)
+        {
+            Debug.Log($"[MainMenuManager] Parsing input as raw LobbyID: {lobbyId}");
+            SteamLobby.Instance.JoinLobby(new CSteamID(lobbyId));
+        }
+        else
+        {
+            //それ以外（5桁の英数字等）の場合は部屋コードによる検索接続を行う
+            Debug.Log($"[MainMenuManager] Parsing input as Room Code: {inputText}");
+            SteamLobby.Instance.JoinLobbyWithCode(inputText);
+        }
     }
 
     public void Quit()

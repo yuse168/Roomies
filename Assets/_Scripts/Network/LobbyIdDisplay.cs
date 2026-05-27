@@ -20,11 +20,11 @@ public class LobbyIdDisplay : MonoBehaviour
 
         if (SteamLobby.Instance == null)
         {
-            lobbyIdText.text = "Lobby ID: -";
+            lobbyIdText.text = "Room Code: -";
             Debug.LogWarning("[LobbyIdDisplay] SteamLobby was not found.");
             return;
         }
 
-        lobbyIdText.text = $"Lobby ID: {SteamLobby.Instance.LobbyID}";
+        lobbyIdText.text = $"Room Code: {SteamLobby.Instance.LobbyCode}";
     }
 }
