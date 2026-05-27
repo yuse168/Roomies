@@ -712,6 +712,7 @@ MonoBehaviour:
   menuCamera: {fileID: 0}
   useSteamLobby: 1
   lobbyIdInput: {fileID: 2094549468}
+  joinButton: {fileID: 1054322846}
 --- !u!4 &684661245
 Transform:
   m_ObjectHideFlags: 0

@@ -1,3 +1,4 @@
+using System;
 using Netcode.Transports;
 using Steamworks;
 using Unity.Netcode;
@@ -27,9 +28,13 @@ public class SteamLobby : MonoBehaviour
 
     public ulong LobbyID { get; private set; }
     public string LobbyCode { get; private set; }
+    public bool IsBusy => operationInProgress ||
+        (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening);
+    public event Action<bool> BusyStateChanged;
 
     // シングルトン
     private static SteamLobby instance;
+    private bool operationInProgress;
 
     public static SteamLobby Instance
     {
@@ -75,11 +80,19 @@ public class SteamLobby : MonoBehaviour
     /// </summary>
     public void CreateLobby()
     {
+        if (IsBusy)
+        {
+            Debug.LogWarning("[SteamLobby] ロビー操作中のため作成を無視します");
+            return;
+        }
+
         if (!SteamManager.Initialized)
         {
             Debug.LogError("[SteamLobby] Steam未初期化");
             return;
         }
+
+        SetOperationInProgress(true);
 
         SteamAPICall_t handle =
             SteamMatchmaking.CreateLobby(
@@ -107,6 +120,7 @@ public class SteamLobby : MonoBehaviour
                 "[SteamLobby] ロビー作成失敗"
             );
 
+            SetOperationInProgress(false);
             return;
         }
 
@@ -152,6 +166,12 @@ public class SteamLobby : MonoBehaviour
             started
         );
 
+        if (!started)
+        {
+            SetOperationInProgress(false);
+            return;
+        }
+
         // シーン移動
         NetworkManager.Singleton.SceneManager.LoadScene(
             gameSceneName,
@@ -164,11 +184,24 @@ public class SteamLobby : MonoBehaviour
     /// </summary>
     public void JoinLobby(CSteamID lobbyID)
     {
+        JoinLobby(lobbyID, false);
+    }
+
+    private void JoinLobby(CSteamID lobbyID, bool fromSearch)
+    {
+        if (IsBusy && !fromSearch)
+        {
+            Debug.LogWarning("[SteamLobby] ロビー操作中のため参加を無視します");
+            return;
+        }
+
         if (!SteamManager.Initialized)
         {
             Debug.LogError("[SteamLobby] Steam未初期化");
             return;
         }
+
+        SetOperationInProgress(true);
 
         SteamMatchmaking.JoinLobby(lobbyID);
 
@@ -185,9 +218,7 @@ public class SteamLobby : MonoBehaviour
         GameLobbyJoinRequested_t callback
     )
     {
-        SteamMatchmaking.JoinLobby(
-            callback.m_steamIDLobby
-        );
+        JoinLobby(callback.m_steamIDLobby);
     }
 
     /// <summary>
@@ -205,6 +236,7 @@ public class SteamLobby : MonoBehaviour
                 "[SteamLobby] ロビー入室失敗"
             );
 
+            SetOperationInProgress(false);
             return;
         }
 
@@ -232,6 +264,7 @@ public class SteamLobby : MonoBehaviour
                 "[SteamLobby] HostAddressが空"
             );
 
+            SetOperationInProgress(false);
             return;
         }
 
@@ -249,23 +282,46 @@ public class SteamLobby : MonoBehaviour
         );
 
         // Transport取得
+        var networkManager = NetworkManager.Singleton;
+        if (networkManager == null)
+        {
+            Debug.LogError("[SteamLobby] NetworkManagerがありません");
+            SetOperationInProgress(false);
+            return;
+        }
+
+        if (networkManager.IsListening)
+        {
+            Debug.LogWarning("[SteamLobby] StartClient skipped because NetworkManager is already listening.");
+            SetOperationInProgress(false);
+            return;
+        }
+
         var transport =
             (SteamNetworkingSocketsTransport)
-            NetworkManager.Singleton.NetworkConfig.NetworkTransport;
+            networkManager.NetworkConfig.NetworkTransport;
 
         transport.ConnectToSteamID =
             ulong.Parse(hostAddress);
 
         // クライアント接続
         bool result =
-            NetworkManager.Singleton.StartClient();
+            networkManager.StartClient();
 
         Debug.Log(
             "[SteamLobby] StartClient: " +
             result
         );
 
-        NetworkManager.Singleton.OnClientDisconnectCallback +=
+        if (!result)
+        {
+            SetOperationInProgress(false);
+            return;
+        }
+
+        networkManager.OnClientDisconnectCallback -=
+            OnClientDisconnect;
+        networkManager.OnClientDisconnectCallback +=
             OnClientDisconnect;
     }
 
@@ -312,6 +368,8 @@ public class SteamLobby : MonoBehaviour
 
         NetworkManager.Singleton.Shutdown();
 
+        SetOperationInProgress(false);
+
         SceneManager.LoadScene(menuSceneName);
     }
 
@@ -339,6 +397,12 @@ public class SteamLobby : MonoBehaviour
     /// </summary>
     public void JoinLobbyWithCode(string code)
     {
+        if (IsBusy)
+        {
+            Debug.LogWarning("[SteamLobby] ロビー操作中のため検索を無視します");
+            return;
+        }
+
         if (!SteamManager.Initialized)
         {
             Debug.LogError(
@@ -359,6 +423,8 @@ public class SteamLobby : MonoBehaviour
 
         string targetCode =
             code.ToUpper().Trim();
+
+        SetOperationInProgress(true);
 
         Debug.Log(
             "[SteamLobby] 検索コード: " +
@@ -394,6 +460,7 @@ public class SteamLobby : MonoBehaviour
                 "[SteamLobby] 検索失敗"
             );
 
+            SetOperationInProgress(false);
             return;
         }
 
@@ -403,6 +470,7 @@ public class SteamLobby : MonoBehaviour
                 "[SteamLobby] ロビーが見つかりません"
             );
 
+            SetOperationInProgress(false);
             return;
         }
 
@@ -414,7 +482,18 @@ public class SteamLobby : MonoBehaviour
             lobbyID.m_SteamID
         );
 
-        JoinLobby(lobbyID);
+        JoinLobby(lobbyID, true);
+    }
+
+    private void SetOperationInProgress(bool value)
+    {
+        if (operationInProgress == value)
+        {
+            return;
+        }
+
+        operationInProgress = value;
+        BusyStateChanged?.Invoke(IsBusy);
     }
 
     /// <summary>

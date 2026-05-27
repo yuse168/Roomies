@@ -3,6 +3,7 @@ using Unity.Netcode;
 using UnityEngine.SceneManagement;
 using Steamworks;
 using TMPro;
+using UnityEngine.UI;
 
 public class MainMenuManager : MonoBehaviour
 {
@@ -12,6 +13,24 @@ public class MainMenuManager : MonoBehaviour
     [Header("Steam Lobby")]
     [SerializeField] private bool useSteamLobby;
     [SerializeField] private TMP_InputField lobbyIdInput;
+    [SerializeField] private Button joinButton;
+
+    private void OnEnable()
+    {
+        if (SteamLobby.Instance != null)
+        {
+            SteamLobby.Instance.BusyStateChanged += OnSteamLobbyBusyStateChanged;
+            UpdateJoinButton();
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (SteamLobby.Instance != null)
+        {
+            SteamLobby.Instance.BusyStateChanged -= OnSteamLobbyBusyStateChanged;
+        }
+    }
 
     public void Host()
     {
@@ -35,7 +54,19 @@ public class MainMenuManager : MonoBehaviour
     {
         if (useSteamLobby)
         {
+            if (SteamLobby.Instance != null && SteamLobby.Instance.IsBusy)
+            {
+                Debug.LogWarning("[MainMenuManager] Join ignored because lobby operation is already running.");
+                return;
+            }
+
             JoinSteamLobby();
+            return;
+        }
+
+        if (NetworkManager.Singleton.IsListening)
+        {
+            Debug.LogWarning("[MainMenuManager] Join ignored because NetworkManager is already listening.");
             return;
         }
 
@@ -69,6 +100,19 @@ public class MainMenuManager : MonoBehaviour
             //それ以外（5桁の英数字等）の場合は部屋コードによる検索接続を行う
             Debug.Log($"[MainMenuManager] Parsing input as Room Code: {inputText}");
             SteamLobby.Instance.JoinLobbyWithCode(inputText);
+        }
+    }
+
+    private void OnSteamLobbyBusyStateChanged(bool isBusy)
+    {
+        UpdateJoinButton();
+    }
+
+    private void UpdateJoinButton()
+    {
+        if (joinButton != null && SteamLobby.Instance != null)
+        {
+            joinButton.interactable = !SteamLobby.Instance.IsBusy;
         }
     }
 
