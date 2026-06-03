@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -9,17 +10,23 @@ public class DeliveryZone : NetworkBehaviour
     [Header("スポーン位置")]
     [SerializeField] private Transform boxSpawnPoint;
 
+    [Header("箱の最大数")]
+    [SerializeField] private int maxBoxCount = 3;
+
     [Header("レア確率")]
     [SerializeField, Range(0, 100)]
     private int rarePercent = 20;
 
-    public NetworkObject CurrentBox { get; private set; }
+    private List<NetworkObject> boxesInZone = new List<NetworkObject>();
 
     private void Start()
     {
         if (!IsServer) return;
 
-        SpawnNewBox();
+        for (int i = 0; i < maxBoxCount; i++)
+        {
+            SpawnNewBox();
+        }
     }
 
     private void OnTriggerEnter(Collider other)
@@ -30,11 +37,11 @@ public class DeliveryZone : NetworkBehaviour
         NetworkObject boxNetObj =
             other.GetComponent<NetworkObject>();
 
-        if (boxNetObj != null)
+        if (boxNetObj != null && !boxesInZone.Contains(boxNetObj))
         {
-            CurrentBox = boxNetObj;
+            boxesInZone.Add(boxNetObj);
 
-            Debug.Log("箱が納品エリアに入りました");
+            Debug.Log("箱が納品エリアに入りました エリア内: " + boxesInZone.Count);
         }
     }
 
@@ -46,25 +53,24 @@ public class DeliveryZone : NetworkBehaviour
         NetworkObject boxNetObj =
             other.GetComponent<NetworkObject>();
 
-        if (boxNetObj != null &&
-            CurrentBox == boxNetObj)
+        if (boxNetObj != null && boxesInZone.Contains(boxNetObj))
         {
-            CurrentBox = null;
+            boxesInZone.Remove(boxNetObj);
 
-            Debug.Log("箱が納品エリアから出ました");
+            Debug.Log("箱が納品エリアから出ました エリア内: " + boxesInZone.Count);
         }
     }
 
     public bool HasBox()
     {
-        return CurrentBox != null;
+        return boxesInZone.Count > 0;
     }
 
     public DeliveryItem GetCurrentItem()
     {
-        if (CurrentBox == null) return null;
+        if (boxesInZone.Count == 0) return null;
 
-        return CurrentBox
+        return boxesInZone[0]
             .GetComponentInChildren<DeliveryItem>();
     }
 
@@ -72,13 +78,14 @@ public class DeliveryZone : NetworkBehaviour
     {
         if (!IsServer) return;
 
-        if (CurrentBox != null)
+        if (boxesInZone.Count > 0)
         {
-            Debug.Log("箱を削除");
+            NetworkObject box = boxesInZone[0];
+            boxesInZone.RemoveAt(0);
 
-            CurrentBox.Despawn(true);
+            box.Despawn(true);
 
-            CurrentBox = null;
+            Debug.Log("箱を削除 エリア内残り: " + boxesInZone.Count);
         }
 
         SpawnNewBox();
@@ -87,8 +94,6 @@ public class DeliveryZone : NetworkBehaviour
     public void RespawnBox()
     {
         if (!IsServer) return;
-
-        CurrentBox = null;
 
         SpawnNewBox();
     }

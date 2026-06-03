@@ -74,6 +74,7 @@ public class DeliveryItem : NetworkBehaviour
         if (isBroken) return;
 
         if (collision.collider.CompareTag(groundTag)) return;
+        if (collision.collider.GetComponentInParent<DeliveryItem>() != null) return;
 
         isBroken = true;
 

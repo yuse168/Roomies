@@ -19,7 +19,7 @@ public class DeliveryButton : NetworkBehaviour
         PressButtonServerRpc(playerEarning.NetworkObjectId);
     }
 
-    [ServerRpc(RequireOwnership = false)]
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
     private void PressButtonServerRpc(ulong playerNetworkObjectId)
     {
         if (deliveryZone == null)

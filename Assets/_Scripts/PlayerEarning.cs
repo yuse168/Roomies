@@ -31,4 +31,10 @@ public class PlayerEarning : NetworkBehaviour
         if (!IsServer) return;
         earning.Value += amount;
     }
+
+    public void SpendEarning(int amount)
+    {
+        if (!IsServer) return;
+        earning.Value -= amount;
+    }
 }

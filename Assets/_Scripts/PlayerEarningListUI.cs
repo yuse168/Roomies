@@ -38,7 +38,7 @@ public class PlayerEarningListUI : MonoBehaviour
     {
         if (earningListText == null) return;
 
-        PlayerEarning[] players = FindObjectsByType<PlayerEarning>(FindObjectsSortMode.None);
+        PlayerEarning[] players = FindObjectsByType<PlayerEarning>();
 
         StringBuilder sb = new StringBuilder();
         sb.AppendLine("個人の稼ぎ");

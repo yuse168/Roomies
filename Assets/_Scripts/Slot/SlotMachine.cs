@@ -72,20 +72,22 @@ public class SlotMachine : NetworkBehaviour
         UpdateFeverUI();
     }
 
-    private void OnDestroy()
+    public override void OnDestroy()
     {
+        base.OnDestroy();
+
         feverSpinCount.OnValueChanged -= OnFeverChanged;
     }
 
-    public void Interact()
+    public void Interact(PlayerEarning playerEarning)
     {
         if (isSpinning.Value) return;
 
-        PlaySlotServerRpc();
+        PlaySlotServerRpc(playerEarning.NetworkObjectId);
     }
 
-    [ServerRpc(RequireOwnership = false)]
-    private void PlaySlotServerRpc()
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    private void PlaySlotServerRpc(ulong playerNetworkObjectId)
     {
         if (isSpinning.Value) return;
 
@@ -106,6 +108,17 @@ public class SlotMachine : NetworkBehaviour
             }
 
             SharedMoneyManager.Instance.SpendSharedMoney(playCost);
+
+            if (NetworkManager.Singleton.SpawnManager.SpawnedObjects
+                .TryGetValue(playerNetworkObjectId, out NetworkObject playerObj))
+            {
+                PlayerEarning earning = playerObj.GetComponent<PlayerEarning>();
+
+                if (earning != null)
+                {
+                    earning.SpendEarning(playCost);
+                }
+            }
         }
         else
         {

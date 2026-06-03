@@ -14,7 +14,8 @@ public class PlayerInteract : NetworkBehaviour
 
     [Header("持つ設定")]
     public float holdDistance = 2f;
-    public float holdHeight = -0.2f;
+    public float holdRightOffset = 0.6f;
+    public float holdDownOffset = 0.4f;
     public float holdRadius = 0.35f;
     public float wallOffset = 0.25f;
     public float minHoldHeightFromGround = 0.6f;
@@ -173,7 +174,10 @@ public class PlayerInteract : NetworkBehaviour
 
             if (slot != null)
             {
-                slot.Interact();
+                PlayerEarning playerEarning = GetComponent<PlayerEarning>();
+
+                slot.Interact(playerEarning);
+
                 return;
             }
         }
@@ -208,26 +212,28 @@ public class PlayerInteract : NetworkBehaviour
     Vector3 GetSafeHoldPosition()
     {
         Vector3 origin = cameraTransform.position;
-        Vector3 direction = cameraTransform.forward;
+        Vector3 forward = cameraTransform.forward;
+        Vector3 right = cameraTransform.right;
+        Vector3 down = -cameraTransform.up;
 
-        Vector3 targetPosition =
-            origin +
-            direction * holdDistance +
-            Vector3.up * holdHeight;
+        Vector3 targetPosition = origin
+            + forward * holdDistance
+            + right * holdRightOffset
+            + down * holdDownOffset;
 
         if (Physics.SphereCast(
             origin,
             holdRadius,
-            direction,
+            forward,
             out RaycastHit hit,
             holdDistance,
             holdBlockMask,
             QueryTriggerInteraction.Ignore))
         {
-            targetPosition =
-                origin +
-                direction * Mathf.Max(0.3f, hit.distance - wallOffset) +
-                Vector3.up * holdHeight;
+            targetPosition = origin
+                + forward * Mathf.Max(0.3f, hit.distance - wallOffset)
+                + right * holdRightOffset
+                + down * holdDownOffset;
         }
 
         float minY = transform.position.y + minHoldHeightFromGround;

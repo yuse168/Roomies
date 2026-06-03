@@ -5,6 +5,10 @@ using UnityEngine.InputSystem;
 
 public class DayManager : NetworkBehaviour
 {
+    [Header("スカイドーム")]
+    [SerializeField] private Material morningSkyMaterial;
+    [SerializeField] private Material nightSkyMaterial;
+
     [Header("Day設定")]
     [SerializeField] private int maxDay = 3;
 
@@ -52,6 +56,7 @@ public class DayManager : NetworkBehaviour
 
         UpdateDayUI();
         UpdateTimerUI();
+        ApplySkyMaterial(currentTime.Value);
     }
 
     public override void OnNetworkSpawn()
@@ -80,11 +85,7 @@ public class DayManager : NetworkBehaviour
         if (Keyboard.current != null &&
             Keyboard.current.nKey.wasPressedThisFrame)
         {
-            if (IsServer)
-            {
-                NextDayServerRpc();
-            }
-            else
+            if (NetworkObject != null && NetworkObject.IsSpawned)
             {
                 NextDayServerRpc();
             }
@@ -172,6 +173,7 @@ public class DayManager : NetworkBehaviour
     private void OnTimeChanged(int oldTime, int newTime)
     {
         UpdateDayUI();
+        ApplySkyMaterial(newTime);
     }
 
     private void OnGameOverChanged(bool oldValue, bool newValue)
@@ -193,6 +195,17 @@ public class DayManager : NetworkBehaviour
         string timeText = currentTime.Value == 0 ? "朝" : "夜";
 
         dayText.text = "DAY " + currentDay.Value + " " + timeText;
+    }
+
+    private void ApplySkyMaterial(int time)
+    {
+        Material skyMaterial = time == 0 ? morningSkyMaterial : nightSkyMaterial;
+
+        if (skyMaterial != null)
+        {
+            RenderSettings.skybox = skyMaterial;
+            DynamicGI.UpdateEnvironment();
+        }
     }
 
     private void UpdateTimerUI()
