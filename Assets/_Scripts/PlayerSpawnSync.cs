@@ -1,3 +1,4 @@
+using System.Collections;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -7,13 +8,21 @@ public class PlayerSpawnSync : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
-        if (!IsServer) return;
+        if (IsServer)
+        {
+            StartCoroutine(TeleportAfterSpawn());
+        }
+    }
+
+    private IEnumerator TeleportAfterSpawn()
+    {
+        yield return null;
 
         SpawnPoint[] spawnPoints = FindObjectsByType<SpawnPoint>();
 
-        Debug.Log("[PlayerSpawnSync] OnNetworkSpawn Server spawnPoints.Length=" + spawnPoints.Length);
+        Debug.Log("[PlayerSpawnSync] spawnPoints.Length=" + spawnPoints.Length);
 
-        if (spawnPoints.Length == 0) return;
+        if (spawnPoints.Length == 0) yield break;
 
         int index = spawnIndex % spawnPoints.Length;
         spawnIndex++;
@@ -23,12 +32,18 @@ public class PlayerSpawnSync : NetworkBehaviour
         Debug.Log("[PlayerSpawnSync] Teleport to " + spawnPoint.name + " pos=" + spawnPoint.position);
 
         CharacterController controller = GetComponent<CharacterController>();
-        if (controller != null) controller.enabled = false;
+        if (controller != null && controller.enabled)
+        {
+            controller.enabled = false;
+        }
 
         transform.position = spawnPoint.position;
         transform.rotation = spawnPoint.rotation;
 
-        if (controller != null) controller.enabled = true;
+        if (controller != null)
+        {
+            controller.enabled = true;
+        }
 
         TeleportClientRpc(spawnPoint.position, spawnPoint.rotation);
     }

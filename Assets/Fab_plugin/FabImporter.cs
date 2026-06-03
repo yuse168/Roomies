@@ -58,11 +58,28 @@ namespace Fab {
             tcpListenerThread.Abort();
         }
 
-        private void ListenForIncommingRequests () {
-            try {
-                tcpListener = new TcpListener (IPAddress.Parse ("127.0.0.1"), 23081);
-                tcpListener.Start ();
-                Debug.Log("Fab plugin (version " + Fab.Info.Version + ") started, listening on port 23081");
+		private void ListenForIncommingRequests () {
+			try {
+				int port = 23081;
+				int maxTries = 10;
+
+				for (int tryPort = port; tryPort < port + maxTries; tryPort++)
+				{
+					try
+					{
+						tcpListener = new TcpListener (IPAddress.Parse ("127.0.0.1"), tryPort);
+						tcpListener.Start ();
+						Debug.Log("Fab plugin (version " + Fab.Info.Version + ") started, listening on port " + tryPort);
+						break;
+					}
+					catch (SocketException)
+					{
+						if (tryPort == port + maxTries - 1)
+						{
+							throw;
+						}
+					}
+				}
                 Byte[] bytes = new Byte[4096];
                 while (true) {
                     using (connectedTcpClient = tcpListener.AcceptTcpClient ()) {

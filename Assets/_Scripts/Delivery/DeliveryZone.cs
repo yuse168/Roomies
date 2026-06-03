@@ -116,13 +116,27 @@ public class DeliveryZone : NetworkBehaviour
             return;
         }
 
+        Vector3 spawnPos = boxSpawnPoint.position
+            + new Vector3(
+                Random.Range(-0.6f, 0.6f),
+                0.5f,
+                Random.Range(-0.6f, 0.6f)
+            );
+
         NetworkObject newBox = Instantiate(
             deliveryBoxPrefab,
-            boxSpawnPoint.position,
+            spawnPos,
             boxSpawnPoint.rotation
         );
 
         newBox.Spawn();
+
+        Rigidbody boxRb = newBox.GetComponent<Rigidbody>();
+        if (boxRb != null)
+        {
+            boxRb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            boxRb.useGravity = true;
+        }
 
         DeliveryItem deliveryItem =
             newBox.GetComponentInChildren<DeliveryItem>();

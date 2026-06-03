@@ -36,6 +36,12 @@ public class CarryableObject : NetworkBehaviour
     {
         if (rb == null) rb = GetComponent<Rigidbody>();
         if (objectCollider == null) objectCollider = GetComponent<Collider>();
+
+        if (rb != null)
+        {
+            rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            rb.mass = weightLevel;
+        }
     }
 
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
@@ -92,6 +98,8 @@ public class CarryableObject : NetworkBehaviour
         if (rb != null)
         {
             rb.isKinematic = false;
+            rb.useGravity = true;
+            rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             rb.linearVelocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
 
