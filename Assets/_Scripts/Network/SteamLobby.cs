@@ -28,8 +28,13 @@ public class SteamLobby : MonoBehaviour
     // ロビーチャットコールバック
     private Callback<LobbyChatMsg_t> m_lobbyChatMessage;
 
+    // ロビーデータ更新コールバック
+    private Callback<LobbyDataUpdate_t> m_lobbyDataUpdate;
+
     // ロビーデータキー
     private const string s_HostAddressKey = "HostAddress";
+    private const string s_LobbyCodeKey = "LobbyCode";
+    private const string s_GameStartedKey = "game_started";
     private const int s_LobbyChatMessageMaxBytes = 4096;
 
     public ulong LobbyID { get; private set; }
@@ -42,6 +47,10 @@ public class SteamLobby : MonoBehaviour
     // シングルトン
     private static SteamLobby instance;
     private bool operationInProgress;
+    private Coroutine connectionTimeoutCoroutine;
+    private Coroutine clientSceneSyncGuardCoroutine;
+    private bool clientStartRequested;
+    private NetworkManager sessionNetworkManager;
 
     public static SteamLobby Instance
     {
@@ -92,6 +101,9 @@ public class SteamLobby : MonoBehaviour
         m_lobbyChatMessage =
             Callback<LobbyChatMsg_t>.Create(OnLobbyChatMessage);
 
+        m_lobbyDataUpdate =
+            Callback<LobbyDataUpdate_t>.Create(OnLobbyDataUpdated);
+
         // Steamリレーネットワークを起動（ファイアウォール環境での接続に必要）
         SteamNetworkingUtils.InitRelayNetworkAccess();
 
@@ -102,6 +114,17 @@ public class SteamLobby : MonoBehaviour
             LocalPersonaName + " (" +
             SteamUser.GetSteamID() + ")"
         );
+    }
+
+    private void OnEnable()
+    {
+        SceneManager.sceneLoaded -= OnUnitySceneLoaded;
+        SceneManager.sceneLoaded += OnUnitySceneLoaded;
+    }
+
+    private void OnDisable()
+    {
+        SceneManager.sceneLoaded -= OnUnitySceneLoaded;
     }
 
     /// <summary>
@@ -173,8 +196,14 @@ public class SteamLobby : MonoBehaviour
         // 部屋コード保存
         SteamMatchmaking.SetLobbyData(
             new CSteamID(LobbyID),
-            "LobbyCode",
+            s_LobbyCodeKey,
             LobbyCode
+        );
+
+        SteamMatchmaking.SetLobbyData(
+            new CSteamID(LobbyID),
+            s_GameStartedKey,
+            "false"
         );
 
         Debug.Log(
@@ -182,9 +211,16 @@ public class SteamLobby : MonoBehaviour
             LobbyCode
         );
 
+        var networkManager = NetworkManager.Singleton;
+        if (!PrepareSteamNetworkManager(networkManager))
+        {
+            SetOperationInProgress(false);
+            return;
+        }
+
         // 接続承認
-        NetworkManager.Singleton.NetworkConfig.ConnectionApproval = true;
-        NetworkManager.Singleton.ConnectionApprovalCallback = ApprovalCheck;
+        networkManager.NetworkConfig.ConnectionApproval = true;
+        networkManager.ConnectionApprovalCallback = ApprovalCheck;
 
         // ホスト開始をコルーチンに変更して、Steamリレーネットワークの準備完了を待つ
         StartCoroutine(StartHostRoutine());
@@ -226,6 +262,12 @@ public class SteamLobby : MonoBehaviour
             yield break;
         }
 
+        if (!PrepareSteamNetworkManager(networkManager))
+        {
+            SetOperationInProgress(false);
+            yield break;
+        }
+
         // ホスト開始
         bool started = networkManager.StartHost();
 
@@ -240,11 +282,41 @@ public class SteamLobby : MonoBehaviour
             yield break;
         }
 
-        // シーン移動
-        networkManager.SceneManager.LoadScene(
-            gameSceneName,
-            LoadSceneMode.Single
+        SetSessionNetworkManager(networkManager);
+
+        SteamMatchmaking.SetLobbyData(
+            new CSteamID(LobbyID),
+            s_GameStartedKey,
+            "true"
         );
+
+        Debug.Log("[SteamLobby] LobbyData game_started=true");
+
+        networkManager.SceneManager.OnSceneEvent -= OnNetworkSceneEvent;
+        networkManager.SceneManager.OnSceneEvent += OnNetworkSceneEvent;
+
+        // シーン移動
+        SceneEventProgressStatus sceneLoadStatus =
+            networkManager.SceneManager.LoadScene(
+                gameSceneName,
+                LoadSceneMode.Single
+            );
+
+        Debug.Log(
+            "[SteamLobby] Host LoadScene " +
+            gameSceneName +
+            ": " +
+            sceneLoadStatus
+        );
+
+        if (sceneLoadStatus != SceneEventProgressStatus.Started)
+        {
+            Debug.LogError(
+                "[SteamLobby] Host LoadScene failed: " +
+                sceneLoadStatus
+            );
+            SetOperationInProgress(false);
+        }
     }
 
     /// <summary>
@@ -270,6 +342,7 @@ public class SteamLobby : MonoBehaviour
         }
 
         SetOperationInProgress(true);
+        clientStartRequested = false;
 
         SteamMatchmaking.JoinLobby(lobbyID);
 
@@ -308,40 +381,42 @@ public class SteamLobby : MonoBehaviour
             return;
         }
 
+        LobbyID = callback.m_ulSteamIDLobby;
+        var lobbyId = new CSteamID(LobbyID);
+
         string hostAddress =
             SteamMatchmaking.GetLobbyData(
-                new CSteamID(callback.m_ulSteamIDLobby),
+                lobbyId,
                 s_HostAddressKey
             );
 
+        CSteamID ownerId = SteamMatchmaking.GetLobbyOwner(lobbyId);
+
         Debug.Log(
             "[SteamLobby] ロビー入室成功 Host: " +
-            hostAddress
+            hostAddress +
+            " Owner: " +
+            ownerId
         );
 
         // 自分がホストなら終了
-        if (hostAddress ==
-            SteamUser.GetSteamID().ToString())
+        if (ownerId == SteamUser.GetSteamID() ||
+            hostAddress == SteamUser.GetSteamID().ToString())
         {
             return;
         }
 
         if (string.IsNullOrWhiteSpace(hostAddress))
         {
-            Debug.LogError(
-                "[SteamLobby] HostAddressが空"
+            Debug.LogWarning(
+                "[SteamLobby] HostAddressが空です。LobbyOwnerを接続先として使います。"
             );
-
-            SetOperationInProgress(false);
-            return;
         }
-
-        LobbyID = callback.m_ulSteamIDLobby;
 
         LobbyCode =
             SteamMatchmaking.GetLobbyData(
-                new CSteamID(LobbyID),
-                "LobbyCode"
+                lobbyId,
+                s_LobbyCodeKey
             );
 
         Debug.Log(
@@ -353,15 +428,101 @@ public class SteamLobby : MonoBehaviour
             "Join request from " + GetLocalPersonaName()
         );
 
-        // Transport取得
-        var networkManager = NetworkManager.Singleton;
-        if (networkManager == null)
+        TryStartClientFromLobby("LobbyEnter");
+    }
+
+    private void OnLobbyDataUpdated(LobbyDataUpdate_t callback)
+    {
+        if (callback.m_ulSteamIDLobby != LobbyID ||
+            callback.m_ulSteamIDMember != callback.m_ulSteamIDLobby)
+        {
+            return;
+        }
+
+        Debug.Log(
+            "[SteamLobby] LobbyDataUpdate: LobbyID=" +
+            callback.m_ulSteamIDLobby +
+            " Success=" +
+            callback.m_bSuccess
+        );
+
+        if (callback.m_bSuccess == 0)
+        {
+            Debug.LogWarning("[SteamLobby] LobbyDataUpdate failed.");
+            SetOperationInProgress(false);
+            return;
+        }
+
+        if (SteamMatchmaking.GetLobbyOwner(new CSteamID(LobbyID)) ==
+            SteamUser.GetSteamID())
+        {
+            return;
+        }
+
+        TryStartClientFromLobby("LobbyDataUpdate");
+    }
+
+    private void TryStartClientFromLobby(string source)
+    {
+        if (clientStartRequested)
+        {
+            Debug.Log("[SteamLobby] StartClient already requested. Source=" + source);
+            return;
+        }
+
+        if (LobbyID == 0)
+        {
+            Debug.LogWarning("[SteamLobby] LobbyIDが未設定です Source=" + source);
+            return;
+        }
+
+        var lobbyId = new CSteamID(LobbyID);
+        string gameStarted =
+            SteamMatchmaking.GetLobbyData(lobbyId, s_GameStartedKey);
+
+        if (gameStarted != "true")
+        {
+            Debug.Log(
+                "[SteamLobby] ホスト準備待ち Source=" +
+                source +
+                " game_started=" +
+                gameStarted
+            );
+            return;
+        }
+
+        string hostAddress =
+            SteamMatchmaking.GetLobbyData(lobbyId, s_HostAddressKey);
+
+        if (string.IsNullOrWhiteSpace(hostAddress))
+        {
+            CSteamID ownerId = SteamMatchmaking.GetLobbyOwner(lobbyId);
+            hostAddress = ownerId.m_SteamID.ToString();
+
+            Debug.LogWarning(
+                "[SteamLobby] HostAddressが空のためLobbyOwnerを使用します: " +
+                hostAddress
+            );
+        }
+
+        if (!ulong.TryParse(hostAddress, out _))
+        {
+            Debug.LogError(
+                "[SteamLobby] HostAddressがSteamIDとして不正です: " +
+                hostAddress
+            );
+            SetOperationInProgress(false);
+            return;
+        }
+
+        if (NetworkManager.Singleton == null)
         {
             Debug.LogError("[SteamLobby] NetworkManagerがありません");
             SetOperationInProgress(false);
             return;
         }
 
+        clientStartRequested = true;
         StartCoroutine(StartClientRoutine(hostAddress));
     }
 
@@ -371,6 +532,7 @@ public class SteamLobby : MonoBehaviour
         if (networkManager == null)
         {
             SetOperationInProgress(false);
+            clientStartRequested = false;
             yield break;
         }
 
@@ -414,19 +576,20 @@ public class SteamLobby : MonoBehaviour
         if (networkManager == null || !networkManager.isActiveAndEnabled)
         {
             SetOperationInProgress(false);
+            clientStartRequested = false;
+            yield break;
+        }
+
+        if (!PrepareSteamNetworkManager(networkManager))
+        {
+            SetOperationInProgress(false);
+            clientStartRequested = false;
             yield break;
         }
 
         var transport =
             (SteamNetworkingSocketsTransport)
             networkManager.NetworkConfig.NetworkTransport;
-
-        if (transport == null)
-        {
-            Debug.LogError("[SteamLobby] Transportがありません");
-            SetOperationInProgress(false);
-            yield break;
-        }
 
         transport.ConnectToSteamID = ulong.Parse(hostAddress);
 
@@ -437,6 +600,9 @@ public class SteamLobby : MonoBehaviour
         networkManager.OnClientDisconnectCallback -= OnClientDisconnect;
         networkManager.OnClientDisconnectCallback += OnClientDisconnect;
 
+        networkManager.SceneManager.OnSceneEvent -= OnNetworkSceneEvent;
+        networkManager.SceneManager.OnSceneEvent += OnNetworkSceneEvent;
+
         bool result = networkManager.StartClient();
 
         Debug.Log("[SteamLobby] StartClient: " + result);
@@ -445,13 +611,88 @@ public class SteamLobby : MonoBehaviour
         {
             Debug.LogError("[SteamLobby] StartClientに失敗しました");
             SetOperationInProgress(false);
+            clientStartRequested = false;
 
             networkManager.OnClientConnectedCallback -= OnClientConnected;
             networkManager.OnClientDisconnectCallback -= OnClientDisconnect;
+            networkManager.SceneManager.OnSceneEvent -= OnNetworkSceneEvent;
             yield break;
         }
 
-        StartCoroutine(ConnectionTimeout(30f));
+        SetSessionNetworkManager(networkManager);
+
+        connectionTimeoutCoroutine = StartCoroutine(ConnectionTimeout(30f));
+    }
+
+    private bool PrepareSteamNetworkManager(NetworkManager networkManager)
+    {
+        if (networkManager == null)
+        {
+            Debug.LogError("[SteamLobby] NetworkManagerがありません");
+            return false;
+        }
+
+        if (!(networkManager.NetworkConfig.NetworkTransport is SteamNetworkingSocketsTransport))
+        {
+            string transportName = networkManager.NetworkConfig.NetworkTransport != null
+                ? networkManager.NetworkConfig.NetworkTransport.GetType().Name
+                : "(none)";
+
+            Debug.LogError(
+                "[SteamLobby] Steam接続にはSteamNetworkingSocketsTransportが必要です。現在のTransport=" +
+                transportName
+            );
+
+            return false;
+        }
+
+        return true;
+    }
+
+    private void SetSessionNetworkManager(NetworkManager networkManager)
+    {
+        if (networkManager == null)
+        {
+            return;
+        }
+
+        sessionNetworkManager = networkManager;
+        DontDestroyOnLoad(networkManager.gameObject);
+        RemoveSceneNetworkManagerDuplicates();
+    }
+
+    private void OnUnitySceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        RemoveSceneNetworkManagerDuplicates();
+    }
+
+    private void RemoveSceneNetworkManagerDuplicates()
+    {
+        if (sessionNetworkManager == null ||
+            !sessionNetworkManager.IsListening)
+        {
+            return;
+        }
+
+        NetworkManager[] networkManagers =
+            FindObjectsByType<NetworkManager>(FindObjectsInactive.Exclude);
+
+        foreach (NetworkManager networkManager in networkManagers)
+        {
+            if (networkManager == null ||
+                networkManager == sessionNetworkManager)
+            {
+                continue;
+            }
+
+            Debug.LogWarning(
+                "[SteamLobby] セッション中の重複NetworkManagerを破棄します: " +
+                networkManager.gameObject.scene.name + "/" +
+                networkManager.name
+            );
+
+            Destroy(networkManager.gameObject);
+        }
     }
 
     private void OnClientConnected(ulong clientId)
@@ -461,7 +702,98 @@ public class SteamLobby : MonoBehaviour
             clientId
         );
 
-        StopAllCoroutines();
+        var networkManager = NetworkManager.Singleton;
+        if (networkManager == null ||
+            clientId != networkManager.LocalClientId)
+        {
+            return;
+        }
+
+        if (connectionTimeoutCoroutine != null)
+        {
+            StopCoroutine(connectionTimeoutCoroutine);
+            connectionTimeoutCoroutine = null;
+        }
+
+        if (clientSceneSyncGuardCoroutine != null)
+        {
+            StopCoroutine(clientSceneSyncGuardCoroutine);
+        }
+
+        clientSceneSyncGuardCoroutine =
+            StartCoroutine(ClientSceneSyncGuard(15f));
+    }
+
+    private void OnNetworkSceneEvent(SceneEvent sceneEvent)
+    {
+        Debug.Log(
+            "[SteamLobby] SceneEvent: " +
+            sceneEvent.SceneEventType +
+            " Scene=" +
+            sceneEvent.SceneName +
+            " ClientID=" +
+            sceneEvent.ClientId +
+            " ActiveScene=" +
+            SceneManager.GetActiveScene().name
+        );
+
+        if (sceneEvent.SceneName == gameSceneName &&
+            SceneManager.GetActiveScene().name == gameSceneName)
+        {
+            SetOperationInProgress(false);
+        }
+    }
+
+    private IEnumerator ClientSceneSyncGuard(float seconds)
+    {
+        float elapsed = 0f;
+
+        while (elapsed < seconds)
+        {
+            var networkManager = NetworkManager.Singleton;
+            string activeSceneName =
+                SceneManager.GetActiveScene().name;
+
+            if (activeSceneName == gameSceneName)
+            {
+                Debug.Log(
+                    "[SteamLobby] クライアント側シーン同期完了: " +
+                    gameSceneName
+                );
+
+                SetOperationInProgress(false);
+                clientSceneSyncGuardCoroutine = null;
+                yield break;
+            }
+
+            if (networkManager == null ||
+                !networkManager.IsClient ||
+                !networkManager.IsConnectedClient)
+            {
+                clientSceneSyncGuardCoroutine = null;
+                yield break;
+            }
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        if (NetworkManager.Singleton != null &&
+            NetworkManager.Singleton.IsClient &&
+            NetworkManager.Singleton.IsConnectedClient &&
+            SceneManager.GetActiveScene().name != gameSceneName)
+        {
+            Debug.LogWarning(
+                "[SteamLobby] 接続済みですがシーン同期が完了しないため、" +
+                "クライアント側でGameRoomへ復旧遷移します。 ActiveScene=" +
+                SceneManager.GetActiveScene().name
+            );
+
+            SceneManager.LoadScene(gameSceneName, LoadSceneMode.Single);
+            SetOperationInProgress(false);
+        }
+
+        clientSceneSyncGuardCoroutine = null;
     }
 
     private IEnumerator ConnectionTimeout(float seconds)
@@ -480,9 +812,13 @@ public class SteamLobby : MonoBehaviour
                 OnClientConnected;
             NetworkManager.Singleton.OnClientDisconnectCallback -=
                 OnClientDisconnect;
+            NetworkManager.Singleton.SceneManager.OnSceneEvent -=
+                OnNetworkSceneEvent;
 
             NetworkManager.Singleton.Shutdown();
+            sessionNetworkManager = null;
             SetOperationInProgress(false);
+            clientStartRequested = false;
             SceneManager.LoadScene(menuSceneName);
         }
     }
@@ -548,6 +884,8 @@ public class SteamLobby : MonoBehaviour
             OnClientConnected;
         NetworkManager.Singleton.OnClientDisconnectCallback -=
             OnClientDisconnect;
+        NetworkManager.Singleton.SceneManager.OnSceneEvent -=
+            OnNetworkSceneEvent;
 
         StartCoroutine(ShutdownRoutine());
     }
@@ -558,12 +896,14 @@ public class SteamLobby : MonoBehaviour
         if (networkManager != null)
         {
             networkManager.Shutdown();
+            sessionNetworkManager = null;
             
             // Shutdown完了を待つために0.2秒待機
             yield return new WaitForSeconds(0.2f);
         }
 
         SetOperationInProgress(false);
+        clientStartRequested = false;
 
         SceneManager.LoadScene(menuSceneName);
     }
@@ -631,11 +971,12 @@ public class SteamLobby : MonoBehaviour
 
         // 修正版
         SteamMatchmaking.AddRequestLobbyListStringFilter(
-            "LobbyCode",
+            s_LobbyCodeKey,
             targetCode,
             ELobbyComparison.k_ELobbyComparisonEqual
         );
 
+        SteamMatchmaking.AddRequestLobbyListFilterSlotsAvailable(1);
         SteamMatchmaking.AddRequestLobbyListResultCountFilter(1);
 
         SteamAPICall_t handle =

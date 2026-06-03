@@ -4,6 +4,7 @@ using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Steamworks;
+using Netcode.Transports;
 
 public class NetworkDebugOverlay : MonoBehaviour
 {
@@ -92,9 +93,11 @@ public class NetworkDebugOverlay : MonoBehaviour
         }
 
         statusBuilder.AppendLine($"Listening: {networkManager.IsListening}");
+        statusBuilder.AppendLine($"Connected: {networkManager.IsConnectedClient}");
         statusBuilder.AppendLine($"Mode: {GetMode(networkManager)}");
         statusBuilder.AppendLine($"LocalClientId: {networkManager.LocalClientId}");
         statusBuilder.AppendLine($"ConnectedClients: {networkManager.ConnectedClientsIds.Count}");
+        AppendTransportStatus(networkManager);
         AppendSteamStatus();
 
         if (networkManager.LocalClient != null)
@@ -106,6 +109,19 @@ public class NetworkDebugOverlay : MonoBehaviour
         }
 
         GUILayout.Label(statusBuilder.ToString());
+    }
+
+    private void AppendTransportStatus(NetworkManager networkManager)
+    {
+        if (networkManager.NetworkConfig.NetworkTransport is SteamNetworkingSocketsTransport steamTransport)
+        {
+            statusBuilder.AppendLine($"SteamTarget: {steamTransport.ConnectToSteamID}");
+            return;
+        }
+
+        statusBuilder.AppendLine(
+            $"Transport: {networkManager.NetworkConfig.NetworkTransport.GetType().Name}"
+        );
     }
 
     private void AppendSteamStatus()
