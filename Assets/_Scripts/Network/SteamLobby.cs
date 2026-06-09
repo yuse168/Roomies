@@ -1,6 +1,7 @@
 using System;
 using System.Text;
 using Steamworks;
+using Unity.Netcode;
 using UnityEngine;
 
 public class SteamLobby : MonoBehaviour
@@ -45,6 +46,7 @@ public class SteamLobby : MonoBehaviour
     private static SteamLobby instance;
     private bool operationInProgress;
     private bool clientStartRequested;
+    private bool steamCallbacksRegistered;
 
     public static SteamLobby Instance
     {
@@ -80,6 +82,28 @@ public class SteamLobby : MonoBehaviour
             return;
         }
 
+        RegisterSteamCallbacks();
+
+        // Steamリレーネットワークを起動（ファイアウォール環境での接続に必要）
+        SteamNetworkingUtils.InitRelayNetworkAccess();
+
+        LocalPersonaName = SteamFriends.GetPersonaName();
+
+        Debug.Log(
+            "[SteamLobby] Steam初期化成功: " +
+            LocalPersonaName + " (" +
+            SteamUser.GetSteamID() + ")"
+        );
+    }
+
+    private void RegisterSteamCallbacks()
+    {
+        if (steamCallbacksRegistered)
+        {
+            Debug.Log("[SteamLobby] Steam callbacks are already registered.");
+            return;
+        }
+
         m_crLobbyCreated =
             CallResult<LobbyCreated_t>.Create(OnCreateLobby);
 
@@ -98,16 +122,24 @@ public class SteamLobby : MonoBehaviour
         m_lobbyDataUpdate =
             Callback<LobbyDataUpdate_t>.Create(OnLobbyDataUpdated);
 
-        // Steamリレーネットワークを起動（ファイアウォール環境での接続に必要）
-        SteamNetworkingUtils.InitRelayNetworkAccess();
+        steamCallbacksRegistered = true;
+        Debug.Log("[SteamLobby] Steam callbacks registered.");
+    }
 
-        LocalPersonaName = SteamFriends.GetPersonaName();
+    private bool EnsureSteamCallbacksRegistered()
+    {
+        if (!SteamManager.Initialized)
+        {
+            Debug.LogError("[SteamLobby] Steam未初期化");
+            return false;
+        }
 
-        Debug.Log(
-            "[SteamLobby] Steam初期化成功: " +
-            LocalPersonaName + " (" +
-            SteamUser.GetSteamID() + ")"
-        );
+        if (!steamCallbacksRegistered)
+        {
+            RegisterSteamCallbacks();
+        }
+
+        return steamCallbacksRegistered;
     }
 
     private void OnEnable()
@@ -138,9 +170,8 @@ public class SteamLobby : MonoBehaviour
             return;
         }
 
-        if (!SteamManager.Initialized)
+        if (!EnsureSteamCallbacksRegistered())
         {
-            Debug.LogError("[SteamLobby] Steam未初期化");
             return;
         }
 
@@ -286,15 +317,22 @@ public class SteamLobby : MonoBehaviour
 
     private void JoinLobby(CSteamID lobbyID, bool fromSearch)
     {
-        if (IsBusy && !fromSearch)
+        if (!ResetListeningNetworkManagerBeforeJoin())
+        {
+            return;
+        }
+
+        if ((operationInProgress ||
+            NetworkSessionManager.Instance.State == NetworkSessionState.StartingHost ||
+            NetworkSessionManager.Instance.State == NetworkSessionState.Connecting) &&
+            !fromSearch)
         {
             Debug.LogWarning("[SteamLobby] ロビー操作中のため参加を無視します");
             return;
         }
 
-        if (!SteamManager.Initialized)
+        if (!EnsureSteamCallbacksRegistered())
         {
-            Debug.LogError("[SteamLobby] Steam未初期化");
             return;
         }
 
@@ -534,18 +572,19 @@ public class SteamLobby : MonoBehaviour
     /// </summary>
     public void JoinLobbyWithCode(string code)
     {
+        if (!ResetListeningNetworkManagerBeforeJoin())
+        {
+            return;
+        }
+
         if (IsBusy)
         {
             Debug.LogWarning("[SteamLobby] ロビー操作中のため検索を無視します");
             return;
         }
 
-        if (!SteamManager.Initialized)
+        if (!EnsureSteamCallbacksRegistered())
         {
-            Debug.LogError(
-                "[SteamLobby] Steam未初期化"
-            );
-
             return;
         }
 
@@ -585,6 +624,29 @@ public class SteamLobby : MonoBehaviour
             SteamMatchmaking.RequestLobbyList();
 
         m_crLobbyMatchList.Set(handle);
+    }
+
+    private bool ResetListeningNetworkManagerBeforeJoin()
+    {
+        NetworkManager networkManager = NetworkManager.Singleton;
+        if (networkManager == null)
+        {
+            Debug.LogError("[SteamLobby] NetworkManager.Singletonがありません。Joinを中止します。");
+            return false;
+        }
+
+        if (networkManager.IsListening)
+        {
+            Debug.LogWarning(
+                "[SteamLobby] Join前にNetworkManagerがListening状態のためShutdownします。 " +
+                "IsHost=" + networkManager.IsHost +
+                " IsServer=" + networkManager.IsServer +
+                " IsClient=" + networkManager.IsClient
+            );
+            networkManager.Shutdown();
+        }
+
+        return true;
     }
 
     /// <summary>
