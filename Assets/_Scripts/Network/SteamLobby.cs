@@ -494,25 +494,36 @@ public class SteamLobby : MonoBehaviour
 
         string hostAddress =
             SteamMatchmaking.GetLobbyData(lobbyId, s_HostAddressKey);
+        ulong ownerSteamId = ownerId.m_SteamID;
+        ulong hostSteamId = ownerSteamId;
 
-        if (string.IsNullOrWhiteSpace(hostAddress))
+        if (ownerSteamId == 0)
         {
-            hostAddress = ownerId.m_SteamID.ToString();
+            if (string.IsNullOrWhiteSpace(hostAddress) ||
+                !ulong.TryParse(hostAddress, out hostSteamId))
+            {
+                Debug.LogError(
+                    "[SteamLobby] LobbyOwnerとHostAddressの両方から接続先SteamIDを取得できません。 " +
+                    "HostAddress=" + hostAddress
+                );
+                SetOperationInProgress(false);
+                return;
+            }
 
             Debug.LogWarning(
-                "[SteamLobby] HostAddressが空のためLobbyOwnerを使用します: " +
-                hostAddress
+                "[SteamLobby] LobbyOwnerが不明のためHostAddressを使用します: " +
+                hostSteamId
             );
         }
-
-        if (!ulong.TryParse(hostAddress, out ulong hostSteamId))
+        else if (!string.IsNullOrWhiteSpace(hostAddress) &&
+            ulong.TryParse(hostAddress, out ulong lobbyDataHostSteamId) &&
+            lobbyDataHostSteamId != ownerSteamId)
         {
-            Debug.LogError(
-                "[SteamLobby] HostAddressがSteamIDとして不正です: " +
-                hostAddress
+            Debug.LogWarning(
+                "[SteamLobby] HostAddressとLobbyOwnerが一致しません。LobbyOwnerを接続先として優先します。 " +
+                "HostAddress=" + lobbyDataHostSteamId +
+                " LobbyOwnerSteamID=" + ownerSteamId
             );
-            SetOperationInProgress(false);
-            return;
         }
 
         Debug.Log(
@@ -520,7 +531,7 @@ public class SteamLobby : MonoBehaviour
             " LocalSteamID=" + SteamUser.GetSteamID().m_SteamID +
             " HostAddress=" + hostAddress +
             " HostSteamID=" + hostSteamId +
-            " LobbyOwnerSteamID=" + ownerId.m_SteamID +
+            " LobbyOwnerSteamID=" + ownerSteamId +
             " game_started=" + gameStarted
         );
 
