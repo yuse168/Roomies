@@ -4,8 +4,6 @@ using UnityEngine.SceneManagement;
 
 public static class PersistentNetworkBootstrap
 {
-    private const string PersistentNetworkResourcePath = "PersistentNetwork";
-
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void RegisterSceneHook()
     {
@@ -32,19 +30,8 @@ public static class PersistentNetworkBootstrap
             return;
         }
 
-        GameObject prefab =
-            Resources.Load<GameObject>(PersistentNetworkResourcePath);
-
-        if (prefab == null)
-        {
-            Debug.LogError(
-                "[PersistentNetworkBootstrap] Resources/PersistentNetwork.prefab が見つかりません。"
-            );
-            return;
-        }
-
-        GameObject instance = Object.Instantiate(prefab);
-        instance.name = prefab.name;
-        Object.DontDestroyOnLoad(instance);
+        Debug.LogError(
+            "[PersistentNetworkBootstrap] NetworkManager がシーンにありません。MainMenuSteam/GameRoom には PersistentNetwork を事前配置してください。"
+        );
     }
 }
