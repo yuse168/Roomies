@@ -5,7 +5,8 @@ using UnityEngine;
 public class DeliveryZone : NetworkBehaviour
 {
     [Header("箱Prefab")]
-    [SerializeField] private NetworkObject deliveryBoxPrefab;
+    [SerializeField] private NetworkObject normalBoxPrefab;
+    [SerializeField] private NetworkObject rareBoxPrefab;
 
     [Header("スポーン位置")]
     [SerializeField] private Transform boxSpawnPoint;
@@ -100,10 +101,10 @@ public class DeliveryZone : NetworkBehaviour
 
     private void SpawnNewBox()
     {
-        if (deliveryBoxPrefab == null)
+        if (normalBoxPrefab == null)
         {
             Debug.LogError(
-                "deliveryBoxPrefab が設定されていません"
+                "normalBoxPrefab が設定されていません"
             );
             return;
         }
@@ -116,6 +117,13 @@ public class DeliveryZone : NetworkBehaviour
             return;
         }
 
+        bool isRare =
+            Random.Range(0, 100) < rarePercent;
+
+        NetworkObject prefab = isRare && rareBoxPrefab != null
+            ? rareBoxPrefab
+            : normalBoxPrefab;
+
         Vector3 spawnPos = boxSpawnPoint.position
             + new Vector3(
                 Random.Range(-0.6f, 0.6f),
@@ -124,7 +132,7 @@ public class DeliveryZone : NetworkBehaviour
             );
 
         NetworkObject newBox = Instantiate(
-            deliveryBoxPrefab,
+            prefab,
             spawnPos,
             boxSpawnPoint.rotation
         );
@@ -144,18 +152,13 @@ public class DeliveryZone : NetworkBehaviour
         if (deliveryItem != null)
         {
             deliveryItem.SetOwnerZone(this);
-
-            bool isRare =
-                Random.Range(0, 100) < rarePercent;
-
             deliveryItem.SetRare(isRare);
-
             Debug.Log("レア判定: " + isRare);
         }
-        else
+        else if (isRare)
         {
-            Debug.LogError(
-                "DeliveryItem が見つかりません"
+            Debug.LogWarning(
+                "レアPrefab に DeliveryItem が設定されていません。ペナルティ等は機能しません。"
             );
         }
 

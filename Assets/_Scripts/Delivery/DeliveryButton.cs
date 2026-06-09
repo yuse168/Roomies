@@ -14,7 +14,11 @@ public class DeliveryButton : NetworkBehaviour
 
     public void PressButton(PlayerEarning playerEarning)
     {
-        if (playerEarning == null) return;
+        if (playerEarning == null)
+        {
+            Debug.LogWarning("PlayerEarning が null のため納品できません");
+            return;
+        }
 
         PressButtonServerRpc(playerEarning.NetworkObjectId);
     }
@@ -24,13 +28,13 @@ public class DeliveryButton : NetworkBehaviour
     {
         if (deliveryZone == null)
         {
-            Debug.Log("DeliveryZoneが設定されていません");
+            ShowResultClientRpc("DeliveryZoneが設定されていません");
             return;
         }
 
         if (!deliveryZone.HasBox())
         {
-            Debug.Log("納品する箱がありません");
+            ShowResultClientRpc("納品する箱がありません");
             return;
         }
 
@@ -38,15 +42,9 @@ public class DeliveryButton : NetworkBehaviour
 
         DeliveryItem deliveryItem = deliveryZone.GetCurrentItem();
 
-        Debug.Log("deliveryItem: " + deliveryItem);
-
         if (deliveryItem != null)
         {
             Debug.Log("納品時レア判定: " + deliveryItem.IsRareItem());
-        }
-        else
-        {
-            Debug.Log("DeliveryItem が取得できませんでした");
         }
 
         if (deliveryItem != null && deliveryItem.IsRareItem())
@@ -72,6 +70,12 @@ public class DeliveryButton : NetworkBehaviour
 
         deliveryZone.RemoveBox();
 
-        Debug.Log("納品成功 +" + finalReward);
+        ShowResultClientRpc("納品成功 +" + finalReward);
+    }
+
+    [ClientRpc]
+    private void ShowResultClientRpc(string message)
+    {
+        Debug.Log(message);
     }
 }
