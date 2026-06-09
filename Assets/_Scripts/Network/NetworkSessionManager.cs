@@ -330,6 +330,16 @@ public class NetworkSessionManager : MonoBehaviour
         networkManager.OnClientDisconnectCallback -= OnClientDisconnect;
         networkManager.OnClientDisconnectCallback += OnClientDisconnect;
 
+        SubscribeNetworkSceneCallbacks(networkManager);
+    }
+
+    private void SubscribeNetworkSceneCallbacks(NetworkManager networkManager)
+    {
+        if (networkManager == null || networkManager.SceneManager == null)
+        {
+            return;
+        }
+
         networkManager.SceneManager.OnSceneEvent -= OnNetworkSceneEvent;
         networkManager.SceneManager.OnSceneEvent += OnNetworkSceneEvent;
     }
@@ -344,7 +354,10 @@ public class NetworkSessionManager : MonoBehaviour
 
         networkManager.OnClientConnectedCallback -= OnClientConnected;
         networkManager.OnClientDisconnectCallback -= OnClientDisconnect;
-        networkManager.SceneManager.OnSceneEvent -= OnNetworkSceneEvent;
+        if (networkManager.SceneManager != null)
+        {
+            networkManager.SceneManager.OnSceneEvent -= OnNetworkSceneEvent;
+        }
     }
 
     private void OnNetworkSceneEvent(SceneEvent sceneEvent)
@@ -376,6 +389,7 @@ public class NetworkSessionManager : MonoBehaviour
         }
 
         Debug.Log("[NetworkSessionManager] クライアント接続 ClientID=" + clientId);
+        SubscribeNetworkSceneCallbacks(networkManager);
 
         if (clientId != networkManager.LocalClientId)
         {
