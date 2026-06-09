@@ -17,6 +17,8 @@ public class NetworkSessionManager : MonoBehaviour
     private Coroutine connectionTimeoutCoroutine;
     private Coroutine clientSceneSyncGuardCoroutine;
     private NetworkManager sessionNetworkManager;
+    private Callback<SteamNetConnectionStatusChangedCallback_t>
+        steamConnectionStatusChanged;
     private int maxMembers = 4;
     private string gameSceneName = "GameRoom";
     private string menuSceneName = "MainMenuSteam";
@@ -147,6 +149,7 @@ public class NetworkSessionManager : MonoBehaviour
         SetState(NetworkSessionState.StartingHost);
 
         yield return WaitForRelayNetwork("ホスト側");
+        EnsureSteamConnectionDiagnostics();
 
         NetworkManager networkManager = NetworkManager.Singleton;
         if (!PrepareSteamNetworkManager(networkManager))
@@ -217,6 +220,7 @@ public class NetworkSessionManager : MonoBehaviour
         }
 
         yield return WaitForRelayNetwork("クライアント側");
+        EnsureSteamConnectionDiagnostics();
 
         if (!PrepareSteamNetworkManager(networkManager))
         {
@@ -370,6 +374,41 @@ public class NetworkSessionManager : MonoBehaviour
                 "[NetworkSessionManager] Transport.ConnectToSteamIDがHostSteamIDと一致していません。"
             );
         }
+    }
+
+    private void EnsureSteamConnectionDiagnostics()
+    {
+        if (!SteamManager.Initialized || steamConnectionStatusChanged != null)
+        {
+            return;
+        }
+
+        steamConnectionStatusChanged =
+            Callback<SteamNetConnectionStatusChangedCallback_t>.Create(
+                OnSteamConnectionStatusChanged
+            );
+
+        Debug.Log("[NetworkSessionManager] Steam P2P接続診断ログを開始しました。");
+    }
+
+    private void OnSteamConnectionStatusChanged(
+        SteamNetConnectionStatusChangedCallback_t callback
+    )
+    {
+        ulong localSteamId = SteamUser.GetSteamID().m_SteamID;
+        ulong remoteSteamId =
+            callback.m_info.m_identityRemote.GetSteamID64();
+
+        Debug.Log(
+            "[NetworkSessionManager] Steam P2P状態変更 " +
+            "LocalSteamID=" + localSteamId +
+            " RemoteSteamID=" + remoteSteamId +
+            " OldState=" + callback.m_eOldState +
+            " NewState=" + callback.m_info.m_eState +
+            " EndReason=" + callback.m_info.m_eEndReason +
+            " EndDebug=" + callback.m_info.m_szEndDebug +
+            " Description=" + callback.m_info.m_szConnectionDescription
+        );
     }
 
     private ulong GetCurrentLobbyOwnerSteamId()
