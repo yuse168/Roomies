@@ -185,27 +185,43 @@ public class SteamLobby : MonoBehaviour
             LobbyID
         );
 
+        CSteamID createdLobbyId = new CSteamID(LobbyID);
+        CSteamID localSteamId = SteamUser.GetSteamID();
+        CSteamID ownerSteamId = SteamMatchmaking.GetLobbyOwner(createdLobbyId);
+
+        Debug.Log(
+            "[SteamLobby] ロビー作成時SteamID " +
+            "LocalSteamID=" + localSteamId.m_SteamID +
+            " LobbyOwnerSteamID=" + ownerSteamId.m_SteamID
+        );
+
         // 部屋コード生成
         LobbyCode = GenerateRoomCode();
 
         // ホストSteamID保存
         SteamMatchmaking.SetLobbyData(
-            new CSteamID(LobbyID),
+            createdLobbyId,
             s_HostAddressKey,
-            SteamUser.GetSteamID().ToString()
+            localSteamId.m_SteamID.ToString()
         );
 
         // 部屋コード保存
         SteamMatchmaking.SetLobbyData(
-            new CSteamID(LobbyID),
+            createdLobbyId,
             s_LobbyCodeKey,
             LobbyCode
         );
 
         SteamMatchmaking.SetLobbyData(
-            new CSteamID(LobbyID),
+            createdLobbyId,
             s_GameStartedKey,
             "false"
+        );
+
+        Debug.Log(
+            "[SteamLobby] LobbyData設定 " +
+            s_HostAddressKey + "=" + localSteamId.m_SteamID +
+            " " + s_GameStartedKey + "=false"
         );
 
         Debug.Log(
@@ -243,7 +259,21 @@ public class SteamLobby : MonoBehaviour
             "true"
         );
 
-        Debug.Log("[SteamLobby] LobbyData game_started=true");
+        ulong localSteamId = SteamUser.GetSteamID().m_SteamID;
+        ulong ownerSteamId =
+            SteamMatchmaking.GetLobbyOwner(new CSteamID(LobbyID)).m_SteamID;
+        string hostAddress =
+            SteamMatchmaking.GetLobbyData(
+                new CSteamID(LobbyID),
+                s_HostAddressKey
+            );
+
+        Debug.Log(
+            "[SteamLobby] LobbyData game_started=true " +
+            "LocalSteamID=" + localSteamId +
+            " LobbyOwnerSteamID=" + ownerSteamId +
+            " HostAddress=" + hostAddress
+        );
     }
 
     /// <summary>
@@ -325,7 +355,9 @@ public class SteamLobby : MonoBehaviour
             "[SteamLobby] ロビー入室成功 Host: " +
             hostAddress +
             " Owner: " +
-            ownerId
+            ownerId.m_SteamID +
+            " LocalSteamID=" +
+            SteamUser.GetSteamID().m_SteamID
         );
 
         // 自分がホストなら終了
@@ -408,14 +440,16 @@ public class SteamLobby : MonoBehaviour
         var lobbyId = new CSteamID(LobbyID);
         string gameStarted =
             SteamMatchmaking.GetLobbyData(lobbyId, s_GameStartedKey);
+        CSteamID ownerId = SteamMatchmaking.GetLobbyOwner(lobbyId);
 
         if (gameStarted != "true")
         {
             Debug.Log(
                 "[SteamLobby] ホスト準備待ち Source=" +
                 source +
-                " game_started=" +
-                gameStarted
+                " game_started=" + gameStarted +
+                " LocalSteamID=" + SteamUser.GetSteamID().m_SteamID +
+                " LobbyOwnerSteamID=" + ownerId.m_SteamID
             );
             return;
         }
@@ -425,7 +459,6 @@ public class SteamLobby : MonoBehaviour
 
         if (string.IsNullOrWhiteSpace(hostAddress))
         {
-            CSteamID ownerId = SteamMatchmaking.GetLobbyOwner(lobbyId);
             hostAddress = ownerId.m_SteamID.ToString();
 
             Debug.LogWarning(
@@ -439,6 +472,24 @@ public class SteamLobby : MonoBehaviour
             Debug.LogError(
                 "[SteamLobby] HostAddressがSteamIDとして不正です: " +
                 hostAddress
+            );
+            SetOperationInProgress(false);
+            return;
+        }
+
+        Debug.Log(
+            "[SteamLobby] StartClient要求 Source=" + source +
+            " LocalSteamID=" + SteamUser.GetSteamID().m_SteamID +
+            " HostAddress=" + hostAddress +
+            " HostSteamID=" + hostSteamId +
+            " LobbyOwnerSteamID=" + ownerId.m_SteamID +
+            " game_started=" + gameStarted
+        );
+
+        if (hostSteamId == SteamUser.GetSteamID().m_SteamID)
+        {
+            Debug.LogError(
+                "[SteamLobby] HostSteamIDが自分自身です。クライアント開始を中止します。"
             );
             SetOperationInProgress(false);
             return;
@@ -631,6 +682,29 @@ public class SteamLobby : MonoBehaviour
             "[SteamLobby] ロビーチャット受信 (" +
             chatEntryType + ") " + senderName + ": " + message
         );
+
+        if (message.StartsWith("Join request from ", StringComparison.Ordinal))
+        {
+            Debug.Log(
+                "[SteamLobby] Join request詳細 " +
+                "SenderSteamID=" + sender.m_SteamID +
+                " LocalSteamID=" + SteamUser.GetSteamID().m_SteamID +
+                " LobbyOwnerSteamID=" +
+                SteamMatchmaking.GetLobbyOwner(
+                    new CSteamID(callback.m_ulSteamIDLobby)
+                ).m_SteamID +
+                " HostAddress=" +
+                SteamMatchmaking.GetLobbyData(
+                    new CSteamID(callback.m_ulSteamIDLobby),
+                    s_HostAddressKey
+                ) +
+                " game_started=" +
+                SteamMatchmaking.GetLobbyData(
+                    new CSteamID(callback.m_ulSteamIDLobby),
+                    s_GameStartedKey
+                )
+            );
+        }
     }
 
     private string GetLocalPersonaName()
