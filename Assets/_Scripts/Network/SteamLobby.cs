@@ -32,6 +32,8 @@ public class SteamLobby : MonoBehaviour
     private const string s_HostAddressKey = "HostAddress";
     private const string s_LobbyCodeKey = "LobbyCode";
     private const string s_GameStartedKey = "game_started";
+    private const string s_JoinRequestMessagePrefix = "Join request from ";
+    private const string s_HostReadyMessagePrefix = "Host ready ";
     private const int s_LobbyChatMessageMaxBytes = 4096;
 
     public ulong LobbyID { get; private set; }
@@ -305,6 +307,8 @@ public class SteamLobby : MonoBehaviour
             " LobbyOwnerSteamID=" + ownerSteamId +
             " HostAddress=" + hostAddress
         );
+
+        SendLobbyChatMessage(s_HostReadyMessagePrefix + localSteamId);
     }
 
     /// <summary>
@@ -424,7 +428,7 @@ public class SteamLobby : MonoBehaviour
         );
 
         SendLobbyChatMessage(
-            "Join request from " + GetLocalPersonaName()
+            s_JoinRequestMessagePrefix + GetLocalPersonaName()
         );
 
         TryStartClientFromLobby("LobbyEnter");
@@ -756,7 +760,7 @@ public class SteamLobby : MonoBehaviour
             chatEntryType + ") " + senderName + ": " + message
         );
 
-        if (message.StartsWith("Join request from ", StringComparison.Ordinal))
+        if (message.StartsWith(s_JoinRequestMessagePrefix, StringComparison.Ordinal))
         {
             Debug.Log(
                 "[SteamLobby] Join request詳細 " +
@@ -777,7 +781,64 @@ public class SteamLobby : MonoBehaviour
                     s_GameStartedKey
                 )
             );
+
+            ReplyHostReadyIfNeeded(sender);
+            return;
         }
+
+        if (message.StartsWith(s_HostReadyMessagePrefix, StringComparison.Ordinal))
+        {
+            Debug.Log(
+                "[SteamLobby] Host ready受信 SenderSteamID=" +
+                sender.m_SteamID +
+                " Message=" +
+                message
+            );
+
+            if (SteamMatchmaking.GetLobbyOwner(
+                    new CSteamID(callback.m_ulSteamIDLobby)
+                ) != SteamUser.GetSteamID())
+            {
+                TryStartClientFromLobby("HostReadyChat");
+            }
+        }
+    }
+
+    private void ReplyHostReadyIfNeeded(CSteamID sender)
+    {
+        if (LobbyID == 0 ||
+            sender == SteamUser.GetSteamID() ||
+            SteamMatchmaking.GetLobbyOwner(new CSteamID(LobbyID)) !=
+            SteamUser.GetSteamID())
+        {
+            return;
+        }
+
+        NetworkManager networkManager = NetworkManager.Singleton;
+        if (networkManager == null || !networkManager.IsListening)
+        {
+            Debug.LogWarning(
+                "[SteamLobby] Join requestを受けましたが、HostのNetworkManagerが未起動です。"
+            );
+            return;
+        }
+
+        ulong localSteamId = SteamUser.GetSteamID().m_SteamID;
+        var lobbyId = new CSteamID(LobbyID);
+
+        SteamMatchmaking.SetLobbyData(
+            lobbyId,
+            s_HostAddressKey,
+            localSteamId.ToString()
+        );
+
+        SteamMatchmaking.SetLobbyData(
+            lobbyId,
+            s_GameStartedKey,
+            "true"
+        );
+
+        SendLobbyChatMessage(s_HostReadyMessagePrefix + localSteamId);
     }
 
     private string GetLocalPersonaName()
