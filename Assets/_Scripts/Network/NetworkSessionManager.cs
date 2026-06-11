@@ -12,6 +12,11 @@ public class NetworkSessionManager : MonoBehaviour
     private const float ConnectionTimeoutSeconds = 30f;
     private const float ClientSceneSyncTimeoutSeconds = 15f;
 
+    // Steam側の初回接続タイムアウト。NGO側のConnectionTimeoutSecondsより短くして、
+    // 失敗時はSteamのEndReason/EndDebugが先にログへ出るようにする。
+    private const int SteamInitialConnectTimeoutMs = 25000;
+    private const float SteamP2PActivityCheckSeconds = 6f;
+
     private static NetworkSessionManager instance;
 
     private Coroutine connectionTimeoutCoroutine;
@@ -19,6 +24,7 @@ public class NetworkSessionManager : MonoBehaviour
     private NetworkManager sessionNetworkManager;
     private Callback<SteamNetConnectionStatusChangedCallback_t>
         steamConnectionStatusChanged;
+    private double lastSteamP2PEventRealtime = -1d;
     private int maxMembers = 4;
     private string gameSceneName = "GameRoom";
     private string menuSceneName = "MainMenuSteam";
@@ -158,6 +164,11 @@ public class NetworkSessionManager : MonoBehaviour
             yield break;
         }
 
+        ConfigureSteamTransportOptions(
+            (SteamNetworkingSocketsTransport)
+            networkManager.NetworkConfig.NetworkTransport
+        );
+
         networkManager.NetworkConfig.ConnectionApproval = true;
         networkManager.ConnectionApprovalCallback = ApprovalCheck;
 
@@ -231,7 +242,13 @@ public class NetworkSessionManager : MonoBehaviour
         var transport =
             (SteamNetworkingSocketsTransport)
             networkManager.NetworkConfig.NetworkTransport;
+        ConfigureSteamTransportOptions(transport);
         transport.ConnectToSteamID = hostSteamId;
+
+        // NGOは接続要求時にNetworkConfigのハッシュを照合する。
+        // ConnectionApprovalはハッシュ対象のため、ホスト側(true)と一致させないと
+        // 接続直後にサーバーから切断される。
+        networkManager.NetworkConfig.ConnectionApproval = true;
 
         LogSteamClientTarget(networkManager, transport, hostSteamId);
 
@@ -248,8 +265,84 @@ public class NetworkSessionManager : MonoBehaviour
         }
 
         SetSessionNetworkManager(networkManager);
+        StartCoroutine(WarnIfNoSteamP2PActivity(SteamP2PActivityCheckSeconds));
         connectionTimeoutCoroutine =
             StartCoroutine(ConnectionTimeout(ConnectionTimeoutSeconds));
+    }
+
+    /// <summary>
+    /// Transportに渡すSteamNetworkingのオプションを正常な内容で上書きする。
+    /// Inspector上で無効な要素(m_eValue=0)が混入していると、Steam APIは
+    /// ConnectP2P / CreateListenSocketP2P を黙って失敗させるため、
+    /// コールバックが一切発生しないままタイムアウトする。
+    /// </summary>
+    private void ConfigureSteamTransportOptions(
+        SteamNetworkingSocketsTransport transport
+    )
+    {
+        if (transport == null)
+        {
+            return;
+        }
+
+        if (transport.options != null)
+        {
+            foreach (SteamNetworkingConfigValue_t option in transport.options)
+            {
+                if (option.m_eValue ==
+                    ESteamNetworkingConfigValue.k_ESteamNetworkingConfig_Invalid)
+                {
+                    Debug.LogWarning(
+                        "[NetworkSessionManager] Transportのoptionsに無効な設定" +
+                        "(k_ESteamNetworkingConfig_Invalid)が含まれていたため上書きします。" +
+                        "シーン/プレハブのSteamNetworkingSocketsTransportのoptionsを確認してください。"
+                    );
+                    break;
+                }
+            }
+        }
+
+        var initialTimeout = new SteamNetworkingConfigValue_t
+        {
+            m_eValue =
+                ESteamNetworkingConfigValue.k_ESteamNetworkingConfig_TimeoutInitial,
+            m_eDataType =
+                ESteamNetworkingConfigDataType.k_ESteamNetworkingConfig_Int32,
+            m_val = new SteamNetworkingConfigValue_t.OptionValue
+            {
+                m_int32 = SteamInitialConnectTimeoutMs
+            }
+        };
+
+        transport.options = new[] { initialTimeout };
+    }
+
+    /// <summary>
+    /// StartClient後、Steam P2Pの状態変化が一定時間まったく観測できない場合に警告する。
+    /// この状態はConnectP2Pが接続自体を作成できていないことを意味する
+    /// (不正なoptions・Steam未初期化・リレー未準備など)。
+    /// </summary>
+    private IEnumerator WarnIfNoSteamP2PActivity(float seconds)
+    {
+        double startTime = Time.realtimeSinceStartupAsDouble;
+        yield return new WaitForSeconds(seconds);
+
+        if (State != NetworkSessionState.Connecting)
+        {
+            yield break;
+        }
+
+        if (lastSteamP2PEventRealtime >= startTime)
+        {
+            yield break;
+        }
+
+        Debug.LogError(
+            "[NetworkSessionManager] StartClientから" + seconds +
+            "秒間、Steam P2Pの状態変化が一度も発生していません。" +
+            "ConnectP2Pが接続を作成できていない可能性が高いです。" +
+            "Transportのoptions設定とSteamの初期化状態を確認してください。"
+        );
     }
 
     private IEnumerator WaitForRelayNetwork(string label)
@@ -395,6 +488,8 @@ public class NetworkSessionManager : MonoBehaviour
         SteamNetConnectionStatusChangedCallback_t callback
     )
     {
+        lastSteamP2PEventRealtime = Time.realtimeSinceStartupAsDouble;
+
         ulong localSteamId = SteamUser.GetSteamID().m_SteamID;
         ulong remoteSteamId =
             callback.m_info.m_identityRemote.GetSteamID64();
