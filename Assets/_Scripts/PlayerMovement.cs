@@ -155,6 +155,14 @@ public class PlayerMovement : NetworkBehaviour
 
         cameraTransform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
         transform.Rotate(Vector3.up * mouseX);
+
+        // body は常に直立を保つ（傾いた場所でスポーンしても転ばず立て直す）。
+        // 上下の視点はカメラ側で処理しているため、body はヨーのみ残す。
+        Vector3 bodyEuler = transform.eulerAngles;
+        if (bodyEuler.x != 0f || bodyEuler.z != 0f)
+        {
+            transform.rotation = Quaternion.Euler(0f, bodyEuler.y, 0f);
+        }
     }
 
     void ToggleCrouch()
