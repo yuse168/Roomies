@@ -200,9 +200,6 @@ public class SteamLobby : MonoBehaviour
             return;
         }
 
-        // クライアントへ開始通知
-        SteamMatchmaking.SetLobbyData(new CSteamID(LobbyID), KeyGameStarted, "1");
-
         // ConnectionApproval設定
         var nm = NetworkManager.Singleton;
         if (nm != null)
@@ -211,6 +208,10 @@ public class SteamLobby : MonoBehaviour
             nm.ConnectionApprovalCallback = ApprovalCheck;
         }
 
+        // 注意: クライアントへの開始通知(GameStarted=1)は、
+        // ホストがStartHost()でリッスンを開始した「後」に行う。
+        // 先に通知するとクライアントがホスト未リッスン状態で接続を試み、
+        // P2P接続が確立できずタイムアウトする。
         StartCoroutine(StartHostRoutine());
     }
 
@@ -425,6 +426,14 @@ public class SteamLobby : MonoBehaviour
         {
             SetBusy(false);
             yield break;
+        }
+
+        // ホストがリッスン開始した「後」にクライアントへ開始を通知する。
+        // これでクライアントは確実にホストが待ち受けている状態で接続を開始できる。
+        if (LobbyID != 0)
+        {
+            SteamMatchmaking.SetLobbyData(new CSteamID(LobbyID), KeyGameStarted, "1");
+            Debug.Log("[SteamLobby] GameStarted=1 を通知（ホストはリッスン中）");
         }
 
         nm.SceneManager.LoadScene(gameSceneName, LoadSceneMode.Single);
