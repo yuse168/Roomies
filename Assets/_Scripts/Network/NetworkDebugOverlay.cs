@@ -155,8 +155,16 @@ public class NetworkDebugOverlay : MonoBehaviour
     {
         if (networkManager == null || networkManager.IsListening) return;
 
+        // ConnectionApproval を一時的に無効化（テスト用直接起動）
+        networkManager.NetworkConfig.ConnectionApproval = false;
+
         bool started = networkManager.StartHost();
         Debug.Log($"[NetworkDebugOverlay] StartHost: {started}");
+
+        if (started)
+        {
+            LoadGameRoom(networkManager);
+        }
     }
 
     private static void StartClient(NetworkManager networkManager)

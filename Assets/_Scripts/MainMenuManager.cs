@@ -1,119 +1,210 @@
-using UnityEngine;
-using Unity.Netcode;
-using UnityEngine.SceneManagement;
-using Steamworks;
 using TMPro;
+using UnityEngine;
 using UnityEngine.UI;
+using Steamworks;
 
+/// <summary>
+/// MainMenu画面のUI制御。
+/// Host/Joinボタン → SteamLobby経由でロビー作成/参加 → LobbyUIManagerが待機画面を管理。
+/// LobbyUIManagerと同じGameObjectに付けるか、Inspectorで参照を繋げること。
+/// </summary>
 public class MainMenuManager : MonoBehaviour
 {
-    [Header("Common")]
-    public Camera menuCamera;
+    [Header("Main Menu Panel")]
+    [SerializeField] private GameObject mainMenuPanel;
 
-    [Header("Steam Lobby")]
-    [SerializeField] private bool useSteamLobby;
-    [SerializeField] private TMP_InputField lobbyIdInput;
+    [Header("Join Panel")]
+    [SerializeField] private GameObject   joinPanel;
+    [SerializeField] private TMP_InputField joinCodeInput;
+    [SerializeField] private Button        confirmJoinButton;
+    [SerializeField] private Button        cancelJoinButton;
+    [SerializeField] private TMP_Text      joinStatusText;
+
+    [Header("Buttons")]
+    [SerializeField] private Button hostButton;
     [SerializeField] private Button joinButton;
+
+    // =========================================================
+    // Unity ライフサイクル
+    // =========================================================
+
+    private void Awake()
+    {
+        if (joinPanel != null) joinPanel.SetActive(false);
+        HideStatus();
+    }
 
     private void OnEnable()
     {
         if (SteamLobby.Instance != null)
         {
-            SteamLobby.Instance.BusyStateChanged += OnSteamLobbyBusyStateChanged;
-            UpdateJoinButton();
+            SteamLobby.Instance.BusyStateChanged += OnBusyChanged;
+            SteamLobby.Instance.OnJoinFailed     += OnJoinFailed;
         }
+
+        // ボタン登録
+        if (hostButton != null)
+        {
+            hostButton.onClick.RemoveAllListeners();
+            hostButton.onClick.AddListener(OnHostClicked);
+        }
+        if (joinButton != null)
+        {
+            joinButton.onClick.RemoveAllListeners();
+            joinButton.onClick.AddListener(OnJoinClicked);
+        }
+        if (confirmJoinButton != null)
+        {
+            confirmJoinButton.onClick.RemoveAllListeners();
+            confirmJoinButton.onClick.AddListener(OnConfirmJoin);
+        }
+        if (cancelJoinButton != null)
+        {
+            cancelJoinButton.onClick.RemoveAllListeners();
+            cancelJoinButton.onClick.AddListener(OnCancelJoin);
+        }
+
+        UpdateButtons();
     }
 
     private void OnDisable()
     {
         if (SteamLobby.Instance != null)
         {
-            SteamLobby.Instance.BusyStateChanged -= OnSteamLobbyBusyStateChanged;
+            SteamLobby.Instance.BusyStateChanged -= OnBusyChanged;
+            SteamLobby.Instance.OnJoinFailed     -= OnJoinFailed;
         }
     }
 
-    public void Host()
-    {
-        if (menuCamera != null)
-        {
-            Destroy(menuCamera.gameObject);
-        }
+    // =========================================================
+    // ボタン処理
+    // =========================================================
 
-        if (useSteamLobby)
+    private void OnHostClicked()
+    {
+        // 診断ログ
+        Debug.Log($"[MainMenuManager] OnHostClicked — SteamLobby.Instance={SteamLobby.Instance != null}, " +
+                  $"SteamManager.Initialized={SteamManager.Initialized}");
+
+        if (SteamLobby.Instance == null)
         {
-            SteamLobby.Instance.CreateLobby();
+            ShowStatus("SteamLobbyが見つかりません");
+            Debug.LogError("[MainMenuManager] SteamLobby.Instance is null");
+            return;
+        }
+        if (!SteamManager.Initialized)
+        {
+            ShowStatus("Steam未起動です");
+            Debug.LogError("[MainMenuManager] SteamManager not initialized");
+            return;
+        }
+        if (SteamLobby.Instance.IsBusy)
+        {
+            ShowStatus("処理中...");
             return;
         }
 
-        NetworkManager.Singleton.StartHost();
-
-        NetworkManager.Singleton.SceneManager.LoadScene("GameRoom", LoadSceneMode.Single);
+        HideStatus();
+        ShowStatus("ロビーを作成中...");
+        SteamLobby.Instance.CreateLobby();
     }
 
-    public void Join()
+    private void OnJoinClicked()
     {
-        if (useSteamLobby)
+        if (SteamLobby.Instance == null)
         {
-            if (SteamLobby.Instance != null && SteamLobby.Instance.IsBusy)
-            {
-                Debug.LogWarning("[MainMenuManager] Join ignored because lobby operation is already running.");
-                return;
-            }
-
-            JoinSteamLobby();
+            ShowStatus("Steamが起動していません");
+            return;
+        }
+        if (SteamLobby.Instance.IsBusy)
+        {
+            ShowStatus("処理中...");
             return;
         }
 
-        if (NetworkManager.Singleton.IsListening)
-        {
-            Debug.LogWarning("[MainMenuManager] Join ignored because NetworkManager is already listening.");
-            return;
-        }
+        HideStatus();
 
-        NetworkManager.Singleton.StartClient();
+        // Join入力パネルを表示
+        if (joinPanel != null) joinPanel.SetActive(true);
+        if (joinCodeInput != null) joinCodeInput.text = "";
+        UpdateButtons();
     }
 
-    private void JoinSteamLobby()
+    private void OnConfirmJoin()
     {
-        if (lobbyIdInput == null)
+        if (joinCodeInput == null || SteamLobby.Instance == null) return;
+
+        string code = joinCodeInput.text.Trim().ToUpperInvariant();
+        if (string.IsNullOrEmpty(code))
         {
-            Debug.LogError("[MainMenuManager] Lobby ID Input is not assigned.");
+            ShowStatus("コードを入力してください");
             return;
         }
 
-        string inputText = lobbyIdInput.text.Trim();
-
-        if (string.IsNullOrWhiteSpace(inputText))
+        // 18桁以上のulongはLobbyID直接参加（デバッグ用）
+        if (code.Length >= 10 && ulong.TryParse(code, out ulong lobbyId))
         {
-            Debug.LogError("[MainMenuManager] Lobby ID/Code input is empty.");
-            return;
-        }
-
-        //18桁のulong値（LobbyID）としてパース可能な場合は従来通りの直接接続を行う（デバッグ用）
-        if (ulong.TryParse(inputText, out ulong lobbyId) && inputText.Length >= 10)
-        {
-            Debug.Log($"[MainMenuManager] Parsing input as raw LobbyID: {lobbyId}");
+            Debug.Log($"[MainMenuManager] LobbyID直接参加: {lobbyId}");
+            if (joinPanel != null) joinPanel.SetActive(false);
+            ShowStatus("参加中...");
             SteamLobby.Instance.JoinLobby(new CSteamID(lobbyId));
         }
         else
         {
-            //それ以外（5桁の英数字等）の場合は部屋コードによる検索接続を行う
-            Debug.Log($"[MainMenuManager] Parsing input as Room Code: {inputText}");
-            SteamLobby.Instance.JoinLobbyWithCode(inputText);
+            if (joinPanel != null) joinPanel.SetActive(false);
+            ShowStatus("ロビーを検索中...");
+            SteamLobby.Instance.JoinLobbyWithCode(code);
         }
     }
 
-    private void OnSteamLobbyBusyStateChanged(bool isBusy)
+    private void OnCancelJoin()
     {
-        UpdateJoinButton();
+        if (joinPanel != null) joinPanel.SetActive(false);
+        HideStatus();
+        UpdateButtons();
     }
 
-    private void UpdateJoinButton()
+    // =========================================================
+    // イベントハンドラ
+    // =========================================================
+
+    private void OnBusyChanged(bool isBusy)
     {
-        if (joinButton != null && SteamLobby.Instance != null)
-        {
-            joinButton.interactable = !SteamLobby.Instance.IsBusy;
-        }
+        UpdateButtons();
+        if (!isBusy) HideStatus();
+    }
+
+    private void OnJoinFailed(string reason)
+    {
+        ShowStatus($"参加失敗: {reason}");
+        if (joinPanel != null) joinPanel.SetActive(false);
+        UpdateButtons();
+    }
+
+    // =========================================================
+    // UI ユーティリティ
+    // =========================================================
+
+    private void UpdateButtons()
+    {
+        bool busy = SteamLobby.Instance != null && SteamLobby.Instance.IsBusy;
+        bool joinOpen = joinPanel != null && joinPanel.activeSelf;
+
+        if (hostButton != null) hostButton.interactable = !busy && !joinOpen;
+        if (joinButton != null) joinButton.interactable = !busy && !joinOpen;
+    }
+
+    private void ShowStatus(string msg)
+    {
+        if (joinStatusText == null) return;
+        joinStatusText.text = msg;
+        joinStatusText.gameObject.SetActive(true);
+    }
+
+    private void HideStatus()
+    {
+        if (joinStatusText != null)
+            joinStatusText.gameObject.SetActive(false);
     }
 
     public void Quit()

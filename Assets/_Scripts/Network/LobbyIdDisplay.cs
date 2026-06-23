@@ -1,30 +1,43 @@
 using TMPro;
 using UnityEngine;
 
+/// <summary>
+/// 現在のロビーコードをTMP_Textに表示する軽量コンポーネント。
+/// LobbyUIManagerが存在しない場面でも単体で使用可能。
+/// </summary>
 public class LobbyIdDisplay : MonoBehaviour
 {
     [SerializeField] private TMP_Text lobbyIdText;
 
-    private void Start()
+    private void Awake()
     {
         if (lobbyIdText == null)
-        {
             lobbyIdText = GetComponent<TMP_Text>();
-        }
+    }
 
-        if (lobbyIdText == null)
+    private void OnEnable()
+    {
+        if (SteamLobby.Instance != null)
         {
-            Debug.LogError("[LobbyIdDisplay] TMP_Text is not assigned.");
-            return;
+            SteamLobby.Instance.OnLobbyReady  += Refresh;
+            SteamLobby.Instance.OnLobbyJoined += Refresh;
         }
+        Refresh();
+    }
 
-        if (SteamLobby.Instance == null)
+    private void OnDisable()
+    {
+        if (SteamLobby.Instance != null)
         {
-            lobbyIdText.text = "Room Code: -";
-            Debug.LogWarning("[LobbyIdDisplay] SteamLobby was not found.");
-            return;
+            SteamLobby.Instance.OnLobbyReady  -= Refresh;
+            SteamLobby.Instance.OnLobbyJoined -= Refresh;
         }
+    }
 
-        lobbyIdText.text = $"Room Code: {SteamLobby.Instance.LobbyCode}";
+    private void Refresh()
+    {
+        if (lobbyIdText == null) return;
+        string code = SteamLobby.Instance?.LobbyCode;
+        lobbyIdText.text = string.IsNullOrEmpty(code) ? "Room Code: -" : $"Room Code: {code}";
     }
 }

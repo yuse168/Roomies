@@ -7,6 +7,11 @@ public class PlayerSpawnSync : NetworkBehaviour
     // サーバーが接続順にスポーン地点を割り当てるためのカウンター
     private static int s_spawnIndex = 0;
 
+#if UNITY_2019_3_OR_NEWER
+    [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetIndex() { s_spawnIndex = 0; }
+#endif
+
     // シーン読み込み完了を待つ最大時間（秒）
     private const float SpawnPointWaitTimeout = 15f;
 

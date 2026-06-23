@@ -341,7 +341,7 @@ GameObject:
   m_Component:
   - component: {fileID: 190878399}
   - component: {fileID: 190878398}
-  - component: {fileID: 190878397}
+  - component: {fileID: 190878400}
   m_Layer: 0
   m_Name: NetworkManager
   m_TagString: Untagged
@@ -349,37 +349,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &190878397
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 190878396}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6960e84d07fb87f47956e7a81d71c4e6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.Transports.UTP.UnityTransport
-  m_ProtocolType: 0
-  m_UseWebSockets: 0
-  m_UseEncryption: 0
-  m_MaxPacketQueueSize: 128
-  m_MaxPayloadSize: 6144
-  m_HeartbeatTimeoutMS: 500
-  m_ConnectTimeoutMS: 1000
-  m_MaxConnectAttempts: 60
-  m_DisconnectTimeoutMS: 30000
-  ConnectionData:
-    Address: 127.0.0.1
-    Port: 7777
-    WebSocketPath: /
-    ServerListenAddress: 127.0.0.1
-    ClientBindPort: 0
-  DebugSimulator:
-    PacketDelayMS: 0
-    PacketJitterMS: 0
-    PacketDropRate: 0
 --- !u!114 &190878398
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -395,7 +364,7 @@ MonoBehaviour:
   NetworkManagerExpanded: 0
   NetworkConfig:
     ProtocolVersion: 0
-    NetworkTransport: {fileID: 190878397}
+    NetworkTransport: {fileID: 190878400}
     PlayerPrefab: {fileID: 2715674321747750427, guid: 495f57a03411c0f4a8bcfb7bb49b39d4, type: 3}
     Prefabs:
       NetworkPrefabsLists:
@@ -437,6 +406,20 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &190878400
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 190878396}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fc4ccaff1920208429cca7c350560301, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SteamNetworkingSockets Transport for Netcode for GameObjects::Netcode.Transports.SteamNetworkingSocketsTransport
+  ConnectToSteamID: 0
+  options: []
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
@@ -593,7 +576,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7af9effe82405ff49b899031875214a0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MainMenuManager
-  menuCamera: {fileID: 0}
+  mainMenuPanel: {fileID: 0}
+  joinPanel: {fileID: 0}
+  joinCodeInput: {fileID: 0}
+  confirmJoinButton: {fileID: 0}
+  cancelJoinButton: {fileID: 0}
+  joinStatusText: {fileID: 0}
+  hostButton: {fileID: 0}
+  joinButton: {fileID: 0}
 --- !u!4 &684661245
 Transform:
   m_ObjectHideFlags: 0
