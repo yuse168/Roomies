@@ -422,6 +422,9 @@ public class SteamLobby : MonoBehaviour
             yield break;
         }
 
+        // トランスポートの接続ログを見るため Developer レベルにする
+        nm.LogLevel = LogLevel.Developer;
+
         bool started = nm.StartHost();
         Debug.Log($"[SteamLobby] StartHost: {started}");
 
@@ -438,19 +441,39 @@ public class SteamLobby : MonoBehaviour
         nm.OnClientDisconnectCallback   += OnHostSawClientDisconnected;
         if (nm.SceneManager != null)
         {
-            nm.SceneManager.OnSceneEvent -= OnSceneEventDiag;
-            nm.SceneManager.OnSceneEvent += OnSceneEventDiag;
+            nm.SceneManager.OnSceneEvent     -= OnSceneEventDiag;
+            nm.SceneManager.OnSceneEvent     += OnSceneEventDiag;
+            // ホストがGameRoomを「完全に読み込んでから」クライアントへ通知する。
+            // 読み込み中にクライアントが接続するとホストのPollEventが走らず
+            // P2P接続要求を取りこぼすため。
+            nm.SceneManager.OnLoadComplete   -= OnHostSceneLoaded;
+            nm.SceneManager.OnLoadComplete   += OnHostSceneLoaded;
         }
 
-        // ホストがリッスン開始した「後」にクライアントへ開始を通知する。
-        // これでクライアントは確実にホストが待ち受けている状態で接続を開始できる。
-        if (LobbyID != 0)
+        Debug.Log("[SteamLobby] GameRoomを読み込み開始（読み込み完了後にクライアントへ通知）");
+        nm.SceneManager.LoadScene(gameSceneName, LoadSceneMode.Single);
+    }
+
+    /// <summary>
+    /// ホストのGameRoom読み込み完了時に、初めてクライアントへゲーム開始を通知する。
+    /// </summary>
+    private void OnHostSceneLoaded(ulong clientId, string sceneName, LoadSceneMode mode)
+    {
+        if (sceneName != gameSceneName) return;
+
+        var nm = NetworkManager.Singleton;
+        if (nm == null) return;
+
+        // ホスト自身の読み込み完了のみを対象にする
+        if (clientId != nm.LocalClientId) return;
+
+        nm.SceneManager.OnLoadComplete -= OnHostSceneLoaded;
+
+        if (IsHost && LobbyID != 0)
         {
             SteamMatchmaking.SetLobbyData(new CSteamID(LobbyID), KeyGameStarted, "1");
-            Debug.Log("[SteamLobby] GameStarted=1 を通知（ホストはリッスン中）");
+            Debug.Log("[SteamLobby] ホストGameRoom読み込み完了 → GameStarted=1 を通知");
         }
-
-        nm.SceneManager.LoadScene(gameSceneName, LoadSceneMode.Single);
     }
 
     private IEnumerator StartClientRoutine(string hostAddress)
@@ -491,6 +514,9 @@ public class SteamLobby : MonoBehaviour
         transport.ConnectToSteamID = hostSteamId;
 
         Debug.Log($"[SteamLobby] StartClient準備: ConnectToSteamID={hostSteamId}");
+
+        // トランスポートの接続ログを見るため Developer レベルにする
+        nm.LogLevel = LogLevel.Developer;
 
         nm.OnClientConnectedCallback    -= OnClientConnected;
         nm.OnClientConnectedCallback    += OnClientConnected;
