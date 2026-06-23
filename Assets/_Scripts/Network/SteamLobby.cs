@@ -107,31 +107,6 @@ public class SteamLobby : MonoBehaviour
         m_cbDataUpdate     = Callback<LobbyDataUpdate_t>.Create(OnLobbyDataUpdate);
 
         SteamNetworkingUtils.InitRelayNetworkAccess();
-
-        // P2P経路を最大限有効化する。
-        // ICE(NAT punch-through)とSDRリレーの両方を許可することで、
-        // 異なるネットワーク間でもP2P接続が確立しやすくなる。
-        // 既定ではSDRのみのことがあり、NAT環境で接続できないケースがある。
-        try
-        {
-            // ICE: NATパンチスルー等の全方式を有効化 (All = 0x7fffffff)
-            int iceAll = 0x7fffffff;
-            var handle = System.Runtime.InteropServices.GCHandle.Alloc(
-                iceAll, System.Runtime.InteropServices.GCHandleType.Pinned);
-            bool ok = SteamNetworkingUtils.SetConfigValue(
-                ESteamNetworkingConfigValue.k_ESteamNetworkingConfig_P2P_Transport_ICE_Enable,
-                ESteamNetworkingConfigScope.k_ESteamNetworkingConfig_Global,
-                System.IntPtr.Zero,
-                ESteamNetworkingConfigDataType.k_ESteamNetworkingConfig_Int32,
-                handle.AddrOfPinnedObject());
-            handle.Free();
-            Debug.Log($"[SteamLobby] P2P ICE全方式を有効化: {ok}");
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogWarning($"[SteamLobby] P2P設定の適用に失敗: {e.Message}");
-        }
-
         LocalPersonaName = SteamFriends.GetPersonaName();
 
         Debug.Log($"[SteamLobby] Steam初期化成功: {LocalPersonaName} ({SteamUser.GetSteamID()})");
