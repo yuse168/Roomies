@@ -78,6 +78,12 @@ public class DayManager : NetworkBehaviour
 
     private void Update()
     {
+        var networkManager = NetworkManager.Singleton;
+        if (!IsSpawned || networkManager == null || !networkManager.IsListening)
+        {
+            return;
+        }
+
         if (isGameOver.Value) return;
 
         UpdateTimerUI();
