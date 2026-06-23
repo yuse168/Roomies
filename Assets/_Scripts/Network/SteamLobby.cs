@@ -200,12 +200,15 @@ public class SteamLobby : MonoBehaviour
             return;
         }
 
-        // ConnectionApproval設定
+        // ConnectionApprovalは使わない。
+        // - 最大人数はSteamロビーのmaxMembersで制限済み
+        // - プレイヤー生成はAutoSpawnPlayerPrefabClientSide＋PlayerPrefabで自動
+        // 承認ハンドシェイクを挟むとシーン遷移中に接続が固まることがあるため無効化する。
         var nm = NetworkManager.Singleton;
         if (nm != null)
         {
-            nm.NetworkConfig.ConnectionApproval = true;
-            nm.ConnectionApprovalCallback = ApprovalCheck;
+            nm.NetworkConfig.ConnectionApproval = false;
+            nm.ConnectionApprovalCallback = null;
         }
 
         // 注意: クライアントへの開始通知(GameStarted=1)は、
@@ -428,6 +431,17 @@ public class SteamLobby : MonoBehaviour
             yield break;
         }
 
+        // ホスト側診断: クライアント接続/切断とシーン同期イベントをログ出力
+        nm.OnClientConnectedCallback    -= OnHostSawClientConnected;
+        nm.OnClientConnectedCallback    += OnHostSawClientConnected;
+        nm.OnClientDisconnectCallback   -= OnHostSawClientDisconnected;
+        nm.OnClientDisconnectCallback   += OnHostSawClientDisconnected;
+        if (nm.SceneManager != null)
+        {
+            nm.SceneManager.OnSceneEvent -= OnSceneEventDiag;
+            nm.SceneManager.OnSceneEvent += OnSceneEventDiag;
+        }
+
         // ホストがリッスン開始した「後」にクライアントへ開始を通知する。
         // これでクライアントは確実にホストが待ち受けている状態で接続を開始できる。
         if (LobbyID != 0)
@@ -476,6 +490,8 @@ public class SteamLobby : MonoBehaviour
 
         transport.ConnectToSteamID = hostSteamId;
 
+        Debug.Log($"[SteamLobby] StartClient準備: ConnectToSteamID={hostSteamId}");
+
         nm.OnClientConnectedCallback    -= OnClientConnected;
         nm.OnClientConnectedCallback    += OnClientConnected;
         nm.OnClientDisconnectCallback   -= OnClientDisconnected;
@@ -493,7 +509,41 @@ public class SteamLobby : MonoBehaviour
         }
         else
         {
+            // シーン同期イベントの診断ログを仕込む（StartClient後にSceneManagerが存在）
+            if (nm.SceneManager != null)
+            {
+                nm.SceneManager.OnSceneEvent -= OnSceneEventDiag;
+                nm.SceneManager.OnSceneEvent += OnSceneEventDiag;
+                Debug.Log("[SteamLobby] SceneManager診断フック登録");
+            }
+            else
+            {
+                Debug.LogWarning("[SteamLobby] StartClient後もSceneManagerがnull");
+            }
+
+            StartCoroutine(ConnectionDiag());
             StartCoroutine(ConnectionTimeout(30f));
+        }
+    }
+
+    /// <summary>NGOのシーン同期イベントを逐次ログ出力する（診断用）。</summary>
+    private void OnSceneEventDiag(SceneEvent e)
+    {
+        Debug.Log($"[SteamLobby][Scene] {e.SceneEventType} scene={e.SceneName} clientId={e.ClientId}");
+    }
+
+    /// <summary>接続状態を数秒間ログ出力して、どこで止まっているか切り分ける（診断用）。</summary>
+    private IEnumerator ConnectionDiag()
+    {
+        for (int i = 0; i < 15; i++)
+        {
+            var nm = NetworkManager.Singleton;
+            if (nm == null) yield break;
+            Debug.Log($"[SteamLobby][Diag] t={i}s IsClient={nm.IsClient} " +
+                      $"IsConnectedClient={nm.IsConnectedClient} " +
+                      $"Scene={UnityEngine.SceneManagement.SceneManager.GetActiveScene().name}");
+            if (nm.IsConnectedClient) yield break;
+            yield return new WaitForSeconds(2f);
         }
     }
 
@@ -518,6 +568,18 @@ public class SteamLobby : MonoBehaviour
             yield return null;
         }
         Debug.LogWarning("[SteamLobby] Steamリレー待機タイムアウト");
+    }
+
+    // ホスト側診断: クライアントの接続/切断を検知
+    private void OnHostSawClientConnected(ulong clientId)
+    {
+        Debug.Log($"[SteamLobby][HOST] クライアント接続を検知 ClientID={clientId}");
+    }
+
+    private void OnHostSawClientDisconnected(ulong clientId)
+    {
+        string reason = NetworkManager.Singleton?.DisconnectReason ?? "(なし)";
+        Debug.LogWarning($"[SteamLobby][HOST] クライアント切断を検知 ClientID={clientId} 理由={reason}");
     }
 
     private IEnumerator ConnectionTimeout(float seconds)
