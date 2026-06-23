@@ -476,7 +476,23 @@ public class SteamLobby : MonoBehaviour
             Debug.Log("[SteamLobby] ホスト待機開始 → GameStarted=1 を通知");
         }
 
-        yield return WaitForLobbyMembersConnected(nm, 15f);
+        bool allMembersConnected = false;
+        yield return WaitForLobbyMembersConnected(
+            nm,
+            15f,
+            result => allMembersConnected = result);
+
+        if (!allMembersConnected)
+        {
+            Debug.LogError("[SteamLobby] NGO接続人数が不足しているためGameRoom遷移を中止します");
+            if (LobbyID != 0)
+            {
+                SteamMatchmaking.SetLobbyData(new CSteamID(LobbyID), KeyGameStarted, "0");
+            }
+            nm.Shutdown();
+            SetBusy(false);
+            yield break;
+        }
 
         Debug.Log("[SteamLobby] GameRoomを読み込み開始");
         nm.SceneManager.LoadScene(gameSceneName, LoadSceneMode.Single);
@@ -485,19 +501,43 @@ public class SteamLobby : MonoBehaviour
     /// <summary>
     /// Steamロビー上の参加者がNGOにも接続されるまで待つ。
     /// </summary>
-    private IEnumerator WaitForLobbyMembersConnected(NetworkManager nm, float timeout)
+    private IEnumerator WaitForLobbyMembersConnected(
+        NetworkManager nm,
+        float timeout,
+        Action<bool> onComplete)
     {
         int expectedCount = Mathf.Max(1, GetLobbyMembers().Count);
         float elapsed = 0f;
+        int lastLoggedConnectedCount = -1;
+        int lastLoggedSecond = -1;
+
+        Debug.Log($"[SteamLobby] NGO接続待機開始: expected={expectedCount}");
 
         while (elapsed < timeout)
         {
-            if (nm == null || !nm.IsListening) yield break;
+            if (nm == null || !nm.IsListening)
+            {
+                Debug.LogWarning("[SteamLobby] NGO接続待機中にNetworkManagerが停止しました");
+                onComplete?.Invoke(false);
+                yield break;
+            }
 
             int connectedCount = nm.ConnectedClientsIds.Count;
+            int elapsedSecond = Mathf.FloorToInt(elapsed);
+            if (connectedCount != lastLoggedConnectedCount ||
+                elapsedSecond != lastLoggedSecond)
+            {
+                Debug.Log(
+                    $"[SteamLobby] NGO接続待機中: {connectedCount}/{expectedCount} " +
+                    $"elapsed={elapsedSecond}s");
+                lastLoggedConnectedCount = connectedCount;
+                lastLoggedSecond = elapsedSecond;
+            }
+
             if (connectedCount >= expectedCount)
             {
                 Debug.Log($"[SteamLobby] NGO接続人数 OK: {connectedCount}/{expectedCount}");
+                onComplete?.Invoke(true);
                 yield break;
             }
 
@@ -505,7 +545,11 @@ public class SteamLobby : MonoBehaviour
             yield return null;
         }
 
-        Debug.LogWarning($"[SteamLobby] NGO接続待機タイムアウト: {nm.ConnectedClientsIds.Count}/{expectedCount}。接続済みメンバーで開始します");
+        int finalConnectedCount = nm != null ? nm.ConnectedClientsIds.Count : 0;
+        Debug.LogError(
+            $"[SteamLobby] NGO接続待機タイムアウト: " +
+            $"{finalConnectedCount}/{expectedCount}。GameRoom遷移を中止します");
+        onComplete?.Invoke(false);
     }
 
     private IEnumerator StartClientRoutine(string hostAddress)

@@ -1,19 +1,15 @@
 using System.Collections;
+using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class PlayerSpawnSync : NetworkBehaviour
 {
-    // サーバーが接続順にスポーン地点を割り当てるためのカウンター
-    private static int s_spawnIndex = 0;
-
-#if UNITY_2019_3_OR_NEWER
-    [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
-    private static void ResetIndex() { s_spawnIndex = 0; }
-#endif
-
     // シーン読み込み完了を待つ最大時間（秒）
     private const float SpawnPointWaitTimeout = 15f;
+    private const string GameSceneName = "GameRoom";
+    private const string SpawnPointTag = "SpawnPoint";
 
     public override void OnNetworkSpawn()
     {
@@ -23,34 +19,35 @@ public class PlayerSpawnSync : NetworkBehaviour
         // 実際のテレポートは所有クライアント（ホストの場合はホスト自身）が行う。
         if (IsServer)
         {
-            int index = s_spawnIndex;
-            s_spawnIndex++;
-            ApplySpawnPointRpc(index);
+            ApplySpawnPointRpc(OwnerClientId);
         }
     }
 
     // 所有クライアントでのみ実行される
     [Rpc(SendTo.Owner)]
-    private void ApplySpawnPointRpc(int index)
+    private void ApplySpawnPointRpc(ulong ownerClientId)
     {
-        StartCoroutine(ApplySpawnPointRoutine(index));
+        StartCoroutine(ApplySpawnPointRoutine(ownerClientId));
     }
 
-    private IEnumerator ApplySpawnPointRoutine(int index)
+    private IEnumerator ApplySpawnPointRoutine(ulong ownerClientId)
     {
         // シーン読み込み直後は SpawnPoint がまだ存在しないことがあるので、
         // 出現するまで待つ。
         // （ホストは StartHost 時点でメニューシーンにいるため特に重要）
-        SpawnPoint[] spawnPoints = null;
+        Transform[] spawnPoints = null;
         float elapsed = 0f;
 
         while (elapsed < SpawnPointWaitTimeout)
         {
-            spawnPoints = FindObjectsByType<SpawnPoint>();
-
-            if (spawnPoints.Length > 0)
+            if (SceneManager.GetActiveScene().name == GameSceneName)
             {
-                break;
+                spawnPoints = GetSortedSpawnPoints();
+
+                if (spawnPoints.Length > 0)
+                {
+                    break;
+                }
             }
 
             elapsed += Time.deltaTime;
@@ -66,32 +63,14 @@ public class PlayerSpawnSync : NetworkBehaviour
         }
 
         // どのクライアントでも同じ割り当て順になるようにソートする。
-        // 基本は名前順。名前が同じ場合は座標でタイブレークして順序を固定する。
-        System.Array.Sort(
-            spawnPoints,
-            (a, b) =>
-            {
-                int byName = string.CompareOrdinal(a.name, b.name);
-                if (byName != 0) return byName;
-
-                Vector3 pa = a.transform.position;
-                Vector3 pb = b.transform.position;
-
-                int byX = pa.x.CompareTo(pb.x);
-                if (byX != 0) return byX;
-
-                int byZ = pa.z.CompareTo(pb.z);
-                if (byZ != 0) return byZ;
-
-                return pa.y.CompareTo(pb.y);
-            }
-        );
-
-        Transform spawnPoint =
-            spawnPoints[index % spawnPoints.Length].transform;
+        // PlayerSpawn1, PlayerSpawn2... の名前順で並べ、OwnerClientId 0 -> 0番、
+        // OwnerClientId 1 -> 1番に割り当てる。
+        int spawnIndex = (int)(ownerClientId % (ulong)spawnPoints.Length);
+        Transform spawnPoint = spawnPoints[spawnIndex];
 
         Debug.Log(
-            "[PlayerSpawnSync] index=" + index +
+            "[PlayerSpawnSync] ownerClientId=" + ownerClientId +
+            " spawnIndex=" + spawnIndex +
             " -> " + spawnPoint.name +
             " pos=" + spawnPoint.position
         );
@@ -118,6 +97,72 @@ public class PlayerSpawnSync : NetworkBehaviour
         if (controller != null)
         {
             controller.enabled = true;
+        }
+    }
+
+    private static Transform[] GetSortedSpawnPoints()
+    {
+        List<Transform> points = new List<Transform>();
+
+        GameObject[] taggedObjects = GameObject.FindGameObjectsWithTag(SpawnPointTag);
+        foreach (GameObject obj in taggedObjects)
+        {
+            if (obj.GetComponent<SpawnPoint>() != null)
+            {
+                points.Add(obj.transform);
+            }
+        }
+
+        if (points.Count == 0)
+        {
+            foreach (SpawnPoint point in FindObjectsByType<SpawnPoint>())
+            {
+                if (point.name.StartsWith("PlayerSpawn"))
+                {
+                    points.Add(point.transform);
+                }
+            }
+        }
+
+        points.Sort(CompareSpawnPoints);
+        WarnIfOverlapping(points);
+        return points.ToArray();
+    }
+
+    private static int CompareSpawnPoints(Transform a, Transform b)
+    {
+        int byName = string.CompareOrdinal(a.name, b.name);
+        if (byName != 0) return byName;
+
+        Vector3 pa = a.position;
+        Vector3 pb = b.position;
+
+        int byX = pa.x.CompareTo(pb.x);
+        if (byX != 0) return byX;
+
+        int byZ = pa.z.CompareTo(pb.z);
+        if (byZ != 0) return byZ;
+
+        return pa.y.CompareTo(pb.y);
+    }
+
+    private static void WarnIfOverlapping(List<Transform> points)
+    {
+        for (int i = 0; i < points.Count; i++)
+        {
+            for (int j = i + 1; j < points.Count; j++)
+            {
+                float distance = Vector3.Distance(
+                    points[i].position,
+                    points[j].position);
+                if (distance < 0.1f)
+                {
+                    Debug.LogWarning(
+                        "[PlayerSpawnSync] SpawnPointが重なっています: " +
+                        points[i].name + " / " + points[j].name +
+                        " pos=" + points[i].position);
+                }
+            }
         }
     }
 }
