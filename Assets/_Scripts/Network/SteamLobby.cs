@@ -236,10 +236,10 @@ public class SteamLobby : MonoBehaviour
             nm.ConnectionApprovalCallback = null;
         }
 
-        // 注意: クライアントへの開始通知(GameStarted=1)は、
-        // ホストがStartHost()でリッスンを開始した「後」に行う。
-        // 先に通知するとクライアントがホスト未リッスン状態で接続を試み、
-        // P2P接続が確立できずタイムアウトする。
+        // 注意: GameRoomへのシーン遷移は、参加者がNGOクライアントとして
+        // 接続してから行う。ホストだけ先にGameRoomへ移動すると、参加者は
+        // メニューシーンからの初期同期扱いになり、Steam P2P/NGOの接続待ち中に
+        // シーン同期されずタイムアウトすることがある。
         StartCoroutine(StartHostRoutine());
     }
 
@@ -468,37 +468,44 @@ public class SteamLobby : MonoBehaviour
         {
             nm.SceneManager.OnSceneEvent     -= OnSceneEventDiag;
             nm.SceneManager.OnSceneEvent     += OnSceneEventDiag;
-            // ホストがGameRoomを「完全に読み込んでから」クライアントへ通知する。
-            // 読み込み中にクライアントが接続するとホストのPollEventが走らず
-            // P2P接続要求を取りこぼすため。
-            nm.SceneManager.OnLoadComplete   -= OnHostSceneLoaded;
-            nm.SceneManager.OnLoadComplete   += OnHostSceneLoaded;
         }
-
-        Debug.Log("[SteamLobby] GameRoomを読み込み開始（読み込み完了後にクライアントへ通知）");
-        nm.SceneManager.LoadScene(gameSceneName, LoadSceneMode.Single);
-    }
-
-    /// <summary>
-    /// ホストのGameRoom読み込み完了時に、初めてクライアントへゲーム開始を通知する。
-    /// </summary>
-    private void OnHostSceneLoaded(ulong clientId, string sceneName, LoadSceneMode mode)
-    {
-        if (sceneName != gameSceneName) return;
-
-        var nm = NetworkManager.Singleton;
-        if (nm == null) return;
-
-        // ホスト自身の読み込み完了のみを対象にする
-        if (clientId != nm.LocalClientId) return;
-
-        nm.SceneManager.OnLoadComplete -= OnHostSceneLoaded;
 
         if (IsHost && LobbyID != 0)
         {
             SteamMatchmaking.SetLobbyData(new CSteamID(LobbyID), KeyGameStarted, "1");
-            Debug.Log("[SteamLobby] ホストGameRoom読み込み完了 → GameStarted=1 を通知");
+            Debug.Log("[SteamLobby] ホスト待機開始 → GameStarted=1 を通知");
         }
+
+        yield return WaitForLobbyMembersConnected(nm, 15f);
+
+        Debug.Log("[SteamLobby] GameRoomを読み込み開始");
+        nm.SceneManager.LoadScene(gameSceneName, LoadSceneMode.Single);
+    }
+
+    /// <summary>
+    /// Steamロビー上の参加者がNGOにも接続されるまで待つ。
+    /// </summary>
+    private IEnumerator WaitForLobbyMembersConnected(NetworkManager nm, float timeout)
+    {
+        int expectedCount = Mathf.Max(1, GetLobbyMembers().Count);
+        float elapsed = 0f;
+
+        while (elapsed < timeout)
+        {
+            if (nm == null || !nm.IsListening) yield break;
+
+            int connectedCount = nm.ConnectedClientsIds.Count;
+            if (connectedCount >= expectedCount)
+            {
+                Debug.Log($"[SteamLobby] NGO接続人数 OK: {connectedCount}/{expectedCount}");
+                yield break;
+            }
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        Debug.LogWarning($"[SteamLobby] NGO接続待機タイムアウト: {nm.ConnectedClientsIds.Count}/{expectedCount}。接続済みメンバーで開始します");
     }
 
     private IEnumerator StartClientRoutine(string hostAddress)
