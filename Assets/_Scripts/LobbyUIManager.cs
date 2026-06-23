@@ -219,6 +219,7 @@ public class LobbyUIManager : MonoBehaviour
         {
             bool isSelf = (id == mySteamId);
             CreatePlayerRow(
+                id,
                 isSelf ? $"{name} (あなた)" : name,
                 isSelf ? new Color(1f, 0.9f, 0.2f) : Color.white);
         }
@@ -230,21 +231,57 @@ public class LobbyUIManager : MonoBehaviour
         }
     }
 
-    /// <summary>プレイヤー一覧の1行をコードで生成する。</summary>
-    private void CreatePlayerRow(string text, Color color)
+    /// <summary>プレイヤー一覧の1行（アバター＋名前）をコードで生成する。</summary>
+    private void CreatePlayerRow(Steamworks.CSteamID steamId, string text, Color color)
     {
-        var go = new GameObject("PlayerRow", typeof(RectTransform));
-        go.transform.SetParent(playerListParent, false);
+        // 行コンテナ（横並び）
+        var row = new GameObject("PlayerRow", typeof(RectTransform));
+        row.transform.SetParent(playerListParent, false);
 
-        var le = go.AddComponent<UnityEngine.UI.LayoutElement>();
-        le.minHeight = 40f;
-        le.preferredHeight = 40f;
+        var rowLe = row.AddComponent<UnityEngine.UI.LayoutElement>();
+        rowLe.minHeight = 44f;
+        rowLe.preferredHeight = 44f;
 
-        var label = go.AddComponent<TextMeshProUGUI>();
+        var hlg = row.AddComponent<UnityEngine.UI.HorizontalLayoutGroup>();
+        hlg.childAlignment        = TextAnchor.MiddleLeft;
+        hlg.spacing               = 10f;
+        hlg.padding               = new RectOffset(8, 8, 2, 2);
+        hlg.childControlWidth     = true;
+        hlg.childControlHeight    = true;
+        hlg.childForceExpandWidth = false;
+        hlg.childForceExpandHeight = false;
+
+        // アバター画像（正方形）
+        var avatarGo = new GameObject("Avatar", typeof(RectTransform));
+        avatarGo.transform.SetParent(row.transform, false);
+        var avatarLe = avatarGo.AddComponent<UnityEngine.UI.LayoutElement>();
+        avatarLe.minWidth = avatarLe.preferredWidth = 40f;
+        avatarLe.minHeight = avatarLe.preferredHeight = 40f;
+
+        var img = avatarGo.AddComponent<UnityEngine.UI.Image>();
+        var sprite = SteamAvatar.Get(steamId.m_SteamID);
+        if (sprite != null)
+        {
+            img.sprite = sprite;
+            img.color  = Color.white;
+        }
+        else
+        {
+            // 未読み込み時はプレースホルダー（暗い四角）。次回更新で差し替わる。
+            img.color = new Color(1f, 1f, 1f, 0.15f);
+        }
+
+        // 名前
+        var nameGo = new GameObject("Name", typeof(RectTransform));
+        nameGo.transform.SetParent(row.transform, false);
+        var nameLe = nameGo.AddComponent<UnityEngine.UI.LayoutElement>();
+        nameLe.flexibleWidth = 1f;
+
+        var label = nameGo.AddComponent<TextMeshProUGUI>();
         label.text = text;
         label.color = color;
         label.fontSize = 28f;
-        label.alignment = TextAlignmentOptions.Center;
+        label.alignment = TextAlignmentOptions.Left;
         label.textWrappingMode = TextWrappingModes.NoWrap;
     }
 
