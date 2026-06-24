@@ -259,6 +259,13 @@ public class SteamLobby : MonoBehaviour
         return result;
     }
 
+    /// <summary>現在のロビーのホスト(オーナー)のSteamIDを返す。未参加なら無効値。</summary>
+    public CSteamID GetLobbyOwner()
+    {
+        if (LobbyID == 0) return CSteamID.Nil;
+        return SteamMatchmaking.GetLobbyOwner(new CSteamID(LobbyID));
+    }
+
     /// <summary>Steamフレンド招待オーバーレイを開く。</summary>
     public void InviteFriends()
     {

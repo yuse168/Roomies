@@ -15,6 +15,9 @@ public class PlayerSpawnSync : NetworkBehaviour
     // シーン読み込み完了を待つ最大時間（秒）
     private const float SpawnPointWaitTimeout = 15f;
 
+    // このプレイヤーに割り当てられたスポーン地点番号（サーバー側で保持）
+    private int assignedIndex = -1;
+
     public override void OnNetworkSpawn()
     {
         // 位置の権限は Owner 側（NetworkTransform が Owner Authority）にあるため、
@@ -23,10 +26,20 @@ public class PlayerSpawnSync : NetworkBehaviour
         // 実際のテレポートは所有クライアント（ホストの場合はホスト自身）が行う。
         if (IsServer)
         {
-            int index = s_spawnIndex;
+            assignedIndex = s_spawnIndex;
             s_spawnIndex++;
-            ApplySpawnPointRpc(index);
+            ApplySpawnPointRpc(assignedIndex);
         }
+    }
+
+    /// <summary>
+    /// サーバーから呼ぶ。割り当て済みのスポーン地点へプレイヤーを戻す（朝のリスポーン用）。
+    /// </summary>
+    public void ServerRespawn()
+    {
+        if (!IsServer) return;
+        if (assignedIndex < 0) assignedIndex = 0;
+        ApplySpawnPointRpc(assignedIndex);
     }
 
     // 所有クライアントでのみ実行される

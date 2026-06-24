@@ -236,7 +236,7 @@ public class SlotMachine : NetworkBehaviour
 
         SpinClientRpc(r1, r2, r3, resultMessage);
 
-        StartCoroutine(ApplyRewardAfterSpin(reward, addFever));
+        StartCoroutine(ApplyRewardAfterSpin(reward, addFever, playerNetworkObjectId));
     }
 
     private float GetSpinAnimationDuration()
@@ -253,13 +253,28 @@ public class SlotMachine : NetworkBehaviour
         return total;
     }
 
-    private IEnumerator ApplyRewardAfterSpin(int reward, bool addFever)
+    private IEnumerator ApplyRewardAfterSpin(int reward, bool addFever, ulong playerNetworkObjectId)
     {
         yield return new WaitForSeconds(GetSpinAnimationDuration());
 
-        if (reward > 0 && SharedMoneyManager.Instance != null)
+        if (reward > 0)
         {
-            SharedMoneyManager.Instance.AddSharedMoney(reward);
+            // 共同口座へ
+            if (SharedMoneyManager.Instance != null)
+            {
+                SharedMoneyManager.Instance.AddSharedMoney(reward);
+            }
+
+            // 個人の収支にも反映（賭け金を個人から引いているので当たりも個人へ加算）
+            if (NetworkManager.Singleton.SpawnManager.SpawnedObjects
+                .TryGetValue(playerNetworkObjectId, out NetworkObject playerObj))
+            {
+                PlayerEarning earning = playerObj.GetComponent<PlayerEarning>();
+                if (earning != null)
+                {
+                    earning.AddEarning(reward);
+                }
+            }
         }
 
         if (addFever)

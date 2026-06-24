@@ -202,6 +202,19 @@ public class LobbyUIManager : MonoBehaviour
         }
     }
 
+    // パーティーゲーム風の明るいプレイヤーカラー（接続順に割り当て）
+    private static readonly Color[] PlayerColors =
+    {
+        new Color(0.40f, 0.85f, 0.34f), // ライム
+        new Color(0.16f, 0.68f, 0.97f), // シアン
+        new Color(0.98f, 0.34f, 0.48f), // ピンク
+        new Color(1.00f, 0.62f, 0.12f), // オレンジ
+        new Color(0.58f, 0.46f, 0.92f), // パープル
+        new Color(1.00f, 0.85f, 0.20f), // イエロー
+        new Color(0.20f, 0.85f, 0.75f), // ターコイズ
+        new Color(0.95f, 0.45f, 0.85f), // マゼンタ
+    };
+
     private void RefreshPlayerList()
     {
         if (playerListParent == null) return;
@@ -214,14 +227,15 @@ public class LobbyUIManager : MonoBehaviour
 
         List<(CSteamID id, string name)> members = SteamLobby.Instance.GetLobbyMembers();
         CSteamID mySteamId = SteamUser.GetSteamID();
+        CSteamID hostId    = SteamLobby.Instance.GetLobbyOwner();
 
+        int index = 0;
         foreach (var (id, name) in members)
         {
             bool isSelf = (id == mySteamId);
-            CreatePlayerRow(
-                id,
-                isSelf ? $"{name} (あなた)" : name,
-                isSelf ? new Color(1f, 0.9f, 0.2f) : Color.white);
+            bool isHost = (id == hostId);
+            CreatePlayerRow(id, name, PlayerColors[index % PlayerColors.Length], isSelf, isHost);
+            index++;
         }
 
         // Start ボタンの有効/無効
@@ -231,32 +245,47 @@ public class LobbyUIManager : MonoBehaviour
         }
     }
 
-    /// <summary>プレイヤー一覧の1行（アバター＋名前）をコードで生成する。</summary>
-    private void CreatePlayerRow(Steamworks.CSteamID steamId, string text, Color color)
+    /// <summary>
+    /// プレイヤー一覧の1行を生成する（参考画像風）。
+    /// [カラーバー | アバター | 名前＋タグ] の横並びカード。
+    /// </summary>
+    private void CreatePlayerRow(Steamworks.CSteamID steamId, string name, Color accent,
+                                 bool isSelf, bool isHost)
     {
-        // 行コンテナ（横並び）
+        // --- 行コンテナ（カード背景つき） ---
         var row = new GameObject("PlayerRow", typeof(RectTransform));
         row.transform.SetParent(playerListParent, false);
 
         var rowLe = row.AddComponent<UnityEngine.UI.LayoutElement>();
-        rowLe.minHeight = 44f;
-        rowLe.preferredHeight = 44f;
+        rowLe.minHeight = rowLe.preferredHeight = 56f;
+
+        var rowBg = row.AddComponent<UnityEngine.UI.Image>();
+        rowBg.color = new Color(1f, 1f, 1f, 0.06f); // 半透明の明るいカード
 
         var hlg = row.AddComponent<UnityEngine.UI.HorizontalLayoutGroup>();
-        hlg.childAlignment        = TextAnchor.MiddleLeft;
-        hlg.spacing               = 10f;
-        hlg.padding               = new RectOffset(8, 8, 2, 2);
-        hlg.childControlWidth     = true;
-        hlg.childControlHeight    = true;
-        hlg.childForceExpandWidth = false;
+        hlg.childAlignment         = TextAnchor.MiddleLeft;
+        hlg.spacing                = 12f;
+        hlg.padding                = new RectOffset(0, 14, 4, 4);
+        hlg.childControlWidth      = true;
+        hlg.childControlHeight     = true;
+        hlg.childForceExpandWidth  = false;
         hlg.childForceExpandHeight = false;
 
-        // アバター画像（正方形）
+        // --- 左端のカラーバー（プレイヤーカラー） ---
+        var barGo = new GameObject("ColorBar", typeof(RectTransform));
+        barGo.transform.SetParent(row.transform, false);
+        var barLe = barGo.AddComponent<UnityEngine.UI.LayoutElement>();
+        barLe.minWidth = barLe.preferredWidth = 8f;
+        barLe.minHeight = barLe.preferredHeight = 56f;
+        var barImg = barGo.AddComponent<UnityEngine.UI.Image>();
+        barImg.color = accent;
+
+        // --- アバター画像（丸枠風） ---
         var avatarGo = new GameObject("Avatar", typeof(RectTransform));
         avatarGo.transform.SetParent(row.transform, false);
         var avatarLe = avatarGo.AddComponent<UnityEngine.UI.LayoutElement>();
-        avatarLe.minWidth = avatarLe.preferredWidth = 40f;
-        avatarLe.minHeight = avatarLe.preferredHeight = 40f;
+        avatarLe.minWidth = avatarLe.preferredWidth = 44f;
+        avatarLe.minHeight = avatarLe.preferredHeight = 44f;
 
         var img = avatarGo.AddComponent<UnityEngine.UI.Image>();
         var sprite = SteamAvatar.Get(steamId.m_SteamID);
@@ -267,22 +296,46 @@ public class LobbyUIManager : MonoBehaviour
         }
         else
         {
-            // 未読み込み時はプレースホルダー（暗い四角）。次回更新で差し替わる。
-            img.color = new Color(1f, 1f, 1f, 0.15f);
+            img.color = accent * new Color(1f, 1f, 1f, 0.5f); // 読み込み中はカラーで代用
         }
 
-        // 名前
+        // --- 名前 ---
         var nameGo = new GameObject("Name", typeof(RectTransform));
         nameGo.transform.SetParent(row.transform, false);
         var nameLe = nameGo.AddComponent<UnityEngine.UI.LayoutElement>();
         nameLe.flexibleWidth = 1f;
 
         var label = nameGo.AddComponent<TextMeshProUGUI>();
-        label.text = text;
-        label.color = color;
-        label.fontSize = 28f;
+        label.text = isSelf ? $"{name} (あなた)" : name;
+        label.color = isSelf ? new Color(1f, 0.85f, 0.3f) : new Color(0.97f, 0.98f, 1f);
+        label.fontSize = 26f;
+        label.fontStyle = FontStyles.Bold;
         label.alignment = TextAlignmentOptions.Left;
         label.textWrappingMode = TextWrappingModes.NoWrap;
+
+        // --- HOSTタグ ---
+        if (isHost)
+        {
+            var tagGo = new GameObject("HostTag", typeof(RectTransform));
+            tagGo.transform.SetParent(row.transform, false);
+            var tagLe = tagGo.AddComponent<UnityEngine.UI.LayoutElement>();
+            tagLe.minWidth = tagLe.preferredWidth = 70f;
+            var tagImg = tagGo.AddComponent<UnityEngine.UI.Image>();
+            tagImg.color = new Color(1f, 0.62f, 0.12f); // オレンジ
+
+            var tagTextGo = new GameObject("Text", typeof(RectTransform));
+            tagTextGo.transform.SetParent(tagGo.transform, false);
+            var ttRt = tagTextGo.GetComponent<RectTransform>();
+            ttRt.anchorMin = Vector2.zero; ttRt.anchorMax = Vector2.one;
+            ttRt.offsetMin = Vector2.zero; ttRt.offsetMax = Vector2.zero;
+            var tagText = tagTextGo.AddComponent<TextMeshProUGUI>();
+            tagText.text = "HOST";
+            tagText.color = new Color(0.12f, 0.1f, 0.05f);
+            tagText.fontSize = 18f;
+            tagText.fontStyle = FontStyles.Bold;
+            tagText.alignment = TextAlignmentOptions.Center;
+            tagText.textWrappingMode = TextWrappingModes.NoWrap;
+        }
     }
 
     // =========================================================

@@ -140,6 +140,13 @@ public class PlayerMovement : NetworkBehaviour
             }
         }
 
+        // 家具（Roomの上にある MoveSpeed 家具）による速度バフ
+        var fem = FurnitureEffectManager.InstanceOrNull;
+        if (fem != null)
+        {
+            currentSpeed *= fem.MoveSpeedMultiplier;
+        }
+
         Vector3 finalMove = move * currentSpeed + velocity;
 
         controller.Move(finalMove * Time.deltaTime);

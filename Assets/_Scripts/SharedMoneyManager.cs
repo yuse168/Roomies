@@ -65,6 +65,9 @@ public class SharedMoneyManager : NetworkBehaviour
         sharedMoney.Value += amount;
     }
 
+    /// <summary>現在の共同口座残高（全員が参照可）。</summary>
+    public int CurrentMoney => sharedMoney.Value;
+
     public bool CanPay(int amount)
     {
         return sharedMoney.Value >= amount;
@@ -75,6 +78,20 @@ public class SharedMoneyManager : NetworkBehaviour
         if (!IsServer) return;
 
         sharedMoney.Value -= amount;
+    }
+
+    /// <summary>
+    /// クライアントからの購入要求。サーバー権限で残高を確認して減算する。
+    /// 家具の購入などに使う。
+    /// </summary>
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    public void RequestPurchaseServerRpc(int amount)
+    {
+        if (amount <= 0) return;
+        if (sharedMoney.Value >= amount)
+        {
+            sharedMoney.Value -= amount;
+        }
     }
 
     public void PayRent(int rentAmount)
