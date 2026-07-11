@@ -502,6 +502,17 @@ public class SteamLobby : MonoBehaviour
         // トランスポートの接続ログを見るため Developer レベルにする
         nm.LogLevel = LogLevel.Developer;
 
+        // シーンに空の設定要素が残っていると、SteamNetworkingSocketsTransportが
+        // 無効な設定をCreateListenSocketP2Pへ渡してP2P待受を作れない。
+        var transport = nm.NetworkConfig.NetworkTransport as SteamNetworkingSocketsTransport;
+        if (transport == null)
+        {
+            Debug.LogError("[SteamLobby] SteamNetworkingSocketsTransportが見つかりません");
+            SetBusy(false);
+            yield break;
+        }
+        transport.options = Array.Empty<SteamNetworkingConfigValue_t>();
+
         bool started = nm.StartHost();
         Debug.Log($"[SteamLobby] StartHost: {started}");
 
@@ -596,6 +607,9 @@ public class SteamLobby : MonoBehaviour
         }
 
         transport.ConnectToSteamID = hostSteamId;
+        // カスタム設定は使用しない。Unityシーンに残った空要素を渡すと、
+        // ConnectP2Pが正常に接続を開始できない。
+        transport.options = Array.Empty<SteamNetworkingConfigValue_t>();
 
         Debug.Log($"[SteamLobby] StartClient準備: ConnectToSteamID={hostSteamId}");
 
