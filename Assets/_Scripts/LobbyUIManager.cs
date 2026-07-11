@@ -260,6 +260,9 @@ public class LobbyUIManager : MonoBehaviour
         rowLe.minHeight = rowLe.preferredHeight = 56f;
 
         var rowBg = row.AddComponent<UnityEngine.UI.Image>();
+        rowBg.sprite = UITheme.RoundedSprite;
+        rowBg.type   = UnityEngine.UI.Image.Type.Sliced;
+        rowBg.pixelsPerUnitMultiplier = 2f;
         rowBg.color = new Color(1f, 1f, 1f, 0.06f); // 半透明の明るいカード
 
         var hlg = row.AddComponent<UnityEngine.UI.HorizontalLayoutGroup>();
@@ -278,6 +281,9 @@ public class LobbyUIManager : MonoBehaviour
         barLe.minWidth = barLe.preferredWidth = 8f;
         barLe.minHeight = barLe.preferredHeight = 56f;
         var barImg = barGo.AddComponent<UnityEngine.UI.Image>();
+        barImg.sprite = UITheme.RoundedSprite;
+        barImg.type   = UnityEngine.UI.Image.Type.Sliced;
+        barImg.pixelsPerUnitMultiplier = 6f;
         barImg.color = accent;
 
         // --- アバター画像（丸枠風） ---
@@ -321,6 +327,9 @@ public class LobbyUIManager : MonoBehaviour
             var tagLe = tagGo.AddComponent<UnityEngine.UI.LayoutElement>();
             tagLe.minWidth = tagLe.preferredWidth = 70f;
             var tagImg = tagGo.AddComponent<UnityEngine.UI.Image>();
+            tagImg.sprite = UITheme.RoundedSprite;
+            tagImg.type   = UnityEngine.UI.Image.Type.Sliced;
+            tagImg.pixelsPerUnitMultiplier = 3f;
             tagImg.color = new Color(1f, 0.62f, 0.12f); // オレンジ
 
             var tagTextGo = new GameObject("Text", typeof(RectTransform));

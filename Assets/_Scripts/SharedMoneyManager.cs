@@ -118,6 +118,7 @@ public class SharedMoneyManager : NetworkBehaviour
     {
         if (sharedMoneyText == null) return;
 
-        sharedMoneyText.text = "Total ¥" + value.ToString("N0");
+        // 見出し（共同金庫）はHUDカード側が出すので金額のみ表示
+        sharedMoneyText.text = "¥" + value.ToString("N0");
     }
 }

@@ -25,20 +25,58 @@ public class PlayerInteract : NetworkBehaviour
 
     private CarryableObject heldObject;
 
+    // インタラクト表示チップ（InteractTextを包む角丸背景）とクロスヘア
+    private GameObject interactChip;
+    private UnityEngine.UI.Graphic crosshair;
+    private Vector3 crosshairBaseScale = Vector3.one;
+
+    // クロスヘアの色（通常時 / 対象あり）
+    private static readonly Color CrosshairIdle   = new Color(1f, 1f, 1f, 0.5f);
+    private static readonly Color CrosshairActive = new Color(1f, 0.62f, 0.12f);
+
     void Start()
     {
         if (!IsOwner) return;
 
-        GameObject uiObject = GameObject.Find("InteractText");
-
-        if (uiObject != null)
+        // 自分のプレハブ内から探す
+        // （GameObject.Findだと他プレイヤーのプレハブのUIを掴む可能性がある）
+        foreach (var t in GetComponentsInChildren<TextMeshProUGUI>(true))
         {
-            interactText = uiObject.GetComponent<TextMeshProUGUI>();
-            interactText.gameObject.SetActive(false);
+            if (t.gameObject.name == "InteractText")
+            {
+                interactText = t;
+                break;
+            }
+        }
+
+        // フォールバック：シーン側に置かれている場合
+        if (interactText == null)
+        {
+            GameObject uiObject = GameObject.Find("InteractText");
+            if (uiObject != null) interactText = uiObject.GetComponent<TextMeshProUGUI>();
+        }
+
+        if (interactText != null)
+        {
+            // 角丸チップに載せ替えて、表示切り替えはチップごと行う
+            interactChip = UITheme.BuildInteractChip(interactText);
+            interactChip.SetActive(false);
         }
         else
         {
             Debug.LogWarning("InteractText が見つかりません");
+        }
+
+        // クロスヘア（対象に照準が合うと色が変わる）
+        foreach (var g in GetComponentsInChildren<UnityEngine.UI.Graphic>(true))
+        {
+            if (g.gameObject.name == "Crosshair")
+            {
+                crosshair = g;
+                crosshairBaseScale = g.transform.localScale;
+                g.color = CrosshairIdle;
+                break;
+            }
         }
     }
 
@@ -78,66 +116,74 @@ public class PlayerInteract : NetworkBehaviour
     {
         if (interactText == null) return;
 
+        string label = null;
+
         // 持ち中
         if (heldObject != null)
         {
-            interactText.gameObject.SetActive(true);
-            interactText.text = "F 離す";
-            return;
+            label = Key("F") + " 離す";
         }
-
-        if (cameraTransform == null)
+        else if (cameraTransform != null)
         {
-            interactText.gameObject.SetActive(false);
-            return;
+            Ray ray = new Ray(cameraTransform.position, cameraTransform.forward);
+
+            if (Physics.Raycast(ray, out RaycastHit hit, interactDistance))
+            {
+                // 持てる物
+                if (hit.collider.GetComponentInParent<CarryableObject>() != null)
+                {
+                    label = Key("F") + " 持つ";
+                }
+                // ドア
+                else if (hit.collider.GetComponentInParent<DoorInteract>() != null)
+                {
+                    label = Key("E") + " 使用";
+                }
+                // 納品ボタン
+                else if (hit.collider.GetComponentInParent<DeliveryButton>() != null)
+                {
+                    label = Key("E") + " 納品";
+                }
+                // スロット
+                else if (hit.collider.GetComponentInParent<SlotMachine>() != null)
+                {
+                    label = Key("E") + " スロット";
+                }
+            }
         }
 
-        Ray ray = new Ray(cameraTransform.position, cameraTransform.forward);
+        bool show = label != null;
 
-        if (Physics.Raycast(ray, out RaycastHit hit, interactDistance))
+        if (show) interactText.text = label;
+
+        // チップごと表示切り替え（チップ未生成時はテキスト単体で切り替え）
+        if (interactChip != null)
         {
-            // 持てる物
-            CarryableObject carryable = hit.collider.GetComponentInParent<CarryableObject>();
-
-            if (carryable != null)
-            {
-                interactText.gameObject.SetActive(true);
-                interactText.text = "F 持つ";
-                return;
-            }
-
-            // ドア
-            DoorInteract door = hit.collider.GetComponentInParent<DoorInteract>();
-
-            if (door != null)
-            {
-                interactText.gameObject.SetActive(true);
-                interactText.text = "E 使用";
-                return;
-            }
-
-            // 納品ボタン
-            DeliveryButton deliveryButton = hit.collider.GetComponentInParent<DeliveryButton>();
-
-            if (deliveryButton != null)
-            {
-                interactText.gameObject.SetActive(true);
-                interactText.text = "E 納品";
-                return;
-            }
-
-            // スロット
-            SlotMachine slot = hit.collider.GetComponentInParent<SlotMachine>();
-
-            if (slot != null)
-            {
-                interactText.gameObject.SetActive(true);
-                interactText.text = "E スロット";
-                return;
-            }
+            if (interactChip.activeSelf != show) interactChip.SetActive(show);
+        }
+        else
+        {
+            interactText.gameObject.SetActive(show);
         }
 
-        interactText.gameObject.SetActive(false);
+        // クロスヘア：対象に照準が合うとオレンジ＋少し拡大
+        if (crosshair != null)
+        {
+            crosshair.color = Color.Lerp(
+                crosshair.color,
+                show ? CrosshairActive : CrosshairIdle,
+                Time.deltaTime * 14f);
+
+            Vector3 targetScale = crosshairBaseScale * (show ? 1.25f : 1f);
+            crosshair.transform.localScale = Vector3.Lerp(
+                crosshair.transform.localScale, targetScale, Time.deltaTime * 14f);
+        }
+    }
+
+    // キー表記をアクセント色で強調する（例：F 持つ → Fがオレンジ）
+    private static string Key(string key)
+    {
+        return $"<color=#FFA31F>{key}</color>";
     }
 
     void TryUse()

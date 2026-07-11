@@ -44,6 +44,12 @@ public class DayManager : NetworkBehaviour
     /// <summary>現在が夜ターンかどうか。</summary>
     public bool IsNight => currentTime != null && currentTime.Value == 1;
 
+    /// <summary>残り時間（秒）。HUDの進捗バーなどが参照する。</summary>
+    public float RemainingSeconds => remainingTime != null ? remainingTime.Value : 0f;
+
+    /// <summary>1ターンの長さ（秒）。</summary>
+    public float TurnDurationSeconds => turnDuration;
+
     // 診断用
     public int  DebugDay     => currentDay  != null ? currentDay.Value  : -1;
     public int  DebugTime    => currentTime != null ? currentTime.Value : -1;
@@ -51,6 +57,22 @@ public class DayManager : NetworkBehaviour
 
     /// <summary>夜→朝に切り替わった瞬間に発火（全クライアント）。家具の配達などに使う。</summary>
     public static event System.Action OnMorningArrived;
+
+    /// <summary>朝→夜に切り替わった瞬間に発火（全クライアント）。夜イベントの抽選などに使う。</summary>
+    public static event System.Action OnNightArrived;
+
+    // 夜イベント等による次回家賃への上乗せ額（サーバーのみ管理）
+    private int rentSurcharge = 0;
+
+    /// <summary>次回の家賃徴収額（基本額＋上乗せ）。</summary>
+    public int CurrentRentTotal => rentAmount + rentSurcharge;
+
+    /// <summary>夜イベントなどから次回家賃に上乗せする（サーバーのみ）。</summary>
+    public void ServerAddRentSurcharge(int amount)
+    {
+        if (!IsServer || amount <= 0) return;
+        rentSurcharge += amount;
+    }
 
     private NetworkVariable<int> currentDay = new NetworkVariable<int>(
         1,
@@ -107,6 +129,13 @@ public class DayManager : NetworkBehaviour
         {
             var fgo = new GameObject("FurnitureEditController");
             fgo.AddComponent<FurnitureEditController>();
+        }
+
+        // 夜イベント管理もシーンに無ければ生成する（シーン配置不要）
+        if (FindAnyObjectByType<NightEventManager>() == null)
+        {
+            var ngo = new GameObject("NightEventManager");
+            ngo.AddComponent<NightEventManager>();
         }
 
         UpdateDayUI();
@@ -348,6 +377,68 @@ public class DayManager : NetworkBehaviour
         }
     }
 
+    // ================================================================
+    // 夜イベント連携（NightEventManagerはNetworkBehaviourではないため、
+    // シーン配置済みのこのオブジェクトがRPCを中継する）
+    // ================================================================
+
+    /// <summary>夜イベントの演出を全クライアントへ送る（サーバーのみ）。</summary>
+    public void ServerSendNightEvent(byte eventType, int value)
+    {
+        if (!IsServer) return;
+        NightEventClientRpc(eventType, value);
+    }
+
+    [Rpc(SendTo.ClientsAndHost)]
+    private void NightEventClientRpc(byte eventType, int value)
+    {
+        if (NightEventManager.Instance != null)
+            NightEventManager.Instance.PlayEventVisual(eventType, value);
+    }
+
+    /// <summary>全員にバナー告知を送る（サーバーのみ）。</summary>
+    public void ServerSendAnnounce(string title, string body, byte style)
+    {
+        if (!IsServer) return;
+        AnnounceClientRpc(title, body, style);
+    }
+
+    [Rpc(SendTo.ClientsAndHost)]
+    private void AnnounceClientRpc(string title, string body, byte style)
+    {
+        if (NightEventManager.Instance != null)
+            NightEventManager.Instance.ShowBanner(title, body, style);
+    }
+
+    /// <summary>特定プレイヤーだけにバナー告知を送る（サーバーのみ）。</summary>
+    public void ServerSendAnnounceTo(ulong clientId, string title, string body, byte style)
+    {
+        if (!IsServer) return;
+        AnnounceToClientRpc(title, body, style,
+            RpcTarget.Single(clientId, RpcTargetUse.Temp));
+    }
+
+    [Rpc(SendTo.SpecifiedInParams)]
+    private void AnnounceToClientRpc(string title, string body, byte style, RpcParams rpcParams = default)
+    {
+        if (NightEventManager.Instance != null)
+            NightEventManager.Instance.ShowBanner(title, body, style);
+    }
+
+    /// <summary>全員の画面を揺らす（サーバーのみ）。地震イベント用。</summary>
+    public void ServerSendCameraShake(float duration, float magnitude)
+    {
+        if (!IsServer) return;
+        ShakeCameraClientRpc(duration, magnitude);
+    }
+
+    [Rpc(SendTo.ClientsAndHost)]
+    private void ShakeCameraClientRpc(float duration, float magnitude)
+    {
+        if (NightEventManager.Instance != null)
+            NightEventManager.Instance.ShakeCamera(duration, magnitude);
+    }
+
     private bool ChargeRent()
     {
         if (SharedMoneyManager.Instance == null)
@@ -356,11 +447,14 @@ public class DayManager : NetworkBehaviour
             return false;
         }
 
-        if (SharedMoneyManager.Instance.CanPay(rentAmount))
-        {
-            SharedMoneyManager.Instance.PayRent(rentAmount);
+        int total = rentAmount + rentSurcharge;
 
-            Debug.Log("家賃支払い成功");
+        if (SharedMoneyManager.Instance.CanPay(total))
+        {
+            SharedMoneyManager.Instance.PayRent(total);
+            rentSurcharge = 0;
+
+            Debug.Log($"家賃支払い成功（¥{total}）");
 
             return true;
         }
@@ -393,6 +487,11 @@ public class DayManager : NetworkBehaviour
         if (newTime == 0)
         {
             OnMorningArrived?.Invoke();
+        }
+        // 朝(0)→夜(1) になったら夜イベントのトリガーを発火
+        else if (newTime == 1)
+        {
+            OnNightArrived?.Invoke();
         }
     }
 
