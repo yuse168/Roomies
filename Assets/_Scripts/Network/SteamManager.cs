@@ -22,7 +22,7 @@ using Steamworks;
 [DisallowMultipleComponent]
 public class SteamManager : MonoBehaviour {
 #if !DISABLESTEAMWORKS
-	private const uint k_SteamAppId = 4953360;
+	private const uint k_SteamAppId = 480;
 
 	protected static bool s_EverInitialized = false;
 
