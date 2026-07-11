@@ -155,7 +155,7 @@
 3. または `Multiplayer Play Mode` パッケージを使いEditor内で複数クライアントを起動
 
 **Steam AppID (steam_appid.txt)**:
-現在 `480` (テスト用)。実際のSteam AppIDを取得したら SteamManager.cs の `k_SteamAppId` と `steam_appid.txt` を両方変更すること。
+現在 `4953360` (正式なAppID・2026-07-09設定)。SteamManager.cs の `k_SteamAppId` と `steam_appid.txt` の両方に設定してある。変更する場合は両方をそろえること。
 
 ---
 

@@ -63,6 +63,16 @@ public class SteamLobby : MonoBehaviour
     private bool   operationInProgress;
     private string cachedHostAddress;
 
+    // クライアント接続処理の多重起動ガード。
+    // LobbyDataUpdateはメンバー退出など何度でも発火するため、
+    // ガード無しだと接続ハンドシェイク中にShutdown→再接続が走って接続できない。
+    private bool clientStartRequested;
+
+    // 接続試行ごとの診断・タイムアウトコルーチン（古い試行のタイマーが
+    // 新しい試行を殺さないよう、参照を持って明示的に止める）
+    private Coroutine connectionDiagCoroutine;
+    private Coroutine connectionTimeoutCoroutine;
+
     // ----- シングルトン -----
     private static SteamLobby instance;
     public static SteamLobby Instance
@@ -88,6 +98,11 @@ public class SteamLobby : MonoBehaviour
         instance = this;
         transform.SetParent(null);
         DontDestroyOnLoad(gameObject);
+
+        // マルチプレイ必須：ウィンドウが非フォーカスでも動かし続ける。
+        // これが無いと、同じPCでの2インスタンステストや裏に回したホストが
+        // Steamコールバックのポンプを止めてしまい、接続要求を受け付けられない。
+        Application.runInBackground = true;
     }
 
     private void Start()
@@ -231,6 +246,9 @@ public class SteamLobby : MonoBehaviour
         IsHost = false;
         cachedHostAddress = null;
 
+        StopConnectionWatchers();
+        clientStartRequested = false;
+
         var nm = NetworkManager.Singleton;
         if (nm != null && nm.IsListening)
         {
@@ -351,25 +369,70 @@ public class SteamLobby : MonoBehaviour
 
         var stateChange = (EChatMemberStateChange)cb.m_rgfChatMemberStateChange;
         var whoChanged  = new CSteamID(cb.m_ulSteamIDUserChanged);
-        var hostID      = SteamMatchmaking.GetLobbyOwner(new CSteamID(LobbyID));
 
         Debug.Log($"[SteamLobby] メンバー変化: {stateChange} / {SteamFriends.GetFriendPersonaName(whoChanged)}");
+
+        // 退出したのがホストかどうか。
+        // ※現在のロビーオーナーとの比較だけでは不十分：Steamはホスト退出時に
+        //   オーナーを残りメンバーへ自動移譲するため、比較時点では既に別人になっている。
+        //   参加時に記録したホストのSteamID（cachedHostAddress）で判定する。
+        bool leftIsHost = whoChanged == SteamMatchmaking.GetLobbyOwner(new CSteamID(LobbyID));
+        if (!leftIsHost &&
+            !string.IsNullOrWhiteSpace(cachedHostAddress) &&
+            ulong.TryParse(cachedHostAddress, out ulong hostSteamId))
+        {
+            leftIsHost = whoChanged.m_SteamID == hostSteamId;
+        }
 
         // クライアントがHostの退出を検知→ロビー解散
         if (!IsHost &&
             (stateChange == EChatMemberStateChange.k_EChatMemberStateChangeLeft ||
              stateChange == EChatMemberStateChange.k_EChatMemberStateChangeDisconnected) &&
-            whoChanged == hostID)
+            leftIsHost)
         {
             Debug.LogWarning("[SteamLobby] ホストが退出しました — ロビー解散");
             LobbyID = 0;
             LobbyCode = null;
+
+            // 接続試行中なら打ち切る（死んだホストへ再接続し続けない）
+            AbortClientConnectionAttempt();
+
             SetBusy(false);
             OnLobbyDisbanded?.Invoke();
             return;
         }
 
         OnMembersChanged?.Invoke();
+    }
+
+    /// <summary>クライアントの接続試行を中断して状態を巻き戻す。</summary>
+    private void AbortClientConnectionAttempt()
+    {
+        StopConnectionWatchers();
+        clientStartRequested = false;
+
+        var nm = NetworkManager.Singleton;
+        if (nm != null && nm.IsClient && !nm.IsConnectedClient)
+        {
+            nm.OnClientConnectedCallback  -= OnClientConnected;
+            nm.OnClientDisconnectCallback -= OnClientDisconnected;
+            nm.Shutdown();
+        }
+    }
+
+    /// <summary>接続試行ごとの診断・タイムアウトコルーチンを止める。</summary>
+    private void StopConnectionWatchers()
+    {
+        if (connectionDiagCoroutine != null)
+        {
+            StopCoroutine(connectionDiagCoroutine);
+            connectionDiagCoroutine = null;
+        }
+        if (connectionTimeoutCoroutine != null)
+        {
+            StopCoroutine(connectionTimeoutCoroutine);
+            connectionTimeoutCoroutine = null;
+        }
     }
 
     private void OnLobbyDataUpdate(LobbyDataUpdate_t cb)
@@ -379,6 +442,11 @@ public class SteamLobby : MonoBehaviour
 
         string started = SteamMatchmaking.GetLobbyData(new CSteamID(LobbyID), KeyGameStarted);
         if (started != "1") return;
+
+        // 既に接続処理中／接続済みなら何もしない。
+        // LobbyDataUpdateはメンバー退出等でも再発火するため、ガード無しだと
+        // 接続中のNGOをShutdownして最初からやり直してしまう（接続不能の原因）。
+        if (clientStartRequested) return;
 
         if (string.IsNullOrWhiteSpace(cachedHostAddress))
         {
@@ -390,6 +458,8 @@ public class SteamLobby : MonoBehaviour
             Debug.LogError("[SteamLobby] HostAddressが取得できません");
             return;
         }
+
+        clientStartRequested = true;
 
         Debug.Log($"[SteamLobby] ホストがゲーム開始 → StartClient (Host={cachedHostAddress})");
         OnHostStartedGame?.Invoke();
@@ -486,7 +556,11 @@ public class SteamLobby : MonoBehaviour
     private IEnumerator StartClientRoutine(string hostAddress)
     {
         var nm = NetworkManager.Singleton;
-        if (nm == null) yield break;
+        if (nm == null)
+        {
+            clientStartRequested = false;
+            yield break;
+        }
 
         if (nm.IsListening)
         {
@@ -499,6 +573,7 @@ public class SteamLobby : MonoBehaviour
         nm = NetworkManager.Singleton;
         if (nm == null || !nm.isActiveAndEnabled)
         {
+            clientStartRequested = false;
             SetBusy(false);
             yield break;
         }
@@ -507,6 +582,7 @@ public class SteamLobby : MonoBehaviour
         if (transport == null)
         {
             Debug.LogError("[SteamLobby] SteamNetworkingSocketsTransportが見つかりません");
+            clientStartRequested = false;
             SetBusy(false);
             yield break;
         }
@@ -514,6 +590,7 @@ public class SteamLobby : MonoBehaviour
         if (!ulong.TryParse(hostAddress, out ulong hostSteamId))
         {
             Debug.LogError($"[SteamLobby] hostAddressのパース失敗: {hostAddress}");
+            clientStartRequested = false;
             SetBusy(false);
             yield break;
         }
@@ -538,6 +615,7 @@ public class SteamLobby : MonoBehaviour
             Debug.LogError("[SteamLobby] StartClientに失敗");
             nm.OnClientConnectedCallback  -= OnClientConnected;
             nm.OnClientDisconnectCallback -= OnClientDisconnected;
+            clientStartRequested = false;
             SetBusy(false);
         }
         else
@@ -554,8 +632,10 @@ public class SteamLobby : MonoBehaviour
                 Debug.LogWarning("[SteamLobby] StartClient後もSceneManagerがnull");
             }
 
-            StartCoroutine(ConnectionDiag());
-            StartCoroutine(ConnectionTimeout(30f));
+            // 前回の試行のタイマーが残っていたら止めてから張り直す
+            StopConnectionWatchers();
+            connectionDiagCoroutine    = StartCoroutine(ConnectionDiag());
+            connectionTimeoutCoroutine = StartCoroutine(ConnectionTimeout(30f));
         }
     }
 
@@ -626,6 +706,7 @@ public class SteamLobby : MonoBehaviour
             nm.OnClientConnectedCallback  -= OnClientConnected;
             nm.OnClientDisconnectCallback -= OnClientDisconnected;
             nm.Shutdown();
+            clientStartRequested = false; // 次のLobbyDataUpdateで再挑戦できるように戻す
             SetBusy(false);
             SceneManager.LoadScene(menuSceneName);
         }
@@ -638,7 +719,9 @@ public class SteamLobby : MonoBehaviour
     private void OnClientConnected(ulong clientId)
     {
         Debug.Log($"[SteamLobby] クライアント接続成功 ID={clientId}");
-        StopAllCoroutines();
+        // タイムアウト・診断タイマーだけ止める
+        // （StopAllCoroutinesだと進行中の他の処理まで巻き込むため使わない）
+        StopConnectionWatchers();
     }
 
     private void OnClientDisconnected(ulong clientId)
@@ -652,6 +735,9 @@ public class SteamLobby : MonoBehaviour
             nm.OnClientConnectedCallback  -= OnClientConnected;
             nm.OnClientDisconnectCallback -= OnClientDisconnected;
         }
+
+        StopConnectionWatchers();
+        clientStartRequested = false;
 
         StartCoroutine(ShutdownAndReturn());
     }
