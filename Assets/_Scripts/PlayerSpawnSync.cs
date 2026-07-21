@@ -38,6 +38,14 @@ public class PlayerSpawnSync : NetworkBehaviour
     public void ServerRespawn()
     {
         if (!IsServer) return;
+
+        SmugglingPlayer smuggling = GetComponent<SmugglingPlayer>();
+        if (smuggling != null && smuggling.ServerShouldStayInJail())
+        {
+            smuggling.ServerSendToJail();
+            return;
+        }
+
         if (assignedIndex < 0) assignedIndex = 0;
         ApplySpawnPointRpc(assignedIndex);
     }

@@ -24,6 +24,7 @@ public class PlayerInteract : NetworkBehaviour
     public LayerMask holdBlockMask;
 
     private CarryableObject heldObject;
+    private SmugglingPlayer smugglingPlayer;
 
     // インタラクト表示チップ（InteractTextを包む角丸背景）とクロスヘア
     private GameObject interactChip;
@@ -37,6 +38,8 @@ public class PlayerInteract : NetworkBehaviour
     void Start()
     {
         if (!IsOwner) return;
+
+        smugglingPlayer = GetComponent<SmugglingPlayer>();
 
         // 自分のプレハブ内から探す
         // （GameObject.Findだと他プレイヤーのプレハブのUIを掴む可能性がある）
@@ -84,6 +87,12 @@ public class PlayerInteract : NetworkBehaviour
     {
         if (!IsOwner) return;
 
+        if (smugglingPlayer != null && smugglingPlayer.IsControlLocked)
+        {
+            SetInteractVisible(false);
+            return;
+        }
+
         Keyboard keyboard = Keyboard.current;
         if (keyboard == null) return;
 
@@ -130,7 +139,13 @@ public class PlayerInteract : NetworkBehaviour
             if (Physics.Raycast(ray, out RaycastHit hit, interactDistance))
             {
                 // 持てる物
-                if (hit.collider.GetComponentInParent<CarryableObject>() != null)
+                SmugglingInteractable smuggling = hit.collider.GetComponentInParent<SmugglingInteractable>();
+                if (smuggling != null && smuggling.CanInteract(smugglingPlayer))
+                {
+                    label = Key("E") + " " + smuggling.GetInteractionLabel(smugglingPlayer);
+                }
+                // 持てる物
+                else if (hit.collider.GetComponentInParent<CarryableObject>() != null)
                 {
                     label = Key("F") + " 持つ";
                 }
@@ -180,6 +195,12 @@ public class PlayerInteract : NetworkBehaviour
         }
     }
 
+    private void SetInteractVisible(bool show)
+    {
+        if (interactChip != null) interactChip.SetActive(show);
+        else if (interactText != null) interactText.gameObject.SetActive(show);
+    }
+
     // キー表記をアクセント色で強調する（例：F 持つ → Fがオレンジ）
     private static string Key(string key)
     {
@@ -194,6 +215,13 @@ public class PlayerInteract : NetworkBehaviour
 
         if (Physics.Raycast(ray, out RaycastHit hit, interactDistance))
         {
+            SmugglingInteractable smuggling = hit.collider.GetComponentInParent<SmugglingInteractable>();
+            if (smuggling != null && smuggling.CanInteract(smugglingPlayer))
+            {
+                smuggling.Interact(smugglingPlayer);
+                return;
+            }
+
             // ドア
             DoorInteract door = hit.collider.GetComponentInParent<DoorInteract>();
 

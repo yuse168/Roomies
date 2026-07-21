@@ -28,6 +28,7 @@ public class PlayerMovement : NetworkBehaviour
 
     private CharacterController controller;
     private PlayerInteract playerInteract;
+    private SmugglingPlayer smugglingPlayer;
 
     private Vector2 moveInput;
     private Vector2 lookInput;
@@ -39,6 +40,7 @@ public class PlayerMovement : NetworkBehaviour
     {
         controller = GetComponent<CharacterController>();
         playerInteract = GetComponent<PlayerInteract>();
+        smugglingPlayer = GetComponent<SmugglingPlayer>();
 
         if (!IsOwner)
         {
@@ -58,6 +60,8 @@ public class PlayerMovement : NetworkBehaviour
     void Update()
     {
         if (!IsOwner) return;
+
+        if (smugglingPlayer != null && smugglingPlayer.IsControlLocked) return;
 
         ReadInput();
         Move();

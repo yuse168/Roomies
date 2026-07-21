@@ -100,9 +100,30 @@ public class DayManager : NetworkBehaviour
         NetworkVariableWritePermission.Server
     );
 
+    private void Awake()
+    {
+        // DayManagerはNetworkObjectと同じGameObjectに1つだけ置く。
+        // UIへ誤って追加されたコンポーネントが昼夜状態を上書きしないよう防止する。
+        if (GetComponent<NetworkObject>() == null)
+        {
+            Debug.LogError($"[DayManager] {name} にはNetworkObjectがありません。重複・誤配置として無効化します。");
+            enabled = false;
+            return;
+        }
+
+        if (Instance != null && Instance != this)
+        {
+            Debug.LogError($"[DayManager] DayManagerが重複しています。{name} を無効化します。");
+            enabled = false;
+            return;
+        }
+
+        Instance = this;
+    }
+
     private void Start()
     {
-        Instance = this;
+        if (!enabled) return;
 
         currentDay.OnValueChanged += OnDayChanged;
         currentTime.OnValueChanged += OnTimeChanged;
@@ -141,6 +162,7 @@ public class DayManager : NetworkBehaviour
         UpdateDayUI();
         UpdateTimerUI();
         ApplySkyMaterial(currentTime.Value);
+        ApplySmugglingTime(currentTime.Value);
     }
 
     public override void OnNetworkSpawn()
@@ -482,6 +504,7 @@ public class DayManager : NetworkBehaviour
     {
         UpdateDayUI();
         ApplySkyMaterial(newTime);
+        ApplySmugglingTime(newTime);
 
         // 夜(1)→朝(0) になったら配達などのトリガーを発火
         if (newTime == 0)
@@ -493,6 +516,14 @@ public class DayManager : NetworkBehaviour
         {
             OnNightArrived?.Invoke();
         }
+    }
+
+    /// <summary>運び屋NPCへ時間帯を直接反映する。イベント購読順に依存させない。</summary>
+    private void ApplySmugglingTime(int time)
+    {
+        bool isNight = time == 1;
+        int count = SmugglingContact.ApplyNightStateToAll(isNight);
+        Debug.Log($"[Smuggling] DayManagerが時間帯を適用: isNight={isNight}, contacts={count}");
     }
 
     private void OnGameOverChanged(bool oldValue, bool newValue)

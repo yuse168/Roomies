@@ -154,6 +154,7 @@ GameObject:
   - component: {fileID: 6323159237199467285}
   - component: {fileID: 7535297680356475148}
   - component: {fileID: 1111111111111111111}
+  - component: {fileID: 6273409185634918264}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -366,6 +367,25 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ShowTopMostFoldoutHeaderGroup: 1
+--- !u!114 &6273409185634918264
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2715674321747750427}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6e8a9f8f2b8d4a77a3a30cf43f69a5d1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SmugglingPlayer
+  ShowTopMostFoldoutHeaderGroup: 1
+  bagVisualPrefab: {fileID: 4330309395475172221, guid: fb872b09e0b29dc47a662ca8e2de42ee, type: 3}
+  bagLocalPosition: {x: 0.58, y: 0.62, z: 0.45}
+  bagLocalEuler: {x: 8, y: 0, z: -8}
+  bagScale: 0.32
+  contactDistance: 4
+  laborDistance: 4
 --- !u!1 &3093804080407733222
 GameObject:
   m_ObjectHideFlags: 0
