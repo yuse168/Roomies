@@ -219,6 +219,8 @@ public class LobbyUIManager : MonoBehaviour
     {
         if (playerListParent == null) return;
 
+        EnsureListLayout();
+
         // 既存行を削除
         foreach (Transform child in playerListParent)
             Destroy(child.gameObject);
@@ -245,106 +247,164 @@ public class LobbyUIManager : MonoBehaviour
         }
     }
 
+    /// <summary>プレイヤー一覧を左寄せで縦に積むレイアウトを保証する。</summary>
+    private void EnsureListLayout()
+    {
+        if (playerListParent == null) return;
+
+        var vlg = playerListParent.GetComponent<UnityEngine.UI.VerticalLayoutGroup>();
+        if (vlg == null)
+        {
+            // LayoutGroupは1オブジェクトに1つしか持てない。
+            // シーン側にGrid/Horizontal等が付いているとAddComponentがnullを返すので、
+            // 先に既存のLayoutGroupを外してから付け替える。
+            var existing = playerListParent.GetComponent<UnityEngine.UI.LayoutGroup>();
+            if (existing != null) DestroyImmediate(existing);
+
+            vlg = playerListParent.gameObject.AddComponent<UnityEngine.UI.VerticalLayoutGroup>();
+        }
+        if (vlg == null) return;
+
+        vlg.childAlignment         = TextAnchor.UpperLeft;
+        vlg.childControlWidth      = false;
+        vlg.childControlHeight     = false;
+        vlg.childForceExpandWidth  = false;
+        vlg.childForceExpandHeight = false;
+        vlg.spacing = 14f;
+    }
+
     /// <summary>
-    /// プレイヤー一覧の1行を生成する（参考画像風）。
-    /// [カラーバー | アバター | 名前＋タグ] の横並びカード。
+    /// プレイヤー一覧の1行を生成する（名札バッジ風）。
+    /// プレイヤーカラーの角丸フレーム付きアバターが左端にあり、
+    /// その右に名前プレートが刺さっているデザイン。行は内容の幅ぶんだけで左寄せ。
     /// </summary>
     private void CreatePlayerRow(Steamworks.CSteamID steamId, string name, Color accent,
                                  bool isSelf, bool isHost)
     {
-        // --- 行コンテナ（カード背景つき） ---
+        const float rowHeight    = 64f;
+        const float avatarSize   = 64f;
+        const float plateHeight  = 50f;
+        const float plateOverlap = 34f;  // プレートがアバターの下に潜り込む量
+
+        string displayName = isSelf ? $"{name} (あなた)" : name;
+
+        // --- 行コンテナ（背景なし・内容幅で左寄せ） ---
         var row = new GameObject("PlayerRow", typeof(RectTransform));
         row.transform.SetParent(playerListParent, false);
+        var rowRt = (RectTransform)row.transform;
 
-        var rowLe = row.AddComponent<UnityEngine.UI.LayoutElement>();
-        rowLe.minHeight = rowLe.preferredHeight = 56f;
+        // --- 名前プレート（アバターの後ろから右へ伸びる） ---
+        var plateGo = new GameObject("Plate", typeof(RectTransform));
+        plateGo.transform.SetParent(row.transform, false);
+        var plateRt = plateGo.GetComponent<RectTransform>();
+        plateRt.anchorMin = new Vector2(0f, 0.5f);
+        plateRt.anchorMax = new Vector2(0f, 0.5f);
+        plateRt.pivot     = new Vector2(0f, 0.5f);
+        plateRt.anchoredPosition = new Vector2(plateOverlap, 0f);
 
-        var rowBg = row.AddComponent<UnityEngine.UI.Image>();
-        rowBg.sprite = UITheme.RoundedSprite;
-        rowBg.type   = UnityEngine.UI.Image.Type.Sliced;
-        rowBg.pixelsPerUnitMultiplier = 2f;
-        rowBg.color = new Color(1f, 1f, 1f, 0.06f); // 半透明の明るいカード
+        var plateImg = plateGo.AddComponent<UnityEngine.UI.Image>();
+        plateImg.sprite = UITheme.RoundedSprite;
+        plateImg.type   = UnityEngine.UI.Image.Type.Sliced;
+        plateImg.pixelsPerUnitMultiplier = 2f;
+        plateImg.color = isSelf
+            ? new Color(accent.r, accent.g, accent.b, 0.22f)   // 自分はプレイヤーカラーで薄く強調
+            : new Color(1f, 1f, 1f, 0.07f);
+        UITheme.AddShadow(plateGo);
 
-        var hlg = row.AddComponent<UnityEngine.UI.HorizontalLayoutGroup>();
-        hlg.childAlignment         = TextAnchor.MiddleLeft;
-        hlg.spacing                = 12f;
-        hlg.padding                = new RectOffset(0, 14, 4, 4);
-        hlg.childControlWidth      = true;
-        hlg.childControlHeight     = true;
-        hlg.childForceExpandWidth  = false;
-        hlg.childForceExpandHeight = false;
+        // --- 名前（プレート内・アバターを避けた位置から） ---
+        float contentLeft = (avatarSize - plateOverlap) + 14f;
 
-        // --- 左端のカラーバー（プレイヤーカラー） ---
-        var barGo = new GameObject("ColorBar", typeof(RectTransform));
-        barGo.transform.SetParent(row.transform, false);
-        var barLe = barGo.AddComponent<UnityEngine.UI.LayoutElement>();
-        barLe.minWidth = barLe.preferredWidth = 8f;
-        barLe.minHeight = barLe.preferredHeight = 56f;
-        var barImg = barGo.AddComponent<UnityEngine.UI.Image>();
-        barImg.sprite = UITheme.RoundedSprite;
-        barImg.type   = UnityEngine.UI.Image.Type.Sliced;
-        barImg.pixelsPerUnitMultiplier = 6f;
-        barImg.color = accent;
-
-        // --- アバター画像（丸枠風） ---
-        var avatarGo = new GameObject("Avatar", typeof(RectTransform));
-        avatarGo.transform.SetParent(row.transform, false);
-        var avatarLe = avatarGo.AddComponent<UnityEngine.UI.LayoutElement>();
-        avatarLe.minWidth = avatarLe.preferredWidth = 44f;
-        avatarLe.minHeight = avatarLe.preferredHeight = 44f;
-
-        var img = avatarGo.AddComponent<UnityEngine.UI.Image>();
-        var sprite = SteamAvatar.Get(steamId.m_SteamID);
-        if (sprite != null)
-        {
-            img.sprite = sprite;
-            img.color  = Color.white;
-        }
-        else
-        {
-            img.color = accent * new Color(1f, 1f, 1f, 0.5f); // 読み込み中はカラーで代用
-        }
-
-        // --- 名前 ---
-        var nameGo = new GameObject("Name", typeof(RectTransform));
-        nameGo.transform.SetParent(row.transform, false);
-        var nameLe = nameGo.AddComponent<UnityEngine.UI.LayoutElement>();
-        nameLe.flexibleWidth = 1f;
-
-        var label = nameGo.AddComponent<TextMeshProUGUI>();
-        label.text = isSelf ? $"{name} (あなた)" : name;
-        label.color = isSelf ? new Color(1f, 0.85f, 0.3f) : new Color(0.97f, 0.98f, 1f);
-        label.fontSize = 26f;
-        label.fontStyle = FontStyles.Bold;
-        label.alignment = TextAlignmentOptions.Left;
+        var label = UITheme.Label(plateGo.transform, "Name", displayName,
+            26f, isSelf ? UITheme.Gold : UITheme.TextMain, TextAlignmentOptions.Left, bold: true);
         label.textWrappingMode = TextWrappingModes.NoWrap;
 
-        // --- HOSTタグ ---
+        float nameWidth = label.GetPreferredValues(displayName).x;
+
+        var nameRt = label.rectTransform;
+        nameRt.anchorMin = new Vector2(0f, 0f);
+        nameRt.anchorMax = new Vector2(0f, 1f);
+        nameRt.pivot     = new Vector2(0f, 0.5f);
+        nameRt.anchoredPosition = new Vector2(contentLeft, 0f);
+        nameRt.sizeDelta = new Vector2(nameWidth + 4f, 0f);
+
+        // --- HOSTタグ（名前の右） ---
+        float tagWidth = 0f;
         if (isHost)
         {
+            const float tagGap = 12f;
+            tagWidth = 62f + tagGap;
+
             var tagGo = new GameObject("HostTag", typeof(RectTransform));
-            tagGo.transform.SetParent(row.transform, false);
-            var tagLe = tagGo.AddComponent<UnityEngine.UI.LayoutElement>();
-            tagLe.minWidth = tagLe.preferredWidth = 70f;
+            tagGo.transform.SetParent(plateGo.transform, false);
+            var tagRt = tagGo.GetComponent<RectTransform>();
+            tagRt.anchorMin = new Vector2(0f, 0.5f);
+            tagRt.anchorMax = new Vector2(0f, 0.5f);
+            tagRt.pivot     = new Vector2(0f, 0.5f);
+            tagRt.anchoredPosition = new Vector2(contentLeft + nameWidth + tagGap, 0f);
+            tagRt.sizeDelta = new Vector2(62f, 26f);
+
             var tagImg = tagGo.AddComponent<UnityEngine.UI.Image>();
             tagImg.sprite = UITheme.RoundedSprite;
             tagImg.type   = UnityEngine.UI.Image.Type.Sliced;
-            tagImg.pixelsPerUnitMultiplier = 3f;
-            tagImg.color = new Color(1f, 0.62f, 0.12f); // オレンジ
+            tagImg.pixelsPerUnitMultiplier = 4f;
+            tagImg.color = UITheme.Accent;
 
-            var tagTextGo = new GameObject("Text", typeof(RectTransform));
-            tagTextGo.transform.SetParent(tagGo.transform, false);
-            var ttRt = tagTextGo.GetComponent<RectTransform>();
-            ttRt.anchorMin = Vector2.zero; ttRt.anchorMax = Vector2.one;
-            ttRt.offsetMin = Vector2.zero; ttRt.offsetMax = Vector2.zero;
-            var tagText = tagTextGo.AddComponent<TextMeshProUGUI>();
-            tagText.text = "HOST";
-            tagText.color = new Color(0.12f, 0.1f, 0.05f);
-            tagText.fontSize = 18f;
-            tagText.fontStyle = FontStyles.Bold;
-            tagText.alignment = TextAlignmentOptions.Center;
-            tagText.textWrappingMode = TextWrappingModes.NoWrap;
+            var tagText = UITheme.Label(tagGo.transform, "Text", "HOST",
+                15f, new Color(0.12f, 0.10f, 0.05f), TextAlignmentOptions.Center, bold: true);
+            var ttRt = tagText.rectTransform;
+            ttRt.anchorMin = Vector2.zero;
+            ttRt.anchorMax = Vector2.one;
+            ttRt.offsetMin = Vector2.zero;
+            ttRt.offsetMax = Vector2.zero;
         }
+
+        // プレートの幅を内容に合わせて確定
+        float plateWidth = contentLeft + nameWidth + tagWidth + 20f;
+        plateRt.sizeDelta = new Vector2(plateWidth, plateHeight);
+
+        // --- アバターバッジ（プレイヤーカラーの角丸フレーム、プレートの上に重なる） ---
+        var frameGo = new GameObject("AvatarFrame", typeof(RectTransform));
+        frameGo.transform.SetParent(row.transform, false);
+        var frameRt = frameGo.GetComponent<RectTransform>();
+        frameRt.anchorMin = new Vector2(0f, 0.5f);
+        frameRt.anchorMax = new Vector2(0f, 0.5f);
+        frameRt.pivot     = new Vector2(0f, 0.5f);
+        frameRt.anchoredPosition = Vector2.zero;
+        frameRt.sizeDelta = new Vector2(avatarSize, avatarSize);
+
+        var frameImg = frameGo.AddComponent<UnityEngine.UI.Image>();
+        frameImg.sprite = UITheme.RoundedSprite;
+        frameImg.type   = UnityEngine.UI.Image.Type.Sliced;
+        frameImg.pixelsPerUnitMultiplier = 1.8f;
+        frameImg.color  = accent;
+        UITheme.AddShadow(frameGo);
+
+        // フレームの角丸でアバターを切り抜く
+        var mask = frameGo.AddComponent<UnityEngine.UI.Mask>();
+        mask.showMaskGraphic = true;
+
+        var avatarGo = new GameObject("Avatar", typeof(RectTransform));
+        avatarGo.transform.SetParent(frameGo.transform, false);
+        var avatarRt = avatarGo.GetComponent<RectTransform>();
+        avatarRt.anchorMin = Vector2.zero;
+        avatarRt.anchorMax = Vector2.one;
+        avatarRt.offsetMin = new Vector2(5f, 5f);   // 縁がプレイヤーカラーのリングになる
+        avatarRt.offsetMax = new Vector2(-5f, -5f);
+
+        var avatarImg = avatarGo.AddComponent<UnityEngine.UI.Image>();
+        var sprite = SteamAvatar.Get(steamId.m_SteamID);
+        if (sprite != null)
+        {
+            avatarImg.sprite = sprite;
+            avatarImg.color  = Color.white;
+        }
+        else
+        {
+            avatarImg.color = new Color(0f, 0f, 0f, 0.35f); // 読み込み中はフレーム色の窓
+        }
+
+        // --- 行サイズ確定（内容幅ぶんだけ。VerticalLayoutGroupが左寄せで積む） ---
+        rowRt.sizeDelta = new Vector2(plateOverlap + plateWidth, rowHeight);
     }
 
     // =========================================================
