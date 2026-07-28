@@ -25,6 +25,11 @@ public class SteamManager : MonoBehaviour {
 	private const uint k_SteamAppId = 480;
 
 	protected static bool s_EverInitialized = false;
+	public static string InitializationError { get; private set; }
+
+	[Header("Steam起動設定")]
+	[Tooltip("ONの場合だけ、Steam外から起動した時にSteam経由で再起動します。OFFならSteam未起動でもゲームを終了しません。")]
+	[SerializeField] private bool restartThroughSteam = false;
 
 	protected static SteamManager s_instance;
 	protected static SteamManager Instance {
@@ -59,6 +64,7 @@ public class SteamManager : MonoBehaviour {
 	{
 		s_EverInitialized = false;
 		s_instance = null;
+		InitializationError = null;
 	}
 #endif
 
@@ -71,11 +77,11 @@ public class SteamManager : MonoBehaviour {
 		s_instance = this;
 
 		if(s_EverInitialized) {
-			// This is almost always an error.
-			// The most common case where this happens is when SteamManager gets destroyed because of Application.Quit(),
-			// and then some Steamworks code in some other OnDestroy gets called afterwards, creating a new SteamManager.
-			// You should never call Steamworks functions in OnDestroy, always prefer OnDisable if possible.
-			throw new System.Exception("Tried to Initialize the SteamAPI twice in one session!");
+			// Steam未起動時やシーン切り替え中にManagerが再生成されても、
+			// ゲーム全体を例外で停止させない。
+			Debug.LogWarning("[Steamworks.NET] SteamManagerの二重初期化を無視しました。", this);
+			Destroy(gameObject);
+			return;
 		}
 
 		// We want our SteamManager Instance to persist across scenes.
@@ -98,37 +104,33 @@ public class SteamManager : MonoBehaviour {
 			// Once you get a Steam AppID assigned by Valve, you need to replace AppId_t.Invalid with it and
 			// remove steam_appid.txt from the game depot. eg: "(AppId_t)480" or "new AppId_t(480)".
 			// See the Valve documentation for more information: https://partner.steamgames.com/doc/sdk/api#initialization_and_shutdown
-			if (SteamAPI.RestartAppIfNecessary(new AppId_t(k_SteamAppId))) {
+			// RoomiesはSteamなしでもメニューまで起動できる設計にする。
+			// Steam経由の強制再起動はInspectorで明示的にONにした場合だけ行う。
+			if (restartThroughSteam && SteamAPI.RestartAppIfNecessary(new AppId_t(k_SteamAppId))) {
 				Debug.Log("[Steamworks.NET] Shutting down because RestartAppIfNecessary returned true. Steam will restart the application.");
 
 				Application.Quit();
 				return;
 			}
-		}
-		catch (System.DllNotFoundException e) { // We catch this exception here, as it will be the first occurrence of it.
-			Debug.LogError("[Steamworks.NET] Could not load [lib]steam_api.dll/so/dylib. It's likely not in the correct location. Refer to the README for more details.\n" + e, this);
 
-			Application.Quit();
+			// Initializes the Steamworks API.
+			// falseはSteam未起動などの通常のオフライン状態として扱う。
+			m_bInitialized = SteamAPI.Init();
+		}
+		catch (System.Exception e) {
+			m_bInitialized = false;
+			InitializationError = $"Steam初期化を利用できません: {e.GetType().Name}";
+			Debug.LogWarning($"[Steamworks.NET] {InitializationError}\nゲームはオフライン状態で続行します。\n{e.Message}", this);
 			return;
 		}
 
-		// Initializes the Steamworks API.
-		// If this returns false then this indicates one of the following conditions:
-		// [*] The Steam client isn't running. A running Steam client is required to provide implementations of the various Steamworks interfaces.
-		// [*] The Steam client couldn't determine the App ID of game. If you're running your application from the executable or debugger directly then you must have a [code-inline]steam_appid.txt[/code-inline] in your game directory next to the executable, with your app ID in it and nothing else. Steam will look for this file in the current working directory. If you are running your executable from a different directory you may need to relocate the [code-inline]steam_appid.txt[/code-inline] file.
-		// [*] Your application is not running under the same OS user context as the Steam client, such as a different user or administration access level.
-		// [*] Ensure that you own a license for the App ID on the currently active Steam account. Your game must show up in your Steam library.
-		// [*] Your App ID is not completely set up, i.e. in Release State: Unavailable, or it's missing default packages.
-		// Valve's documentation for this is located here:
-		// https://partner.steamgames.com/doc/sdk/api#initialization_and_shutdown
-		m_bInitialized = SteamAPI.Init();
 		if (!m_bInitialized) {
-			Debug.LogError($"[Steamworks.NET] SteamAPI_Init() failed. AppID: {k_SteamAppId}, CurrentDirectory: {System.IO.Directory.GetCurrentDirectory()}, steam_appid.txt exists: {System.IO.File.Exists(System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), "steam_appid.txt"))}", this);
-			Debug.LogError("[Steamworks.NET] SteamAPI_Init() failed. Refer to Valve's documentation or the comment above this line for more information.", this);
-
+			InitializationError = "Steamが起動していないため、オンライン機能は利用できません";
+			Debug.LogWarning($"[Steamworks.NET] {InitializationError}。ゲームはオフライン状態で続行します。 AppID={k_SteamAppId}", this);
 			return;
 		}
 
+		InitializationError = null;
 		s_EverInitialized = true;
 	}
 
@@ -173,12 +175,26 @@ public class SteamManager : MonoBehaviour {
 		}
 
 		// Run Steam client callbacks
-		SteamAPI.RunCallbacks();
+		try {
+			SteamAPI.RunCallbacks();
+		}
+		catch (System.Exception e) {
+			// 起動後にSteamが終了した場合も、以後のSteam呼び出しを止めて
+			// ゲーム本体は継続する。
+			m_bInitialized = false;
+			InitializationError = "Steamとの接続が切れました";
+			Debug.LogWarning($"[Steamworks.NET] {InitializationError}。オンライン機能を停止します。\n{e.Message}", this);
+		}
 	}
 #else
 	public static bool Initialized {
 		get {
 			return false;
+		}
+	}
+	public static string InitializationError {
+		get {
+			return "このプラットフォームではSteamworksを利用できません";
 		}
 	}
 #endif // !DISABLESTEAMWORKS

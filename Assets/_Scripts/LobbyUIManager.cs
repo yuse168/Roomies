@@ -226,6 +226,12 @@ public class LobbyUIManager : MonoBehaviour
             Destroy(child.gameObject);
 
         if (SteamLobby.Instance == null) return;
+        if (!SteamManager.Initialized)
+        {
+            ShowError(SteamManager.InitializationError ?? "Steamとの接続が切れました");
+            if (startButton != null) startButton.interactable = false;
+            return;
+        }
 
         List<(CSteamID id, string name)> members = SteamLobby.Instance.GetLobbyMembers();
         CSteamID mySteamId = SteamUser.GetSteamID();

@@ -157,6 +157,10 @@
 **Steam AppID (steam_appid.txt)**:
 現在 `480` (テスト用に戻した・2026-07-09)。正式AppIDは `4953360`（取得済み）。切り替えるときは SteamManager.cs の `k_SteamAppId` と `steam_appid.txt` の両方をそろえること。
 
+**Steam未起動時**:
+ゲームは終了せずメインメニューまで起動する。Host／Joinボタンは無効になり、Steam未起動の案内を表示する。
+`SteamManager`の`Restart Through Steam`は通常OFFにする。ONにした場合だけ、Steam外からの起動時にSteam経由の再起動を行う。
+
 ---
 
 ## 8. 変更ファイル一覧

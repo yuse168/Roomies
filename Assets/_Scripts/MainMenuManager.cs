@@ -65,6 +65,11 @@ public class MainMenuManager : MonoBehaviour
         }
 
         UpdateButtons();
+
+        if (!SteamManager.Initialized)
+        {
+            ShowStatus(SteamManager.InitializationError ?? "Steamが起動していません");
+        }
     }
 
     private void OnDisable()
@@ -94,8 +99,8 @@ public class MainMenuManager : MonoBehaviour
         }
         if (!SteamManager.Initialized)
         {
-            ShowStatus("Steam未起動です");
-            Debug.LogError("[MainMenuManager] SteamManager not initialized");
+            ShowStatus(SteamManager.InitializationError ?? "Steamが起動していません");
+            Debug.LogWarning("[MainMenuManager] Steam未起動のためホスト作成を行いません");
             return;
         }
         if (SteamLobby.Instance.IsBusy)
@@ -111,6 +116,11 @@ public class MainMenuManager : MonoBehaviour
 
     private void OnJoinClicked()
     {
+        if (!SteamManager.Initialized)
+        {
+            ShowStatus(SteamManager.InitializationError ?? "Steamが起動していません");
+            return;
+        }
         if (SteamLobby.Instance == null)
         {
             ShowStatus("Steamが起動していません");
@@ -133,6 +143,11 @@ public class MainMenuManager : MonoBehaviour
     private void OnConfirmJoin()
     {
         if (joinCodeInput == null || SteamLobby.Instance == null) return;
+        if (!SteamManager.Initialized)
+        {
+            ShowStatus(SteamManager.InitializationError ?? "Steamが起動していません");
+            return;
+        }
 
         string code = joinCodeInput.text.Trim().ToUpperInvariant();
         if (string.IsNullOrEmpty(code))
@@ -189,9 +204,10 @@ public class MainMenuManager : MonoBehaviour
     {
         bool busy = SteamLobby.Instance != null && SteamLobby.Instance.IsBusy;
         bool joinOpen = joinPanel != null && joinPanel.activeSelf;
+        bool steamAvailable = SteamManager.Initialized;
 
-        if (hostButton != null) hostButton.interactable = !busy && !joinOpen;
-        if (joinButton != null) joinButton.interactable = !busy && !joinOpen;
+        if (hostButton != null) hostButton.interactable = steamAvailable && !busy && !joinOpen;
+        if (joinButton != null) joinButton.interactable = steamAvailable && !busy && !joinOpen;
     }
 
     private void ShowStatus(string msg)

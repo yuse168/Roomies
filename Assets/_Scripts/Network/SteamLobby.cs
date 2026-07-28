@@ -109,7 +109,7 @@ public class SteamLobby : MonoBehaviour
     {
         if (!SteamManager.Initialized)
         {
-            Debug.LogError("[SteamLobby] SteamManagerが初期化されていません");
+            Debug.LogWarning("[SteamLobby] Steam未起動のためロビー機能を無効化しました。ゲーム本体は続行します");
             return;
         }
 
@@ -141,7 +141,8 @@ public class SteamLobby : MonoBehaviour
         }
         if (!SteamManager.Initialized)
         {
-            Debug.LogError("[SteamLobby] Steam未初期化");
+            OnJoinFailed?.Invoke(SteamManager.InitializationError ?? "Steamが起動していません");
+            Debug.LogWarning("[SteamLobby] Steam未初期化のためロビーを作成できません");
             return;
         }
 
@@ -165,7 +166,8 @@ public class SteamLobby : MonoBehaviour
         }
         if (!SteamManager.Initialized)
         {
-            Debug.LogError("[SteamLobby] Steam未初期化");
+            OnJoinFailed?.Invoke(SteamManager.InitializationError ?? "Steamが起動していません");
+            Debug.LogWarning("[SteamLobby] Steam未初期化のためロビーを検索できません");
             return;
         }
         if (string.IsNullOrWhiteSpace(code))
@@ -204,6 +206,11 @@ public class SteamLobby : MonoBehaviour
     /// </summary>
     public void StartGame()
     {
+        if (!SteamManager.Initialized)
+        {
+            OnJoinFailed?.Invoke(SteamManager.InitializationError ?? "Steamとの接続がありません");
+            return;
+        }
         if (!IsHost)
         {
             Debug.LogWarning("[SteamLobby] ホスト以外はStartGameできません");
@@ -236,13 +243,13 @@ public class SteamLobby : MonoBehaviour
     /// <summary>ロビーから退出する。ホストが退出するとロビーは解散。</summary>
     public void LeaveLobby()
     {
-        if (LobbyID != 0)
+        if (SteamManager.Initialized && LobbyID != 0)
         {
             SteamMatchmaking.LeaveLobby(new CSteamID(LobbyID));
-            LobbyID = 0;
-            LobbyCode = null;
         }
 
+        LobbyID = 0;
+        LobbyCode = null;
         IsHost = false;
         cachedHostAddress = null;
 
@@ -262,7 +269,7 @@ public class SteamLobby : MonoBehaviour
     public List<(CSteamID id, string name)> GetLobbyMembers()
     {
         var result = new List<(CSteamID, string)>();
-        if (LobbyID == 0) return result;
+        if (!SteamManager.Initialized || LobbyID == 0) return result;
 
         var lid = new CSteamID(LobbyID);
         int count = SteamMatchmaking.GetNumLobbyMembers(lid);
@@ -280,7 +287,7 @@ public class SteamLobby : MonoBehaviour
     /// <summary>現在のロビーのホスト(オーナー)のSteamIDを返す。未参加なら無効値。</summary>
     public CSteamID GetLobbyOwner()
     {
-        if (LobbyID == 0) return CSteamID.Nil;
+        if (!SteamManager.Initialized || LobbyID == 0) return CSteamID.Nil;
         return SteamMatchmaking.GetLobbyOwner(new CSteamID(LobbyID));
     }
 

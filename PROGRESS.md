@@ -1,5 +1,48 @@
 # PROGRESS.md
 
+## 2026/07/28｜8回目
+
+### 今回の変更
+- Steam未起動時にゲームが終了していた処理を修正
+- Steam初期化失敗・DLL読込失敗を例外終了せず、オフライン状態として継続するよう変更
+- 起動後にSteamとの接続が切れた場合も、ゲーム本体を継続してオンライン機能だけ停止する処理を追加
+- Steam未利用時はHost／Joinボタンを無効化し、メインメニューに理由を表示
+- ロビー表示中にSteam接続が切れた場合のSteam API呼び出しを防止
+
+### 変更ファイル
+- 変更：`Assets/_Scripts/Network/SteamManager.cs`
+- 変更：`Assets/_Scripts/Network/SteamLobby.cs`
+- 変更：`Assets/_Scripts/MainMenuManager.cs`
+- 変更：`Assets/_Scripts/LobbyUIManager.cs`
+- 変更：`Assets/_Scripts/LOBBY_SETUP_GUIDE.md`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- Steam未起動でもゲームは終了せず、メインメニューまで起動する
+- Steamが利用できない間はSteamロビーのHost／Joinのみ使用不可
+- `SteamManager`の`Restart Through Steam`は初期値OFF
+- `Restart Through Steam`をONにした場合だけSteam経由の強制再起動を行う
+- Steam APIが初期化済みの場合は従来どおりSteamロビー・アバター・P2P通信を使用する
+
+### 影響範囲
+- ゲーム起動
+- Steam初期化
+- メインメニュー
+- Steamロビー
+- Steam切断時の処理
+
+### 確認状況
+- C#コンパイル：確認済み（エラー0、既存警告19件）
+- Steam未初期化時のAPIガード：確認済み
+- Steam強制再起動の初期値OFF：確認済み
+- Steam未起動での実ビルド起動：未確認
+- Steam起動中のHost／Client動作：未確認
+
+### 未完了・次の作業
+- Steamを完全終了した状態でビルドを起動し、メインメニューが残ることを確認する
+- Steam起動中にHost／Joinが従来どおり動くことを確認する
+- ロビー中にSteamを終了した場合、ゲームが落ちずエラー表示になることを確認する
+
 ## 2026/07/28｜7回目
 
 ### 今回の変更
