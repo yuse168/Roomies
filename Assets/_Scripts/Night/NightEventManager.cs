@@ -120,8 +120,10 @@ public class NightEventManager : MonoBehaviour
                 var money = SharedMoneyManager.Instance;
                 if (money != null)
                 {
-                    amount = Mathf.Min(amount, Mathf.Max(0, money.CurrentMoney));
-                    if (amount > 0) money.SpendSharedMoney(amount);
+                    amount = money.SpendUpTo(
+                        amount,
+                        SharedMoneyReason.UtilityBill,
+                        "Night event");
                 }
                 dm.ServerSendNightEvent((byte)type, amount);
                 break;

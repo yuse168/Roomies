@@ -24,7 +24,9 @@ public class DeliveryButton : NetworkBehaviour
     }
 
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
-    private void PressButtonServerRpc(ulong playerNetworkObjectId)
+    private void PressButtonServerRpc(
+        ulong playerNetworkObjectId,
+        RpcParams rpcParams = default)
     {
         if (deliveryZone == null)
         {
@@ -35,6 +37,21 @@ public class DeliveryButton : NetworkBehaviour
         if (!deliveryZone.HasBox())
         {
             ShowResultClientRpc("納品する箱がありません");
+            return;
+        }
+
+        if (!NetworkManager.Singleton.SpawnManager.SpawnedObjects
+                .TryGetValue(playerNetworkObjectId, out NetworkObject playerObj) ||
+            playerObj.OwnerClientId != rpcParams.Receive.SenderClientId)
+        {
+            Debug.LogWarning("[Delivery] 不正なプレイヤー名義の納品要求を拒否しました。");
+            return;
+        }
+
+        PlayerEarning playerEarning = playerObj.GetComponent<PlayerEarning>();
+        if (playerEarning == null || SharedMoneyManager.Instance == null)
+        {
+            ShowResultClientRpc("報酬システムが見つかりません");
             return;
         }
 
@@ -52,22 +69,18 @@ public class DeliveryButton : NetworkBehaviour
             finalReward = rareRewardMoney;
         }
 
-        if (NetworkManager.Singleton.SpawnManager.SpawnedObjects
-            .TryGetValue(playerNetworkObjectId, out NetworkObject playerObj))
+        bool credited = SharedMoneyManager.Instance.TryAdd(
+            finalReward,
+            SharedMoneyReason.DeliveryReward,
+            $"client={rpcParams.Receive.SenderClientId}");
+
+        if (!credited)
         {
-            PlayerEarning playerEarning = playerObj.GetComponent<PlayerEarning>();
-
-            if (playerEarning != null)
-            {
-                playerEarning.AddEarning(finalReward);
-            }
-
-            if (SharedMoneyManager.Instance != null)
-            {
-                SharedMoneyManager.Instance.AddSharedMoney(finalReward);
-            }
+            ShowResultClientRpc("報酬の反映に失敗しました");
+            return;
         }
 
+        playerEarning.AddEarning(finalReward);
         deliveryZone.RemoveBox();
 
         ShowResultClientRpc("納品成功 +" + finalReward);

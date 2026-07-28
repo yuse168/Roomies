@@ -247,12 +247,28 @@ MonoBehaviour:
   walkSpeed: 5
   sprintSpeed: 8
   crouchSpeed: 2.5
+  groundAcceleration: 24
+  groundDeceleration: 32
+  airAcceleration: 7
   carrySlowAmount: 0.15
   mouseSensitivity: 0.5
   jumpHeight: 1.5
-  gravity: -9.81
+  gravity: -18
+  coyoteTime: 0.12
+  jumpBufferTime: 0.12
   crouchHeight: 1
   standHeight: 2
+  crouchTransitionSpeed: 12
+  enableCameraMotion: 1
+  walkBobAmount: 0.035
+  sprintBobAmount: 0.055
+  walkBobFrequency: 9
+  sprintBobFrequency: 12.5
+  strafeTilt: 1.6
+  landingDipAmount: 0.09
+  cameraMotionSmoothness: 14
+  sprintFieldOfViewBonus: 5
+  fieldOfViewSmoothness: 7
   cameraTransform: {fileID: 7071228222785093537}
 --- !u!114 &6718429583373302600
 MonoBehaviour:

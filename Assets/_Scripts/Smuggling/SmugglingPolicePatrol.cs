@@ -12,6 +12,9 @@ public class SmugglingPolicePatrol : NetworkBehaviour
     private enum AiState : byte
     {
         Patrol,
+        Scan,
+        LookBack,
+        FakeReverse,
         Surprised,
         Chase,
     }
@@ -23,6 +26,19 @@ public class SmugglingPolicePatrol : NetworkBehaviour
     [SerializeField] private Transform point2;
     [SerializeField] private float patrolSpeed = 2.2f;
     [SerializeField] private float pointReachDistance = 0.15f;
+
+    [Header("未発見時の警戒行動")]
+    [Tooltip("通常巡回中に次の警戒行動を抽選するまでの秒数")]
+    [SerializeField] private Vector2 patrolActionInterval = new Vector2(3f, 6f);
+    [Tooltip("巡回ごとに変化させる歩行速度。既存の追跡速度には影響しない")]
+    [SerializeField] private Vector2 patrolSpeedRange = new Vector2(1.8f, 2.5f);
+    [SerializeField] private Vector2 scanDurationRange = new Vector2(0.9f, 1.5f);
+    [Range(10f, 100f)]
+    [SerializeField] private float scanAngle = 65f;
+    [SerializeField] private Vector2 lookBackDurationRange = new Vector2(1.2f, 1.9f);
+    [Range(90f, 180f)]
+    [SerializeField] private float lookBackAngle = 165f;
+    [SerializeField] private Vector2 fakeReverseDurationRange = new Vector2(0.7f, 1.35f);
 
     [Header("懐中電灯・発見")]
     [SerializeField] private Light flashlight;
@@ -55,6 +71,12 @@ public class SmugglingPolicePatrol : NetworkBehaviour
     private float stateTimer;
     private float chaseTimer;
     private bool wasNight;
+    private float nextPatrolActionTimer;
+    private float currentPatrolSpeed;
+    private float patrolActionDuration;
+    private float patrolTurnSign;
+    private Quaternion patrolActionStartRotation;
+    private bool fakeReverseOriginalDirection;
 
     public override void OnNetworkSpawn()
     {
@@ -109,7 +131,15 @@ public class SmugglingPolicePatrol : NetworkBehaviour
         {
             case AiState.Patrol:
                 Patrol();
-                TrySpotPlayer();
+                break;
+            case AiState.Scan:
+                UpdateScan();
+                break;
+            case AiState.LookBack:
+                UpdateLookBack();
+                break;
+            case AiState.FakeReverse:
+                UpdateFakeReverse();
                 break;
             case AiState.Surprised:
                 UpdateSurprise();
@@ -118,16 +148,165 @@ public class SmugglingPolicePatrol : NetworkBehaviour
                 Chase();
                 break;
         }
+
+        // 左右確認・後方確認・引き返し中も懐中電灯の向きで発見判定する。
+        if (IsUnawareState(aiState)) TrySpotPlayer();
     }
 
     private void Patrol()
     {
-        if (point1 == null || point2 == null) return;
+        if (point1 != null && point2 != null)
+        {
+            Vector3 target = movingToPoint2 ? point2Position : point1Position;
+            MoveTowards(target, GetPatrolSpeed());
+            if (Vector3.Distance(transform.position, target) <= pointReachDistance)
+            {
+                movingToPoint2 = !movingToPoint2;
+                BeginScan();
+                return;
+            }
+        }
 
-        Vector3 target = movingToPoint2 ? point2Position : point1Position;
-        MoveTowards(target, patrolSpeed);
-        if (Vector3.Distance(transform.position, target) <= pointReachDistance)
-            movingToPoint2 = !movingToPoint2;
+        nextPatrolActionTimer -= Time.deltaTime;
+        if (nextPatrolActionTimer <= 0f) SelectPatrolAction();
+    }
+
+    private void SelectPatrolAction()
+    {
+        float roll = Random.value;
+        if (roll < 0.65f)
+        {
+            RandomizePatrolSpeed();
+            ScheduleNextPatrolAction();
+        }
+        else if (roll < 0.85f)
+        {
+            BeginScan();
+        }
+        else if (roll < 0.95f)
+        {
+            BeginLookBack();
+        }
+        else
+        {
+            BeginFakeReverse();
+        }
+    }
+
+    private void BeginScan()
+    {
+        aiState = AiState.Scan;
+        patrolActionDuration = RandomInRange(scanDurationRange, 1.2f);
+        stateTimer = patrolActionDuration;
+        patrolActionStartRotation = transform.rotation;
+        patrolTurnSign = Random.value < 0.5f ? -1f : 1f;
+    }
+
+    private void UpdateScan()
+    {
+        stateTimer -= Time.deltaTime;
+        float progress = 1f - Mathf.Clamp01(stateTimer / patrolActionDuration);
+        float yaw = Mathf.Sin(progress * Mathf.PI * 2f) * scanAngle * patrolTurnSign;
+        transform.rotation = patrolActionStartRotation * Quaternion.Euler(0f, yaw, 0f);
+
+        if (stateTimer <= 0f) FinishPatrolAction();
+    }
+
+    private void BeginLookBack()
+    {
+        aiState = AiState.LookBack;
+        patrolActionDuration = RandomInRange(lookBackDurationRange, 1.5f);
+        stateTimer = patrolActionDuration;
+        patrolActionStartRotation = transform.rotation;
+        patrolTurnSign = Random.value < 0.5f ? -1f : 1f;
+    }
+
+    private void UpdateLookBack()
+    {
+        stateTimer -= Time.deltaTime;
+        float progress = 1f - Mathf.Clamp01(stateTimer / patrolActionDuration);
+        float turnAmount;
+
+        if (progress < 0.3f)
+            turnAmount = Mathf.SmoothStep(0f, 1f, progress / 0.3f);
+        else if (progress < 0.65f)
+            turnAmount = 1f;
+        else
+            turnAmount = Mathf.SmoothStep(1f, 0f, (progress - 0.65f) / 0.35f);
+
+        transform.rotation = patrolActionStartRotation
+            * Quaternion.Euler(0f, lookBackAngle * patrolTurnSign * turnAmount, 0f);
+
+        if (stateTimer <= 0f) FinishPatrolAction();
+    }
+
+    private void BeginFakeReverse()
+    {
+        aiState = AiState.FakeReverse;
+        patrolActionDuration = RandomInRange(fakeReverseDurationRange, 1f);
+        stateTimer = patrolActionDuration;
+        fakeReverseOriginalDirection = movingToPoint2;
+        movingToPoint2 = !movingToPoint2;
+    }
+
+    private void UpdateFakeReverse()
+    {
+        if (point1 != null && point2 != null)
+        {
+            Vector3 target = movingToPoint2 ? point2Position : point1Position;
+            MoveTowards(target, GetPatrolSpeed());
+        }
+
+        stateTimer -= Time.deltaTime;
+        if (stateTimer > 0f) return;
+
+        movingToPoint2 = fakeReverseOriginalDirection;
+        FinishPatrolAction();
+    }
+
+    private void FinishPatrolAction()
+    {
+        transform.rotation = aiState == AiState.FakeReverse
+            ? transform.rotation
+            : patrolActionStartRotation;
+        aiState = AiState.Patrol;
+        stateTimer = 0f;
+        RandomizePatrolSpeed();
+        ScheduleNextPatrolAction();
+    }
+
+    private bool IsUnawareState(AiState stateToCheck)
+    {
+        return stateToCheck == AiState.Patrol
+            || stateToCheck == AiState.Scan
+            || stateToCheck == AiState.LookBack
+            || stateToCheck == AiState.FakeReverse;
+    }
+
+    private float GetPatrolSpeed()
+    {
+        return currentPatrolSpeed > 0f ? currentPatrolSpeed : patrolSpeed;
+    }
+
+    private void RandomizePatrolSpeed()
+    {
+        currentPatrolSpeed = RandomInRange(patrolSpeedRange, patrolSpeed);
+    }
+
+    private void ScheduleNextPatrolAction()
+    {
+        nextPatrolActionTimer = RandomInRange(patrolActionInterval, 4.5f);
+    }
+
+    private static float RandomInRange(Vector2 range, float fallback)
+    {
+        float rawMin = Mathf.Min(range.x, range.y);
+        float rawMax = Mathf.Max(range.x, range.y);
+        if (rawMax <= 0f) return fallback;
+
+        float min = Mathf.Max(0.05f, rawMin);
+        float max = Mathf.Max(min, rawMax);
+        return Random.Range(min, max);
     }
 
     private void TrySpotPlayer()
@@ -261,6 +440,8 @@ public class SmugglingPolicePatrol : NetworkBehaviour
         aiState = AiState.Patrol;
         stateTimer = 0f;
         chaseTimer = 0f;
+        RandomizePatrolSpeed();
+        ScheduleNextPatrolAction();
     }
 
     private void MoveTowards(Vector3 target, float speed)

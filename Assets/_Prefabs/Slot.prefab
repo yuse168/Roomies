@@ -382,8 +382,15 @@ MonoBehaviour:
   resultText: {fileID: 8359705024983253067}
   feverText: {fileID: 1127381892071641418}
   betText: {fileID: 1105952524589450946}
+  symbolSprites:
+  - {fileID: 21300000, guid: b7126c7ddd1b29f4ea728b6b81422832, type: 3}
+  - {fileID: 21300000, guid: 68609616b6e2d3948a07b77641273068, type: 3}
+  - {fileID: 21300000, guid: 72868ce573699b04c8ccf1874416dded, type: 3}
+  - {fileID: 21300000, guid: a6606647649111941b7b9b68adbf7f6e, type: 3}
+  - {fileID: 21300000, guid: b083c129ff0b0f3479a2a51899cbd779, type: 3}
   spinDuration: 1
   spinInterval: 0.05
+  reelStopDelay: 0.28
   stopPulseScale: 1.2
   stopPulseDuration: 0.15
 --- !u!65 &7354026056810518004

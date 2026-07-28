@@ -6,23 +6,16 @@ using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 /// <summary>
-/// 夜の家具編集モード（フェーズ1〜2）。
+/// 夜の家具ショップ。
 /// ・夜ターンのみ P キーで開閉
-/// ・カメラ中央のレイで床を指し、ゴースト（半透明プレビュー）を表示
-/// ・左クリックで設置 / 右クリックで撤去 / R で回転 / 数字キーで選択
+/// ・左クリックで購入 / 数字キーまたはホイールで商品選択
+/// ・届いた家具は通常操作のFで持ち、Rで回転、Fで再設置する
 /// ・家具は <see cref="FurnitureItem"/> のPrefabで見た目を差し替え可能（未設定は仮ブロック）
-///
-/// ※ 現状は「ローカル設置」のみ（フェーズ2）。マルチでの同期はフェーズ3で対応。
 /// </summary>
 public class FurnitureEditController : MonoBehaviour
 {
     [Header("家具カタログ（空なら仮ブロックを自動生成）")]
     [SerializeField] private List<FurnitureItem> catalog = new List<FurnitureItem>();
-
-    [Header("撤去レイキャスト設定")]
-    [Tooltip("撤去対象を探すレイヤー。既定は全レイヤー。")]
-    [SerializeField] private LayerMask placementMask = ~0;
-    [SerializeField] private float maxPlaceDistance = 8f;
 
     // ゴーストの色味（CreateInstanceのプレビュー用・現状未使用）
     private static readonly Color GhostTint = new Color(0.3f, 0.9f, 1.0f, 1f);
@@ -37,7 +30,7 @@ public class FurnitureEditController : MonoBehaviour
     private GameObject shopRoot;   // カタログバー（編集モード中だけ表示）
     private TextMeshProUGUI hintText;
 
-    // 効果ステータス（Tabで表示／非表示）
+    // 効果ステータス（Oで表示／非表示）
     private GameObject effectPanel;
     private TextMeshProUGUI effectText;
     private bool effectPanelVisible;
@@ -96,8 +89,8 @@ public class FurnitureEditController : MonoBehaviour
             else                     ShowHint("家具ショップは「夜」だけ開けます（Nで夜にできます）", 2.2f);
         }
 
-        // Tab: 効果ステータスの表示切替（いつでも・確認用）
-        if (kb.tabKey.wasPressedThisFrame)
+        // O: 効果ステータスの表示切替（ランキングのTabと競合させない）
+        if (kb.oKey.wasPressedThisFrame)
         {
             ToggleEffectPanel();
         }
@@ -136,20 +129,6 @@ public class FurnitureEditController : MonoBehaviour
             BuyFurniture();
         }
 
-        // 右クリック: 見ている家具を撤去（配達済みのみ。返金なし）
-        if (mouse.rightButton.wasPressedThisFrame)
-        {
-            if (cam == null) cam = ResolveCamera();
-            if (cam != null)
-            {
-                Ray ray = new Ray(cam.transform.position, cam.transform.forward);
-                if (Physics.Raycast(ray, out RaycastHit hit, maxPlaceDistance, placementMask, QueryTriggerInteraction.Ignore))
-                {
-                    var placed = hit.collider.GetComponentInParent<PlacedFurniture>();
-                    if (placed != null) Destroy(placed.gameObject);
-                }
-            }
-        }
     }
 
     // =========================================================
@@ -199,7 +178,7 @@ public class FurnitureEditController : MonoBehaviour
     }
 
     // =========================================================
-    // 効果ステータス表示（Tab）
+    // 効果ステータス表示（O）
     // =========================================================
     private void ToggleEffectPanel()
     {
@@ -213,7 +192,7 @@ public class FurnitureEditController : MonoBehaviour
         if (effectText == null) return;
 
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("<b>効果ステータス</b>  <size=15>(Tabで閉じる)</size>");
+        sb.AppendLine("<b>家具の効果</b>  <size=15>(Oで閉じる)</size>");
 
         var fem = FurnitureEffectManager.InstanceOrNull;
         if (fem == null || fem.Registered.Count == 0)
@@ -299,28 +278,32 @@ public class FurnitureEditController : MonoBehaviour
         {
             // ---- マルチ同期スポーン（サーバーが代金も引く） ----
             dm.BuyFurnitureServerRpc(selected, point, 0f);
-            deliveredCount++;
-            ShowHint($"{item.displayName} を購入（¥{item.cost}）→ 配達（全員に同期・効果は翌朝）", 2.2f);
+            ShowHint($"{item.displayName} を注文中…", 1.5f);
         }
         else
         {
-            // ---- フォールバック: ローカル生成（同期なし。プレハブ未設定時） ----
-            money.RequestPurchaseServerRpc(item.cost);
-
-            GameObject obj = CreateInstance(item, ghostMode: false);
-            PlaceOnGround(obj, point, 0f);
-
-            var m = obj.GetComponent<PlacedFurniture>();
-            if (m == null) m = obj.AddComponent<PlacedFurniture>();
-            m.itemId      = item.id;
-            m.displayName = item.displayName;
-            m.effect      = item.effect;
-            m.effectValue = item.effectValue;
-            m.SetEffectActive(false);
-
-            deliveredCount++;
-            ShowHint($"{item.displayName} を購入（¥{item.cost}）→ 配達（ローカルのみ・効果は翌朝）", 2.2f);
+            // Clientだけで家具を作ると、Serverの残高と所有状態が食い違うため購入しない。
+            ShowHint("同期用の家具Prefabが未設定のため購入できません", 2.2f);
         }
+    }
+
+    public void OnServerPurchaseResult(
+        bool success,
+        int catalogIndex,
+        string message)
+    {
+        if (!success)
+        {
+            ShowHint("購入失敗：" + message, 2.5f);
+            return;
+        }
+
+        deliveredCount++;
+        FurnitureItem item = FurnitureCatalog.Get(catalogIndex);
+        string itemName = item != null ? item.displayName : "家具";
+        ShowHint(
+            $"{itemName}が到着！ Fで持つ／Rで回転／Fで設置",
+            3.2f);
     }
 
     /// <summary>家具の配達先ワールド座標を返す。マーカーが無ければ仮の位置。</summary>
@@ -451,7 +434,7 @@ public class FurnitureEditController : MonoBehaviour
             new Color(0.97f, 0.98f, 1f), TextAlignmentOptions.Center,
             anchor: new Vector2(0.5f, 1f));
 
-        // 効果ステータスパネル（右下・Tabで表示）
+        // 効果ステータスパネル（右下・Oで表示）
         effectPanel = new GameObject("EffectPanel", typeof(RectTransform));
         effectPanel.transform.SetParent(canvasGo.transform, false);
         var ert = effectPanel.GetComponent<RectTransform>();
@@ -510,7 +493,7 @@ public class FurnitureEditController : MonoBehaviour
     }
 
     private const string DefaultHint =
-        "家具ショップ  [左]購入(効果は翌朝)  [右]撤去  [数字/ホイール]選択  [Tab]効果確認  [P]終了";
+        "家具ショップ  [左]購入  [数字/ホイール]商品選択  [O]効果確認  [P]終了";
 
     private void UpdateSlotHighlight()
     {

@@ -24,6 +24,7 @@ public class DayManager : NetworkBehaviour
     [SerializeField] private TextMeshProUGUI timerText;
     [SerializeField] private DayTransitionUI transitionUI;
     [SerializeField] private DayResultUI resultUI;
+    [SerializeField] private RentPaymentUI rentPaymentUI;
 
     [Header("家具のマルチ同期")]
     [Tooltip("NetworkObject + NetworkFurniture を付けた家具プレハブ。NetworkManagerのNetworkPrefabにも登録すること。")]
@@ -143,6 +144,13 @@ public class DayManager : NetworkBehaviour
             resultUI = go.AddComponent<DayResultUI>();
         }
 
+        // 3日目の家賃支払い演出も各クライアントでランタイム生成
+        if (rentPaymentUI == null)
+        {
+            var go = new GameObject("RentPaymentUI");
+            rentPaymentUI = go.AddComponent<RentPaymentUI>();
+        }
+
         // 家具編集コントローラがシーンに無ければ生成する（仮カタログで動作）。
         // 見た目を差し替えたい場合は GameRoom に FurnitureEditController を手動で置き、
         // catalog に Prefab を割り当てること（手動配置があればそちらが使われる）。
@@ -230,22 +238,18 @@ public class DayManager : NetworkBehaviour
 
         // 夜 → 新しい日の朝。次の日番号を決めてから演出付きで切り替える。
         int nextDay;
+        bool collectRent = false;
         if (currentDay.Value < maxDay)
         {
             nextDay = currentDay.Value + 1;
         }
         else
         {
-            bool rentPaid = ChargeRent();
-            if (!rentPaid)
-            {
-                GameOver();
-                return;
-            }
             nextDay = 1;
+            collectRent = true;
         }
 
-        StartCoroutine(NightEndRoutine(nextDay));
+        StartCoroutine(NightEndRoutine(nextDay, collectRent));
     }
 
     /// <summary>
@@ -253,7 +257,7 @@ public class DayManager : NetworkBehaviour
     /// 1) 今日の収支ランキングを全画面でドン！ドン！表示
     /// 2) 続けて「○日目」の朝演出 → 暗転中に日付更新＆全員リスポーン → 朝再開
     /// </summary>
-    private IEnumerator NightEndRoutine(int nextDay)
+    private IEnumerator NightEndRoutine(int nextDay, bool collectRent)
     {
         isTransitioning = true;
 
@@ -263,7 +267,47 @@ public class DayManager : NetworkBehaviour
         yield return new WaitForSeconds(DayResultUI.EstimatedDuration(playerCount));
         HideDayResultClientRpc();
 
-        // ---- 2) 翌朝の演出 ----
+        // ---- 2) 3日目だけ、全員へ家賃支払いフェーズを表示 ----
+        if (collectRent)
+        {
+            int total = rentAmount + rentSurcharge;
+            SharedMoneyManager money = SharedMoneyManager.Instance;
+            int balance = money != null
+                ? money.CurrentMoney
+                : 0;
+            bool canPay = money != null &&
+                          money.TrySpend(
+                              total,
+                              SharedMoneyReason.Rent,
+                              $"Day {currentDay.Value}");
+
+            if (canPay)
+            {
+                rentSurcharge = 0;
+                Debug.Log($"家賃支払い成功（¥{total}）");
+            }
+            else
+            {
+                Debug.Log("共同口座のお金が足りない！");
+            }
+
+            PlayRentPaymentClientRpc(total, balance, canPay);
+
+            float duration = canPay
+                ? RentPaymentUI.SuccessDuration
+                : RentPaymentUI.FailureDuration;
+            yield return new WaitForSecondsRealtime(duration);
+            HideRentPaymentClientRpc();
+
+            if (!canPay)
+            {
+                isTransitioning = false;
+                GameOver();
+                yield break;
+            }
+        }
+
+        // ---- 3) 翌朝の演出 ----
         PlayDayTransitionClientRpc(nextDay);
         yield return new WaitForSeconds(DayTransitionUI.BlackoutDelay);
 
@@ -283,18 +327,48 @@ public class DayManager : NetworkBehaviour
 
     /// <summary>家具をネットワーク同期で生成する（サーバー権限・代金もここで引く）。</summary>
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
-    public void BuyFurnitureServerRpc(int catalogIndex, Vector3 ground, float yaw)
+    public void BuyFurnitureServerRpc(
+        int catalogIndex,
+        Vector3 ground,
+        float yaw,
+        RpcParams rpcParams = default)
     {
-        if (networkFurniturePrefab == null) return;
+        ulong requester = rpcParams.Receive.SenderClientId;
+        if (networkFurniturePrefab == null)
+        {
+            FurniturePurchaseResultClientRpc(
+                requester, false, catalogIndex,
+                "同期用家具Prefabが設定されていません");
+            return;
+        }
 
         var item = FurnitureCatalog.Get(catalogIndex);
-        if (item == null) return;
+        if (item == null)
+        {
+            FurniturePurchaseResultClientRpc(
+                requester, false, catalogIndex,
+                "商品データが見つかりません");
+            return;
+        }
 
         var money = SharedMoneyManager.Instance;
-        if (money == null) return;
-        if (money.CurrentMoney < item.cost) return; // 残高不足
-
-        money.SpendSharedMoney(item.cost);
+        if (money == null)
+        {
+            FurniturePurchaseResultClientRpc(
+                requester, false, catalogIndex,
+                "共有口座が見つかりません");
+            return;
+        }
+        if (!money.TrySpend(
+                item.cost,
+                SharedMoneyReason.FurniturePurchase,
+                $"client={requester}, item={item.id}"))
+        {
+            FurniturePurchaseResultClientRpc(
+                requester, false, catalogIndex,
+                $"残高不足（必要 ¥{item.cost}）");
+            return;
+        }
 
         // 仮ブロックの中心 = 地面 + 高さ/2（底が地面に乗るように）
         Vector3 center = new Vector3(ground.x, ground.y + item.placeholderSize.y * 0.5f, ground.z);
@@ -305,6 +379,30 @@ public class DayManager : NetworkBehaviour
 
         var nf = go.GetComponent<NetworkFurniture>();
         if (nf != null) nf.ServerSetIndex(catalogIndex);
+
+        FurniturePurchaseResultClientRpc(
+            requester, true, catalogIndex,
+            $"{item.displayName}を配達しました");
+    }
+
+    [ClientRpc]
+    private void FurniturePurchaseResultClientRpc(
+        ulong targetClientId,
+        bool success,
+        int catalogIndex,
+        string message)
+    {
+        if (NetworkManager.Singleton == null ||
+            NetworkManager.Singleton.LocalClientId != targetClientId)
+            return;
+
+        FurnitureEditController controller =
+            FindAnyObjectByType<FurnitureEditController>();
+        if (controller != null)
+            controller.OnServerPurchaseResult(
+                success,
+                catalogIndex,
+                message);
     }
 
     /// <summary>朝に全ての同期家具の効果を有効化する（サーバー）。</summary>
@@ -370,6 +468,20 @@ public class DayManager : NetworkBehaviour
     private void HideDayResultClientRpc()
     {
         if (resultUI != null) resultUI.Hide();
+    }
+
+    [Rpc(SendTo.ClientsAndHost)]
+    private void PlayRentPaymentClientRpc(int rent, int balance, bool canPay)
+    {
+        if (rentPaymentUI != null)
+            rentPaymentUI.Play(rent, balance, canPay);
+    }
+
+    [Rpc(SendTo.ClientsAndHost)]
+    private void HideRentPaymentClientRpc()
+    {
+        if (rentPaymentUI != null)
+            rentPaymentUI.Hide();
     }
 
     [Rpc(SendTo.ClientsAndHost)]
@@ -459,31 +571,6 @@ public class DayManager : NetworkBehaviour
     {
         if (NightEventManager.Instance != null)
             NightEventManager.Instance.ShakeCamera(duration, magnitude);
-    }
-
-    private bool ChargeRent()
-    {
-        if (SharedMoneyManager.Instance == null)
-        {
-            Debug.Log("SharedMoneyManagerがありません");
-            return false;
-        }
-
-        int total = rentAmount + rentSurcharge;
-
-        if (SharedMoneyManager.Instance.CanPay(total))
-        {
-            SharedMoneyManager.Instance.PayRent(total);
-            rentSurcharge = 0;
-
-            Debug.Log($"家賃支払い成功（¥{total}）");
-
-            return true;
-        }
-
-        Debug.Log("共同口座のお金が足りない！");
-
-        return false;
     }
 
     private void GameOver()

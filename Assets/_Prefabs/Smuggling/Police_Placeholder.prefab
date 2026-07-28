@@ -168,6 +168,13 @@ MonoBehaviour:
   point2: {fileID: 6856431307555773358}
   patrolSpeed: 2.2
   pointReachDistance: 0.15
+  patrolActionInterval: {x: 3, y: 6}
+  patrolSpeedRange: {x: 1.8, y: 2.5}
+  scanDurationRange: {x: 0.9, y: 1.5}
+  scanAngle: 65
+  lookBackDurationRange: {x: 1.2, y: 1.9}
+  lookBackAngle: 165
+  fakeReverseDurationRange: {x: 0.7, y: 1.35}
   flashlight: {fileID: 3260359926364488299}
   viewDistance: 10
   viewAngle: 58

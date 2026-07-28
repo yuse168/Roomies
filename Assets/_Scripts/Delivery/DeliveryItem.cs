@@ -44,12 +44,14 @@ public class DeliveryItem : NetworkBehaviour
 
         isBroken = true;
 
-        if (SharedMoneyManager.Instance != null)
-        {
-            SharedMoneyManager.Instance.SpendSharedMoney(penaltyMoney);
-        }
+        int charged = SharedMoneyManager.Instance != null
+            ? SharedMoneyManager.Instance.SpendUpTo(
+                penaltyMoney,
+                SharedMoneyReason.DeliveryDamagePenalty,
+                name)
+            : 0;
 
-        Debug.Log("レアアイテムが壊れた -¥" + penaltyMoney);
+        Debug.Log("レアアイテムが壊れた -¥" + charged);
 
         if (ownerZone != null)
         {

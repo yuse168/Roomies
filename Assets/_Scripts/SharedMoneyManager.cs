@@ -3,9 +3,28 @@ using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+public enum SharedMoneyReason
+{
+    Unknown,
+    DebugGrant,
+    DeliveryReward,
+    DeliveryDamagePenalty,
+    SmugglingReward,
+    ArrestFine,
+    SlotBet,
+    SlotReward,
+    BlackjackBet,
+    BlackjackPayout,
+    FurniturePurchase,
+    FurniturePassiveIncome,
+    UtilityBill,
+    Rent
+}
+
 public class SharedMoneyManager : NetworkBehaviour
 {
     public static SharedMoneyManager Instance;
+    public static event System.Action<int, int> SharedMoneyChanged;
 
     [Header("共同金庫設定")]
     [SerializeField] private int startSharedMoney = 0;
@@ -18,6 +37,8 @@ public class SharedMoneyManager : NetworkBehaviour
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server
     );
+
+    private ulong transactionSequence;
 
     private void Awake()
     {
@@ -35,7 +56,7 @@ public class SharedMoneyManager : NetworkBehaviour
     {
         if (IsServer)
         {
-            sharedMoney.Value = startSharedMoney;
+            sharedMoney.Value = Mathf.Max(0, startSharedMoney);
         }
 
         sharedMoney.OnValueChanged += OnSharedMoneyChanged;
@@ -54,15 +75,31 @@ public class SharedMoneyManager : NetworkBehaviour
         // テスト用：HostだけKキーで共同金庫に100円追加
         if (Keyboard.current != null && Keyboard.current.kKey.wasPressedThisFrame)
         {
-            AddSharedMoney(100);
+            TryAdd(100, SharedMoneyReason.DebugGrant, "Host K key");
         }
     }
 
-    public void AddSharedMoney(int amount)
+    /// <summary>
+    /// Server側で共有口座へ正の金額を入金する。
+    /// 不正値・Server以外・int上限超過は拒否する。
+    /// </summary>
+    public bool TryAdd(
+        int amount,
+        SharedMoneyReason reason,
+        string context = null)
     {
-        if (!IsServer) return;
+        if (!CanApplyTransaction(amount, "入金", reason)) return false;
 
-        sharedMoney.Value += amount;
+        long nextBalance = (long)sharedMoney.Value + amount;
+        if (nextBalance > int.MaxValue)
+        {
+            Debug.LogError(
+                $"[Money] 入金拒否: int上限超過 amount={amount} reason={reason}");
+            return false;
+        }
+
+        ApplyTransaction((int)nextBalance, amount, reason, context);
+        return true;
     }
 
     /// <summary>現在の共同口座残高（全員が参照可）。</summary>
@@ -70,48 +107,100 @@ public class SharedMoneyManager : NetworkBehaviour
 
     public bool CanPay(int amount)
     {
-        return sharedMoney.Value >= amount;
-    }
-
-    public void SpendSharedMoney(int amount)
-    {
-        if (!IsServer) return;
-
-        sharedMoney.Value -= amount;
+        return amount >= 0 && sharedMoney.Value >= amount;
     }
 
     /// <summary>
-    /// クライアントからの購入要求。サーバー権限で残高を確認して減算する。
-    /// 家具の購入などに使う。
+    /// 購入・BET・家賃など、全額を払える場合だけServer側で減算する。
+    /// 残高不足時は残高を変更しない。
     /// </summary>
-    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
-    public void RequestPurchaseServerRpc(int amount)
+    public bool TrySpend(
+        int amount,
+        SharedMoneyReason reason,
+        string context = null)
     {
-        if (amount <= 0) return;
-        if (sharedMoney.Value >= amount)
+        if (!CanApplyTransaction(amount, "支払い", reason)) return false;
+
+        if (sharedMoney.Value < amount)
         {
-            sharedMoney.Value -= amount;
+            Debug.LogWarning(
+                $"[Money] 支払い拒否: 残高不足 amount={amount} " +
+                $"balance={sharedMoney.Value} reason={reason} context={context}");
+            return false;
         }
+
+        ApplyTransaction(sharedMoney.Value - amount, -amount, reason, context);
+        return true;
     }
 
-    public void PayRent(int rentAmount)
+    /// <summary>
+    /// 罰金・請求など、残高を下限0として払える分だけServer側で徴収する。
+    /// 実際に徴収した金額を返す。
+    /// </summary>
+    public int SpendUpTo(
+        int requestedAmount,
+        SharedMoneyReason reason,
+        string context = null)
     {
-        if (!IsServer) return;
+        if (!CanApplyTransaction(requestedAmount, "上限付き徴収", reason))
+            return 0;
 
-        if (CanPay(rentAmount))
+        int actualAmount = Mathf.Min(requestedAmount, sharedMoney.Value);
+        if (actualAmount <= 0) return 0;
+
+        ApplyTransaction(
+            sharedMoney.Value - actualAmount,
+            -actualAmount,
+            reason,
+            context);
+        return actualAmount;
+    }
+
+    private bool CanApplyTransaction(
+        int amount,
+        string operation,
+        SharedMoneyReason reason)
+    {
+        if (!IsServer)
         {
-            sharedMoney.Value -= rentAmount;
-            Debug.Log("家賃支払い成功");
+            Debug.LogWarning(
+                $"[Money] {operation}拒否: Server以外からの変更 reason={reason}");
+            return false;
         }
-        else
+
+        if (amount <= 0)
         {
-            Debug.Log("家賃が払えない");
+            Debug.LogWarning(
+                $"[Money] {operation}拒否: amount={amount} reason={reason}");
+            return false;
         }
+
+        return true;
+    }
+
+    private void ApplyTransaction(
+        int newBalance,
+        int signedAmount,
+        SharedMoneyReason reason,
+        string context)
+    {
+        int oldBalance = sharedMoney.Value;
+        sharedMoney.Value = Mathf.Max(0, newBalance);
+        transactionSequence++;
+
+        string sign = signedAmount >= 0 ? "+" : "";
+        Debug.Log(
+            $"[Money #{transactionSequence}] {reason} {sign}{signedAmount}R " +
+            $"{oldBalance}R -> {sharedMoney.Value}R" +
+            (string.IsNullOrEmpty(context) ? "" : $" ({context})"));
     }
 
     private void OnSharedMoneyChanged(int oldValue, int newValue)
     {
         UpdateSharedMoneyUI(newValue);
+
+        if (oldValue != newValue)
+            SharedMoneyChanged?.Invoke(oldValue, newValue);
     }
 
     private void UpdateSharedMoneyUI(int value)

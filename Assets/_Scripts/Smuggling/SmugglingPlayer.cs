@@ -100,9 +100,15 @@ public class SmugglingPlayer : NetworkBehaviour
         contentIndex.Value = -1;
 
         PlayerEarning earning = GetComponent<PlayerEarning>();
-        if (earning != null) earning.AddEarning(SmugglingConfig.SuccessReward);
-        if (SharedMoneyManager.Instance != null)
-            SharedMoneyManager.Instance.AddSharedMoney(SmugglingConfig.SuccessReward);
+        if (earning != null &&
+            SharedMoneyManager.Instance != null &&
+            SharedMoneyManager.Instance.TryAdd(
+                SmugglingConfig.SuccessReward,
+                SharedMoneyReason.SmugglingReward,
+                $"client={OwnerClientId}"))
+        {
+            earning.AddEarning(SmugglingConfig.SuccessReward);
+        }
 
         AnnounceOwner(
             "運び屋 成功 +" + SmugglingConfig.SuccessReward + "R",
@@ -143,10 +149,15 @@ public class SmugglingPlayer : NetworkBehaviour
         contentIndex.Value = -1;
         laborProgress.Value = 0;
 
+        int charged = SharedMoneyManager.Instance != null
+            ? SharedMoneyManager.Instance.SpendUpTo(
+                SmugglingConfig.ArrestFine,
+                SharedMoneyReason.ArrestFine,
+                $"client={OwnerClientId}")
+            : 0;
+
         PlayerEarning earning = GetComponent<PlayerEarning>();
-        if (earning != null) earning.SpendEarning(SmugglingConfig.ArrestFine);
-        if (SharedMoneyManager.Instance != null)
-            SharedMoneyManager.Instance.SpendSharedMoney(SmugglingConfig.ArrestFine);
+        if (earning != null && charged > 0) earning.SpendEarning(charged);
 
         ArrestOwnerRpc();
         StartCoroutine(ServerMoveToJailAfterArrest());

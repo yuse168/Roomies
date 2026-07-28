@@ -1,3 +1,4 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -16,6 +17,7 @@ public class HudThemer : MonoBehaviour
 {
     private Image timerFillBar;
     private TMP_Text moneyValueLabel;
+    private RectTransform moneyCardRect;
 
     private void Awake()
     {
@@ -24,6 +26,16 @@ public class HudThemer : MonoBehaviour
         BuildDayCard(canvas.transform);
         BuildMoneyCard(canvas.transform);
         BuildHintBar(canvas.transform);
+    }
+
+    private void OnEnable()
+    {
+        SharedMoneyManager.SharedMoneyChanged += OnSharedMoneyChanged;
+    }
+
+    private void OnDisable()
+    {
+        SharedMoneyManager.SharedMoneyChanged -= OnSharedMoneyChanged;
     }
 
     // ================================================================
@@ -108,6 +120,7 @@ public class HudThemer : MonoBehaviour
         rt.pivot     = new Vector2(0f, 1f);
         rt.anchoredPosition = new Vector2(24, -164);
         rt.sizeDelta = new Vector2(300, 86);
+        moneyCardRect = rt;
 
         var caption = UITheme.Label(card.transform, "Caption", "共同金庫",
             18f, UITheme.TextSub, TextAlignmentOptions.Left, bold: true);
@@ -137,6 +150,88 @@ public class HudThemer : MonoBehaviour
         {
             moneyText.enabled = false;
         }
+    }
+
+    private void OnSharedMoneyChanged(int oldValue, int newValue)
+    {
+        int delta = newValue - oldValue;
+        ShowMoneyDelta(delta);
+    }
+
+    /// <summary>共同金庫カードの横へ増減額をポップ表示する。</summary>
+    public void ShowMoneyDelta(int delta)
+    {
+        if (delta == 0 || moneyCardRect == null) return;
+        StartCoroutine(AnimateMoneyDelta(delta));
+    }
+
+    private IEnumerator AnimateMoneyDelta(int delta)
+    {
+        bool gained = delta > 0;
+
+        var pill = new GameObject("MoneyDelta", typeof(RectTransform));
+        pill.transform.SetParent(moneyCardRect, false);
+
+        var rt = pill.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0f, 1f);
+        rt.anchorMax = new Vector2(0f, 1f);
+        rt.pivot = new Vector2(0f, 0.5f);
+        rt.anchoredPosition = new Vector2(310f, -52f);
+        rt.sizeDelta = new Vector2(174f, 44f);
+
+        var image = pill.AddComponent<Image>();
+        image.sprite = UITheme.RoundedSprite;
+        image.type = Image.Type.Sliced;
+        image.pixelsPerUnitMultiplier = 2f;
+        image.color = gained
+            ? new Color(0.18f, 0.76f, 0.38f, 0.96f)
+            : new Color(0.92f, 0.28f, 0.34f, 0.96f);
+        image.raycastTarget = false;
+        UITheme.AddShadow(pill);
+
+        string sign = gained ? "+" : "-";
+        string amount = sign + "¥" + Mathf.Abs(delta).ToString("N0");
+        var label = UITheme.Label(pill.transform, "Amount", amount,
+            26f, Color.white, TextAlignmentOptions.Center, bold: true);
+        label.raycastTarget = false;
+        label.enableAutoSizing = true;
+        label.fontSizeMin = 18f;
+        label.fontSizeMax = 26f;
+        label.rectTransform.anchorMin = Vector2.zero;
+        label.rectTransform.anchorMax = Vector2.one;
+        label.rectTransform.offsetMin = new Vector2(10f, 4f);
+        label.rectTransform.offsetMax = new Vector2(-10f, -4f);
+
+        var group = pill.AddComponent<CanvasGroup>();
+        group.alpha = 0f;
+        group.interactable = false;
+        group.blocksRaycasts = false;
+
+        const float duration = 1.65f;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+
+            // 最初にポンと出て、少し上へ浮きながら最後に消える。
+            group.alpha = t < 0.12f
+                ? t / 0.12f
+                : 1f - Mathf.Clamp01((t - 0.62f) / 0.38f);
+
+            float pop = t < 0.18f
+                ? Mathf.Lerp(0.72f, 1.08f, t / 0.18f)
+                : Mathf.Lerp(1.08f, 1f, Mathf.Clamp01((t - 0.18f) / 0.18f));
+            rt.localScale = Vector3.one * pop;
+
+            float rise = 42f * (1f - Mathf.Pow(1f - t, 2f));
+            rt.anchoredPosition = new Vector2(310f, -52f + rise);
+
+            yield return null;
+        }
+
+        Destroy(pill);
     }
 
     // ※インタラクト表示（InteractText）はプレイヤープレハブ内にあり、

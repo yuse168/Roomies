@@ -1,8 +1,9 @@
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using Unity.Netcode;
 using UnityEngine;
-using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 public class SlotMachine : NetworkBehaviour
 {
@@ -51,12 +52,32 @@ public class SlotMachine : NetworkBehaviour
     [SerializeField] private TextMeshProUGUI resultText;
     [SerializeField] private TextMeshProUGUI feverText;
     [SerializeField] private TextMeshProUGUI betText;
+    [SerializeField] private Sprite[] symbolSprites = new Sprite[5];
 
     [Header("演出")]
     [SerializeField] private float spinDuration = 0.8f;
     [SerializeField] private float spinInterval = 0.05f;
+    [SerializeField] private float reelStopDelay = 0.28f;
     [SerializeField] private float stopPulseScale = 1.2f;
     [SerializeField] private float stopPulseDuration = 0.15f;
+
+    private static readonly string[] SymbolFaces =
+    {
+        "<color=#FF4D6D>CHERRY</color>",
+        "<color=#FFD166>STAR</color>",
+        "<color=#73E2A7>BAR</color>",
+        "<color=#70B7FF>GEM</color>",
+        "<color=#FF3B30>7</color>"
+    };
+
+    private static readonly string[] SymbolLabels =
+    {
+        "CHERRY",
+        "STAR",
+        "BAR",
+        "GEM",
+        "7"
+    };
 
     private NetworkVariable<int> feverSpinCount =
         new NetworkVariable<int>(
@@ -73,31 +94,34 @@ public class SlotMachine : NetworkBehaviour
         );
 
     private Coroutine spinCoroutine;
+    private readonly Dictionary<TextMeshProUGUI, ReelImages> reelImages = new();
+
+    private sealed class ReelImages
+    {
+        public Image previous;
+        public Image current;
+        public Image next;
+    }
 
     private void Start()
     {
         feverSpinCount.OnValueChanged += OnFeverChanged;
+        PreparePresentation();
+        SetReels(0, 1, Mathf.Min(4, slotSymbols.Length - 1));
         UpdateFeverUI();
         UpdateBetUI();
     }
 
-    private void Update()
-    {
-        if (Keyboard.current == null) return;
-        if (isSpinning.Value) return;
+    public string CurrentBetLabel => CurrentBet + " R";
 
-        if (Keyboard.current.digit1Key.wasPressedThisFrame)
-        {
-            SetBetIndex(0);
-        }
-        else if (Keyboard.current.digit2Key.wasPressedThisFrame)
-        {
-            SetBetIndex(1);
-        }
-        else if (Keyboard.current.digit3Key.wasPressedThisFrame)
-        {
-            SetBetIndex(2);
-        }
+    public void ChangeBet(int direction)
+    {
+        if (isSpinning.Value) return;
+        if (betAmounts == null || betAmounts.Length == 0) return;
+
+        int nextIndex = (currentBetIndex + direction) % betAmounts.Length;
+        if (nextIndex < 0) nextIndex += betAmounts.Length;
+        SetBetIndex(nextIndex);
     }
 
     private void SetBetIndex(int index)
@@ -113,21 +137,10 @@ public class SlotMachine : NetworkBehaviour
     {
         if (betText == null) return;
 
-        string betStr = "";
-
-        for (int i = 0; i < betAmounts.Length; i++)
-        {
-            if (i == currentBetIndex)
-            {
-                betStr += "<color=yellow>【¥" + betAmounts[i] + "】</color> ";
-            }
-            else
-            {
-                betStr += "¥" + betAmounts[i] + " ";
-            }
-        }
-
-        betText.text = betStr.TrimEnd();
+        betText.text =
+            "<size=60%><color=#A8B0C0>BET</color></size>  " +
+            "<color=#FFD34E><b>" + CurrentBet + " R</b></color>\n" +
+            "<size=40%><color=#7E8CA5>&lt;  MOUSE WHEEL  &gt;</color></size>";
     }
 
     public override void OnDestroy()
@@ -145,13 +158,27 @@ public class SlotMachine : NetworkBehaviour
     }
 
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
-    private void PlaySlotServerRpc(ulong playerNetworkObjectId, int betIndex)
+    private void PlaySlotServerRpc(
+        ulong playerNetworkObjectId,
+        int betIndex,
+        RpcParams rpcParams = default)
     {
         if (isSpinning.Value) return;
 
         betIndex = Mathf.Clamp(betIndex, 0, betAmounts.Length - 1);
         int cost = betAmounts[betIndex];
         float multiplier = (float)cost / betAmounts[0];
+
+        if (!NetworkManager.Singleton.SpawnManager.SpawnedObjects
+            .TryGetValue(playerNetworkObjectId, out NetworkObject requestingPlayer) ||
+            requestingPlayer.OwnerClientId != rpcParams.Receive.SenderClientId)
+        {
+            Debug.LogWarning("[Slot] 他プレイヤー名義のBET要求を拒否しました。");
+            return;
+        }
+
+        PlayerEarning requestingEarning =
+            requestingPlayer.GetComponent<PlayerEarning>();
 
         if (SharedMoneyManager.Instance == null)
         {
@@ -163,24 +190,16 @@ public class SlotMachine : NetworkBehaviour
 
         if (!isFeverSpin)
         {
-            if (!SharedMoneyManager.Instance.CanPay(cost))
+            if (!SharedMoneyManager.Instance.TrySpend(
+                    cost,
+                    SharedMoneyReason.SlotBet,
+                    $"client={rpcParams.Receive.SenderClientId}"))
             {
                 ShowResultClientRpc("お金不足");
                 return;
             }
 
-            SharedMoneyManager.Instance.SpendSharedMoney(cost);
-
-            if (NetworkManager.Singleton.SpawnManager.SpawnedObjects
-                .TryGetValue(playerNetworkObjectId, out NetworkObject playerObj))
-            {
-                PlayerEarning earning = playerObj.GetComponent<PlayerEarning>();
-
-                if (earning != null)
-                {
-                    earning.SpendEarning(cost);
-                }
-            }
+            if (requestingEarning != null) requestingEarning.SpendEarning(cost);
         }
         else
         {
@@ -241,16 +260,7 @@ public class SlotMachine : NetworkBehaviour
 
     private float GetSpinAnimationDuration()
     {
-        float total = 0f;
-        int steps = Mathf.CeilToInt(spinDuration / spinInterval);
-
-        for (int i = 0; i < steps; i++)
-        {
-            float t = (float)i / steps;
-            total += Mathf.Lerp(spinInterval, spinInterval * 5f, t * t);
-        }
-
-        return total;
+        return spinDuration + reelStopDelay * 2f + stopPulseDuration;
     }
 
     private IEnumerator ApplyRewardAfterSpin(int reward, bool addFever, ulong playerNetworkObjectId)
@@ -260,13 +270,15 @@ public class SlotMachine : NetworkBehaviour
         if (reward > 0)
         {
             // 共同口座へ
-            if (SharedMoneyManager.Instance != null)
-            {
-                SharedMoneyManager.Instance.AddSharedMoney(reward);
-            }
+            bool credited = SharedMoneyManager.Instance != null &&
+                            SharedMoneyManager.Instance.TryAdd(
+                                reward,
+                                SharedMoneyReason.SlotReward,
+                                $"playerObject={playerNetworkObjectId}");
 
             // 個人の収支にも反映（賭け金を個人から引いているので当たりも個人へ加算）
-            if (NetworkManager.Singleton.SpawnManager.SpawnedObjects
+            if (credited &&
+                NetworkManager.Singleton.SpawnManager.SpawnedObjects
                 .TryGetValue(playerNetworkObjectId, out NetworkObject playerObj))
             {
                 PlayerEarning earning = playerObj.GetComponent<PlayerEarning>();
@@ -344,30 +356,66 @@ public class SlotMachine : NetworkBehaviour
     {
         if (resultText != null)
         {
-            resultText.text = "SPIN...";
+            resultText.text = "<color=#FFD34E>GOOD LUCK!</color>";
             resultText.color = Color.white;
         }
 
         float elapsed = 0f;
-
-        while (elapsed < spinDuration)
+        float[] stopTimes =
         {
-            SetReels(
-                Random.Range(0, slotSymbols.Length),
-                Random.Range(0, slotSymbols.Length),
-                Random.Range(0, slotSymbols.Length)
-            );
+            spinDuration,
+            spinDuration + reelStopDelay,
+            spinDuration + reelStopDelay * 2f
+        };
+        float[] nextTicks = { 0f, 0f, 0f };
+        int[] shown =
+        {
+            Random.Range(0, slotSymbols.Length),
+            Random.Range(0, slotSymbols.Length),
+            Random.Range(0, slotSymbols.Length)
+        };
+        int[] targets = { r1, r2, r3 };
+        TextMeshProUGUI[] reels = { reelText1, reelText2, reelText3 };
+        bool[] stopped = { false, false, false };
 
-            elapsed += spinInterval;
+        while (elapsed < stopTimes[2])
+        {
+            elapsed += Time.deltaTime;
 
-            float t = elapsed / spinDuration;
-            float delay = Mathf.Lerp(spinInterval, spinInterval * 5f, t * t);
+            for (int i = 0; i < reels.Length; i++)
+            {
+                if (stopped[i]) continue;
 
-            yield return new WaitForSeconds(delay);
+                if (elapsed >= stopTimes[i])
+                {
+                    stopped[i] = true;
+                    shown[i] = targets[i];
+                    SetReel(reels[i], shown[i]);
+                    StartCoroutine(PulseReel(reels[i]));
+
+                    if (i == 1 && targets[0] == targets[1] && targets[2] != targets[1] && resultText != null)
+                    {
+                        resultText.text = "<color=#FF8A3D>ONE MORE...</color>";
+                    }
+                    continue;
+                }
+
+                if (elapsed >= nextTicks[i])
+                {
+                    shown[i] = (shown[i] + 1) % slotSymbols.Length;
+                    SetReel(reels[i], shown[i]);
+
+                    float progress = Mathf.Clamp01(elapsed / stopTimes[i]);
+                    float slowDown = Mathf.InverseLerp(0.58f, 1f, progress);
+                    float interval = Mathf.Lerp(spinInterval, spinInterval * 4.5f, slowDown * slowDown);
+                    nextTicks[i] = elapsed + interval;
+                }
+            }
+
+            yield return null;
         }
 
         SetReels(r1, r2, r3);
-        StartCoroutine(StopPulse());
 
         if (resultText != null)
         {
@@ -396,32 +444,162 @@ public class SlotMachine : NetworkBehaviour
         spinCoroutine = null;
     }
 
-    private IEnumerator StopPulse()
+    private IEnumerator PulseReel(TextMeshProUGUI reel)
     {
-        Vector3 originalScale1 = reelText1 != null ? reelText1.transform.localScale : Vector3.one;
-        Vector3 originalScale2 = reelText2 != null ? reelText2.transform.localScale : Vector3.one;
-        Vector3 originalScale3 = reelText3 != null ? reelText3.transform.localScale : Vector3.one;
+        if (reel == null) yield break;
 
-        Vector3 bigScale = originalScale1 * stopPulseScale;
-
+        Vector3 originalScale = reel.transform.localScale;
+        Vector3 bigScale = originalScale * stopPulseScale;
         float half = stopPulseDuration / 2f;
 
-        if (reelText1 != null) reelText1.transform.localScale = bigScale;
-        if (reelText2 != null) reelText2.transform.localScale = bigScale;
-        if (reelText3 != null) reelText3.transform.localScale = bigScale;
-
+        reel.transform.localScale = bigScale;
         yield return new WaitForSeconds(half);
-
-        if (reelText1 != null) reelText1.transform.localScale = originalScale1;
-        if (reelText2 != null) reelText2.transform.localScale = originalScale2;
-        if (reelText3 != null) reelText3.transform.localScale = originalScale3;
+        reel.transform.localScale = originalScale;
     }
 
     private void SetReels(int r1, int r2, int r3)
     {
-        if (reelText1 != null) reelText1.text = slotSymbols[r1].symbol;
-        if (reelText2 != null) reelText2.text = slotSymbols[r2].symbol;
-        if (reelText3 != null) reelText3.text = slotSymbols[r3].symbol;
+        SetReel(reelText1, r1);
+        SetReel(reelText2, r2);
+        SetReel(reelText3, r3);
+    }
+
+    private void SetReel(TextMeshProUGUI reel, int symbolIndex)
+    {
+        if (reel == null || slotSymbols == null || slotSymbols.Length == 0) return;
+
+        symbolIndex = Mathf.Clamp(symbolIndex, 0, slotSymbols.Length - 1);
+        int previous = (symbolIndex - 1 + slotSymbols.Length) % slotSymbols.Length;
+        int next = (symbolIndex + 1) % slotSymbols.Length;
+
+        if (reelImages.TryGetValue(reel, out ReelImages images) && HasSpriteSet())
+        {
+            images.previous.sprite = symbolSprites[previous];
+            images.current.sprite = symbolSprites[symbolIndex];
+            images.next.sprite = symbolSprites[next];
+            reel.text = "";
+            reel.enabled = false;
+            return;
+        }
+
+        reel.enabled = true;
+        reel.text =
+            "<size=48%><color=#596274>" + GetSymbolLabel(previous) + "</color></size>\n" +
+            "<size=100%><b>" + GetSymbolFace(symbolIndex) + "</b></size>\n" +
+            "<size=48%><color=#596274>" + GetSymbolLabel(next) + "</color></size>";
+    }
+
+    private string GetSymbolFace(int index)
+    {
+        if (index >= 0 && index < SymbolFaces.Length) return SymbolFaces[index];
+        return slotSymbols[index].symbol;
+    }
+
+    private string GetSymbolLabel(int index)
+    {
+        if (index >= 0 && index < SymbolLabels.Length) return SymbolLabels[index];
+        return slotSymbols[index].symbol;
+    }
+
+    private void PreparePresentation()
+    {
+        PrepareReel(reelText1, new Color(1f, 0.28f, 0.38f, 0.24f));
+        PrepareReel(reelText2, new Color(1f, 0.76f, 0.18f, 0.24f));
+        PrepareReel(reelText3, new Color(0.25f, 0.62f, 1f, 0.24f));
+
+        if (reelText2 != null)
+        {
+            Transform parent = reelText2.transform.parent;
+            Transform existing = parent.Find("WinLine");
+            if (existing == null)
+            {
+                GameObject lineObject = new GameObject("WinLine", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+                RectTransform line = lineObject.GetComponent<RectTransform>();
+                line.SetParent(parent, false);
+                line.SetSiblingIndex(0);
+                line.anchoredPosition = Vector2.zero;
+                line.sizeDelta = new Vector2(470f, 4f);
+                lineObject.GetComponent<Image>().color = new Color(1f, 0.75f, 0.12f, 0.75f);
+            }
+        }
+
+        if (resultText != null)
+        {
+            resultText.fontStyle = FontStyles.Bold;
+            resultText.text = "<color=#A8B0C0>READY</color>";
+        }
+    }
+
+    private void PrepareReel(TextMeshProUGUI reel, Color glowColor)
+    {
+        if (reel == null) return;
+
+        RectTransform rect = reel.rectTransform;
+        rect.sizeDelta = new Vector2(118f, 160f);
+        reel.fontSize = 46f;
+        reel.alignment = TextAlignmentOptions.Center;
+        reel.textWrappingMode = TextWrappingModes.NoWrap;
+        reel.raycastTarget = false;
+        reel.lineSpacing = -28f;
+
+        ReelImages images = new ReelImages
+        {
+            previous = GetOrCreateSymbolImage(reel.transform, "PreviousEmoji", new Vector2(0f, 48f), 42f, 0.32f),
+            current = GetOrCreateSymbolImage(reel.transform, "CurrentEmoji", Vector2.zero, 70f, 1f),
+            next = GetOrCreateSymbolImage(reel.transform, "NextEmoji", new Vector2(0f, -48f), 42f, 0.32f)
+        };
+        reelImages[reel] = images;
+        reel.enabled = !HasSpriteSet();
+
+        Transform parent = reel.transform.parent;
+        string glowName = reel.gameObject.name + "Glow";
+        Transform existing = parent.Find(glowName);
+        if (existing != null) return;
+
+        GameObject glowObject = new GameObject(glowName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        RectTransform glow = glowObject.GetComponent<RectTransform>();
+        glow.SetParent(parent, false);
+        glow.anchorMin = rect.anchorMin;
+        glow.anchorMax = rect.anchorMax;
+        glow.pivot = rect.pivot;
+        glow.anchoredPosition = rect.anchoredPosition;
+        glow.sizeDelta = rect.sizeDelta + new Vector2(16f, 8f);
+        glow.SetSiblingIndex(reel.transform.GetSiblingIndex());
+        glowObject.GetComponent<Image>().color = glowColor;
+    }
+
+    private Image GetOrCreateSymbolImage(Transform parent, string objectName, Vector2 position, float size, float alpha)
+    {
+        Transform existing = parent.Find(objectName);
+        GameObject imageObject = existing != null
+            ? existing.gameObject
+            : new GameObject(objectName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+
+        RectTransform rect = imageObject.GetComponent<RectTransform>();
+        if (existing == null) rect.SetParent(parent, false);
+        rect.anchorMin = new Vector2(0.5f, 0.5f);
+        rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = position;
+        rect.sizeDelta = new Vector2(size, size);
+
+        Image image = imageObject.GetComponent<Image>();
+        image.preserveAspect = true;
+        image.raycastTarget = false;
+        image.color = new Color(1f, 1f, 1f, alpha);
+        return image;
+    }
+
+    private bool HasSpriteSet()
+    {
+        if (symbolSprites == null || symbolSprites.Length < slotSymbols.Length) return false;
+
+        for (int i = 0; i < slotSymbols.Length; i++)
+        {
+            if (symbolSprites[i] == null) return false;
+        }
+
+        return true;
     }
 
     private void OnFeverChanged(int oldValue, int newValue)

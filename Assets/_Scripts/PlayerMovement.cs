@@ -8,6 +8,12 @@ public class PlayerMovement : NetworkBehaviour
     public float walkSpeed = 5f;
     public float sprintSpeed = 8f;
     public float crouchSpeed = 2.5f;
+    [Tooltip("地上で最高速度に達するまでの速さ")]
+    public float groundAcceleration = 24f;
+    [Tooltip("キーを離した時に止まる速さ")]
+    public float groundDeceleration = 32f;
+    [Tooltip("空中で方向を変えられる強さ")]
+    public float airAcceleration = 7f;
 
     [Header("持ち物による速度低下")]
     public float carrySlowAmount = 0.15f;
@@ -17,11 +23,34 @@ public class PlayerMovement : NetworkBehaviour
 
     [Header("ジャンプ設定")]
     public float jumpHeight = 1.5f;
-    public float gravity = -9.81f;
+    public float gravity = -18f;
+    [Tooltip("崖から少し離れた直後でもジャンプできる猶予")]
+    public float coyoteTime = 0.12f;
+    [Tooltip("着地直前に押したジャンプを予約する時間")]
+    public float jumpBufferTime = 0.12f;
 
     [Header("しゃがみ設定")]
     public float crouchHeight = 1f;
     public float standHeight = 2f;
+    public float crouchTransitionSpeed = 12f;
+
+    [Header("コミカルなカメラ演出")]
+    public bool enableCameraMotion = true;
+    [Tooltip("歩行中の上下の揺れ幅")]
+    public float walkBobAmount = 0.035f;
+    [Tooltip("ダッシュ中の上下の揺れ幅")]
+    public float sprintBobAmount = 0.055f;
+    public float walkBobFrequency = 9f;
+    public float sprintBobFrequency = 12.5f;
+    [Tooltip("左右移動時にカメラが傾く角度")]
+    public float strafeTilt = 1.6f;
+    [Tooltip("着地時にカメラが沈む最大量")]
+    public float landingDipAmount = 0.09f;
+    public float cameraMotionSmoothness = 14f;
+
+    [Header("ダッシュ演出")]
+    public float sprintFieldOfViewBonus = 5f;
+    public float fieldOfViewSmoothness = 7f;
 
     [Header("カメラ設定")]
     public Transform cameraTransform;
@@ -29,12 +58,23 @@ public class PlayerMovement : NetworkBehaviour
     private CharacterController controller;
     private PlayerInteract playerInteract;
     private SmugglingPlayer smugglingPlayer;
+    private Camera playerCamera;
 
     private Vector2 moveInput;
     private Vector2 lookInput;
-    private Vector3 velocity;
+    private Vector3 horizontalVelocity;
+    private float verticalVelocity;
     private float xRotation;
     private bool isCrouching;
+    private bool isSprinting;
+
+    private Vector3 cameraBaseLocalPosition;
+    private float baseFieldOfView = 60f;
+    private float bobTimer;
+    private float landingDip;
+    private float lastGroundedTime = float.NegativeInfinity;
+    private float lastJumpPressedTime = float.NegativeInfinity;
+    private bool wasGrounded;
 
     void Start()
     {
@@ -53,19 +93,43 @@ public class PlayerMovement : NetworkBehaviour
             return;
         }
 
+        if (cameraTransform != null)
+        {
+            cameraBaseLocalPosition = cameraTransform.localPosition;
+            playerCamera = cameraTransform.GetComponent<Camera>();
+            if (playerCamera != null)
+            {
+                baseFieldOfView = playerCamera.fieldOfView;
+            }
+        }
+
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
 
     void Update()
     {
-        if (!IsOwner) return;
+        if (!IsOwner || controller == null) return;
 
-        if (smugglingPlayer != null && smugglingPlayer.IsControlLocked) return;
+        if (smugglingPlayer != null && smugglingPlayer.IsControlLocked)
+        {
+            moveInput = Vector2.zero;
+            lookInput = Vector2.zero;
+            horizontalVelocity = Vector3.zero;
+            return;
+        }
 
         ReadInput();
         Move();
         Look();
+        UpdateStance();
+    }
+
+    void LateUpdate()
+    {
+        if (!IsOwner || cameraTransform == null) return;
+
+        UpdateCameraMotion();
     }
 
     void ReadInput()
@@ -77,16 +141,22 @@ public class PlayerMovement : NetworkBehaviour
 
         moveInput = Vector2.zero;
 
-        if (keyboard.wKey.isPressed) moveInput.y += 1;
-        if (keyboard.sKey.isPressed) moveInput.y -= 1;
-        if (keyboard.aKey.isPressed) moveInput.x -= 1;
-        if (keyboard.dKey.isPressed) moveInput.x += 1;
+        if (keyboard.wKey.isPressed) moveInput.y += 1f;
+        if (keyboard.sKey.isPressed) moveInput.y -= 1f;
+        if (keyboard.aKey.isPressed) moveInput.x -= 1f;
+        if (keyboard.dKey.isPressed) moveInput.x += 1f;
+        moveInput = Vector2.ClampMagnitude(moveInput, 1f);
 
         lookInput = mouse.delta.ReadValue();
 
+        if (keyboard.spaceKey.wasPressedThisFrame)
+        {
+            lastJumpPressedTime = Time.time;
+        }
+
         if (keyboard.ctrlKey.wasPressedThisFrame)
         {
-            ToggleCrouch();
+            isCrouching = !isCrouching;
         }
 
         if (keyboard.escapeKey.wasPressedThisFrame)
@@ -98,62 +168,72 @@ public class PlayerMovement : NetworkBehaviour
 
     void Move()
     {
-        Vector3 move = transform.right * moveInput.x + transform.forward * moveInput.y;
-
-        if (move.magnitude > 1f)
-        {
-            move.Normalize();
-        }
-
         bool grounded = controller.isGrounded;
-
-        if (grounded && velocity.y < 0)
+        if (grounded)
         {
-            velocity.y = -2f;
+            lastGroundedTime = Time.time;
+
+            if (!wasGrounded && verticalVelocity < -4f)
+            {
+                float landingStrength = Mathf.InverseLerp(4f, 18f, -verticalVelocity);
+                landingDip = Mathf.Max(landingDip, landingDipAmount * landingStrength);
+            }
+
+            if (verticalVelocity < 0f)
+            {
+                verticalVelocity = -2f;
+            }
         }
 
-        if (Keyboard.current.spaceKey.wasPressedThisFrame && grounded)
-        {
-            velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
-        }
+        isSprinting = Keyboard.current != null
+            && Keyboard.current.leftShiftKey.isPressed
+            && !isCrouching
+            && moveInput.y > 0.1f;
 
-        velocity.y += gravity * Time.deltaTime;
-
-        float currentSpeed = walkSpeed;
-
-        if (Keyboard.current.leftShiftKey.isPressed)
-        {
-            currentSpeed = sprintSpeed;
-        }
-
-        if (isCrouching)
-        {
-            currentSpeed = crouchSpeed;
-        }
+        float currentSpeed = isCrouching
+            ? crouchSpeed
+            : isSprinting ? sprintSpeed : walkSpeed;
 
         if (playerInteract != null)
         {
             int weightLevel = playerInteract.GetHeldWeightLevel();
-
             if (weightLevel > 0)
             {
                 float slowRate = 1f - ((weightLevel - 1) * carrySlowAmount);
-                slowRate = Mathf.Clamp(slowRate, 0.35f, 1f);
-
-                currentSpeed *= slowRate;
+                currentSpeed *= Mathf.Clamp(slowRate, 0.35f, 1f);
             }
         }
 
-        // 家具（Roomの上にある MoveSpeed 家具）による速度バフ
-        var fem = FurnitureEffectManager.InstanceOrNull;
-        if (fem != null)
+        FurnitureEffectManager furnitureEffects = FurnitureEffectManager.InstanceOrNull;
+        if (furnitureEffects != null)
         {
-            currentSpeed *= fem.MoveSpeedMultiplier;
+            currentSpeed *= furnitureEffects.MoveSpeedMultiplier;
         }
 
-        Vector3 finalMove = move * currentSpeed + velocity;
+        Vector3 desiredDirection = transform.right * moveInput.x + transform.forward * moveInput.y;
+        Vector3 desiredVelocity = desiredDirection * currentSpeed;
+        float acceleration = grounded
+            ? (moveInput.sqrMagnitude > 0.001f ? groundAcceleration : groundDeceleration)
+            : airAcceleration;
 
-        controller.Move(finalMove * Time.deltaTime);
+        horizontalVelocity = Vector3.MoveTowards(
+            horizontalVelocity,
+            desiredVelocity,
+            acceleration * Time.deltaTime);
+
+        bool hasBufferedJump = Time.time - lastJumpPressedTime <= jumpBufferTime;
+        bool canUseCoyoteJump = Time.time - lastGroundedTime <= coyoteTime;
+        if (hasBufferedJump && canUseCoyoteJump)
+        {
+            verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * gravity);
+            lastJumpPressedTime = float.NegativeInfinity;
+            lastGroundedTime = float.NegativeInfinity;
+            grounded = false;
+        }
+
+        verticalVelocity += gravity * Time.deltaTime;
+        controller.Move((horizontalVelocity + Vector3.up * verticalVelocity) * Time.deltaTime);
+        wasGrounded = grounded;
     }
 
     void Look()
@@ -161,32 +241,77 @@ public class PlayerMovement : NetworkBehaviour
         float mouseX = lookInput.x * mouseSensitivity;
         float mouseY = lookInput.y * mouseSensitivity;
 
-        xRotation -= mouseY;
-        xRotation = Mathf.Clamp(xRotation, -90f, 90f);
-
-        cameraTransform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
+        xRotation = Mathf.Clamp(xRotation - mouseY, -88f, 88f);
         transform.Rotate(Vector3.up * mouseX);
 
-        // body は常に直立を保つ（傾いた場所でスポーンしても転ばず立て直す）。
-        // 上下の視点はカメラ側で処理しているため、body はヨーのみ残す。
         Vector3 bodyEuler = transform.eulerAngles;
-        if (bodyEuler.x != 0f || bodyEuler.z != 0f)
+        if (!Mathf.Approximately(bodyEuler.x, 0f) || !Mathf.Approximately(bodyEuler.z, 0f))
         {
             transform.rotation = Quaternion.Euler(0f, bodyEuler.y, 0f);
         }
     }
 
-    void ToggleCrouch()
+    void UpdateStance()
     {
-        isCrouching = !isCrouching;
+        float targetHeight = isCrouching ? crouchHeight : standHeight;
+        float previousHeight = controller.height;
+        float nextHeight = Mathf.MoveTowards(
+            previousHeight,
+            targetHeight,
+            crouchTransitionSpeed * Time.deltaTime);
 
-        if (isCrouching)
+        // カプセルの下端を固定し、しゃがむたびに足が床から浮かないようにする。
+        float bottom = controller.center.y - previousHeight * 0.5f;
+        controller.height = nextHeight;
+        Vector3 center = controller.center;
+        center.y = bottom + nextHeight * 0.5f;
+        controller.center = center;
+    }
+
+    void UpdateCameraMotion()
+    {
+        float planarSpeed = new Vector3(horizontalVelocity.x, 0f, horizontalVelocity.z).magnitude;
+        float speedRatio = sprintSpeed > 0f ? Mathf.Clamp01(planarSpeed / sprintSpeed) : 0f;
+        bool movingOnGround = controller.isGrounded && planarSpeed > 0.15f;
+
+        float bobX = 0f;
+        float bobY = 0f;
+        float bobPitch = 0f;
+        if (enableCameraMotion && movingOnGround)
         {
-            controller.height = crouchHeight;
+            float frequency = isSprinting ? sprintBobFrequency : walkBobFrequency;
+            float amount = isSprinting ? sprintBobAmount : walkBobAmount;
+            bobTimer += Time.deltaTime * frequency;
+            bobY = Mathf.Sin(bobTimer) * amount;
+            bobX = Mathf.Cos(bobTimer * 0.5f) * amount * 0.45f;
+            bobPitch = -Mathf.Sin(bobTimer) * amount * 18f;
         }
         else
         {
-            controller.height = standHeight;
+            bobTimer = Mathf.Lerp(bobTimer, 0f, 8f * Time.deltaTime);
+        }
+
+        landingDip = Mathf.MoveTowards(landingDip, 0f, Time.deltaTime * 0.55f);
+        float crouchOffset = (controller.height - standHeight) * 0.5f;
+        Vector3 targetPosition = cameraBaseLocalPosition
+            + new Vector3(bobX, bobY + crouchOffset - landingDip, 0f);
+        float positionLerp = 1f - Mathf.Exp(-cameraMotionSmoothness * Time.deltaTime);
+        cameraTransform.localPosition = Vector3.Lerp(
+            cameraTransform.localPosition,
+            targetPosition,
+            positionLerp);
+
+        float localStrafeSpeed = transform.InverseTransformDirection(horizontalVelocity).x;
+        float tilt = enableCameraMotion
+            ? -Mathf.Clamp(localStrafeSpeed / Mathf.Max(walkSpeed, 0.01f), -1f, 1f) * strafeTilt
+            : 0f;
+        cameraTransform.localRotation = Quaternion.Euler(xRotation + bobPitch, 0f, tilt);
+
+        if (playerCamera != null)
+        {
+            float targetFov = baseFieldOfView + (isSprinting ? sprintFieldOfViewBonus * speedRatio : 0f);
+            float fovLerp = 1f - Mathf.Exp(-fieldOfViewSmoothness * Time.deltaTime);
+            playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, targetFov, fovLerp);
         }
     }
 }

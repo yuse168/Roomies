@@ -148,7 +148,10 @@ public class FurnitureEffectManager : MonoBehaviour
 
         if (total > 0)
         {
-            money.AddSharedMoney(total);
+            money.TryAdd(
+                total,
+                SharedMoneyReason.FurniturePassiveIncome,
+                "Morning furniture effects");
             Debug.Log($"[Furniture] パッシブ収入 +¥{total} を共同口座へ");
         }
     }

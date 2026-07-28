@@ -20,10 +20,14 @@ public class PlacedFurniture : MonoBehaviour
     /// <summary>効果が有効か（購入直後はfalse、翌朝にtrueになる）。</summary>
     public bool EffectActive { get; private set; }
 
+    /// <summary>プレイヤーが移動中か。移動中は家具効果を停止する。</summary>
+    public bool IsMoving { get; private set; }
+
     public void SetEffectActive(bool active) => EffectActive = active;
+    public void SetMoving(bool moving) => IsMoving = moving;
 
     /// <summary>効果が実際に発動中か（翌朝以降 かつ Roomの上）。</summary>
-    public bool IsEffectActive => EffectActive && IsOnRoom;
+    public bool IsEffectActive => EffectActive && IsOnRoom && !IsMoving;
 
     private Collider cachedCollider;
 

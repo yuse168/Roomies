@@ -24,7 +24,11 @@ public class PlayerInteract : NetworkBehaviour
     public LayerMask holdBlockMask;
 
     private CarryableObject heldObject;
+    private NetworkFurniture heldFurniture;
     private SmugglingPlayer smugglingPlayer;
+    private float furnitureYawOffset;
+    private float furniturePickupPendingUntil;
+    private float furnitureNextSyncTime;
 
     // インタラクト表示チップ（InteractTextを包む角丸背景）とクロスヘア
     private GameObject interactChip;
@@ -97,10 +101,17 @@ public class PlayerInteract : NetworkBehaviour
         if (keyboard == null) return;
 
         UpdateInteractUI();
+        UpdateSlotBetInput();
+        UpdateBlackjackBetInput();
 
         if (heldObject != null)
         {
             UpdateHeldObjectPosition();
+        }
+
+        if (heldFurniture != null)
+        {
+            UpdateHeldFurniturePosition();
         }
 
         if (keyboard.eKey.wasPressedThisFrame)
@@ -108,9 +119,21 @@ public class PlayerInteract : NetworkBehaviour
             TryUse();
         }
 
+        if (keyboard.rKey.wasPressedThisFrame)
+        {
+            if (heldFurniture != null)
+                furnitureYawOffset = Mathf.Repeat(furnitureYawOffset + 45f, 360f);
+            else
+                TryStandBlackjack();
+        }
+
         if (keyboard.fKey.wasPressedThisFrame)
         {
-            if (heldObject != null)
+            if (heldFurniture != null)
+            {
+                DropFurniture();
+            }
+            else if (heldObject != null)
             {
                 DropObject();
             }
@@ -132,6 +155,10 @@ public class PlayerInteract : NetworkBehaviour
         {
             label = Key("F") + " 離す";
         }
+        else if (heldFurniture != null)
+        {
+            label = Key("F") + " 設置   " + Key("R") + " 45°回転";
+        }
         else if (cameraTransform != null)
         {
             Ray ray = new Ray(cameraTransform.position, cameraTransform.forward);
@@ -149,6 +176,13 @@ public class PlayerInteract : NetworkBehaviour
                 {
                     label = Key("F") + " 持つ";
                 }
+                // 家具
+                else if (hit.collider.GetComponentInParent<NetworkFurniture>() is NetworkFurniture furniture)
+                {
+                    label = furniture.IsHeld
+                        ? "ほかの人が移動中"
+                        : Key("F") + " " + furniture.DisplayName + "を持つ";
+                }
                 // ドア
                 else if (hit.collider.GetComponentInParent<DoorInteract>() != null)
                 {
@@ -160,9 +194,14 @@ public class PlayerInteract : NetworkBehaviour
                     label = Key("E") + " 納品";
                 }
                 // スロット
-                else if (hit.collider.GetComponentInParent<SlotMachine>() != null)
+                else if (hit.collider.GetComponentInParent<SlotMachine>() is SlotMachine slot)
                 {
-                    label = Key("E") + " スロット";
+                    label = Key("E") + " SPIN   " + Key("WHEEL") + " BET " + slot.CurrentBetLabel;
+                }
+                // ブラックジャック
+                else if (hit.collider.GetComponentInParent<BlackjackTable>() is BlackjackTable blackjack)
+                {
+                    label = Key("E") + " " + blackjack.GetInteractionLabel(OwnerClientId);
                 }
             }
         }
@@ -205,6 +244,42 @@ public class PlayerInteract : NetworkBehaviour
     private static string Key(string key)
     {
         return $"<color=#FFA31F>{key}</color>";
+    }
+
+    private void UpdateSlotBetInput()
+    {
+        if (cameraTransform == null) return;
+
+        Ray ray = new Ray(cameraTransform.position, cameraTransform.forward);
+        if (!Physics.Raycast(ray, out RaycastHit hit, interactDistance)) return;
+
+        SlotMachine slot = hit.collider.GetComponentInParent<SlotMachine>();
+        if (slot == null) return;
+
+        float scroll = Mouse.current != null ? Mouse.current.scroll.ReadValue().y : 0f;
+        bool next = scroll > 0.01f || Keyboard.current.rightArrowKey.wasPressedThisFrame;
+        bool previous = scroll < -0.01f || Keyboard.current.leftArrowKey.wasPressedThisFrame;
+
+        if (next) slot.ChangeBet(1);
+        else if (previous) slot.ChangeBet(-1);
+    }
+
+    private void UpdateBlackjackBetInput()
+    {
+        if (cameraTransform == null) return;
+
+        Ray ray = new Ray(cameraTransform.position, cameraTransform.forward);
+        if (!Physics.Raycast(ray, out RaycastHit hit, interactDistance)) return;
+
+        BlackjackTable blackjack = hit.collider.GetComponentInParent<BlackjackTable>();
+        if (blackjack == null || !blackjack.IsIdle) return;
+
+        float scroll = Mouse.current != null ? Mouse.current.scroll.ReadValue().y : 0f;
+        bool next = scroll > 0.01f || Keyboard.current.rightArrowKey.wasPressedThisFrame;
+        bool previous = scroll < -0.01f || Keyboard.current.leftArrowKey.wasPressedThisFrame;
+
+        if (next) blackjack.ChangeBet(1);
+        else if (previous) blackjack.ChangeBet(-1);
     }
 
     void TryUse()
@@ -254,7 +329,30 @@ public class PlayerInteract : NetworkBehaviour
 
                 return;
             }
+
+            // ブラックジャック
+            BlackjackTable blackjack = hit.collider.GetComponentInParent<BlackjackTable>();
+
+            if (blackjack != null)
+            {
+                PlayerEarning playerEarning = GetComponent<PlayerEarning>();
+                blackjack.Interact(playerEarning);
+                return;
+            }
         }
+    }
+
+    private void TryStandBlackjack()
+    {
+        if (cameraTransform == null) return;
+
+        Ray ray = new Ray(cameraTransform.position, cameraTransform.forward);
+        if (!Physics.Raycast(ray, out RaycastHit hit, interactDistance)) return;
+
+        BlackjackTable blackjack = hit.collider.GetComponentInParent<BlackjackTable>();
+        if (blackjack == null || !blackjack.CanLocalPlayerStand(OwnerClientId)) return;
+
+        blackjack.Stand();
     }
 
     void TryPickup()
@@ -265,6 +363,21 @@ public class PlayerInteract : NetworkBehaviour
 
         if (Physics.Raycast(ray, out RaycastHit hit, interactDistance))
         {
+            NetworkFurniture furniture =
+                hit.collider.GetComponentInParent<NetworkFurniture>();
+
+            if (furniture != null && !furniture.IsHeld)
+            {
+                heldFurniture = furniture;
+                furnitureYawOffset = Mathf.DeltaAngle(
+                    cameraTransform.eulerAngles.y,
+                    furniture.transform.eulerAngles.y);
+                furniturePickupPendingUntil = Time.unscaledTime + 0.75f;
+                furnitureNextSyncTime = 0f;
+                furniture.PickupServerRpc(NetworkObjectId);
+                return;
+            }
+
             CarryableObject carryable = hit.collider.GetComponentInParent<CarryableObject>();
 
             if (carryable != null)
@@ -273,6 +386,66 @@ public class PlayerInteract : NetworkBehaviour
                 heldObject.PickupServerRpc(OwnerClientId, NetworkObjectId);
             }
         }
+    }
+
+    private void UpdateHeldFurniturePosition()
+    {
+        if (heldFurniture == null) return;
+
+        if (!heldFurniture.IsHeldBy(OwnerClientId))
+        {
+            if (Time.unscaledTime >= furniturePickupPendingUntil)
+                heldFurniture = null;
+            return;
+        }
+
+        if (Time.unscaledTime < furnitureNextSyncTime) return;
+        furnitureNextSyncTime = Time.unscaledTime + 0.05f;
+
+        Vector3 flatForward = Vector3.ProjectOnPlane(
+            cameraTransform.forward,
+            Vector3.up).normalized;
+        if (flatForward.sqrMagnitude < 0.01f)
+            flatForward = transform.forward;
+
+        float extraDistance = Mathf.Clamp(
+            heldFurniture.BoundingRadius,
+            0.2f,
+            1.35f);
+        Vector3 targetPosition =
+            cameraTransform.position +
+            flatForward * (holdDistance + extraDistance) -
+            Vector3.up * holdDownOffset;
+        float targetYaw =
+            cameraTransform.eulerAngles.y + furnitureYawOffset;
+
+        heldFurniture.UpdateHeldTransformServerRpc(
+            targetPosition,
+            targetYaw);
+    }
+
+    private void DropFurniture()
+    {
+        if (heldFurniture == null) return;
+
+        Vector3 flatForward = Vector3.ProjectOnPlane(
+            cameraTransform.forward,
+            Vector3.up).normalized;
+        if (flatForward.sqrMagnitude < 0.01f)
+            flatForward = transform.forward;
+
+        float extraDistance = Mathf.Clamp(
+            heldFurniture.BoundingRadius,
+            0.2f,
+            1.35f);
+        Vector3 dropPosition =
+            cameraTransform.position +
+            flatForward * (holdDistance + extraDistance);
+        float targetYaw =
+            cameraTransform.eulerAngles.y + furnitureYawOffset;
+
+        heldFurniture.DropServerRpc(dropPosition, targetYaw);
+        heldFurniture = null;
     }
 
     void UpdateHeldObjectPosition()
