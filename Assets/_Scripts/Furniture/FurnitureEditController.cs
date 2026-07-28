@@ -73,6 +73,8 @@ public class FurnitureEditController : MonoBehaviour
     // =========================================================
     private void Update()
     {
+        if (EscMenuUI.IsOpen) return;
+
         var kb = Keyboard.current;
         if (kb == null) return;
 

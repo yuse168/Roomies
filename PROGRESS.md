@@ -1,5 +1,97 @@
 # PROGRESS.md
 
+## 2026/07/28｜10回目
+
+### 今回の変更
+- ESCメニューを本番向けの「再開・設定・メインメニュー・終了」構成へ拡張
+- マウス感度・音量・画面モード・解像度・画質・カメラ揺れの設定を追加
+- 設定をPlayerPrefsへ保存し、次回起動時とプレイヤー生成時に自動反映
+- メインメニュー退出とゲーム終了に確認ダイアログを追加
+- 設定画面や確認画面では、ESCで一つ前へ戻る操作を追加
+
+### 変更ファイル
+- 新規：`Assets/_Scripts/UI/GameSettings.cs`
+- 新規：`Assets/_Scripts/UI/GameSettings.cs.meta`
+- 変更：`Assets/_Scripts/UI/EscMenuUI.cs`
+- 変更：`Assets/_Scripts/PlayerMovement.cs`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- ESCメニューはGameRoom読み込み時に自動生成され、Prefab配置は不要
+- マルチプレイを止めないため、ESCメニュー中も`Time.timeScale`は変更しない
+- 音量は`AudioListener.volume`、画質は`QualitySettings`、画面設定は`Screen`へ即時反映
+- マウス感度とカメラ揺れはOwnerプレイヤーだけに反映
+- 保存済み設定は`GameSettings`が一元管理する
+
+### 影響範囲
+- ESCメニューUI
+- プレイヤーの視点感度
+- カメラ演出
+- ゲーム全体の音量
+- 解像度・画面モード・画質
+- Steamロビー退出
+
+### 確認状況
+- コンパイル：確認済み（エラー0、既存警告19件）
+- GameRoomでのESCメニュー自動生成：確認済み
+- メイン画面・設定画面の生成と切り替え：確認済み
+- Unity Consoleの追加エラー：なし
+- Host動作：未確認
+- Client動作：未確認
+
+### 未完了・次の作業
+- 実際のHostとClientで各自の設定がローカルだけに反映されることを確認
+- 16:9以外の解像度でUIが切れないことを確認
+
+## 2026/07/28｜9回目
+
+### 今回の変更
+- GameRoomでESCを押すと開くポップなメニューを追加
+- 「ゲームに戻る」「メインメニューへ」「ゲームを終了」の3ボタンを追加
+- ESCメニュー表示中はローカルプレイヤーの移動・視点・インタラクト・家具ショップ操作を停止
+- メニュー表示中だけカーソルを表示し、閉じた時にFPS操作へ自動復帰
+- メインメニューへ戻る時にSteamロビーとNetcode接続を安全に終了する処理を追加
+
+### 変更ファイル
+- 新規：`Assets/_Scripts/UI/EscMenuUI.cs`
+- 新規：`Assets/_Scripts/UI/EscMenuUI.cs.meta`
+- 変更：`Assets/_Scripts/PlayerMovement.cs`
+- 変更：`Assets/_Scripts/PlayerInteract.cs`
+- 変更：`Assets/_Scripts/Furniture/FurnitureEditController.cs`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- ESCメニューはGameRoom読込時に自動生成され、SceneやPrefabへの手配置は不要
+- ESCをもう一度押すか「ゲームに戻る」で閉じる
+- マルチプレイ同期を止めないため`Time.timeScale`は変更しない
+- メニューを開いている本人の入力だけを停止し、他プレイヤーとゲーム内時間は動き続ける
+- 「メインメニューへ」はロビー退出・NetworkManager停止後に`MainMenuSteam`を読み込む
+
+### 影響範囲
+- プレイヤー移動・視点
+- インタラクト
+- 家具ショップ
+- カーソル制御
+- Steamロビー退出
+- Netcode切断
+- GameRoom UI
+
+### 確認状況
+- C#コンパイル：確認済み（エラー0、既存警告19件）
+- 新規スクリプトを含む外部ビルド：確認済み
+- GameRoomのInputSystem EventSystem：確認済み
+- GameRoom読込時のESCメニュー自動生成：Unity Playで確認済み
+- メニュー開閉・カーソル表示切替・3ボタン生成：Unity Playで確認済み
+- UI Graphic描画登録とCanvasGroup表示切替：Unity Playで確認済み
+- HostでのESC表示・ボタン操作：未確認
+- ClientでのESC表示・退出処理：未確認
+- 画面解像度別レイアウト：未確認
+
+### 未完了・次の作業
+- HostとClientでESCを開き、本人の操作だけ止まることを確認する
+- 「メインメニューへ」でロビー・接続が正常に終了することを確認する
+- 16:9以外の解像度でUIが切れないことを確認する
+
 ## 2026/07/28｜8回目
 
 ### 今回の変更

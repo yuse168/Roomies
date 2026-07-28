@@ -93,6 +93,8 @@ public class PlayerMovement : NetworkBehaviour
             return;
         }
 
+        GameSettings.ApplyToPlayer(this);
+
         if (cameraTransform != null)
         {
             cameraBaseLocalPosition = cameraTransform.localPosition;
@@ -110,6 +112,15 @@ public class PlayerMovement : NetworkBehaviour
     void Update()
     {
         if (!IsOwner || controller == null) return;
+
+        if (EscMenuUI.IsOpen)
+        {
+            moveInput = Vector2.zero;
+            lookInput = Vector2.zero;
+            horizontalVelocity = Vector3.zero;
+            isSprinting = false;
+            return;
+        }
 
         if (smugglingPlayer != null && smugglingPlayer.IsControlLocked)
         {
@@ -159,11 +170,6 @@ public class PlayerMovement : NetworkBehaviour
             isCrouching = !isCrouching;
         }
 
-        if (keyboard.escapeKey.wasPressedThisFrame)
-        {
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-        }
     }
 
     void Move()

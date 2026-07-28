@@ -91,6 +91,12 @@ public class PlayerInteract : NetworkBehaviour
     {
         if (!IsOwner) return;
 
+        if (EscMenuUI.IsOpen)
+        {
+            SetInteractVisible(false);
+            return;
+        }
+
         if (smugglingPlayer != null && smugglingPlayer.IsControlLocked)
         {
             SetInteractVisible(false);
