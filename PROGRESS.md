@@ -1,5 +1,33 @@
 # PROGRESS.md
 
+## 2026/07/30｜1回目
+
+### 今回の変更
+- Build Settingsから削除済みの`MainMenu.unity`参照を除去
+- 起動用メニューを現行の`MainMenuSteam.unity`だけに統一
+
+### 変更ファイル
+- 変更：`ProjectSettings/EditorBuildSettings.asset`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- メインメニューには`Assets/_Scenes/MainMenuSteam.unity`を使用する
+- Build Settingsには実在するシーンだけを登録する
+
+### 影響範囲
+- Windowsビルド
+- Build And Run
+- メインメニューの起動順
+
+### 確認状況
+- Build Settingsの全シーン存在確認：確認済み
+- 不正な`MainMenu.unity`参照：除去済み
+- UnitySkills接続：未確認（ローカルサーバー停止中）
+- Unity実ビルド：未確認
+
+### 未完了・次の作業
+- Unityで再度Build And Runを実行して最終確認
+
 ## 2026/07/29｜3回目
 
 ### 今回の変更
