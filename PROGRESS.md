@@ -1,5 +1,35 @@
 # PROGRESS.md
 
+## 2026/07/30｜2回目
+
+### 今回の変更
+- ビルド起動時に空の地平線が表示される問題を修正
+- 初期シーンを`SampleScene`から`MainMenuSteam`へ変更
+- 未使用の`SampleScene`をBuild Settingsから除外
+
+### 変更ファイル
+- 変更：`ProjectSettings/EditorBuildSettings.asset`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- Build Index 0は`MainMenuSteam`
+- ゲーム開始後はシーン名指定で`GameRoom`へ遷移する
+
+### 影響範囲
+- Windowsビルド起動
+- メインメニュー表示
+- Steamロビーからゲームへのシーン遷移
+
+### 確認状況
+- Build Index 0：`MainMenuSteam`を確認済み
+- Build Settingsのシーン存在・GUID：確認済み
+- シーン遷移が名前指定であること：確認済み
+- UnitySkills接続：未確認（ローカルサーバー停止中）
+- 再ビルドした実行ファイル：未確認
+
+### 未完了・次の作業
+- 新しくビルドし直した実行ファイルでメインメニュー起動を確認
+
 ## 2026/07/30｜1回目
 
 ### 今回の変更
