@@ -49,7 +49,7 @@ public class HudThemer : MonoBehaviour
         rt.anchorMax = new Vector2(0f, 1f);
         rt.pivot     = new Vector2(0f, 1f);
         rt.anchoredPosition = new Vector2(24, -24);
-        rt.sizeDelta = new Vector2(300, 104);
+        rt.sizeDelta = new Vector2(380, 104);
         card.color = UITheme.Panel;
 
         // 既存のDayTextを移設して整える
@@ -57,7 +57,7 @@ public class HudThemer : MonoBehaviour
         if (dayGo != null && dayGo.TryGetComponent(out TMP_Text dayText))
         {
             MoveInto(dayText.rectTransform, card.transform,
-                new Vector2(20, -12), new Vector2(260, 36));
+                new Vector2(20, -12), new Vector2(340, 36));
             dayText.fontSize  = 28f;
             dayText.fontStyle = FontStyles.Bold;
             dayText.color     = UITheme.TextMain;
@@ -70,7 +70,7 @@ public class HudThemer : MonoBehaviour
         if (timerGo != null && timerGo.TryGetComponent(out TMP_Text timerText))
         {
             MoveInto(timerText.rectTransform, card.transform,
-                new Vector2(20, -48), new Vector2(260, 28));
+                new Vector2(20, -48), new Vector2(340, 28));
             timerText.fontSize  = 20f;
             timerText.fontStyle = FontStyles.Bold;
             timerText.color     = UITheme.Gold;
@@ -138,6 +138,9 @@ public class HudThemer : MonoBehaviour
         //   そのため元のテキストは非表示にし、Updateで値をミラーする。
         moneyValueLabel = UITheme.Label(card.transform, "MoneyValue", "¥0",
             34f, UITheme.TextMain, TextAlignmentOptions.Left, bold: true);
+        moneyValueLabel.enableAutoSizing = true;
+        moneyValueLabel.fontSizeMin = 21f;
+        moneyValueLabel.fontSizeMax = 34f;
         var valueRt = moneyValueLabel.rectTransform;
         valueRt.anchorMin = new Vector2(0f, 1f);
         valueRt.anchorMax = new Vector2(0f, 1f);
@@ -279,13 +282,18 @@ public class HudThemer : MonoBehaviour
         // 共同金庫の金額ミラー（SharedMoneyTextは移設できないため値だけ写す）
         if (moneyValueLabel != null && SharedMoneyManager.Instance != null)
         {
-            moneyValueLabel.text = "¥" + SharedMoneyManager.Instance.CurrentMoney.ToString("N0");
+            string required = DayManager.Instance != null
+                ? DayManager.Instance.CurrentRentTotal.ToString("N0")
+                : "0";
+            moneyValueLabel.text =
+                $"¥{SharedMoneyManager.Instance.CurrentMoney:N0}  " +
+                $"<color=#8E929B>/</color>  <color=#F2C733>¥{required}</color>";
         }
 
         var dm = DayManager.Instance;
         if (rentCountdownLabel != null && dm != null && dm.DebugDay > 0)
         {
-            int days = Mathf.Max(0, 4 - dm.DebugDay);
+            int days = dm.DaysUntilRent;
             rentCountdownLabel.text =
                 $"家賃支払いまであと <color=#D94045>{days}日</color>";
         }

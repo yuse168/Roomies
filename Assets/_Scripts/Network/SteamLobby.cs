@@ -265,6 +265,16 @@ public class SteamLobby : MonoBehaviour
         SetBusy(false);
     }
 
+    /// <summary>メインメニューへ戻った時に前回の接続状態を確実に破棄する。</summary>
+    public void PrepareForMainMenu()
+    {
+        var nm = NetworkManager.Singleton;
+        if (LobbyID != 0 || operationInProgress || (nm != null && nm.IsListening))
+            LeaveLobby();
+        else
+            SetBusy(false);
+    }
+
     /// <summary>現在のロビーメンバー一覧を返す。</summary>
     public List<(CSteamID id, string name)> GetLobbyMembers()
     {
@@ -817,7 +827,6 @@ public class SteamLobby : MonoBehaviour
 
     private void SetBusy(bool value)
     {
-        if (operationInProgress == value) return;
         operationInProgress = value;
         BusyStateChanged?.Invoke(IsBusy);
     }

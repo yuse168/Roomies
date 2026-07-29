@@ -251,7 +251,7 @@ MonoBehaviour:
   groundDeceleration: 32
   airAcceleration: 7
   carrySlowAmount: 0.15
-  mouseSensitivity: 0.5
+  mouseSensitivity: 0.22
   jumpHeight: 1.5
   gravity: -18
   coyoteTime: 0.12
@@ -348,7 +348,7 @@ MonoBehaviour:
   cameraTransform: {fileID: 7071228222785093537}
   interactText: {fileID: 4580942815671797701}
   holdDistance: 2
-  holdRightOffset: 0.6
+  holdRightOffset: 0
   holdDownOffset: 0.4
   holdRadius: 0.35
   wallOffset: 0.25

@@ -1,5 +1,203 @@
 # PROGRESS.md
 
+## 2026/07/30｜7回目
+
+### 今回の変更
+- Host・Clientでの実プレイ確認結果を反映
+- DAY4以降の日数進行を確認済みに更新
+- 共同口座の現在金額・必要金額表示を確認済みに更新
+- キャラクターカラーのBobBody限定変更とマルチ同期を確認済みに更新
+
+### 変更ファイル
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- DAY番号はDAY4以降も連番で増え続ける
+- 家賃支払いはDAY3・6・9…の3日周期
+- 共同口座は`¥現在額 / ¥必要額`で表示する
+- キャラクター色は`BobBody`だけに反映し、Host・Client間で同期する
+
+### 影響範囲
+- 日数進行と家賃支払い
+- 共同口座HUD
+- キャラクターカスタマイズ
+- マルチプレイ同期
+
+### 確認状況
+- コンパイル：確認済み
+- DAY4以降の進行：確認済み
+- 3日周期の家賃支払い：確認済み
+- 共同口座HUD：確認済み
+- BobBody限定の色変更：確認済み
+- Host動作：確認済み
+- Client動作：確認済み
+- キャラクターカラー同期：確認済み
+- 既存機能：確認済み
+
+### 未完了・次の作業
+- なし
+
+## 2026/07/30｜6回目
+
+### 今回の変更
+- DAY3の次をDAY1へ戻さず、DAY4・DAY5以降も増え続けるように変更
+- 家賃支払いはDAY3・6・9…の3日周期を維持
+- 左上HUDからクール目と必要金額表示を削除し、通常のDAY表示へ復帰
+- 共同口座を「現在金額 / 必要金額」形式へ変更
+- キャラクター色の変更対象をFBX内の`BobBody`だけに限定
+
+### 変更ファイル
+- 変更：`Assets/_Scripts/DayManager.cs`
+- 変更：`Assets/_Scripts/UI/HudThemer.cs`
+- 変更：`Assets/_Scripts/PlayerNameDisplay.cs`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- DAY番号はゲームオーバーになるまで連番で増え続ける
+- 家賃は3日ごとに支払い、残り日数表示も3日周期で繰り返す
+- 共同口座は`¥現在額 / ¥必要額`で表示する
+- 色変更では目や別メッシュのMaterialPropertyBlockを変更しない
+
+### 影響範囲
+- 日数進行と家賃支払い
+- 共同口座HUD
+- キャラクターカスタマイズ
+- マルチプレイ時の外見同期
+
+### 確認状況
+- FBX内の`BobBody`：確認済み
+- C#コンパイル：確認済み（エラー0）
+- Unityコンパイル：確認済み（エラー0）
+- DAY4以降の実進行：未確認
+- Host・Client間の色同期：未確認
+
+### 未完了・次の作業
+- Unity PlayでDAY3夜からDAY4朝への遷移を確認
+- BobBodyだけが変色し、目の色が維持されることを確認
+
+## 2026/07/30｜5回目
+
+### 今回の変更
+- キャラクターカラー画面で色ボタンをクリックできない問題を修正
+- 必要金額とクール表示を左上の既存DAYカードへ統合
+- 左上を「1クール目・朝 / ¥500」形式へ変更
+- 共有口座カードから重複していた必要金額・クール表示を削除
+
+### 変更ファイル
+- 変更：`Assets/_Scripts/CharacterCloset.cs`
+- 変更：`Assets/_Scripts/DayManager.cs`
+- 変更：`Assets/_Scripts/UI/HudThemer.cs`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- カラー画面のCanvasには`GraphicRaycaster`を必ず設定する
+- クール・朝夜・必要金額は左上のDAYカードでまとめて表示する
+- ゲームオーバー中は統合HUDで`GAME OVER`表示を上書きしない
+
+### 影響範囲
+- キャラクターカスタマイズUI
+- ゲーム内HUD
+- 家賃表示
+
+### 確認状況
+- C#コンパイル：確認済み（エラー0）
+- Unityコンパイル：確認済み（エラー0）
+- Unity Playでのクリック操作：未確認
+
+### 未完了・次の作業
+- Unity Playで16色すべてのクリックとHUDの収まりを目視確認
+
+## 2026/07/30｜4回目
+
+### 今回の変更
+- 家にクローゼットを追加し、各プレイヤーが16色からキャラクターカラーを選べるように変更
+- ESC設定にキー割り当て変更画面を追加
+- HUDへ必要金額と現在のクール・朝夜表示を追加
+- 朝と夜を各3分へ変更
+- 持ち運び箱を画面中央へ移動
+- しゃがみを切り替え式から長押し式へ変更
+- 初期マウス感度とカメラ揺れを弱く調整
+- 頭上のプレイヤー名を非表示化
+- ゲーム離脱後のカーソル、ホスト・参加ボタン、Steam接続状態の復帰処理を修正
+- メインメニューとESCメニューの終了ボタンを実際のゲーム終了処理へ接続
+
+### 変更ファイル
+- 新規：`Assets/_Scripts/CharacterCloset.cs`
+- 新規：`Assets/_Scripts/CharacterCloset.cs.meta`
+- 変更：`Assets/_Scripts/PlayerNameDisplay.cs`
+- 変更：`Assets/_Scripts/PlayerMovement.cs`
+- 変更：`Assets/_Scripts/PlayerInteract.cs`
+- 変更：`Assets/_Scripts/DayManager.cs`
+- 変更：`Assets/_Scripts/UI/GameSettings.cs`
+- 変更：`Assets/_Scripts/UI/EscMenuUI.cs`
+- 変更：`Assets/_Scripts/UI/HudThemer.cs`
+- 変更：`Assets/_Scripts/MainMenuManager.cs`
+- 変更：`Assets/_Scripts/Network/SteamLobby.cs`
+- 変更：`Assets/_Scripts/Network/SteamManager.cs`
+- 変更：`Assets/_Prefabs/Player.prefab`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- キャラクター色はプレイヤーごとにServerで同期し、各自の端末へ保存する
+- クローゼットは`GameRoom`読込時に家の中へ自動生成し、外見を差し替えても機能を再利用できる
+- キー設定は重複時に元のキーと入れ替え、端末へ保存する
+- 朝・夜のターン時間はどちらも180秒
+- 家賃の追加額もNetworkVariableで全Clientへ同期し、HUDの必要金額へ反映する
+- Steam Lobby離脱後はNetworkManagerの停止を待ってメニュー状態を復旧する
+
+### 影響範囲
+- プレイヤー外見とマルチプレイ同期
+- キャラクター操作と入力設定
+- HUD、日付・朝夜進行、家賃表示
+- 持ち運び表示
+- ESCメニュー、メインメニュー、Steam Lobby
+
+### 確認状況
+- C#コンパイル：確認済み（エラー0）
+- Unity Skills診断：確認済み（Healthy、Console Error 0）
+- Player Prefab設定：確認済み（横オフセット0、初期感度0.22）
+- Host動作：未確認
+- Client動作：未確認
+- ビルド実機終了・再起動：未確認
+
+### 未完了・次の作業
+- Unity Playでクローゼットの設置位置とUIレイアウトを目視確認
+- Host・Client間で色変更、家賃表示、離脱後の再参加を確認
+- Windowsビルドで終了後のSteam再接続を確認
+
+## 2026/07/30｜3回目
+
+### 今回の変更
+- Windowsビルド完了時に`steam_appid.txt`を実行ファイルの隣へ自動コピー
+- App IDファイルがない・内容が不正な場合はビルドを失敗させる検証を追加
+- 現在の`Build`フォルダにもテスト用App ID `480`を追加
+
+### 変更ファイル
+- 新規：`Assets/_Scripts/Editor/SteamAppIdBuildProcessor.cs`
+- 変更：`PROGRESS.md`
+- ビルド生成物：`Build/steam_appid.txt`
+
+### 重要な仕様
+- 友達へ直接渡すWindowsビルドには`steam_appid.txt`を含める
+- `steam_appid.txt`は`Roomies.exe`と同じフォルダへ配置する
+- Steamストアへ正式配信するDepotには`steam_appid.txt`を含めない
+
+### 影響範囲
+- Windowsビルド
+- Steamworks初期化
+- 友達へ渡すテスト版
+
+### 確認状況
+- App ID：`480`を確認済み
+- 現在のBuildフォルダへの配置：確認済み
+- 自動コピー処理：コード確認済み
+- Unityコンパイル：確認済み（エラー0、既存警告19件）
+- 友達のPC：未確認
+
+### 未完了・次の作業
+- 次回ビルド後に`Roomies.exe`の隣へ自動配置されることを確認
+- 友達のPCでSteamを起動・ログインしてオンライン接続を確認
+
 ## 2026/07/30｜2回目
 
 ### 今回の変更

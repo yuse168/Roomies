@@ -1,4 +1,5 @@
 using TMPro;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using Steamworks;
@@ -23,6 +24,7 @@ public class MainMenuManager : MonoBehaviour
     [Header("Buttons")]
     [SerializeField] private Button hostButton;
     [SerializeField] private Button joinButton;
+    [SerializeField] private Button quitButton;
 
     // =========================================================
     // Unity ライフサイクル
@@ -30,12 +32,25 @@ public class MainMenuManager : MonoBehaviour
 
     private void Awake()
     {
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
         if (joinPanel != null) joinPanel.SetActive(false);
         HideStatus();
+
+        if (SteamLobby.Instance != null)
+            SteamLobby.Instance.PrepareForMainMenu();
     }
 
     private void OnEnable()
     {
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        if (quitButton == null)
+        {
+            GameObject quitObject = UITheme.FindDeep("QuitButton");
+            if (quitObject != null) quitButton = quitObject.GetComponent<Button>();
+        }
         if (SteamLobby.Instance != null)
         {
             SteamLobby.Instance.BusyStateChanged += OnBusyChanged;
@@ -63,8 +78,14 @@ public class MainMenuManager : MonoBehaviour
             cancelJoinButton.onClick.RemoveAllListeners();
             cancelJoinButton.onClick.AddListener(OnCancelJoin);
         }
+        if (quitButton != null)
+        {
+            quitButton.onClick.RemoveAllListeners();
+            quitButton.onClick.AddListener(Quit);
+        }
 
         UpdateButtons();
+        StartCoroutine(RefreshMenuStateNextFrame());
 
         if (!SteamManager.Initialized)
         {
@@ -210,6 +231,22 @@ public class MainMenuManager : MonoBehaviour
         if (joinButton != null) joinButton.interactable = steamAvailable && !busy && !joinOpen;
     }
 
+    private IEnumerator RefreshMenuStateNextFrame()
+    {
+        float timeout = Time.realtimeSinceStartup + 1.5f;
+        do
+        {
+            yield return null;
+        }
+        while (SteamLobby.Instance != null &&
+               SteamLobby.Instance.IsBusy &&
+               Time.realtimeSinceStartup < timeout);
+
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+        UpdateButtons();
+    }
+
     private void ShowStatus(string msg)
     {
         if (joinStatusText == null) return;
@@ -225,6 +262,7 @@ public class MainMenuManager : MonoBehaviour
 
     public void Quit()
     {
-        Application.Quit();
+        SteamLobby.Instance?.LeaveLobby();
+        SteamManager.ShutdownAndQuit();
     }
 }

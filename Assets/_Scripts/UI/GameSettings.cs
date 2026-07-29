@@ -1,5 +1,20 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
+
+public enum GameAction
+{
+    MoveForward,
+    MoveBackward,
+    MoveLeft,
+    MoveRight,
+    Sprint,
+    Crouch,
+    Jump,
+    Interact,
+    Carry,
+    Rotate
+}
 
 public static class GameSettings
 {
@@ -24,11 +39,26 @@ public static class GameSettings
     const string ResolutionHeightKey = "Settings.ResolutionHeight";
     const string QualityKey = "Settings.Quality";
     const string CameraMotionKey = "Settings.CameraMotion";
+    const string BindingKeyPrefix = "Settings.Binding.";
 
-    const float DefaultSensitivity = 0.5f;
+    const float DefaultSensitivity = 0.22f;
     const float DefaultVolume = 1f;
 
     static readonly List<ResolutionOption> resolutionOptions = new();
+    static readonly Dictionary<GameAction, Key> keyBindings = new();
+    static readonly Dictionary<GameAction, Key> defaultKeyBindings = new()
+    {
+        { GameAction.MoveForward, Key.W },
+        { GameAction.MoveBackward, Key.S },
+        { GameAction.MoveLeft, Key.A },
+        { GameAction.MoveRight, Key.D },
+        { GameAction.Sprint, Key.LeftShift },
+        { GameAction.Crouch, Key.LeftCtrl },
+        { GameAction.Jump, Key.Space },
+        { GameAction.Interact, Key.E },
+        { GameAction.Carry, Key.F },
+        { GameAction.Rotate, Key.R }
+    };
     static bool initialized;
 
     public static float MouseSensitivity { get; private set; }
@@ -58,6 +88,7 @@ public static class GameSettings
         if (initialized) return;
         initialized = true;
         BuildResolutionOptions();
+        LoadKeyBindings();
 
         MouseSensitivity = Mathf.Clamp(
             PlayerPrefs.GetFloat(SensitivityKey, DefaultSensitivity), 0.05f, 1.5f);
@@ -72,6 +103,21 @@ public static class GameSettings
         int width = PlayerPrefs.GetInt(ResolutionWidthKey, Screen.currentResolution.width);
         int height = PlayerPrefs.GetInt(ResolutionHeightKey, Screen.currentResolution.height);
         ResolutionIndex = FindResolutionIndex(width, height);
+    }
+
+    static void LoadKeyBindings()
+    {
+        keyBindings.Clear();
+        foreach (var pair in defaultKeyBindings)
+        {
+            string stored = PlayerPrefs.GetString(
+                BindingKeyPrefix + pair.Key,
+                pair.Value.ToString());
+            keyBindings[pair.Key] = System.Enum.TryParse(stored, out Key key) &&
+                                    key != Key.None
+                ? key
+                : pair.Value;
+        }
     }
 
     static void BuildResolutionOptions()
@@ -216,6 +262,93 @@ public static class GameSettings
         PlayerPrefs.Save();
     }
 
+    public static Key GetKeyBinding(GameAction action)
+    {
+        EnsureInitialized();
+        return keyBindings.TryGetValue(action, out Key key)
+            ? key
+            : defaultKeyBindings[action];
+    }
+
+    public static string GetKeyLabel(GameAction action)
+    {
+        return FormatKey(GetKeyBinding(action));
+    }
+
+    public static bool IsPressed(GameAction action)
+    {
+        Keyboard keyboard = Keyboard.current;
+        return keyboard != null && keyboard[GetKeyBinding(action)].isPressed;
+    }
+
+    public static bool WasPressedThisFrame(GameAction action)
+    {
+        Keyboard keyboard = Keyboard.current;
+        return keyboard != null && keyboard[GetKeyBinding(action)].wasPressedThisFrame;
+    }
+
+    public static void SetKeyBinding(GameAction action, Key key)
+    {
+        EnsureInitialized();
+        if (key == Key.None || key == Key.Escape) return;
+
+        GameAction? conflictingAction = null;
+        foreach (var pair in keyBindings)
+        {
+            if (pair.Key != action && pair.Value == key)
+            {
+                conflictingAction = pair.Key;
+                break;
+            }
+        }
+
+        Key previous = GetKeyBinding(action);
+        keyBindings[action] = key;
+        if (conflictingAction.HasValue)
+        {
+            keyBindings[conflictingAction.Value] = previous;
+            PlayerPrefs.SetString(
+                BindingKeyPrefix + conflictingAction.Value,
+                previous.ToString());
+        }
+
+        PlayerPrefs.SetString(BindingKeyPrefix + action, key.ToString());
+        PlayerPrefs.Save();
+    }
+
+    public static string GetActionLabel(GameAction action)
+    {
+        return action switch
+        {
+            GameAction.MoveForward => "前進",
+            GameAction.MoveBackward => "後退",
+            GameAction.MoveLeft => "左移動",
+            GameAction.MoveRight => "右移動",
+            GameAction.Sprint => "ダッシュ",
+            GameAction.Crouch => "しゃがむ",
+            GameAction.Jump => "ジャンプ",
+            GameAction.Interact => "使う",
+            GameAction.Carry => "持つ・離す",
+            GameAction.Rotate => "回転・スタンド",
+            _ => action.ToString()
+        };
+    }
+
+    static string FormatKey(Key key)
+    {
+        return key switch
+        {
+            Key.LeftCtrl => "L CTRL",
+            Key.RightCtrl => "R CTRL",
+            Key.LeftShift => "L SHIFT",
+            Key.RightShift => "R SHIFT",
+            Key.Space => "SPACE",
+            Key.Enter => "ENTER",
+            Key.Backspace => "BACKSPACE",
+            _ => key.ToString().ToUpperInvariant()
+        };
+    }
+
     public static void ResetDefaults()
     {
         EnsureInitialized();
@@ -225,5 +358,12 @@ public static class GameSettings
         SetResolutionIndex(resolutionOptions.Count - 1);
         SetQualityLevel(Mathf.Max(0, QualitySettings.names.Length - 1));
         SetCameraMotion(true);
+
+        foreach (var pair in defaultKeyBindings)
+        {
+            keyBindings[pair.Key] = pair.Value;
+            PlayerPrefs.SetString(BindingKeyPrefix + pair.Key, pair.Value.ToString());
+        }
+        PlayerPrefs.Save();
     }
 }

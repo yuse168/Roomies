@@ -19,7 +19,7 @@ public class PlayerMovement : NetworkBehaviour
     public float carrySlowAmount = 0.15f;
 
     [Header("視点設定")]
-    public float mouseSensitivity = 0.03f;
+    public float mouseSensitivity = 0.22f;
 
     [Header("ジャンプ設定")]
     public float jumpHeight = 1.5f;
@@ -113,7 +113,7 @@ public class PlayerMovement : NetworkBehaviour
     {
         if (!IsOwner || controller == null) return;
 
-        if (EscMenuUI.IsOpen)
+        if (EscMenuUI.IsOpen || CharacterCloset.IsOpen)
         {
             moveInput = Vector2.zero;
             lookInput = Vector2.zero;
@@ -152,24 +152,21 @@ public class PlayerMovement : NetworkBehaviour
 
         moveInput = Vector2.zero;
 
-        if (keyboard.wKey.isPressed) moveInput.y += 1f;
-        if (keyboard.sKey.isPressed) moveInput.y -= 1f;
-        if (keyboard.aKey.isPressed) moveInput.x -= 1f;
-        if (keyboard.dKey.isPressed) moveInput.x += 1f;
+        if (GameSettings.IsPressed(GameAction.MoveForward)) moveInput.y += 1f;
+        if (GameSettings.IsPressed(GameAction.MoveBackward)) moveInput.y -= 1f;
+        if (GameSettings.IsPressed(GameAction.MoveLeft)) moveInput.x -= 1f;
+        if (GameSettings.IsPressed(GameAction.MoveRight)) moveInput.x += 1f;
         moveInput = Vector2.ClampMagnitude(moveInput, 1f);
 
         lookInput = mouse.delta.ReadValue();
 
-        if (keyboard.spaceKey.wasPressedThisFrame)
+        if (GameSettings.WasPressedThisFrame(GameAction.Jump))
         {
             lastJumpPressedTime = Time.time;
         }
 
-        if (keyboard.ctrlKey.wasPressedThisFrame)
-        {
-            isCrouching = !isCrouching;
-        }
-
+        // しゃがみはトグルではなく、キーを押している間だけ維持する。
+        isCrouching = GameSettings.IsPressed(GameAction.Crouch);
     }
 
     void Move()
@@ -182,7 +179,7 @@ public class PlayerMovement : NetworkBehaviour
             if (!wasGrounded && verticalVelocity < -4f)
             {
                 float landingStrength = Mathf.InverseLerp(4f, 18f, -verticalVelocity);
-                landingDip = Mathf.Max(landingDip, landingDipAmount * landingStrength);
+                landingDip = Mathf.Max(landingDip, landingDipAmount * landingStrength * 0.8f);
             }
 
             if (verticalVelocity < 0f)
@@ -192,7 +189,7 @@ public class PlayerMovement : NetworkBehaviour
         }
 
         isSprinting = Keyboard.current != null
-            && Keyboard.current.leftShiftKey.isPressed
+            && GameSettings.IsPressed(GameAction.Sprint)
             && !isCrouching
             && moveInput.y > 0.1f;
 
@@ -286,7 +283,8 @@ public class PlayerMovement : NetworkBehaviour
         if (enableCameraMotion && movingOnGround)
         {
             float frequency = isSprinting ? sprintBobFrequency : walkBobFrequency;
-            float amount = isSprinting ? sprintBobAmount : walkBobAmount;
+            const float motionScale = 0.72f;
+            float amount = (isSprinting ? sprintBobAmount : walkBobAmount) * motionScale;
             bobTimer += Time.deltaTime * frequency;
             bobY = Mathf.Sin(bobTimer) * amount;
             bobX = Mathf.Cos(bobTimer * 0.5f) * amount * 0.45f;
@@ -309,7 +307,7 @@ public class PlayerMovement : NetworkBehaviour
 
         float localStrafeSpeed = transform.InverseTransformDirection(horizontalVelocity).x;
         float tilt = enableCameraMotion
-            ? -Mathf.Clamp(localStrafeSpeed / Mathf.Max(walkSpeed, 0.01f), -1f, 1f) * strafeTilt
+            ? -Mathf.Clamp(localStrafeSpeed / Mathf.Max(walkSpeed, 0.01f), -1f, 1f) * strafeTilt * 0.72f
             : 0f;
         cameraTransform.localRotation = Quaternion.Euler(xRotation + bobPitch, 0f, tilt);
 

@@ -50,6 +50,24 @@ public class SteamManager : MonoBehaviour {
 		}
 	}
 
+	public static void ShutdownAndQuit() {
+		if (s_instance != null && s_instance.m_bInitialized) {
+			try {
+				SteamAPI.Shutdown();
+			}
+			catch (System.Exception e) {
+				Debug.LogWarning($"[Steamworks.NET] Shutdown failed: {e.Message}");
+			}
+			s_instance.m_bInitialized = false;
+		}
+
+#if UNITY_EDITOR
+		UnityEditor.EditorApplication.isPlaying = false;
+#else
+		Application.Quit(0);
+#endif
+	}
+
 	protected SteamAPIWarningMessageHook_t m_SteamAPIWarningMessageHook;
 
 	[AOT.MonoPInvokeCallback(typeof(SteamAPIWarningMessageHook_t))]
@@ -196,6 +214,13 @@ public class SteamManager : MonoBehaviour {
 		get {
 			return "このプラットフォームではSteamworksを利用できません";
 		}
+	}
+	public static void ShutdownAndQuit() {
+#if UNITY_EDITOR
+		UnityEditor.EditorApplication.isPlaying = false;
+#else
+		Application.Quit(0);
+#endif
 	}
 #endif // !DISABLESTEAMWORKS
 }

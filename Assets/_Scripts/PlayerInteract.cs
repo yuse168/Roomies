@@ -14,7 +14,7 @@ public class PlayerInteract : NetworkBehaviour
 
     [Header("持つ設定")]
     public float holdDistance = 2f;
-    public float holdRightOffset = 0.6f;
+    public float holdRightOffset = 0f;
     public float holdDownOffset = 0.4f;
     public float holdRadius = 0.35f;
     public float wallOffset = 0.25f;
@@ -91,7 +91,7 @@ public class PlayerInteract : NetworkBehaviour
     {
         if (!IsOwner) return;
 
-        if (EscMenuUI.IsOpen)
+        if (EscMenuUI.IsOpen || CharacterCloset.IsOpen)
         {
             SetInteractVisible(false);
             return;
@@ -120,12 +120,12 @@ public class PlayerInteract : NetworkBehaviour
             UpdateHeldFurniturePosition();
         }
 
-        if (keyboard.eKey.wasPressedThisFrame)
+        if (GameSettings.WasPressedThisFrame(GameAction.Interact))
         {
             TryUse();
         }
 
-        if (keyboard.rKey.wasPressedThisFrame)
+        if (GameSettings.WasPressedThisFrame(GameAction.Rotate))
         {
             if (heldFurniture != null)
                 furnitureYawOffset = Mathf.Repeat(furnitureYawOffset + 45f, 360f);
@@ -133,7 +133,7 @@ public class PlayerInteract : NetworkBehaviour
                 TryStandBlackjack();
         }
 
-        if (keyboard.fKey.wasPressedThisFrame)
+        if (GameSettings.WasPressedThisFrame(GameAction.Carry))
         {
             if (heldFurniture != null)
             {
@@ -159,11 +159,11 @@ public class PlayerInteract : NetworkBehaviour
         // 持ち中
         if (heldObject != null)
         {
-            label = Key("F") + " 離す";
+            label = Key(GameAction.Carry) + " 離す";
         }
         else if (heldFurniture != null)
         {
-            label = Key("F") + " 設置   " + Key("R") + " 45°回転";
+            label = Key(GameAction.Carry) + " 設置   " + Key(GameAction.Rotate) + " 45°回転";
         }
         else if (cameraTransform != null)
         {
@@ -173,41 +173,46 @@ public class PlayerInteract : NetworkBehaviour
             {
                 // 持てる物
                 SmugglingInteractable smuggling = hit.collider.GetComponentInParent<SmugglingInteractable>();
-                if (smuggling != null && smuggling.CanInteract(smugglingPlayer))
+                CharacterCloset closet = hit.collider.GetComponentInParent<CharacterCloset>();
+                if (closet != null && closet.CanInteract(GetComponent<PlayerNameDisplay>()))
                 {
-                    label = Key("E") + " " + smuggling.GetInteractionLabel(smugglingPlayer);
+                    label = Key(GameAction.Interact) + " クローゼットを開く";
+                }
+                else if (smuggling != null && smuggling.CanInteract(smugglingPlayer))
+                {
+                    label = Key(GameAction.Interact) + " " + smuggling.GetInteractionLabel(smugglingPlayer);
                 }
                 // 持てる物
                 else if (hit.collider.GetComponentInParent<CarryableObject>() != null)
                 {
-                    label = Key("F") + " 持つ";
+                    label = Key(GameAction.Carry) + " 持つ";
                 }
                 // 家具
                 else if (hit.collider.GetComponentInParent<NetworkFurniture>() is NetworkFurniture furniture)
                 {
                     label = furniture.IsHeld
                         ? "ほかの人が移動中"
-                        : Key("F") + " " + furniture.DisplayName + "を持つ";
+                        : Key(GameAction.Carry) + " " + furniture.DisplayName + "を持つ";
                 }
                 // ドア
                 else if (hit.collider.GetComponentInParent<DoorInteract>() != null)
                 {
-                    label = Key("E") + " 使用";
+                    label = Key(GameAction.Interact) + " 使用";
                 }
                 // 納品ボタン
                 else if (hit.collider.GetComponentInParent<DeliveryButton>() != null)
                 {
-                    label = Key("E") + " 納品";
+                    label = Key(GameAction.Interact) + " 納品";
                 }
                 // スロット
                 else if (hit.collider.GetComponentInParent<SlotMachine>() is SlotMachine slot)
                 {
-                    label = Key("E") + " SPIN   " + Key("WHEEL") + " BET " + slot.CurrentBetLabel;
+                    label = Key(GameAction.Interact) + " SPIN   <color=#FFA31F>WHEEL</color> BET " + slot.CurrentBetLabel;
                 }
                 // ブラックジャック
                 else if (hit.collider.GetComponentInParent<BlackjackTable>() is BlackjackTable blackjack)
                 {
-                    label = Key("E") + " " + blackjack.GetInteractionLabel(OwnerClientId);
+                    label = Key(GameAction.Interact) + " " + blackjack.GetInteractionLabel(OwnerClientId);
                 }
             }
         }
@@ -247,9 +252,9 @@ public class PlayerInteract : NetworkBehaviour
     }
 
     // キー表記をアクセント色で強調する（例：F 持つ → Fがオレンジ）
-    private static string Key(string key)
+    private static string Key(GameAction action)
     {
-        return $"<color=#FFA31F>{key}</color>";
+        return $"<color=#FFA31F>{GameSettings.GetKeyLabel(action)}</color>";
     }
 
     private void UpdateSlotBetInput()
@@ -296,6 +301,13 @@ public class PlayerInteract : NetworkBehaviour
 
         if (Physics.Raycast(ray, out RaycastHit hit, interactDistance))
         {
+            CharacterCloset closet = hit.collider.GetComponentInParent<CharacterCloset>();
+            if (closet != null)
+            {
+                closet.Open(GetComponent<PlayerNameDisplay>());
+                return;
+            }
+
             SmugglingInteractable smuggling = hit.collider.GetComponentInParent<SmugglingInteractable>();
             if (smuggling != null && smuggling.CanInteract(smugglingPlayer))
             {

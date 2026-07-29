@@ -17,7 +17,7 @@ public class DayManager : NetworkBehaviour
     [SerializeField] private int rentAmount = 500;
 
     [Header("ターン時間")]
-    [SerializeField] private float turnDuration = 300f;
+    [SerializeField] private float turnDuration = 180f;
 
     [Header("UI")]
     [SerializeField] private TextMeshProUGUI dayText;
@@ -63,16 +63,28 @@ public class DayManager : NetworkBehaviour
     public static event System.Action OnNightArrived;
 
     // 夜イベント等による次回家賃への上乗せ額（サーバーのみ管理）
-    private int rentSurcharge = 0;
+    private readonly NetworkVariable<int> rentSurcharge = new(
+        0,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server);
 
     /// <summary>次回の家賃徴収額（基本額＋上乗せ）。</summary>
-    public int CurrentRentTotal => rentAmount + rentSurcharge;
+    public int CurrentRentTotal => rentAmount + rentSurcharge.Value;
+    public int DaysUntilRent
+    {
+        get
+        {
+            int interval = Mathf.Max(1, maxDay);
+            int day = Mathf.Max(1, DebugDay);
+            return interval - ((day - 1) % interval);
+        }
+    }
 
     /// <summary>夜イベントなどから次回家賃に上乗せする（サーバーのみ）。</summary>
     public void ServerAddRentSurcharge(int amount)
     {
         if (!IsServer || amount <= 0) return;
-        rentSurcharge += amount;
+        rentSurcharge.Value += amount;
     }
 
     private NetworkVariable<int> currentDay = new NetworkVariable<int>(
@@ -96,13 +108,15 @@ public class DayManager : NetworkBehaviour
     );
 
     private NetworkVariable<float> remainingTime = new NetworkVariable<float>(
-        300f,
+        180f,
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server
     );
 
     private void Awake()
     {
+        // 朝・夜はどちらも3分固定。Inspectorの古い値が残っていても新仕様を優先する。
+        turnDuration = 180f;
         // DayManagerはNetworkObjectと同じGameObjectに1つだけ置く。
         // UIへ誤って追加されたコンポーネントが昼夜状態を上書きしないよう防止する。
         if (GetComponent<NetworkObject>() == null)
@@ -237,17 +251,10 @@ public class DayManager : NetworkBehaviour
         }
 
         // 夜 → 新しい日の朝。次の日番号を決めてから演出付きで切り替える。
-        int nextDay;
-        bool collectRent = false;
-        if (currentDay.Value < maxDay)
-        {
-            nextDay = currentDay.Value + 1;
-        }
-        else
-        {
-            nextDay = 1;
-            collectRent = true;
-        }
+        // 日数はリセットせず、DAY 4、DAY 5…と増え続ける。
+        // 家賃だけを指定日数ごと（初期値は3日）に徴収する。
+        int nextDay = currentDay.Value + 1;
+        bool collectRent = currentDay.Value % Mathf.Max(1, maxDay) == 0;
 
         StartCoroutine(NightEndRoutine(nextDay, collectRent));
     }
@@ -270,7 +277,7 @@ public class DayManager : NetworkBehaviour
         // ---- 2) 3日目だけ、全員へ家賃支払いフェーズを表示 ----
         if (collectRent)
         {
-            int total = rentAmount + rentSurcharge;
+            int total = rentAmount + rentSurcharge.Value;
             SharedMoneyManager money = SharedMoneyManager.Instance;
             int balance = money != null
                 ? money.CurrentMoney
@@ -283,7 +290,7 @@ public class DayManager : NetworkBehaviour
 
             if (canPay)
             {
-                rentSurcharge = 0;
+                rentSurcharge.Value = 0;
                 Debug.Log($"家賃支払い成功（¥{total}）");
             }
             else

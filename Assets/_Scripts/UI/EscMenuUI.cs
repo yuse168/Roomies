@@ -1,9 +1,11 @@
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.Controls;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -31,9 +33,11 @@ public sealed class EscMenuUI : MonoBehaviour
     RectTransform card;
     CanvasGroup mainGroup;
     CanvasGroup settingsGroup;
+    CanvasGroup keybindGroup;
     CanvasGroup confirmGroup;
     Button resumeButton;
     Button settingsBackButton;
+    Button keybindBackButton;
     Button confirmCancelButton;
     TMP_Text sensitivityValue;
     TMP_Text volumeValue;
@@ -48,6 +52,8 @@ public sealed class EscMenuUI : MonoBehaviour
     ConfirmAction pendingAction;
     bool isLeavingScene;
     Coroutine animationCoroutine;
+    readonly Dictionary<GameAction, TMP_Text> keybindValues = new();
+    GameAction? waitingForBinding;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     static void RegisterSceneHook()
@@ -78,7 +84,29 @@ public sealed class EscMenuUI : MonoBehaviour
     void Update()
     {
         Keyboard keyboard = Keyboard.current;
-        if (keyboard == null || isLeavingScene || !keyboard.escapeKey.wasPressedThisFrame) return;
+        if (keyboard == null || isLeavingScene) return;
+
+        if (waitingForBinding.HasValue)
+        {
+            if (keyboard.escapeKey.wasPressedThisFrame)
+            {
+                waitingForBinding = null;
+                RefreshKeyBindings();
+                return;
+            }
+
+            foreach (KeyControl keyControl in keyboard.allKeys)
+            {
+                if (!keyControl.wasPressedThisFrame) continue;
+                GameSettings.SetKeyBinding(waitingForBinding.Value, keyControl.keyCode);
+                waitingForBinding = null;
+                RefreshKeyBindings();
+                return;
+            }
+            return;
+        }
+
+        if (!keyboard.escapeKey.wasPressedThisFrame) return;
 
         if (!IsOpen)
         {
@@ -87,6 +115,10 @@ public sealed class EscMenuUI : MonoBehaviour
         else if (pendingAction != ConfirmAction.None)
         {
             HideConfirmation();
+        }
+        else if (keybindGroup.interactable)
+        {
+            OpenSettings();
         }
         else if (settingsGroup.interactable)
         {
@@ -126,6 +158,7 @@ public sealed class EscMenuUI : MonoBehaviour
         RefreshSettings();
         SetVisible(mainGroup, false);
         SetVisible(settingsGroup, true);
+        SetVisible(keybindGroup, false);
         SetVisible(confirmGroup, false);
         pendingAction = ConfirmAction.None;
         Select(settingsBackButton);
@@ -162,6 +195,9 @@ public sealed class EscMenuUI : MonoBehaviour
 
         settingsGroup = CreateGroup(card, "Settings");
         BuildSettingsPanel(settingsGroup.transform);
+
+        keybindGroup = CreateGroup(card, "KeyBindings");
+        BuildKeybindPanel(keybindGroup.transform);
 
         confirmGroup = CreateGroup(card, "Confirmation");
         BuildConfirmation(confirmGroup.transform);
@@ -283,7 +319,81 @@ public sealed class EscMenuUI : MonoBehaviour
             UITheme.Purple, 490f, 330f, 64f, 24f);
         settingsBackButton.onClick.AddListener(ShowMain);
 
+        SetBox(resetButton.GetComponent<RectTransform>(), 80f, 695f, 330f, 56f);
+        SetBox(settingsBackButton.GetComponent<RectTransform>(), 490f, 695f, 330f, 56f);
+
+        Button keybindButton = CreateButton(
+            parent, "KeybindButton", "キー設定", 625f,
+            UITheme.DarkButton, 285f, 330f, 52f, 22f);
+        keybindButton.onClick.AddListener(OpenKeyBindings);
+
         RefreshSettings();
+    }
+
+    void BuildKeybindPanel(Transform parent)
+    {
+        TMP_Text heading = UITheme.Label(
+            parent, "Heading", "キー設定", 30f, Color.white,
+            TextAlignmentOptions.Center, true);
+        SetBox(heading.rectTransform, 40f, 98f, 740f, 48f);
+
+        keybindValues.Clear();
+        GameAction[] actions = (GameAction[])System.Enum.GetValues(typeof(GameAction));
+        for (int i = 0; i < actions.Length; i++)
+        {
+            GameAction action = actions[i];
+            int column = i / 5;
+            int row = i % 5;
+            float left = column == 0 ? 42f : 412f;
+            float top = 170f + row * 88f;
+
+            TMP_Text label = UITheme.Label(
+                parent, action + "Label", GameSettings.GetActionLabel(action),
+                20f, UITheme.TextSub, TextAlignmentOptions.Left, true);
+            SetBox(label.rectTransform, left, top, 180f, 54f);
+
+            Button button = CreateButton(
+                parent, action + "Button", GameSettings.GetKeyLabel(action),
+                top, UITheme.DarkButton, left + 185f, 135f, 54f, 20f);
+            GameAction capturedAction = action;
+            button.onClick.AddListener(() => BeginKeyCapture(capturedAction));
+            keybindValues[action] = button.GetComponentInChildren<TMP_Text>();
+        }
+
+        TMP_Text hint = UITheme.Label(
+            parent, "Hint", "変更する項目を押して、新しいキーを入力",
+            18f, UITheme.TextSub, TextAlignmentOptions.Center);
+        SetBox(hint.rectTransform, 70f, 628f, 680f, 34f);
+
+        keybindBackButton = CreateButton(
+            parent, "BackButton", "設定へ戻る", 690f,
+            UITheme.Purple, 245f, 330f, 58f, 24f);
+        keybindBackButton.onClick.AddListener(OpenSettings);
+        RefreshKeyBindings();
+    }
+
+    void OpenKeyBindings()
+    {
+        waitingForBinding = null;
+        RefreshKeyBindings();
+        SetVisible(mainGroup, false);
+        SetVisible(settingsGroup, false);
+        SetVisible(keybindGroup, true);
+        SetVisible(confirmGroup, false);
+        Select(keybindBackButton);
+    }
+
+    void BeginKeyCapture(GameAction action)
+    {
+        waitingForBinding = action;
+        if (keybindValues.TryGetValue(action, out TMP_Text value))
+            value.text = "キーを入力…";
+    }
+
+    void RefreshKeyBindings()
+    {
+        foreach (var pair in keybindValues)
+            pair.Value.text = GameSettings.GetKeyLabel(pair.Key);
     }
 
     void BuildConfirmation(Transform parent)
@@ -345,6 +455,7 @@ public sealed class EscMenuUI : MonoBehaviour
         pendingAction = ConfirmAction.None;
         SetVisible(mainGroup, true);
         SetVisible(settingsGroup, false);
+        SetVisible(keybindGroup, false);
         SetVisible(confirmGroup, false);
         Select(resumeButton);
     }
@@ -435,7 +546,11 @@ public sealed class EscMenuUI : MonoBehaviour
     {
         if (isLeavingScene) return;
         isLeavingScene = true;
+        StartCoroutine(ReturnToMainMenuRoutine());
+    }
 
+    IEnumerator ReturnToMainMenuRoutine()
+    {
         if (SteamLobby.Instance != null)
             SteamLobby.Instance.LeaveLobby();
         else if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
@@ -444,6 +559,8 @@ public sealed class EscMenuUI : MonoBehaviour
         IsOpen = false;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+        yield return null;
+        yield return null;
         SceneManager.LoadScene(MenuSceneName);
     }
 
@@ -458,7 +575,7 @@ public sealed class EscMenuUI : MonoBehaviour
             NetworkManager.Singleton.Shutdown();
 
         IsOpen = false;
-        Application.Quit();
+        SteamManager.ShutdownAndQuit();
     }
 
     static void EnsureEventSystem()
