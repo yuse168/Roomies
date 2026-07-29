@@ -3,120 +3,186 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// メインメニュー＆ロビー画面（MainMenuSteamシーン）の着せ替え。
-/// シーン編集はせず、既存のUIオブジェクトを名前で見つけてランタイムでレストアする。
-/// UIThemeBootstrapが自動生成する。
-///
-/// 対象（MainMenuSteamシーンのオブジェクト名）:
-///  BG / Title / Subtitle / HostButton / JoinButton / QuitButton / StatusText
-///  JoinPanel / Card / CodeLabel / CodeInputField / ConfirmJoinButton / CancelButton
-///  LobbyPanel / CodeBox / PartyCodeText / CopyButton / CopyFeedbackText
-///  PlayersLabel / StartButton / LeaveButton / InviteButton / WaitingText / ErrorText
+/// メインメニューとロビーを、情報量を絞った製品ゲーム風のトーンへ統一する。
+/// シーンの機能は変えず、既存UIをランタイムで再配置・着せ替えする。
 /// </summary>
 public class MenuThemer : MonoBehaviour
 {
-    private TMP_Text waitingText;
-    private float pulseTime;
+    TMP_Text waitingText;
+    float pulseTime;
 
-    private void Awake()
+    void Awake()
     {
         ApplyBackground();
-        ApplyTitle();
+        BuildMainMenuComposition();
         ApplyMainButtons();
         ApplyJoinPanel();
         ApplyLobbyPanel();
         ApplyStatusTexts();
     }
 
-    // ================================================================
-    // 背景・タイトル
-    // ================================================================
-
-    private void ApplyBackground()
+    void ApplyBackground()
     {
-        // 夜の街っぽい紺グラデーション
-        var bg = UITheme.FindDeep("BG");
-        if (bg != null && bg.TryGetComponent(out Image bgImg))
+        foreach (var bg in UITheme.FindAllDeep("BG"))
         {
-            bgImg.sprite = UITheme.VerticalGradient(
-                new Color(0.13f, 0.16f, 0.28f),   // 上：宵の紺
-                new Color(0.04f, 0.05f, 0.10f));  // 下：夜の底
-            bgImg.color = Color.white;
+            if (!bg.TryGetComponent(out Image image)) continue;
+            image.sprite = UITheme.VerticalGradient(UITheme.WarmTop, UITheme.WarmBottom);
+            image.color = Color.white;
+            image.raycastTarget = false;
         }
 
-        // ロビーパネルがフルスクリーン背景を持つ場合も同じトーンに
         var lobbyPanel = UITheme.FindDeep("LobbyPanel");
-        if (lobbyPanel != null && lobbyPanel.TryGetComponent(out Image lobbyBg))
+        if (lobbyPanel != null && lobbyPanel.TryGetComponent(out Image lobbyBackground))
         {
-            lobbyBg.sprite = UITheme.VerticalGradient(
-                new Color(0.13f, 0.16f, 0.28f),
-                new Color(0.04f, 0.05f, 0.10f));
-            lobbyBg.color = Color.white;
+            lobbyBackground.sprite = UITheme.VerticalGradient(
+                new Color(0.055f, 0.062f, 0.075f),
+                UITheme.WarmBottom);
+            lobbyBackground.color = Color.white;
         }
     }
 
-    private void ApplyTitle()
+    void BuildMainMenuComposition()
     {
-        var title = UITheme.FindDeep("Title");
+        var mainPanel = UITheme.FindDeep("MainMenuPanel");
+        if (mainPanel == null) return;
+
+        RectTransform root = mainPanel.GetComponent<RectTransform>();
+        BuildRoomBackdrop(root);
+
+        var card = FindIn(root, "Card");
+        if (card != null && card.TryGetComponent(out Image cardImage))
+        {
+            SetCenter(card.GetComponent<RectTransform>(), new Vector2(590f, -12f), new Vector2(520f, 590f));
+            cardImage.sprite = UITheme.RoundedSprite;
+            cardImage.type = Image.Type.Sliced;
+            cardImage.color = new Color(0.025f, 0.029f, 0.036f, 0.965f);
+            UITheme.AddShadow(card);
+            UITheme.AddBorder(card, new Color(1f, 1f, 1f, 0.08f));
+        }
+
+        var title = FindIn(root, "Title");
         if (title != null && title.TryGetComponent(out TMP_Text titleText))
         {
+            titleText.text = "3日後の<color=#F6C52E>家賃</color>、払える？";
             titleText.fontStyle = FontStyles.Bold;
+            titleText.fontSize = 72f;
+            titleText.enableAutoSizing = true;
+            titleText.fontSizeMin = 46f;
+            titleText.fontSizeMax = 72f;
+            titleText.alignment = TextAlignmentOptions.Left;
             titleText.color = UITheme.TextMain;
-            titleText.characterSpacing = 8f;
-            UITheme.AddTextOutline(titleText, 0.12f);
+            titleText.characterSpacing = -1f;
+            titleText.textWrappingMode = TextWrappingModes.NoWrap;
+            SetTopLeft(titleText.rectTransform, new Vector2(84f, -130f), new Vector2(1030f, 116f));
         }
 
-        var subtitle = UITheme.FindDeep("Subtitle");
-        if (subtitle != null && subtitle.TryGetComponent(out TMP_Text subText))
+        var subtitle = FindIn(root, "Subtitle");
+        if (subtitle != null && subtitle.TryGetComponent(out TMP_Text subtitleText))
         {
-            subText.color = UITheme.TextSub;
+            subtitleText.text = "ルームシェア × 借金 × 3日間の共同生活";
+            subtitleText.fontStyle = FontStyles.Normal;
+            subtitleText.fontSize = 24f;
+            subtitleText.color = UITheme.TextSub;
+            subtitleText.alignment = TextAlignmentOptions.Left;
+            SetTopLeft(subtitleText.rectTransform, new Vector2(88f, -250f), new Vector2(740f, 46f));
+
+            var tag = EnsureImage(root, "SubtitleTag", UITheme.Accent);
+            SetTopLeft(tag.rectTransform, new Vector2(84f, -244f), new Vector2(3f, 34f));
+            tag.transform.SetSiblingIndex(Mathf.Max(1, subtitle.transform.GetSiblingIndex()));
+            tag.raycastTarget = false;
         }
+
+        var brand = EnsureLabel(root, "BrandLabel", "ROOMIES", 25f, UITheme.TextMain,
+            TextAlignmentOptions.Left, true);
+        SetTopLeft(brand.rectTransform, new Vector2(84f, -54f), new Vector2(300f, 40f));
+        brand.characterSpacing = 10f;
+
+        var cardHeader = EnsureLabel(root, "MenuCardHeader", "ゲームを始める", 30f,
+            UITheme.TextMain, TextAlignmentOptions.Left, true);
+        SetCenter(cardHeader.rectTransform, new Vector2(590f, 208f), new Vector2(420f, 58f));
+
+        var cardSub = EnsureLabel(root, "MenuCardSub", "オンラインでフレンドと遊ぶ", 19f,
+            UITheme.TextSub, TextAlignmentOptions.Left, false);
+        SetCenter(cardSub.rectTransform, new Vector2(590f, 162f), new Vector2(420f, 38f));
+
+        LayoutElement(root, "HostButton", new Vector2(590f, 70f), new Vector2(420f, 68f));
+        LayoutElement(root, "JoinButton", new Vector2(590f, -14f), new Vector2(420f, 68f));
+        LayoutElement(root, "QuitButton", new Vector2(590f, -120f), new Vector2(190f, 50f));
+        LayoutElement(root, "StatusText", new Vector2(590f, -200f), new Vector2(430f, 44f));
     }
 
-    // ================================================================
-    // メインメニューのボタン
-    // ================================================================
-
-    private void ApplyMainButtons()
+    void BuildRoomBackdrop(RectTransform root)
     {
-        StyleButtonByName("HostButton", UITheme.Accent,     Color.white, 34f);
-        StyleButtonByName("JoinButton", UITheme.Blue,       Color.white, 34f);
-        StyleButtonByName("QuitButton", UITheme.DarkButton, UITheme.TextSub, 28f);
+        if (FindIn(root, "MoodBackdrop") != null) return;
+
+        var backdrop = new GameObject("MoodBackdrop", typeof(RectTransform));
+        backdrop.transform.SetParent(root, false);
+        RectTransform backdropRect = backdrop.GetComponent<RectTransform>();
+        Stretch(backdropRect);
+        backdrop.transform.SetSiblingIndex(1);
+
+        var rail = EnsureImage(backdrop.transform, "AccentRail", UITheme.Accent);
+        SetTopLeft(rail.rectTransform, new Vector2(84f, -334f), new Vector2(4f, 250f));
+        rail.raycastTarget = false;
+
+        var objective = UITheme.Label(backdrop.transform, "Objective",
+            "働く、買う、賭ける。\n3日後までに家賃を作れ。", 30f,
+            UITheme.TextMain, TextAlignmentOptions.Left, true);
+        SetTopLeft(objective.rectTransform, new Vector2(112f, -338f), new Vector2(700f, 110f));
+        objective.lineSpacing = 7f;
+
+        var description = UITheme.Label(backdrop.transform, "Description",
+            "毎日の選択が、共同口座と部屋の未来を変える。", 21f,
+            UITheme.TextSub, TextAlignmentOptions.Left, false);
+        SetTopLeft(description.rectTransform, new Vector2(112f, -470f), new Vector2(720f, 42f));
+
+        var meta = UITheme.Label(backdrop.transform, "Meta",
+            "ONLINE CO-OP    •    1–4 PLAYERS", 17f,
+            UITheme.TextSub, TextAlignmentOptions.Left, true);
+        SetBottomLeft(meta.rectTransform, new Vector2(84f, 58f), new Vector2(620f, 34f));
+        meta.characterSpacing = 5f;
+
+        var line = EnsureImage(backdrop.transform, "BottomLine", new Color(1f, 1f, 1f, 0.10f));
+        SetBottomLeft(line.rectTransform, new Vector2(84f, 104f), new Vector2(720f, 1f));
+        line.raycastTarget = false;
     }
 
-    // ================================================================
-    // Join入力パネル
-    // ================================================================
-
-    private void ApplyJoinPanel()
+    void ApplyMainButtons()
     {
-        // モーダルの暗幕
+        StyleButtonByName("HostButton", UITheme.Accent, new Color(0.10f, 0.08f, 0.04f), 34f);
+        StyleButtonByName("JoinButton", UITheme.DarkButton, UITheme.TextMain, 32f);
+        StyleButtonByName("QuitButton", UITheme.DarkButton, UITheme.TextSub, 27f);
+    }
+
+    void ApplyJoinPanel()
+    {
         var joinPanel = UITheme.FindDeep("JoinPanel");
         if (joinPanel != null && joinPanel.TryGetComponent(out Image dim))
         {
             dim.sprite = null;
-            dim.color  = new Color(0f, 0f, 0f, 0.60f);
+            dim.color = new Color(0.008f, 0.010f, 0.014f, 0.84f);
         }
 
-        // 中央カード
-        StyleCardByName("Card");
+        var joinCard = FindIn(joinPanel != null ? joinPanel.transform : null, "Card");
+        StyleCard(joinCard);
 
-        var codeLabel = UITheme.FindDeep("CodeLabel");
-        if (codeLabel != null && codeLabel.TryGetComponent(out TMP_Text labelText))
+        var label = FindIn(joinPanel != null ? joinPanel.transform : null, "Label");
+        if (label != null && label.TryGetComponent(out TMP_Text labelText))
         {
-            labelText.color = UITheme.TextSub;
+            labelText.text = "ルームコードを入力";
+            labelText.color = UITheme.TextMain;
             labelText.fontStyle = FontStyles.Bold;
         }
 
-        // コード入力欄：大きく・太く・字間を空けて「コード感」を出す
         var inputGo = UITheme.FindDeep("CodeInputField");
         if (inputGo != null && inputGo.TryGetComponent(out TMP_InputField input))
         {
-            if (input.TryGetComponent(out Image inputBg))
+            if (input.TryGetComponent(out Image inputBackground))
             {
-                inputBg.sprite = UITheme.RoundedSprite;
-                inputBg.type   = Image.Type.Sliced;
-                inputBg.color  = new Color(0.03f, 0.04f, 0.08f, 0.95f);
+                inputBackground.sprite = UITheme.RoundedSprite;
+                inputBackground.type = Image.Type.Sliced;
+                inputBackground.color = UITheme.PanelSoft;
+                UITheme.AddBorder(inputGo);
             }
 
             if (input.textComponent != null)
@@ -129,30 +195,40 @@ public class MenuThemer : MonoBehaviour
 
             if (input.placeholder is TMP_Text placeholder)
             {
-                placeholder.color = new Color(1f, 1f, 1f, 0.22f);
+                placeholder.color = new Color(UITheme.TextSub.r, UITheme.TextSub.g, UITheme.TextSub.b, 0.55f);
                 placeholder.alignment = TextAlignmentOptions.Center;
                 placeholder.fontStyle = FontStyles.Italic;
             }
         }
 
-        StyleButtonByName("ConfirmJoinButton", UITheme.Green,      Color.white, 30f);
-        StyleButtonByName("CancelButton",      UITheme.DarkButton, UITheme.TextSub, 26f);
+        StyleButtonByName("ConfirmJoinButton", UITheme.Accent,
+            new Color(0.10f, 0.08f, 0.04f), 30f);
+        StyleButtonByName("CancelButton", UITheme.DarkButton, UITheme.TextSub, 26f);
     }
 
-    // ================================================================
-    // ロビー待機パネル
-    // ================================================================
-
-    private void ApplyLobbyPanel()
+    void ApplyLobbyPanel()
     {
-        // パーティーコードの箱：暗い角丸＋金色の大きなコード
-        var codeBox = UITheme.FindDeep("CodeBox");
-        if (codeBox != null && codeBox.TryGetComponent(out Image boxImg))
+        var lobbyPanel = UITheme.FindDeep("LobbyPanel");
+        if (lobbyPanel != null)
         {
-            boxImg.sprite = UITheme.RoundedSprite;
-            boxImg.type   = Image.Type.Sliced;
-            boxImg.color  = new Color(0.03f, 0.04f, 0.08f, 0.95f);
+            StyleCard(FindIn(lobbyPanel.transform, "Card"));
+            var title = FindIn(lobbyPanel.transform, "Title");
+            if (title != null && title.TryGetComponent(out TMP_Text titleText))
+            {
+                titleText.text = "みんなの部屋";
+                titleText.color = UITheme.TextMain;
+                titleText.fontStyle = FontStyles.Bold;
+            }
+        }
+
+        var codeBox = UITheme.FindDeep("CodeBox");
+        if (codeBox != null && codeBox.TryGetComponent(out Image boxImage))
+        {
+            boxImage.sprite = UITheme.RoundedSprite;
+            boxImage.type = Image.Type.Sliced;
+            boxImage.color = UITheme.PanelSoft;
             UITheme.AddShadow(codeBox);
+            UITheme.AddBorder(codeBox);
         }
 
         var codeText = UITheme.FindDeep("PartyCodeText");
@@ -166,14 +242,15 @@ public class MenuThemer : MonoBehaviour
         var playersLabel = UITheme.FindDeep("PlayersLabel");
         if (playersLabel != null && playersLabel.TryGetComponent(out TMP_Text players))
         {
+            players.text = "いま部屋にいるメンバー";
             players.color = UITheme.TextSub;
             players.fontStyle = FontStyles.Bold;
         }
 
-        StyleButtonByName("CopyButton",   UITheme.DarkButton, UITheme.TextMain, 24f);
-        StyleButtonByName("StartButton",  UITheme.Green,      Color.white, 34f);
-        StyleButtonByName("LeaveButton",  UITheme.Red,        Color.white, 26f);
-        StyleButtonByName("InviteButton", UITheme.Blue,       Color.white, 26f);
+        StyleButtonByName("CopyButton", UITheme.DarkButton, UITheme.TextMain, 24f);
+        StyleButtonByName("StartButton", UITheme.Accent, new Color(0.08f, 0.07f, 0.03f), 34f);
+        StyleButtonByName("LeaveButton", UITheme.DarkButton, UITheme.Red, 26f);
+        StyleButtonByName("InviteButton", UITheme.DarkButton, UITheme.TextMain, 26f);
 
         var waiting = UITheme.FindDeep("WaitingText");
         if (waiting != null && waiting.TryGetComponent(out TMP_Text waitText))
@@ -184,70 +261,147 @@ public class MenuThemer : MonoBehaviour
         }
     }
 
-    // ================================================================
-    // ステータス・フィードバック系テキスト
-    // ================================================================
-
-    private void ApplyStatusTexts()
+    void ApplyStatusTexts()
     {
-        var status = UITheme.FindDeep("StatusText");
-        if (status != null && status.TryGetComponent(out TMP_Text statusText))
-        {
-            statusText.color = UITheme.Gold;
-            statusText.fontStyle = FontStyles.Bold;
-        }
-
-        var error = UITheme.FindDeep("ErrorText");
-        if (error != null && error.TryGetComponent(out TMP_Text errorText))
-        {
-            errorText.color = UITheme.Red;
-            errorText.fontStyle = FontStyles.Bold;
-        }
-
-        var copied = UITheme.FindDeep("CopyFeedbackText");
-        if (copied != null && copied.TryGetComponent(out TMP_Text copiedText))
-        {
-            copiedText.color = UITheme.Green;
-            copiedText.fontStyle = FontStyles.Bold;
-        }
+        SetTextStyle("StatusText", UITheme.Gold);
+        SetTextStyle("ErrorText", UITheme.Red);
+        SetTextStyle("CopyFeedbackText", UITheme.Green);
     }
 
-    // ================================================================
-    // 共通
-    // ================================================================
-
-    private static void StyleButtonByName(string name, Color bg, Color fg, float maxFontSize)
+    static void SetTextStyle(string name, Color color)
     {
         var go = UITheme.FindDeep(name);
-        if (go == null) return;
-
-        var button = go.GetComponent<Button>();
-        if (button != null) UITheme.StyleButton(button, bg, fg, maxFontSize);
+        if (go == null || !go.TryGetComponent(out TMP_Text text)) return;
+        text.color = color;
+        text.fontStyle = FontStyles.Bold;
     }
 
-    private static void StyleCardByName(string name)
+    static void StyleButtonByName(string name, Color background, Color foreground, float maxFontSize)
+    {
+        var go = UITheme.FindDeep(name);
+        if (go != null && go.TryGetComponent(out Button button))
+            UITheme.StyleButton(button, background, foreground, maxFontSize);
+    }
+
+    static void StyleCardByName(string name)
     {
         foreach (var go in UITheme.FindAllDeep(name))
         {
-            if (go.TryGetComponent(out Image img))
-            {
-                img.sprite = UITheme.RoundedSprite;
-                img.type   = Image.Type.Sliced;
-                img.color  = UITheme.Panel;
-                UITheme.AddShadow(go);
-            }
+            if (!go.TryGetComponent(out Image image)) continue;
+            image.sprite = UITheme.RoundedSprite;
+            image.type = Image.Type.Sliced;
+            image.color = UITheme.Panel;
+            UITheme.AddShadow(go);
+            UITheme.AddBorder(go);
         }
     }
 
-    private void Update()
+    static void StyleCard(GameObject go)
     {
-        // 「Waiting for host...」をゆっくり明滅させて生存感を出す
-        if (waitingText != null && waitingText.gameObject.activeInHierarchy)
+        if (go == null || !go.TryGetComponent(out Image image)) return;
+        image.sprite = UITheme.RoundedSprite;
+        image.type = Image.Type.Sliced;
+        image.color = UITheme.Panel;
+        UITheme.AddShadow(go);
+        UITheme.AddBorder(go);
+    }
+
+    static void LayoutElement(Transform root, string name, Vector2 position, Vector2 size)
+    {
+        var go = FindIn(root, name);
+        if (go != null)
+            SetCenter(go.GetComponent<RectTransform>(), position, size);
+    }
+
+    static GameObject FindIn(Transform root, string name)
+    {
+        if (root == null) return null;
+        if (root.name == name) return root.gameObject;
+        for (int i = 0; i < root.childCount; i++)
         {
-            pulseTime += Time.deltaTime;
-            var c = waitingText.color;
-            c.a = 0.55f + 0.45f * Mathf.PingPong(pulseTime * 0.9f, 1f);
-            waitingText.color = c;
+            var found = FindIn(root.GetChild(i), name);
+            if (found != null) return found;
         }
+        return null;
+    }
+
+    static Image EnsureImage(Transform parent, string name, Color color)
+    {
+        var existing = FindIn(parent, name);
+        Image image;
+        if (existing != null)
+        {
+            image = existing.GetComponent<Image>();
+            if (image == null) image = existing.AddComponent<Image>();
+        }
+        else
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            image = go.AddComponent<Image>();
+        }
+
+        image.sprite = UITheme.RoundedSprite;
+        image.type = Image.Type.Sliced;
+        image.color = color;
+        return image;
+    }
+
+    static TMP_Text EnsureLabel(
+        Transform parent, string name, string value, float size,
+        Color color, TextAlignmentOptions alignment, bool bold)
+    {
+        var existing = FindIn(parent, name);
+        TMP_Text label = existing != null ? existing.GetComponent<TMP_Text>() : null;
+        if (label == null)
+            label = UITheme.Label(parent, name, value, size, color, alignment, bold);
+
+        label.text = value;
+        label.fontSize = size;
+        label.color = color;
+        label.alignment = alignment;
+        label.fontStyle = bold ? FontStyles.Bold : FontStyles.Normal;
+        label.raycastTarget = false;
+        return label;
+    }
+
+    static void SetCenter(RectTransform rect, Vector2 position, Vector2 size)
+    {
+        if (rect == null) return;
+        rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = position;
+        rect.sizeDelta = size;
+        rect.localScale = Vector3.one;
+    }
+
+    static void SetTopLeft(RectTransform rect, Vector2 position, Vector2 size)
+    {
+        rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0f, 1f);
+        rect.anchoredPosition = position;
+        rect.sizeDelta = size;
+    }
+
+    static void SetBottomLeft(RectTransform rect, Vector2 position, Vector2 size)
+    {
+        rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0f, 0f);
+        rect.anchoredPosition = position;
+        rect.sizeDelta = size;
+    }
+
+    static void Stretch(RectTransform rect, float inset = 0f)
+    {
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = new Vector2(inset, inset);
+        rect.offsetMax = new Vector2(-inset, -inset);
+    }
+
+    void Update()
+    {
+        if (waitingText == null || !waitingText.gameObject.activeInHierarchy) return;
+        pulseTime += Time.deltaTime;
+        var color = waitingText.color;
+        color.a = 0.55f + 0.45f * Mathf.PingPong(pulseTime * 0.9f, 1f);
+        waitingText.color = color;
     }
 }

@@ -21,7 +21,8 @@ public class NetworkDebugOverlay : MonoBehaviour
     private const int WindowId = 240731;
 
     private Rect windowRect = new Rect(0f, WindowMargin, WindowWidth, WindowHeight);
-    private bool visible = true;
+    // 本番の見た目を邪魔しないよう通常は非表示。必要な時だけF1で開く。
+    private bool visible = false;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void Create()

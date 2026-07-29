@@ -51,7 +51,7 @@ public class DayTransitionUI : MonoBehaviour
         bgGo.transform.SetParent(canvasGo.transform, false);
         StretchFull(bgGo.GetComponent<RectTransform>());
         var bg = bgGo.AddComponent<Image>();
-        bg.color = new Color(0.02f, 0.02f, 0.05f, 1f);
+        bg.color = UITheme.WarmBottom;
 
         // 「○日目」テキスト
         var dayGo = new GameObject("DayLabel", typeof(RectTransform));
@@ -65,7 +65,7 @@ public class DayTransitionUI : MonoBehaviour
         dayLabel.text = "";
         dayLabel.fontSize = 120f;
         dayLabel.fontStyle = FontStyles.Bold;
-        dayLabel.color = new Color(1f, 0.62f, 0.12f); // アクセントオレンジ
+        dayLabel.color = UITheme.Accent;
         dayLabel.alignment = TextAlignmentOptions.Center;
 
         // サブテキスト（朝です）
@@ -79,7 +79,7 @@ public class DayTransitionUI : MonoBehaviour
         subLabel = subGo.AddComponent<TextMeshProUGUI>();
         subLabel.text = "あさ になりました";
         subLabel.fontSize = 44f;
-        subLabel.color = new Color(0.92f, 0.94f, 1f);
+        subLabel.color = UITheme.TextMain;
         subLabel.alignment = TextAlignmentOptions.Center;
     }
 

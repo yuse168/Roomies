@@ -40,7 +40,7 @@ public class BlackjackTable : NetworkBehaviour
     [SerializeField] private Vector3 displayLocalPosition = new Vector3(0f, 1.35f, 0.68f);
     [SerializeField] private Vector2 displaySize = new Vector2(700f, 430f);
     [SerializeField, Min(0.0001f)] private float displayScale = 0.0025f;
-    [SerializeField, Min(0.1f)] private float resultDisplaySeconds = 2.5f;
+    [SerializeField, Min(0.1f)] private float resultDisplaySeconds = 3.5f;
 
     private readonly NetworkVariable<int> phase = new(
         (int)RoundPhase.Idle,
@@ -77,6 +77,11 @@ public class BlackjackTable : NetworkBehaviour
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server);
 
+    private readonly NetworkVariable<int> resultNetAmount = new(
+        0,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server);
+
     private readonly NetworkVariable<int> resultKind = new(
         (int)ResultKind.None,
         NetworkVariableReadPermission.Everyone,
@@ -91,8 +96,15 @@ public class BlackjackTable : NetworkBehaviour
     private Image resultBanner;
     private TextMeshProUGUI resultBannerText;
     private RectTransform resultBannerRect;
+    private CanvasGroup resultOverlayGroup;
+    private Image resultOverlayBackground;
+    private RectTransform resultOverlayRect;
+    private TextMeshProUGUI resultHeadlineText;
+    private TextMeshProUGUI resultMessageText;
+    private TextMeshProUGUI resultAmountText;
+    private TextMeshProUGUI resultOutcomeText;
     private Coroutine resetCoroutine;
-    private Coroutine resultPulseCoroutine;
+    private Coroutine resultAnimationCoroutine;
 
     private struct Card
     {
@@ -125,6 +137,7 @@ public class BlackjackTable : NetworkBehaviour
         playerHandDisplay.OnValueChanged += OnTextChanged;
         dealerHandDisplay.OnValueChanged += OnTextChanged;
         resultDisplay.OnValueChanged += OnTextChanged;
+        resultNetAmount.OnValueChanged += OnStateChanged;
         resultKind.OnValueChanged += OnResultKindChanged;
         RefreshDisplay();
     }
@@ -137,6 +150,7 @@ public class BlackjackTable : NetworkBehaviour
         playerHandDisplay.OnValueChanged -= OnTextChanged;
         dealerHandDisplay.OnValueChanged -= OnTextChanged;
         resultDisplay.OnValueChanged -= OnTextChanged;
+        resultNetAmount.OnValueChanged -= OnStateChanged;
         resultKind.OnValueChanged -= OnResultKindChanged;
     }
 
@@ -144,7 +158,7 @@ public class BlackjackTable : NetworkBehaviour
     {
         base.OnDestroy();
         if (resetCoroutine != null) StopCoroutine(resetCoroutine);
-        if (resultPulseCoroutine != null) StopCoroutine(resultPulseCoroutine);
+        if (resultAnimationCoroutine != null) StopCoroutine(resultAnimationCoroutine);
     }
 
     public string GetInteractionLabel(ulong clientId)
@@ -338,10 +352,10 @@ public class BlackjackTable : NetworkBehaviour
         }
 
         int net = returnAmount - activeBet.Value;
-        string netText = net > 0 ? "  +" + net + "R" : net < 0 ? "  " + net + "R" : "";
-        resultDisplay.Value = new FixedString128Bytes(message + netText);
-        resultKind.Value = (int)kind;
+        resultDisplay.Value = new FixedString128Bytes(message);
+        resultNetAmount.Value = net;
         phase.Value = (int)RoundPhase.Result;
+        resultKind.Value = (int)kind;
 
         if (resetCoroutine != null) StopCoroutine(resetCoroutine);
         resetCoroutine = StartCoroutine(ResetRoundAfterDelay());
@@ -356,6 +370,7 @@ public class BlackjackTable : NetworkBehaviour
         playerHandDisplay.Value = new FixedString512Bytes("-");
         dealerHandDisplay.Value = new FixedString512Bytes("-");
         resultDisplay.Value = new FixedString128Bytes("Eでゲーム開始");
+        resultNetAmount.Value = 0;
         resultKind.Value = (int)ResultKind.None;
         activeBet.Value = 0;
         roundPlayerObjectId.Value = ulong.MaxValue;
@@ -367,6 +382,7 @@ public class BlackjackTable : NetworkBehaviour
     private void SetTemporaryMessage(string message)
     {
         resultDisplay.Value = new FixedString128Bytes(message);
+        resultNetAmount.Value = 0;
         resultKind.Value = (int)ResultKind.Error;
         if (resetCoroutine != null) StopCoroutine(resetCoroutine);
         resetCoroutine = StartCoroutine(RestoreIdleMessage());
@@ -545,8 +561,8 @@ public class BlackjackTable : NetworkBehaviour
 
         if (newValue != (int)ResultKind.None && isActiveAndEnabled)
         {
-            if (resultPulseCoroutine != null) StopCoroutine(resultPulseCoroutine);
-            resultPulseCoroutine = StartCoroutine(PulseResultBanner());
+            if (resultAnimationCoroutine != null) StopCoroutine(resultAnimationCoroutine);
+            resultAnimationCoroutine = StartCoroutine(AnimateResultPresentation((ResultKind)newValue));
         }
     }
 
@@ -558,6 +574,7 @@ public class BlackjackTable : NetworkBehaviour
             Transform panel = existing.Find("Panel");
             Transform text = panel != null ? panel.Find("BlackjackText") : null;
             Transform banner = panel != null ? panel.Find("ResultBanner") : null;
+            Transform overlay = panel != null ? panel.Find("ResultOverlay") : null;
 
             displayPanel = panel != null ? panel.GetComponent<Image>() : null;
             displayText = text != null ? text.GetComponent<TextMeshProUGUI>() : null;
@@ -566,8 +583,20 @@ public class BlackjackTable : NetworkBehaviour
             resultBannerText = banner != null
                 ? banner.GetComponentInChildren<TextMeshProUGUI>(true)
                 : null;
+            resultOverlayRect = overlay != null ? overlay.GetComponent<RectTransform>() : null;
+            resultOverlayGroup = overlay != null ? overlay.GetComponent<CanvasGroup>() : null;
+            resultOverlayBackground = overlay != null ? overlay.GetComponent<Image>() : null;
+            resultHeadlineText = FindOverlayText(overlay, "Headline");
+            resultMessageText = FindOverlayText(overlay, "Message");
+            resultAmountText = FindOverlayText(overlay, "Amount");
+            resultOutcomeText = FindOverlayText(overlay, "Outcome");
 
-            if (displayText != null && resultBannerText != null) return;
+            if (displayText != null && resultBannerText != null && panel != null)
+            {
+                if (resultOverlayGroup == null || resultHeadlineText == null)
+                    BuildResultOverlay(panel);
+                return;
+            }
         }
 
         GameObject canvasObject = new GameObject(
@@ -659,6 +688,121 @@ public class BlackjackTable : NetworkBehaviour
         resultBannerText.fontStyle = FontStyles.Bold;
         resultBannerText.color = Color.white;
         resultBannerText.raycastTarget = false;
+
+        BuildResultOverlay(panelObject.transform);
+    }
+
+    private void BuildResultOverlay(Transform parent)
+    {
+        GameObject overlayObject = new GameObject(
+            "ResultOverlay",
+            typeof(RectTransform),
+            typeof(CanvasRenderer),
+            typeof(Image),
+            typeof(CanvasGroup),
+            typeof(Outline));
+        overlayObject.transform.SetParent(parent, false);
+
+        resultOverlayRect = overlayObject.GetComponent<RectTransform>();
+        resultOverlayRect.anchorMin = Vector2.zero;
+        resultOverlayRect.anchorMax = Vector2.one;
+        resultOverlayRect.offsetMin = new Vector2(14f, 14f);
+        resultOverlayRect.offsetMax = new Vector2(-14f, -14f);
+
+        resultOverlayBackground = overlayObject.GetComponent<Image>();
+        resultOverlayBackground.sprite = UITheme.RoundedSprite;
+        resultOverlayBackground.type = Image.Type.Sliced;
+        resultOverlayBackground.raycastTarget = false;
+
+        Outline outline = overlayObject.GetComponent<Outline>();
+        outline.effectColor = new Color(1f, 0.83f, 0.31f, 0.9f);
+        outline.effectDistance = new Vector2(5f, -5f);
+        outline.useGraphicAlpha = true;
+
+        resultOverlayGroup = overlayObject.GetComponent<CanvasGroup>();
+        resultOverlayGroup.alpha = 0f;
+        resultOverlayGroup.interactable = false;
+        resultOverlayGroup.blocksRaycasts = false;
+
+        resultOutcomeText = CreateOverlayText(
+            overlayObject.transform,
+            "Outcome",
+            new Vector2(0.08f, 0.78f),
+            new Vector2(0.92f, 0.94f),
+            28f,
+            38f);
+        resultOutcomeText.characterSpacing = 12f;
+
+        resultHeadlineText = CreateOverlayText(
+            overlayObject.transform,
+            "Headline",
+            new Vector2(0.05f, 0.48f),
+            new Vector2(0.95f, 0.82f),
+            54f,
+            92f);
+        resultHeadlineText.fontStyle = FontStyles.Bold;
+
+        resultMessageText = CreateOverlayText(
+            overlayObject.transform,
+            "Message",
+            new Vector2(0.08f, 0.31f),
+            new Vector2(0.92f, 0.50f),
+            25f,
+            38f);
+        resultMessageText.fontStyle = FontStyles.Bold;
+
+        resultAmountText = CreateOverlayText(
+            overlayObject.transform,
+            "Amount",
+            new Vector2(0.08f, 0.06f),
+            new Vector2(0.92f, 0.34f),
+            44f,
+            72f);
+        resultAmountText.fontStyle = FontStyles.Bold;
+    }
+
+    private static TextMeshProUGUI CreateOverlayText(
+        Transform parent,
+        string name,
+        Vector2 anchorMin,
+        Vector2 anchorMax,
+        float minFontSize,
+        float maxFontSize)
+    {
+        GameObject textObject = new GameObject(
+            name,
+            typeof(RectTransform),
+            typeof(CanvasRenderer),
+            typeof(TextMeshProUGUI),
+            typeof(Outline));
+        textObject.transform.SetParent(parent, false);
+
+        RectTransform rect = textObject.GetComponent<RectTransform>();
+        rect.anchorMin = anchorMin;
+        rect.anchorMax = anchorMax;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+
+        TextMeshProUGUI text = textObject.GetComponent<TextMeshProUGUI>();
+        text.alignment = TextAlignmentOptions.Center;
+        text.enableAutoSizing = true;
+        text.fontSizeMin = minFontSize;
+        text.fontSizeMax = maxFontSize;
+        text.richText = true;
+        text.raycastTarget = false;
+
+        Outline outline = textObject.GetComponent<Outline>();
+        outline.effectColor = new Color(0f, 0f, 0f, 0.75f);
+        outline.effectDistance = new Vector2(3f, -3f);
+        outline.useGraphicAlpha = true;
+        return text;
+    }
+
+    private static TextMeshProUGUI FindOverlayText(Transform overlay, string childName)
+    {
+        if (overlay == null) return null;
+        Transform child = overlay.Find(childName);
+        return child != null ? child.GetComponent<TextMeshProUGUI>() : null;
     }
 
     private void RefreshDisplay()
@@ -715,28 +859,139 @@ public class BlackjackTable : NetworkBehaviour
         resultBanner.color = bannerColor;
         resultBannerText.text = resultDisplay.Value.ToString();
         if (displayPanel != null) displayPanel.color = panelColor;
+        RefreshResultOverlay(kind);
     }
 
-    private IEnumerator PulseResultBanner()
+    private void RefreshResultOverlay(ResultKind kind)
     {
-        if (resultBannerRect == null) yield break;
+        if (resultOverlayGroup == null ||
+            resultOverlayBackground == null ||
+            resultHeadlineText == null ||
+            resultMessageText == null ||
+            resultAmountText == null ||
+            resultOutcomeText == null)
+            return;
 
-        float duration = 0.46f;
+        if (kind == ResultKind.None)
+        {
+            resultOverlayGroup.alpha = 0f;
+            if (resultOverlayRect != null)
+            {
+                resultOverlayRect.localScale = Vector3.one;
+                resultOverlayRect.anchoredPosition = Vector2.zero;
+            }
+            return;
+        }
+
+        string headline;
+        string outcome;
+        Color background;
+        Color accent;
+
+        switch (kind)
+        {
+            case ResultKind.Win:
+                headline = "勝 利！";
+                outcome = "YOU WIN";
+                background = new Color(0.025f, 0.25f, 0.14f, 0.99f);
+                accent = new Color(0.47f, 1f, 0.51f, 1f);
+                break;
+            case ResultKind.Blackjack:
+                headline = "BLACKJACK!";
+                outcome = "★  SPECIAL WIN  ★";
+                background = new Color(0.22f, 0.08f, 0.28f, 0.99f);
+                accent = new Color(1f, 0.82f, 0.18f, 1f);
+                break;
+            case ResultKind.Lose:
+                headline = "敗 北…";
+                outcome = "YOU LOSE";
+                background = new Color(0.28f, 0.025f, 0.055f, 0.99f);
+                accent = new Color(1f, 0.32f, 0.38f, 1f);
+                break;
+            case ResultKind.Push:
+                headline = "引き分け";
+                outcome = "DRAW";
+                background = new Color(0.24f, 0.16f, 0.035f, 0.99f);
+                accent = new Color(1f, 0.78f, 0.25f, 1f);
+                break;
+            default:
+                headline = "できません";
+                outcome = "CHECK!";
+                background = new Color(0.24f, 0.075f, 0.025f, 0.99f);
+                accent = new Color(1f, 0.48f, 0.16f, 1f);
+                break;
+        }
+
+        int net = resultNetAmount.Value;
+        resultOverlayBackground.color = background;
+        resultHeadlineText.color = accent;
+        resultOutcomeText.color = new Color(accent.r, accent.g, accent.b, 0.92f);
+        resultMessageText.color = Color.white;
+        resultAmountText.color = accent;
+        resultHeadlineText.text = headline;
+        resultOutcomeText.text = outcome;
+        resultMessageText.text = resultDisplay.Value.ToString();
+
+        if (kind == ResultKind.Error)
+            resultAmountText.text = "";
+        else if (net > 0)
+            resultAmountText.text = "+" + net + " R";
+        else if (net < 0)
+            resultAmountText.text = net + " R";
+        else
+            resultAmountText.text = "±0 R";
+    }
+
+    private IEnumerator AnimateResultPresentation(ResultKind kind)
+    {
+        if (resultOverlayGroup == null || resultOverlayRect == null) yield break;
+
+        RefreshResultOverlay(kind);
+        resultOverlayGroup.alpha = 0f;
+        resultOverlayRect.localScale = Vector3.one * 0.62f;
+        resultOverlayRect.anchoredPosition = Vector2.zero;
+
+        const float entranceDuration = 0.42f;
         float elapsed = 0f;
-        resultBannerRect.localScale = Vector3.one * 0.72f;
 
-        while (elapsed < duration)
+        while (elapsed < entranceDuration)
         {
             elapsed += Time.unscaledDeltaTime;
-            float t = Mathf.Clamp01(elapsed / duration);
-            float scale = t < 0.55f
-                ? Mathf.Lerp(0.72f, 1.18f, t / 0.55f)
-                : Mathf.Lerp(1.18f, 1f, (t - 0.55f) / 0.45f);
-            resultBannerRect.localScale = Vector3.one * scale;
+            float t = Mathf.Clamp01(elapsed / entranceDuration);
+            resultOverlayGroup.alpha = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t * 2f));
+            float scale = t < 0.68f
+                ? Mathf.Lerp(0.62f, 1.12f, t / 0.68f)
+                : Mathf.Lerp(1.12f, 1f, (t - 0.68f) / 0.32f);
+            resultOverlayRect.localScale = Vector3.one * scale;
             yield return null;
         }
 
-        resultBannerRect.localScale = Vector3.one;
-        resultPulseCoroutine = null;
+        resultOverlayGroup.alpha = 1f;
+        resultOverlayRect.localScale = Vector3.one;
+
+        const float emphasisDuration = 0.7f;
+        elapsed = 0f;
+        while (elapsed < emphasisDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / emphasisDuration);
+
+            if (kind == ResultKind.Lose || kind == ResultKind.Error)
+            {
+                float shake = Mathf.Sin(t * Mathf.PI * 12f) * (1f - t) * 20f;
+                resultOverlayRect.anchoredPosition = new Vector2(shake, 0f);
+            }
+            else
+            {
+                float pulse = 1f + Mathf.Sin(t * Mathf.PI * 4f) * (1f - t) * 0.045f;
+                resultOverlayRect.localScale = Vector3.one * pulse;
+            }
+
+            yield return null;
+        }
+
+        resultOverlayRect.anchoredPosition = Vector2.zero;
+        resultOverlayRect.localScale = Vector3.one;
+        resultAnimationCoroutine = null;
     }
 }

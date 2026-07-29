@@ -22,10 +22,10 @@ public sealed class RentPaymentUI : MonoBehaviour
     private TMP_Text resultLabel;
     private Vector2 cardBasePosition;
 
-    private static readonly Color Dark = new Color(0.035f, 0.045f, 0.09f, 1f);
-    private static readonly Color Orange = new Color(1f, 0.58f, 0.12f);
-    private static readonly Color Green = new Color(0.22f, 0.78f, 0.40f);
-    private static readonly Color Red = new Color(0.95f, 0.20f, 0.28f);
+    private static readonly Color Dark = UITheme.WarmBottom;
+    private static readonly Color Orange = UITheme.Accent;
+    private static readonly Color Green = UITheme.Green;
+    private static readonly Color Red = UITheme.Red;
 
     private void Awake()
     {
@@ -65,16 +65,17 @@ public sealed class RentPaymentUI : MonoBehaviour
         cardRt.anchorMin = cardRt.anchorMax = cardRt.pivot = new Vector2(0.5f, 0.5f);
         cardRt.anchoredPosition = cardBasePosition = Vector2.zero;
         cardRt.sizeDelta = new Vector2(1120f, 650f);
-        card.color = new Color(0.09f, 0.11f, 0.18f, 0.98f);
+        card.color = UITheme.Panel;
 
         var badge = CreateImage(card.transform, "Badge", Orange);
         SetRect(badge.rectTransform, new Vector2(0.5f, 1f),
             new Vector2(420f, 62f), new Vector2(0f, -42f));
-        var badgeText = CreateLabel(badge.transform, "Text", "3日目・さいごのお会計", 27f, Color.white, true);
+        var badgeText = CreateLabel(badge.transform, "Text", "3日目・さいごのお会計", 27f,
+            new Color(0.11f, 0.085f, 0.035f), true);
         Stretch(badgeText.rectTransform, 10f);
 
         var title = CreateLabel(card.transform, "Title", "家賃支払いフェーズ", 66f,
-            Color.white, true);
+            UITheme.TextMain, true);
         SetRect(title.rectTransform, new Vector2(0.5f, 1f),
             new Vector2(1000f, 100f), new Vector2(0f, -135f));
 
@@ -83,7 +84,7 @@ public sealed class RentPaymentUI : MonoBehaviour
             new Vector2(900f, 75f), new Vector2(0f, -245f));
 
         balanceLabel = CreateLabel(card.transform, "Balance", "", 34f,
-            new Color(0.75f, 0.80f, 0.90f), true);
+            UITheme.TextSub, true);
         SetRect(balanceLabel.rectTransform, new Vector2(0.5f, 1f),
             new Vector2(900f, 55f), new Vector2(0f, -323f));
 
@@ -101,7 +102,7 @@ public sealed class RentPaymentUI : MonoBehaviour
         fillRt.offsetMax = Vector2.zero;
 
         statusLabel = CreateLabel(card.transform, "Status", "引き落としを確認中…", 36f,
-            Color.white, true);
+            UITheme.TextMain, true);
         SetRect(statusLabel.rectTransform, new Vector2(0.5f, 0f),
             new Vector2(950f, 70f), new Vector2(0f, 85f));
 
@@ -120,11 +121,11 @@ public sealed class RentPaymentUI : MonoBehaviour
         rentLabel.text = $"請求額　¥{rent:N0}";
         balanceLabel.text = $"共有口座　¥{balance:N0}";
         statusLabel.text = "引き落としを確認中…";
-        statusLabel.color = Color.white;
+        statusLabel.color = UITheme.TextMain;
         resultLabel.gameObject.SetActive(false);
         card.rectTransform.anchoredPosition = cardBasePosition;
         card.rectTransform.localScale = Vector3.one;
-        card.color = new Color(0.09f, 0.11f, 0.18f, 0.98f);
+        card.color = UITheme.Panel;
         background.color = Dark;
 
         var fillRt = progressFill.rectTransform;
@@ -155,7 +156,7 @@ public sealed class RentPaymentUI : MonoBehaviour
         statusLabel.text = "支払い完了！";
         statusLabel.color = Green;
         balanceLabel.text = $"共有口座　¥{Mathf.Max(0, balance - rent):N0}";
-        card.color = new Color(0.07f, 0.20f, 0.14f, 0.98f);
+        card.color = new Color(0.075f, 0.16f, 0.075f, 0.98f);
 
         float elapsed = 0f;
         while (elapsed < 0.4f)

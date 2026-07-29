@@ -32,10 +32,10 @@ public class NightEventUI : MonoBehaviour
     private const float RestY = -70f;
 
     // バナー色（イベントの種類ごとの雰囲気分け）
-    public static readonly Color ColorInfo   = new Color(0.30f, 0.62f, 0.95f); // 青（お知らせ）
-    public static readonly Color ColorDanger = new Color(0.93f, 0.33f, 0.33f); // 赤（請求・トラブル）
-    public static readonly Color ColorFun    = new Color(0.98f, 0.65f, 0.18f); // オレンジ（おもしろ系）
-    public static readonly Color ColorPeace  = new Color(0.36f, 0.78f, 0.52f); // 緑（平和）
+    public static readonly Color ColorInfo   = UITheme.Purple;
+    public static readonly Color ColorDanger = UITheme.Red;
+    public static readonly Color ColorFun    = UITheme.Accent;
+    public static readonly Color ColorPeace  = UITheme.Green;
 
     private readonly Queue<(string title, string body, byte style)> queue
         = new Queue<(string, string, byte)>();
@@ -77,17 +77,18 @@ public class NightEventUI : MonoBehaviour
         panelRt.anchorMax = new Vector2(0.5f, 1f);
         panelRt.pivot     = new Vector2(0.5f, 1f);
         panelRt.anchoredPosition = new Vector2(0, RestY);
-        panelRt.sizeDelta = new Vector2(800, 150);
+        panelRt.sizeDelta = new Vector2(680, 116);
 
         var panelImg = panelGo.AddComponent<Image>();
         panelImg.sprite = UITheme.RoundedSprite;
         panelImg.type   = Image.Type.Sliced;
-        panelImg.color  = new Color(0.07f, 0.08f, 0.14f, 0.94f);
+        panelImg.color  = UITheme.Panel;
+        UITheme.AddBorder(panelGo, new Color(1f, 1f, 1f, 0.09f));
 
         // ドロップシャドウ（下方向にふわっと）
         var shadow = panelGo.AddComponent<Shadow>();
         shadow.effectColor    = new Color(0f, 0f, 0f, 0.45f);
-        shadow.effectDistance = new Vector2(0f, -6f);
+        shadow.effectDistance = new Vector2(0f, -3f);
 
         // ---- 上端のアクセントライン ----
         var lineGo = new GameObject("AccentLine", typeof(RectTransform));
@@ -96,8 +97,11 @@ public class NightEventUI : MonoBehaviour
         lineRt.anchorMin = new Vector2(0f, 1f);
         lineRt.anchorMax = new Vector2(1f, 1f);
         lineRt.pivot     = new Vector2(0.5f, 1f);
-        lineRt.anchoredPosition = new Vector2(0, -3);
-        lineRt.sizeDelta = new Vector2(-24, 6);
+        lineRt.anchorMin = new Vector2(0f, 0f);
+        lineRt.anchorMax = new Vector2(0f, 1f);
+        lineRt.pivot = new Vector2(0f, 0.5f);
+        lineRt.anchoredPosition = new Vector2(0, 0);
+        lineRt.sizeDelta = new Vector2(4, -16);
         accentLine = lineGo.AddComponent<Image>();
         accentLine.sprite = UITheme.RoundedSprite;
         accentLine.type   = Image.Type.Sliced;
@@ -111,8 +115,8 @@ public class NightEventUI : MonoBehaviour
         badgeRt.anchorMin = new Vector2(0f, 0.5f);
         badgeRt.anchorMax = new Vector2(0f, 0.5f);
         badgeRt.pivot     = new Vector2(0.5f, 0.5f);
-        badgeRt.anchoredPosition = new Vector2(66, -2);
-        badgeRt.sizeDelta = new Vector2(76, 76);
+        badgeRt.anchoredPosition = new Vector2(48, -1);
+        badgeRt.sizeDelta = new Vector2(48, 48);
         iconBadge = badgeGo.AddComponent<Image>();
         iconBadge.sprite = UITheme.RoundedSprite;
         iconBadge.type   = Image.Type.Sliced;
@@ -126,7 +130,7 @@ public class NightEventUI : MonoBehaviour
         iconTextRt.offsetMin = Vector2.zero;
         iconTextRt.offsetMax = Vector2.zero;
         iconLabel = iconTextGo.AddComponent<TextMeshProUGUI>();
-        iconLabel.fontSize  = 44f;
+        iconLabel.fontSize  = 28f;
         iconLabel.fontStyle = FontStyles.Bold;
         iconLabel.color     = Color.white;
         iconLabel.alignment = TextAlignmentOptions.Center;
@@ -138,10 +142,10 @@ public class NightEventUI : MonoBehaviour
         titleRt.anchorMin = new Vector2(0f, 1f);
         titleRt.anchorMax = new Vector2(1f, 1f);
         titleRt.pivot     = new Vector2(0.5f, 1f);
-        titleRt.anchoredPosition = new Vector2(42, -26);
-        titleRt.sizeDelta = new Vector2(-200, 52);
+        titleRt.anchoredPosition = new Vector2(38, -17);
+        titleRt.sizeDelta = new Vector2(-150, 38);
         titleLabel = titleGo.AddComponent<TextMeshProUGUI>();
-        titleLabel.fontSize  = 38f;
+        titleLabel.fontSize  = 28f;
         titleLabel.fontStyle = FontStyles.Bold;
         titleLabel.color     = Color.white;
         titleLabel.alignment = TextAlignmentOptions.Left;
@@ -155,11 +159,11 @@ public class NightEventUI : MonoBehaviour
         bodyRt.anchorMin = new Vector2(0f, 0f);
         bodyRt.anchorMax = new Vector2(1f, 0f);
         bodyRt.pivot     = new Vector2(0.5f, 0f);
-        bodyRt.anchoredPosition = new Vector2(42, 16);
-        bodyRt.sizeDelta = new Vector2(-200, 60);
+        bodyRt.anchoredPosition = new Vector2(38, 13);
+        bodyRt.sizeDelta = new Vector2(-150, 42);
         bodyLabel = bodyGo.AddComponent<TextMeshProUGUI>();
-        bodyLabel.fontSize  = 26f;
-        bodyLabel.color     = new Color(0.78f, 0.81f, 0.90f);
+        bodyLabel.fontSize  = 20f;
+        bodyLabel.color     = UITheme.TextSub;
         bodyLabel.alignment = TextAlignmentOptions.TopLeft;
     }
 

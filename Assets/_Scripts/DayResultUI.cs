@@ -53,7 +53,8 @@ public class DayResultUI : MonoBehaviour
         var bgRt = bgGo.GetComponent<RectTransform>();
         bgRt.anchorMin = Vector2.zero; bgRt.anchorMax = Vector2.one;
         bgRt.offsetMin = Vector2.zero; bgRt.offsetMax = Vector2.zero;
-        bgGo.AddComponent<Image>().color = new Color(0.06f, 0.07f, 0.12f, 0.96f);
+        bgGo.AddComponent<Image>().color = new Color(
+            UITheme.WarmBottom.r, UITheme.WarmBottom.g, UITheme.WarmBottom.b, 0.97f);
 
         // タイトル
         var titleGo = new GameObject("Title", typeof(RectTransform));
@@ -67,7 +68,7 @@ public class DayResultUI : MonoBehaviour
         title.text = "今日の収支";
         title.fontSize = 80;
         title.fontStyle = FontStyles.Bold;
-        title.color = new Color(1f, 0.62f, 0.12f);
+        title.color = UITheme.Accent;
         title.alignment = TextAlignmentOptions.Center;
 
         // 行を並べる親
@@ -172,7 +173,7 @@ public class DayResultUI : MonoBehaviour
             case 1:  return new Color(1.0f, 0.80f, 0.20f, 0.98f); // 金
             case 2:  return new Color(0.75f, 0.78f, 0.85f, 0.95f); // 銀
             case 3:  return new Color(0.80f, 0.52f, 0.30f, 0.95f); // 銅
-            default: return new Color(0.18f, 0.20f, 0.30f, 0.92f);
+            default: return UITheme.PanelSoft;
         }
     }
 

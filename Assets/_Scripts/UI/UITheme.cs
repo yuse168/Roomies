@@ -14,16 +14,20 @@ public static class UITheme
     // パレット
     // ================================================================
 
-    public static readonly Color Panel      = new Color(0.075f, 0.085f, 0.13f, 0.95f); // カード背景
-    public static readonly Color PanelSoft  = new Color(1f, 1f, 1f, 0.06f);            // 行の淡い背景
-    public static readonly Color Accent     = new Color(1.00f, 0.62f, 0.12f);          // オレンジ
-    public static readonly Color Blue       = new Color(0.16f, 0.66f, 0.94f);
-    public static readonly Color Green      = new Color(0.24f, 0.75f, 0.42f);
-    public static readonly Color Red        = new Color(0.88f, 0.33f, 0.33f);
-    public static readonly Color Gold       = new Color(1.00f, 0.84f, 0.29f);
-    public static readonly Color TextMain   = new Color(0.96f, 0.97f, 1.00f);
-    public static readonly Color TextSub    = new Color(0.62f, 0.67f, 0.78f);
-    public static readonly Color DarkButton = new Color(0.16f, 0.18f, 0.26f);
+    public static readonly Color Panel      = new Color(0.035f, 0.039f, 0.047f, 0.94f);
+    public static readonly Color PanelSoft  = new Color(0.085f, 0.091f, 0.105f, 0.92f);
+    public static readonly Color Accent     = new Color(0.96f, 0.78f, 0.20f);
+    public static readonly Color Purple     = new Color(0.31f, 0.34f, 0.43f);
+    public static readonly Color Blue       = new Color(0.30f, 0.53f, 0.95f);
+    public static readonly Color Green      = new Color(0.31f, 0.82f, 0.54f);
+    public static readonly Color Red        = new Color(0.94f, 0.34f, 0.39f);
+    public static readonly Color Gold       = Accent;
+    public static readonly Color TextMain   = new Color(0.96f, 0.965f, 0.975f);
+    public static readonly Color TextSub    = new Color(0.65f, 0.67f, 0.72f);
+    public static readonly Color Border     = new Color(1f, 1f, 1f, 0.11f);
+    public static readonly Color DarkButton = new Color(0.085f, 0.091f, 0.105f);
+    public static readonly Color WarmTop    = new Color(0.075f, 0.082f, 0.098f);
+    public static readonly Color WarmBottom = new Color(0.012f, 0.014f, 0.019f);
 
     // ================================================================
     // スプライト生成（画像アセット不要）
@@ -39,7 +43,7 @@ public static class UITheme
             if (roundedSprite != null) return roundedSprite;
 
             const int size   = 64;
-            const int radius = 20;
+            const int radius = 9;
 
             var tex = new Texture2D(size, size, TextureFormat.ARGB32, false);
             tex.wrapMode = TextureWrapMode.Clamp;
@@ -128,6 +132,7 @@ public static class UITheme
         img.color  = Panel;
 
         AddShadow(go);
+        AddBorder(go);
         return img;
     }
 
@@ -136,8 +141,18 @@ public static class UITheme
     {
         if (go.GetComponent<Shadow>() != null) return;
         var shadow = go.AddComponent<Shadow>();
-        shadow.effectColor    = new Color(0f, 0f, 0f, 0.45f);
-        shadow.effectDistance = new Vector2(0f, -5f);
+        shadow.effectColor    = new Color(0f, 0f, 0f, 0.28f);
+        shadow.effectDistance = new Vector2(0f, -3f);
+    }
+
+    /// <summary>生活ゲーム風の細い明色ボーダーを付ける。</summary>
+    public static void AddBorder(GameObject go, Color? color = null, Vector2? distance = null)
+    {
+        if (go == null || go.GetComponent<Outline>() != null) return;
+        var outline = go.AddComponent<Outline>();
+        outline.effectColor = color ?? Border;
+        outline.effectDistance = distance ?? new Vector2(1f, -1f);
+        outline.useGraphicAlpha = true;
     }
 
     /// <summary>TMPラベルを生成する。</summary>
@@ -161,7 +176,9 @@ public static class UITheme
     /// <summary>文字の視認性を上げるアウトライン（3D越しのHUD向け）。</summary>
     public static void AddTextOutline(TMP_Text text, float width = 0.22f)
     {
-        if (text == null) return;
+        // 非表示パネル内のTMPは初期化前でMaterialがまだ無い場合がある。
+        if (text == null || !text.gameObject.activeInHierarchy ||
+            text.font == null || text.fontSharedMaterial == null) return;
         text.outlineWidth = width;
         text.outlineColor = new Color32(0, 0, 0, 200);
     }
@@ -189,14 +206,15 @@ public static class UITheme
 
         var cb = b.colors;
         cb.normalColor      = bg;
-        cb.highlightedColor = Color.Lerp(bg, Color.white, 0.18f);
-        cb.pressedColor     = Color.Lerp(bg, Color.black, 0.22f);
+        cb.highlightedColor = Color.Lerp(bg, Color.white, 0.09f);
+        cb.pressedColor     = Color.Lerp(bg, Color.black, 0.16f);
         cb.selectedColor    = bg;
         cb.disabledColor    = new Color(bg.r, bg.g, bg.b, 0.30f);
-        cb.fadeDuration     = 0.08f;
+        cb.fadeDuration     = 0.12f;
         b.colors = cb;
 
         AddShadow(b.gameObject);
+        AddBorder(b.gameObject, Border, new Vector2(1f, -1f));
 
         var label = b.GetComponentInChildren<TMP_Text>(true);
         if (label != null)
@@ -229,7 +247,7 @@ public static class UITheme
         rt.anchorMin = new Vector2(0.5f, 0.5f);
         rt.anchorMax = new Vector2(0.5f, 0.5f);
         rt.pivot     = new Vector2(0.5f, 0.5f);
-        rt.anchoredPosition = new Vector2(0, -150);
+        rt.anchoredPosition = new Vector2(0, -135);
 
         var img = chip.AddComponent<Image>();
         img.sprite = RoundedSprite;
@@ -237,10 +255,11 @@ public static class UITheme
         img.pixelsPerUnitMultiplier = 1.6f;
         img.color  = Panel;
         AddShadow(chip);
+        AddBorder(chip);
 
         // 文言に合わせてチップが伸び縮みするようにレイアウトで包む
         var hlg = chip.AddComponent<HorizontalLayoutGroup>();
-        hlg.padding                = new RectOffset(20, 20, 10, 10);
+        hlg.padding                = new RectOffset(18, 18, 8, 8);
         hlg.childAlignment         = TextAnchor.MiddleCenter;
         hlg.childControlWidth      = true;
         hlg.childControlHeight     = true;
@@ -253,7 +272,7 @@ public static class UITheme
 
         // テキストをチップ内へ移設して整える
         text.transform.SetParent(chip.transform, false);
-        text.fontSize  = 26f;
+        text.fontSize  = 22f;
         text.fontStyle = FontStyles.Bold;
         text.color     = TextMain;
         text.alignment = TextAlignmentOptions.Center;
@@ -327,10 +346,10 @@ public class UIButtonJuice : MonoBehaviour,
 {
     private float targetScale = 1f;
 
-    public void OnPointerEnter(PointerEventData e) { targetScale = 1.05f; }
+    public void OnPointerEnter(PointerEventData e) { targetScale = 1.018f; }
     public void OnPointerExit(PointerEventData e)  { targetScale = 1f; }
-    public void OnPointerDown(PointerEventData e)  { targetScale = 0.96f; }
-    public void OnPointerUp(PointerEventData e)    { targetScale = 1.05f; }
+    public void OnPointerDown(PointerEventData e)  { targetScale = 0.985f; }
+    public void OnPointerUp(PointerEventData e)    { targetScale = 1.018f; }
 
     private void OnDisable()
     {
@@ -343,6 +362,6 @@ public class UIButtonJuice : MonoBehaviour,
         transform.localScale = Vector3.Lerp(
             transform.localScale,
             Vector3.one * targetScale,
-            Time.unscaledDeltaTime * 12f);
+            Time.unscaledDeltaTime * 16f);
     }
 }

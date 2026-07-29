@@ -140,22 +140,22 @@ public sealed class EscMenuUI : MonoBehaviour
         overlay.transform.SetParent(canvas.transform, false);
         Stretch(overlay.GetComponent<RectTransform>());
         var dim = overlay.AddComponent<Image>();
-        dim.color = new Color(0.025f, 0.035f, 0.075f, 0.82f);
+        dim.color = new Color(0.005f, 0.007f, 0.011f, 0.82f);
         overlayGroup = overlay.AddComponent<CanvasGroup>();
 
         var cardImage = UITheme.Card(overlay.transform, "MenuCard");
         card = cardImage.rectTransform;
         card.anchorMin = card.anchorMax = card.pivot = new Vector2(0.5f, 0.5f);
         card.anchoredPosition = Vector2.zero;
-        card.sizeDelta = new Vector2(900f, 820f);
-        cardImage.color = new Color(0.07f, 0.085f, 0.15f, 0.995f);
+        card.sizeDelta = new Vector2(820f, 790f);
+        cardImage.color = UITheme.Panel;
 
         CreateAccent(card);
         TMP_Text title = UITheme.Label(
-            card, "Title", "PAUSE!", 54f, UITheme.Gold,
+            card, "Title", "PAUSE", 46f, UITheme.TextMain,
             TextAlignmentOptions.Center, true);
-        SetBox(title.rectTransform, 40f, 28f, 820f, 70f);
-        UITheme.AddTextOutline(title, 0.16f);
+        SetBox(title.rectTransform, 40f, 30f, 740f, 62f);
+        title.characterSpacing = 8f;
 
         mainGroup = CreateGroup(card, "Main");
         BuildMainPanel(mainGroup.transform);
@@ -170,24 +170,24 @@ public sealed class EscMenuUI : MonoBehaviour
     void BuildMainPanel(Transform parent)
     {
         TMP_Text subtitle = UITheme.Label(
-            parent, "Subtitle", "ちょっとひと休み", 24f, UITheme.TextSub,
+            parent, "Subtitle", "ゲームメニュー", 21f, UITheme.TextSub,
             TextAlignmentOptions.Center, true);
         SetBox(subtitle.rectTransform, 40f, 100f, 820f, 44f);
 
         resumeButton = CreateButton(parent, "ResumeButton", "ゲームにもどる",
-            190f, UITheme.Green, 210f, 480f);
+            190f, UITheme.Accent, 170f, 480f);
         resumeButton.onClick.AddListener(CloseMenu);
 
         Button settingsButton = CreateButton(parent, "SettingsButton", "設定",
-            288f, UITheme.Blue, 210f, 480f);
+            280f, UITheme.DarkButton, 170f, 480f);
         settingsButton.onClick.AddListener(OpenSettings);
 
         Button menuButton = CreateButton(parent, "MenuButton", "メインメニューへ",
-            386f, new Color(0.42f, 0.36f, 0.82f), 210f, 480f);
+            370f, UITheme.DarkButton, 170f, 480f);
         menuButton.onClick.AddListener(() => ShowConfirmation(ConfirmAction.MainMenu));
 
         Button quitButton = CreateButton(parent, "QuitButton", "ゲームを終了",
-            484f, UITheme.Red, 210f, 480f);
+            460f, UITheme.DarkButton, 170f, 480f);
         quitButton.onClick.AddListener(() => ShowConfirmation(ConfirmAction.Quit));
 
         TMP_Text notice = UITheme.Label(
@@ -271,7 +271,7 @@ public sealed class EscMenuUI : MonoBehaviour
 
         Button resetButton = CreateButton(
             parent, "ResetButton", "初期設定にもどす", 655f,
-            new Color(0.42f, 0.45f, 0.52f), 80f, 330f, 64f, 23f);
+            UITheme.PanelSoft, 80f, 330f, 64f, 23f);
         resetButton.onClick.AddListener(() =>
         {
             GameSettings.ResetDefaults();
@@ -280,7 +280,7 @@ public sealed class EscMenuUI : MonoBehaviour
 
         settingsBackButton = CreateButton(
             parent, "BackButton", "もどる", 655f,
-            UITheme.Blue, 490f, 330f, 64f, 24f);
+            UITheme.Purple, 490f, 330f, 64f, 24f);
         settingsBackButton.onClick.AddListener(ShowMain);
 
         RefreshSettings();
@@ -289,14 +289,14 @@ public sealed class EscMenuUI : MonoBehaviour
     void BuildConfirmation(Transform parent)
     {
         var shade = parent.gameObject.AddComponent<Image>();
-        shade.color = new Color(0.01f, 0.015f, 0.04f, 0.9f);
+        shade.color = new Color(0.015f, 0.011f, 0.009f, 0.92f);
 
         var dialogImage = UITheme.Card(parent, "Dialog");
         RectTransform dialog = dialogImage.rectTransform;
         dialog.anchorMin = dialog.anchorMax = dialog.pivot = new Vector2(0.5f, 0.5f);
         dialog.anchoredPosition = Vector2.zero;
         dialog.sizeDelta = new Vector2(670f, 390f);
-        dialogImage.color = new Color(0.095f, 0.11f, 0.19f, 1f);
+        dialogImage.color = UITheme.Panel;
 
         confirmTitle = UITheme.Label(
             dialog, "Title", "確認", 38f, UITheme.Gold,
@@ -310,7 +310,7 @@ public sealed class EscMenuUI : MonoBehaviour
 
         confirmCancelButton = CreateButton(
             dialog, "CancelButton", "キャンセル", 258f,
-            new Color(0.42f, 0.45f, 0.52f), 50f, 260f, 72f, 23f);
+            UITheme.PanelSoft, 50f, 260f, 72f, 23f);
         confirmCancelButton.onClick.AddListener(HideConfirmation);
 
         Button executeButton = CreateButton(
@@ -521,7 +521,7 @@ public sealed class EscMenuUI : MonoBehaviour
         Image backgroundImage = background.GetComponent<Image>();
         backgroundImage.sprite = UITheme.RoundedSprite;
         backgroundImage.type = Image.Type.Sliced;
-        backgroundImage.color = new Color(0.18f, 0.2f, 0.28f);
+        backgroundImage.color = UITheme.PanelSoft;
 
         var fillArea = new GameObject("Fill Area", typeof(RectTransform));
         fillArea.transform.SetParent(sliderGo.transform, false);
@@ -581,7 +581,7 @@ public sealed class EscMenuUI : MonoBehaviour
 
         Button button = CreateButton(
             parent, labelText + "Button", "", top,
-            new Color(0.24f, 0.48f, 0.68f), 520f, 300f, 58f, 21f);
+            UITheme.Purple, 520f, 300f, 58f, 21f);
         valueText = button.GetComponentInChildren<TMP_Text>();
         button.onClick.AddListener(action);
     }
@@ -600,21 +600,21 @@ public sealed class EscMenuUI : MonoBehaviour
         SetBox(label.rectTransform, 82f, top, 300f, 58f);
 
         Button previousButton = CreateButton(
-            parent, labelText + "Previous", "◀", top,
-            UITheme.Blue, 450f, 62f, 58f, 20f);
+            parent, labelText + "Previous", "<", top,
+            UITheme.Purple, 450f, 62f, 58f, 20f);
         previousButton.onClick.AddListener(previous);
 
         var valueBackground = UITheme.Card(parent, labelText + "ValueBackground");
         SetBox(valueBackground.rectTransform, 522f, top, 226f, 58f);
-        valueBackground.color = new Color(0.12f, 0.14f, 0.22f, 1f);
+        valueBackground.color = UITheme.PanelSoft;
         valueText = UITheme.Label(
             valueBackground.transform, "Value", "", 20f, Color.white,
             TextAlignmentOptions.Center, true);
         Stretch(valueText.rectTransform);
 
         Button nextButton = CreateButton(
-            parent, labelText + "Next", "▶", top,
-            UITheme.Blue, 758f, 62f, 58f, 20f);
+            parent, labelText + "Next", ">", top,
+            UITheme.Purple, 758f, 62f, 58f, 20f);
         nextButton.onClick.AddListener(next);
     }
 
@@ -634,11 +634,15 @@ public sealed class EscMenuUI : MonoBehaviour
         SetBox(go.GetComponent<RectTransform>(), left, top, width, height);
 
         var button = go.AddComponent<Button>();
+        float luminance = color.r * 0.30f + color.g * 0.59f + color.b * 0.11f;
+        Color foreground = luminance > 0.62f
+            ? new Color(0.055f, 0.06f, 0.07f)
+            : Color.white;
         TMP_Text label = UITheme.Label(
-            go.transform, "Label", text, fontSize, Color.white,
+            go.transform, "Label", text, fontSize, foreground,
             TextAlignmentOptions.Center, true);
         Stretch(label.rectTransform);
-        UITheme.StyleButton(button, color, Color.white, 32f);
+        UITheme.StyleButton(button, color, foreground, 32f);
         return button;
     }
 
