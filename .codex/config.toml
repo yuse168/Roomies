@@ -1,13 +1,9 @@
-# このプロジェクトでは、旧グローバル設定のHTTP版UnityMCPを使用しない。
-[mcp_servers.UnityMCP]
-enabled = false
-
 # Unity 6のAI Assistantが生成したRelayをstdio MCPとして起動し、
-# 開いているRoomies_saveのEditorインスタンスへ接続する。
+# 開いているRoomiesのEditorインスタンスへ接続する。
 [mcp_servers.RoomiesUnity]
 enabled = true
 required = false
-command = 'C:\Users\yuse2\.unity\relay\relay_win.exe'
-args = ["--mcp", "--name", "Roomies Unity", "--project-path", "D:\\Bonchan\\Roomies_save"]
+command = 'C:\Users\So2e\.unity\relay\relay_win.exe'
+args = ["--mcp", "--name", "Roomies Unity", "--project-path", "C:\\#Project\\team_project\\Roomies"]
 startup_timeout_sec = 30.0
 tool_timeout_sec = 120.0

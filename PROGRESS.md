@@ -1730,3 +1730,27 @@
 - Hostでスロットへ照準を合わせ、ホイールで`10 R / 50 R / 100 R`が切り替わること
 - `E`で3本のリールが順番に停止し、結果確定後に報酬が反映されること
 - Client側でも同じ停止結果とフィーバー表示が同期すること
+
+---
+
+## 2026/08/03｜Codex Unity MCP設定修正
+
+### 今回の変更
+- transport情報を持たない無効化用`mcp_servers.UnityMCP`定義を削除
+- `RoomiesUnity`のRelay実行ファイルとUnityプロジェクトパスを、現在のPC上に実在するパスへ更新
+
+### 変更ファイル
+- `.codex/config.toml`
+- `PROGRESS.md`
+
+### 確認状況
+- TOML構文解析：確認済み（有効なMCP定義は`RoomiesUnity`のみ）
+- Relay実行ファイルとUnityプロジェクトパスの存在：確認済み
+- Codex CLIによるMCP起動確認：未確認（WindowsApps内の`codex.exe`起動がAccess denied）
+- Codexデスクトップでのチャット再作成とUnity接続：未確認
+
+### 変更履歴
+
+| ID | 内容 | 結果 | 変更ファイル | 次 |
+|---|---|---|---|---|
+| 2026-08-03-01 | CodexのUnity MCP設定エラーを修正し、現PCのRelay・プロジェクトパスへ更新 | 実装済み・未確認 | `.codex/config.toml`, `PROGRESS.md` | CodexでRoomiesを開き直し、チャット作成とUnity接続を確認 |

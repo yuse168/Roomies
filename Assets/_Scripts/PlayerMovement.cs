@@ -68,6 +68,14 @@ public class PlayerMovement : NetworkBehaviour
     private bool isCrouching;
     private bool isSprinting;
 
+    [Header("アニメーション設定")]
+    [SerializeField] private Animator animator;
+
+    private static readonly int SpeedHash = Animator.StringToHash("Speed");
+    private static readonly int IsGroundedHash = Animator.StringToHash("IsGrounded");
+    private static readonly int IsSprintingHash = Animator.StringToHash("IsSprinting");
+    private static readonly int IsCrouchingHash = Animator.StringToHash("IsCrouching");
+
     private Vector3 cameraBaseLocalPosition;
     private float baseFieldOfView = 60f;
     private float bobTimer;
@@ -107,6 +115,11 @@ public class PlayerMovement : NetworkBehaviour
 
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
+
+        if (animator == null)
+        {
+            animator = GetComponentInChildren<Animator>();
+        }
     }
 
     void Update()
@@ -134,6 +147,7 @@ public class PlayerMovement : NetworkBehaviour
         Move();
         Look();
         UpdateStance();
+        UpdateAnimation();
     }
 
     void LateUpdate()
@@ -317,5 +331,33 @@ public class PlayerMovement : NetworkBehaviour
             float fovLerp = 1f - Mathf.Exp(-fieldOfViewSmoothness * Time.deltaTime);
             playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, targetFov, fovLerp);
         }
+    }
+    void UpdateAnimation()
+    {
+        if (animator == null || controller == null)
+        {
+            return;
+        }
+
+        float planarSpeed = new Vector3(
+            horizontalVelocity.x,
+            0f,
+            horizontalVelocity.z
+        ).magnitude;
+
+        float normalizedSpeed = sprintSpeed > 0f
+            ? Mathf.Clamp01(planarSpeed / sprintSpeed)
+            : 0f;
+
+        animator.SetFloat(
+            SpeedHash,
+            normalizedSpeed,
+            0.1f,
+            Time.deltaTime
+        );
+
+        //animator.SetBool(IsGroundedHash, controller.isGrounded);
+        //animator.SetBool(IsSprintingHash, isSprinting);
+        //animator.SetBool(IsCrouchingHash, isCrouching);
     }
 }
