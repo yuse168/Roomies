@@ -26,6 +26,9 @@ public class PlayerInteract : NetworkBehaviour
     private CarryableObject heldObject;
     private NetworkFurniture heldFurniture;
     private SmugglingPlayer smugglingPlayer;
+    private PlayerNameDisplay playerNameDisplay;
+    private PlayerEarning playerEarning;
+    private float objectPickupPendingUntil;
     private float furnitureYawOffset;
     private float furniturePickupPendingUntil;
     private float furnitureNextSyncTime;
@@ -44,6 +47,8 @@ public class PlayerInteract : NetworkBehaviour
         if (!IsOwner) return;
 
         smugglingPlayer = GetComponent<SmugglingPlayer>();
+        playerNameDisplay = GetComponent<PlayerNameDisplay>();
+        playerEarning = GetComponent<PlayerEarning>();
 
         // 自分のプレハブ内から探す
         // （GameObject.Findだと他プレイヤーのプレハブのUIを掴む可能性がある）
@@ -174,7 +179,7 @@ public class PlayerInteract : NetworkBehaviour
                 // 持てる物
                 SmugglingInteractable smuggling = hit.collider.GetComponentInParent<SmugglingInteractable>();
                 CharacterCloset closet = hit.collider.GetComponentInParent<CharacterCloset>();
-                if (closet != null && closet.CanInteract(GetComponent<PlayerNameDisplay>()))
+                if (closet != null && closet.CanInteract(playerNameDisplay))
                 {
                     label = Key(GameAction.Interact) + " クローゼットを開く";
                 }
@@ -183,9 +188,11 @@ public class PlayerInteract : NetworkBehaviour
                     label = Key(GameAction.Interact) + " " + smuggling.GetInteractionLabel(smugglingPlayer);
                 }
                 // 持てる物
-                else if (hit.collider.GetComponentInParent<CarryableObject>() != null)
+                else if (hit.collider.GetComponentInParent<CarryableObject>() is CarryableObject carryable)
                 {
-                    label = Key(GameAction.Carry) + " 持つ";
+                    label = carryable.IsHeld
+                        ? "ほかの人が運搬中"
+                        : Key(GameAction.Carry) + " 持つ";
                 }
                 // 家具
                 else if (hit.collider.GetComponentInParent<NetworkFurniture>() is NetworkFurniture furniture)
@@ -304,7 +311,7 @@ public class PlayerInteract : NetworkBehaviour
             CharacterCloset closet = hit.collider.GetComponentInParent<CharacterCloset>();
             if (closet != null)
             {
-                closet.Open(GetComponent<PlayerNameDisplay>());
+                closet.Open(playerNameDisplay);
                 return;
             }
 
@@ -329,8 +336,6 @@ public class PlayerInteract : NetworkBehaviour
 
             if (deliveryButton != null)
             {
-                PlayerEarning playerEarning = GetComponent<PlayerEarning>();
-
                 deliveryButton.PressButton(playerEarning);
 
                 return;
@@ -341,8 +346,6 @@ public class PlayerInteract : NetworkBehaviour
 
             if (slot != null)
             {
-                PlayerEarning playerEarning = GetComponent<PlayerEarning>();
-
                 slot.Interact(playerEarning);
 
                 return;
@@ -353,7 +356,6 @@ public class PlayerInteract : NetworkBehaviour
 
             if (blackjack != null)
             {
-                PlayerEarning playerEarning = GetComponent<PlayerEarning>();
                 blackjack.Interact(playerEarning);
                 return;
             }
@@ -398,9 +400,10 @@ public class PlayerInteract : NetworkBehaviour
 
             CarryableObject carryable = hit.collider.GetComponentInParent<CarryableObject>();
 
-            if (carryable != null)
+            if (carryable != null && !carryable.IsHeld)
             {
                 heldObject = carryable;
+                objectPickupPendingUntil = Time.unscaledTime + 0.75f;
                 heldObject.PickupServerRpc(OwnerClientId, NetworkObjectId);
             }
         }
@@ -468,6 +471,13 @@ public class PlayerInteract : NetworkBehaviour
 
     void UpdateHeldObjectPosition()
     {
+        if (!heldObject.IsHeldBy(OwnerClientId))
+        {
+            if (Time.unscaledTime >= objectPickupPendingUntil)
+                heldObject = null;
+            return;
+        }
+
         Vector3 targetPosition = GetSafeHoldPosition();
         Quaternion targetRotation = Quaternion.LookRotation(cameraTransform.forward);
 

@@ -13,8 +13,9 @@ public sealed class RentPaymentUI : MonoBehaviour
     public const float FailureDuration = 5.8f;
 
     private CanvasGroup group;
-    private Image background;
-    private Image card;
+    private Image background;   // 拒否演出用の赤いフラッシュ層（通常は透明）
+    private Image card;         // パネルの白フチ
+    private Image cardFill;     // パネルの内側の面（成功／失敗で色を変える）
     private Image progressFill;
     private TMP_Text rentLabel;
     private TMP_Text balanceLabel;
@@ -22,10 +23,12 @@ public sealed class RentPaymentUI : MonoBehaviour
     private TMP_Text resultLabel;
     private Vector2 cardBasePosition;
 
-    private static readonly Color Dark = UITheme.WarmBottom;
-    private static readonly Color Orange = UITheme.Accent;
-    private static readonly Color Green = UITheme.Green;
+    private static readonly Color Clear = new Color(0.62f, 0f, 0.04f, 0f);
+    private static readonly Color Orange = UITheme.Sun;
+    private static readonly Color Green = UITheme.Lime;
     private static readonly Color Red = UITheme.Red;
+    private static readonly Color PanelIdle    = UITheme.MenuInk;
+    private static readonly Color PanelSuccess = new Color(0.07f, 0.24f, 0.13f, 0.95f);
 
     private void Awake()
     {
@@ -54,57 +57,69 @@ public sealed class RentPaymentUI : MonoBehaviour
         group.interactable = true;
         group.blocksRaycasts = true;
 
-        var bgGo = new GameObject("Background", typeof(RectTransform));
+        // 背景は他の全画面演出と同じ型（部屋がうっすら残る遮光）
+        UITheme.StageBackdrop(canvas.transform, Orange, 0.9f);
+
+        // 点滅演出用に、遮光の上へ重ねる赤いフラッシュ層を持つ
+        var bgGo = new GameObject("Flash", typeof(RectTransform));
         bgGo.transform.SetParent(canvas.transform, false);
         Stretch(bgGo.GetComponent<RectTransform>());
         background = bgGo.AddComponent<Image>();
-        background.color = Dark;
+        background.color = Clear;
+        background.raycastTarget = false;
 
-        card = UITheme.Card(canvas.transform, "RentCard");
+        // 白い巨大カードをやめ、視線が一点に集まる濃色パネルにする
+        card = UITheme.Surface(canvas.transform, "RentCard", 44f, 7f);
+        cardFill = card.transform.Find("Fill").GetComponent<Image>();
         var cardRt = card.rectTransform;
         cardRt.anchorMin = cardRt.anchorMax = cardRt.pivot = new Vector2(0.5f, 0.5f);
         cardRt.anchoredPosition = cardBasePosition = Vector2.zero;
-        cardRt.sizeDelta = new Vector2(1120f, 650f);
-        card.color = UITheme.Panel;
+        cardRt.sizeDelta = new Vector2(940f, 560f);
 
-        var badge = CreateImage(card.transform, "Badge", Orange);
+        var badge = CreateChip(card.transform, "Badge", Orange, 26f);
         SetRect(badge.rectTransform, new Vector2(0.5f, 1f),
-            new Vector2(420f, 62f), new Vector2(0f, -42f));
-        var badgeText = CreateLabel(badge.transform, "Text", "3日目・さいごのお会計", 27f,
-            new Color(0.11f, 0.085f, 0.035f), true);
-        Stretch(badgeText.rectTransform, 10f);
+            new Vector2(400f, 54f), new Vector2(0f, -36f));
+        var badgeText = CreateLabel(badge.transform, "Text", "3日目・さいごのお会計", 24f,
+            new Color(0.16f, 0.09f, 0.02f), true);
+        Stretch(badgeText.rectTransform, 12f);
 
-        var title = CreateLabel(card.transform, "Title", "家賃支払いフェーズ", 66f,
-            UITheme.TextMain, true);
+        var title = CreateLabel(card.transform, "Title", "家賃支払いフェーズ", 46f,
+            Color.white, true);
         SetRect(title.rectTransform, new Vector2(0.5f, 1f),
-            new Vector2(1000f, 100f), new Vector2(0f, -135f));
+            new Vector2(840f, 66f), new Vector2(0f, -104f));
 
-        rentLabel = CreateLabel(card.transform, "Rent", "", 52f, UITheme.Gold, true);
+        // 請求額が主役。この画面で一番大きい文字にする
+        var rentCaption = CreateLabel(card.transform, "RentCaption", "請求額", 24f,
+            new Color(1f, 1f, 1f, 0.66f), true);
+        SetRect(rentCaption.rectTransform, new Vector2(0.5f, 1f),
+            new Vector2(840f, 32f), new Vector2(0f, -176f));
+
+        rentLabel = CreateLabel(card.transform, "Rent", "", 76f, UITheme.Sun, true);
         SetRect(rentLabel.rectTransform, new Vector2(0.5f, 1f),
-            new Vector2(900f, 75f), new Vector2(0f, -245f));
+            new Vector2(840f, 100f), new Vector2(0f, -208f));
 
-        balanceLabel = CreateLabel(card.transform, "Balance", "", 34f,
-            UITheme.TextSub, true);
+        balanceLabel = CreateLabel(card.transform, "Balance", "", 30f,
+            new Color(1f, 1f, 1f, 0.72f), true);
         SetRect(balanceLabel.rectTransform, new Vector2(0.5f, 1f),
-            new Vector2(900f, 55f), new Vector2(0f, -323f));
+            new Vector2(840f, 46f), new Vector2(0f, -292f));
 
-        var barBg = CreateImage(card.transform, "ProgressBar", new Color(1f, 1f, 1f, 0.10f));
+        var barBg = CreateChip(card.transform, "ProgressBar",
+            new Color(0f, 0f, 0f, 0.42f), 11f);
         SetRect(barBg.rectTransform, new Vector2(0.5f, 0.5f),
-            new Vector2(820f, 24f), new Vector2(0f, -55f));
+            new Vector2(760f, 22f), new Vector2(0f, -48f));
 
-        var fill = CreateImage(barBg.transform, "Fill", Orange);
-        progressFill = fill;
-        var fillRt = fill.rectTransform;
+        progressFill = CreateChip(barBg.transform, "Fill", Orange, 11f);
+        var fillRt = progressFill.rectTransform;
         fillRt.anchorMin = Vector2.zero;
         fillRt.anchorMax = new Vector2(0f, 1f);
         fillRt.pivot = new Vector2(0f, 0.5f);
         fillRt.offsetMin = Vector2.zero;
         fillRt.offsetMax = Vector2.zero;
 
-        statusLabel = CreateLabel(card.transform, "Status", "引き落としを確認中…", 36f,
-            UITheme.TextMain, true);
+        statusLabel = CreateLabel(card.transform, "Status", "引き落としを確認中…", 38f,
+            Color.white, true);
         SetRect(statusLabel.rectTransform, new Vector2(0.5f, 0f),
-            new Vector2(950f, 70f), new Vector2(0f, 85f));
+            new Vector2(860f, 64f), new Vector2(0f, 58f));
 
         resultLabel = CreateLabel(canvas.transform, "Result", "", 150f, Color.white, true);
         var resultRt = resultLabel.rectTransform;
@@ -118,15 +133,15 @@ public sealed class RentPaymentUI : MonoBehaviour
 
     private IEnumerator PlayRoutine(int rent, int balance, bool canPay)
     {
-        rentLabel.text = $"請求額　¥{rent:N0}";
+        rentLabel.text = $"¥{rent:N0}";
         balanceLabel.text = $"共有口座　¥{balance:N0}";
         statusLabel.text = "引き落としを確認中…";
-        statusLabel.color = UITheme.TextMain;
+        statusLabel.color = Color.white;
         resultLabel.gameObject.SetActive(false);
         card.rectTransform.anchoredPosition = cardBasePosition;
         card.rectTransform.localScale = Vector3.one;
-        card.color = UITheme.Panel;
-        background.color = Dark;
+        if (cardFill != null) cardFill.color = PanelIdle;
+        background.color = Clear;
 
         var fillRt = progressFill.rectTransform;
         fillRt.anchorMax = new Vector2(0f, 1f);
@@ -156,7 +171,7 @@ public sealed class RentPaymentUI : MonoBehaviour
         statusLabel.text = "支払い完了！";
         statusLabel.color = Green;
         balanceLabel.text = $"共有口座　¥{Mathf.Max(0, balance - rent):N0}";
-        card.color = new Color(0.075f, 0.16f, 0.075f, 0.98f);
+        if (cardFill != null) cardFill.color = PanelSuccess;
 
         float elapsed = 0f;
         while (elapsed < 0.4f)
@@ -189,9 +204,10 @@ public sealed class RentPaymentUI : MonoBehaviour
             card.rectTransform.anchoredPosition = cardBasePosition + new Vector2(x, 0f);
 
             float flash = Mathf.PingPong(elapsed * 7f, 1f);
-            background.color = Color.Lerp(Dark, new Color(0.38f, 0.015f, 0.03f, 1f), flash * 0.8f);
+            background.color = Color.Lerp(Clear, new Color(0.62f, 0f, 0.04f, 0.62f), flash);
             yield return null;
         }
+        background.color = Clear;
         card.rectTransform.anchoredPosition = cardBasePosition;
 
         yield return new WaitForSecondsRealtime(0.35f);
@@ -209,7 +225,7 @@ public sealed class RentPaymentUI : MonoBehaviour
             float t = Mathf.Clamp01(elapsed / popTime);
             float scale = Mathf.Lerp(2.0f, 1f, 1f - Mathf.Pow(1f - t, 3f));
             resultLabel.rectTransform.localScale = Vector3.one * scale;
-            background.color = Color.Lerp(new Color(0.62f, 0f, 0.04f, 1f), Dark, t);
+            background.color = Color.Lerp(new Color(0.62f, 0f, 0.04f, 0.86f), Clear, t);
             yield return null;
         }
 
@@ -233,16 +249,9 @@ public sealed class RentPaymentUI : MonoBehaviour
         group.alpha = to;
     }
 
-    private static Image CreateImage(Transform parent, string name, Color color)
+    private static Image CreateChip(Transform parent, string name, Color color, float radius)
     {
-        var go = new GameObject(name, typeof(RectTransform));
-        go.transform.SetParent(parent, false);
-        var image = go.AddComponent<Image>();
-        image.sprite = UITheme.RoundedSprite;
-        image.type = Image.Type.Sliced;
-        image.color = color;
-        image.raycastTarget = false;
-        return image;
+        return UITheme.Chip(parent, name, color, radius);
     }
 
     private static TextMeshProUGUI CreateLabel(

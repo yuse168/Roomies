@@ -13,6 +13,10 @@ using UnityEngine.UI;
 public class CharacterCloset : MonoBehaviour
 {
     public static bool IsOpen { get; private set; }
+    public static bool ConsumedEscapeThisFrame =>
+        escapeConsumedFrame == Time.frameCount;
+
+    private static int escapeConsumedFrame = -1;
 
     private CanvasGroup overlay;
     private PlayerNameDisplay targetPlayer;
@@ -25,6 +29,7 @@ public class CharacterCloset : MonoBehaviour
         SceneManager.sceneLoaded -= OnSceneLoaded;
         SceneManager.sceneLoaded += OnSceneLoaded;
         IsOpen = false;
+        escapeConsumedFrame = -1;
     }
 
     private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -78,7 +83,10 @@ public class CharacterCloset : MonoBehaviour
     private void Update()
     {
         if (IsOpen && UnityEngine.InputSystem.Keyboard.current?.escapeKey.wasPressedThisFrame == true)
+        {
+            escapeConsumedFrame = Time.frameCount;
             Close();
+        }
     }
 
     private void BuildClosetVisual()
@@ -123,21 +131,22 @@ public class CharacterCloset : MonoBehaviour
         var shade = new GameObject("Shade", typeof(RectTransform), typeof(Image));
         shade.transform.SetParent(canvas.transform, false);
         Stretch(shade.GetComponent<RectTransform>());
-        shade.GetComponent<Image>().color = new Color(0.01f, 0.012f, 0.018f, 0.86f);
+        shade.GetComponent<Image>().color = new Color(0.06f, 0.03f, 0.13f, 0.62f);
         overlay = shade.AddComponent<CanvasGroup>();
 
-        Image card = UITheme.Card(shade.transform, "ClosetCard");
+        // 白いカードではなく、他のUIと同じ「濃色の面＋太い白フチ」
+        Image card = UITheme.Surface(shade.transform, "ClosetCard", 40f, 6f);
         RectTransform cardRect = card.rectTransform;
         cardRect.anchorMin = cardRect.anchorMax = cardRect.pivot = new Vector2(0.5f, 0.5f);
         cardRect.sizeDelta = new Vector2(760f, 590f);
         cardRect.anchoredPosition = Vector2.zero;
 
         TMP_Text title = UITheme.Label(card.transform, "Title", "キャラクターカラー",
-            36f, UITheme.TextMain, TextAlignmentOptions.Center, true);
+            36f, Color.white, TextAlignmentOptions.Center, true);
         SetBox(title.rectTransform, 40f, 30f, 680f, 56f);
 
         TMP_Text hint = UITheme.Label(card.transform, "Hint", "自分の色を選んでください",
-            20f, UITheme.TextSub, TextAlignmentOptions.Center, false);
+            20f, new Color(1f, 1f, 1f, 0.66f), TextAlignmentOptions.Center, false);
         SetBox(hint.rectTransform, 40f, 88f, 680f, 36f);
 
         for (int i = 0; i < swatches.Length; i++)
@@ -150,28 +159,39 @@ public class CharacterCloset : MonoBehaviour
             float y = 146f + (i / 4) * 82f;
             SetBox(rt, x, y, 146f, 64f);
             Image image = go.GetComponent<Image>();
-            image.sprite = UITheme.RoundedSprite;
-            image.type = Image.Type.Sliced;
+            image.sprite = UITheme.PillSprite;
             image.color = PlayerNameDisplay.CharacterColors[i];
+            UITheme.SetCornerRadius(image, 22f);
+            UITheme.AddBorder(go);
             Button button = go.GetComponent<Button>();
             button.targetGraphic = image;
+            button.transition = Selectable.Transition.ColorTint;
+            Color swatchColor = PlayerNameDisplay.CharacterColors[i];
+            ColorBlock colors = button.colors;
+            colors.normalColor = swatchColor;
+            colors.highlightedColor = Color.Lerp(swatchColor, Color.white, 0.18f);
+            colors.selectedColor = Color.Lerp(swatchColor, Color.white, 0.12f);
+            colors.pressedColor = Color.Lerp(swatchColor, Color.black, 0.20f);
+            colors.disabledColor = new Color(swatchColor.r, swatchColor.g, swatchColor.b, 0.38f);
+            colors.fadeDuration = 0.08f;
+            button.colors = colors;
+            go.AddComponent<UIButtonJuice>();
             button.onClick.AddListener(() => SelectColor(index));
             swatches[i] = button;
         }
 
         selectedLabel = UITheme.Label(card.transform, "Selected", "",
-            20f, UITheme.Accent, TextAlignmentOptions.Left, true);
+            20f, UITheme.Sun, TextAlignmentOptions.Left, true);
         SetBox(selectedLabel.rectTransform, 58f, 492f, 380f, 42f);
 
         var closeGo = new GameObject("Close", typeof(RectTransform), typeof(Image), typeof(Button));
         closeGo.transform.SetParent(card.transform, false);
-        SetBox(closeGo.GetComponent<RectTransform>(), 504f, 482f, 198f, 58f);
+        SetBox(closeGo.GetComponent<RectTransform>(), 504f, 480f, 198f, 62f);
         Button closeButton = closeGo.GetComponent<Button>();
-        TMP_Text closeLabel = UITheme.Label(
+        UITheme.Label(
             closeGo.transform, "Label", "決定して戻る", 24f,
-            UITheme.TextMain, TextAlignmentOptions.Center, true);
-        Stretch(closeLabel.rectTransform);
-        UITheme.StyleButton(closeButton, UITheme.Purple, UITheme.TextMain, 24f);
+            Color.white, TextAlignmentOptions.Center, true);
+        UITheme.StylePill(closeButton, UITheme.Pink, Color.white, 24f, 7f);
         closeButton.onClick.AddListener(Close);
     }
 
@@ -195,7 +215,9 @@ public class CharacterCloset : MonoBehaviour
             }
             else if (outline != null)
             {
-                outline.enabled = false;
+                outline.effectColor = UITheme.Border;
+                outline.effectDistance = new Vector2(1f, -1f);
+                outline.enabled = true;
             }
         }
 

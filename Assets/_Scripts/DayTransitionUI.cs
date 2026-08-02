@@ -46,12 +46,9 @@ public class DayTransitionUI : MonoBehaviour
         group.blocksRaycasts = false;
         group.interactable = false;
 
-        // 黒背景（全画面ストレッチ）
-        var bgGo = new GameObject("Black", typeof(RectTransform));
-        bgGo.transform.SetParent(canvasGo.transform, false);
-        StretchFull(bgGo.GetComponent<RectTransform>());
-        var bg = bgGo.AddComponent<Image>();
-        bg.color = UITheme.WarmBottom;
+        // 背景。この演出中にプレイヤーをリスポーンさせるため、
+        // 他の全画面演出と違い透過させず完全遮光にする（ベタ塗りではなくグラデーション）。
+        UITheme.StageBackdrop(canvasGo.transform, UITheme.Sun, 1f);
 
         // 「○日目」テキスト
         var dayGo = new GameObject("DayLabel", typeof(RectTransform));
@@ -59,28 +56,36 @@ public class DayTransitionUI : MonoBehaviour
         var dayRt = dayGo.GetComponent<RectTransform>();
         dayRt.anchorMin = new Vector2(0.5f, 0.5f);
         dayRt.anchorMax = new Vector2(0.5f, 0.5f);
-        dayRt.anchoredPosition = new Vector2(0, 20);
-        dayRt.sizeDelta = new Vector2(1200, 200);
+        dayRt.anchoredPosition = new Vector2(0, 30);
+        dayRt.sizeDelta = new Vector2(1400, 200);
         dayLabel = dayGo.AddComponent<TextMeshProUGUI>();
         dayLabel.text = "";
-        dayLabel.fontSize = 120f;
+        dayLabel.fontSize = 96f;
         dayLabel.fontStyle = FontStyles.Bold;
-        dayLabel.color = UITheme.Accent;
+        dayLabel.color = Color.white;
         dayLabel.alignment = TextAlignmentOptions.Center;
+        dayLabel.characterSpacing = -2f;
+        dayLabel.enableAutoSizing = true;
+        dayLabel.fontSizeMin = 56f;
+        dayLabel.fontSizeMax = 96f;
+        dayLabel.textWrappingMode = TextWrappingModes.NoWrap;
 
-        // サブテキスト（朝です）
-        var subGo = new GameObject("SubLabel", typeof(RectTransform));
-        subGo.transform.SetParent(canvasGo.transform, false);
-        var subRt = subGo.GetComponent<RectTransform>();
-        subRt.anchorMin = new Vector2(0.5f, 0.5f);
-        subRt.anchorMax = new Vector2(0.5f, 0.5f);
-        subRt.anchoredPosition = new Vector2(0, -90);
-        subRt.sizeDelta = new Vector2(1200, 80);
-        subLabel = subGo.AddComponent<TextMeshProUGUI>();
-        subLabel.text = "あさ になりました";
-        subLabel.fontSize = 44f;
-        subLabel.color = UITheme.TextMain;
-        subLabel.alignment = TextAlignmentOptions.Center;
+        // サブテキストは板の上の説明文ではなく、色付きのチップに入れる
+        Image chip = UITheme.Chip(canvasGo.transform, "SubChip", UITheme.Sun, 30f);
+        var chipRt = chip.rectTransform;
+        chipRt.anchorMin = chipRt.anchorMax = chipRt.pivot = new Vector2(0.5f, 0.5f);
+        chipRt.anchoredPosition = new Vector2(0, -92);
+        chipRt.sizeDelta = new Vector2(360, 68);
+
+        subLabel = UITheme.Label(chip.transform, "SubLabel", "あさ になりました",
+            32f, new Color(0.18f, 0.10f, 0.02f), TextAlignmentOptions.Center, bold: true);
+        subLabel.enableAutoSizing = true;
+        subLabel.fontSizeMin = 20f;
+        subLabel.fontSizeMax = 32f;
+        subLabel.textWrappingMode = TextWrappingModes.NoWrap;
+        StretchFull(subLabel.rectTransform);
+        subLabel.rectTransform.offsetMin = new Vector2(18f, 4f);
+        subLabel.rectTransform.offsetMax = new Vector2(-18f, -4f);
     }
 
     private static void StretchFull(RectTransform rt)
@@ -111,12 +116,22 @@ public class DayTransitionUI : MonoBehaviour
         if (group == null) yield break;
         float t = 0f;
         group.alpha = from;
+        if (to > from && dayLabel != null)
+            dayLabel.rectTransform.localScale = Vector3.one * 1.35f;
         while (t < dur)
         {
             t += Time.deltaTime;
-            group.alpha = Mathf.Lerp(from, to, t / dur);
+            float p = Mathf.Clamp01(t / dur);
+            group.alpha = Mathf.Lerp(from, to, p);
+            if (to > from && dayLabel != null)
+            {
+                float eased = 1f - Mathf.Pow(1f - p, 3f);
+                dayLabel.rectTransform.localScale =
+                    Vector3.one * Mathf.Lerp(1.35f, 1f, eased);
+            }
             yield return null;
         }
         group.alpha = to;
+        if (dayLabel != null) dayLabel.rectTransform.localScale = Vector3.one;
     }
 }

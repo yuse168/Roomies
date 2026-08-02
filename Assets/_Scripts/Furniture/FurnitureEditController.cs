@@ -14,7 +14,8 @@ using UnityEngine.UI;
 /// </summary>
 public class FurnitureEditController : MonoBehaviour
 {
-    [Header("家具カタログ（空なら仮ブロックを自動生成）")]
+    [Header("共有家具カタログ（全クライアントで同じ並びにする）")]
+    [Tooltip("Prefab・価格・効果をInspectorから変更できます。indexが同期キーなので並び順と内容は全員で共通にしてください。")]
     [SerializeField] private List<FurnitureItem> catalog = new List<FurnitureItem>();
 
     // ゴーストの色味（CreateInstanceのプレビュー用・現状未使用）
@@ -53,11 +54,16 @@ public class FurnitureEditController : MonoBehaviour
     };
 
     // =========================================================
-    private void Start()
+    private void Awake()
     {
         if (catalog == null || catalog.Count == 0)
             BuildDefaultCatalog();
 
+        FurnitureCatalog.Configure(catalog);
+    }
+
+    private void Start()
+    {
         BuildUI();
         SetEditMode(false);
         Debug.Log("[Furniture] FurnitureEditController 起動（夜にPで家具ショップ）");
@@ -81,10 +87,10 @@ public class FurnitureEditController : MonoBehaviour
         // P で開閉（開けるのは夜のみ）
         if (kb.pKey.wasPressedThisFrame)
         {
-            var allDm = FindObjectsByType<DayManager>(FindObjectsSortMode.None);
+            var allDm = FindObjectsByType<DayManager>();
             string info = "";
             foreach (var d in allDm)
-                info += $" [id{d.GetInstanceID()} time={d.DebugTime} day={d.DebugDay} spawned={d.DebugSpawned} isInstance={(d == DayManager.Instance)}]";
+                info += $" [{d.name} time={d.DebugTime} day={d.DebugDay} spawned={d.DebugSpawned} isInstance={(d == DayManager.Instance)}]";
             Debug.Log($"[Furniture] P押下: DayManager数={allDm.Length}{info}");
             if (editMode)            SetEditMode(false);
             else if (IsNight())      SetEditMode(true);
@@ -160,7 +166,7 @@ public class FurnitureEditController : MonoBehaviour
         // spawn済み（＝ネットワーク状態が同期されている本物）を優先して使う
         if (dayMgr != null && dayMgr.DebugSpawned) return dayMgr;
 
-        var all = FindObjectsByType<DayManager>(FindObjectsSortMode.None);
+        var all = FindObjectsByType<DayManager>();
         foreach (var d in all)
         {
             if (d != null && d.DebugSpawned) { dayMgr = d; return dayMgr; }

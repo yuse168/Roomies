@@ -45,6 +45,9 @@ public class SlotMachine : NetworkBehaviour
     [SerializeField] private int feverFreeSpins = 3;
     [SerializeField] private int feverMultiplier = 2;
 
+    [Header("Server検証")]
+    [SerializeField, Min(0.1f)] private float serverInteractDistance = 4f;
+
     [Header("UI")]
     [SerializeField] private TextMeshProUGUI reelText1;
     [SerializeField] private TextMeshProUGUI reelText2;
@@ -153,6 +156,8 @@ public class SlotMachine : NetworkBehaviour
     public void Interact(PlayerEarning playerEarning)
     {
         if (isSpinning.Value) return;
+        if (playerEarning == null || !playerEarning.IsSpawned) return;
+        if (betAmounts == null || betAmounts.Length == 0) return;
 
         PlaySlotServerRpc(playerEarning.NetworkObjectId, currentBetIndex);
     }
@@ -164,16 +169,24 @@ public class SlotMachine : NetworkBehaviour
         RpcParams rpcParams = default)
     {
         if (isSpinning.Value) return;
+        if (betAmounts == null || betAmounts.Length == 0) return;
 
         betIndex = Mathf.Clamp(betIndex, 0, betAmounts.Length - 1);
-        int cost = betAmounts[betIndex];
-        float multiplier = (float)cost / betAmounts[0];
+        int cost = Mathf.Max(1, betAmounts[betIndex]);
+        float multiplier = (float)cost / Mathf.Max(1, betAmounts[0]);
 
         if (!NetworkManager.Singleton.SpawnManager.SpawnedObjects
             .TryGetValue(playerNetworkObjectId, out NetworkObject requestingPlayer) ||
             requestingPlayer.OwnerClientId != rpcParams.Receive.SenderClientId)
         {
             Debug.LogWarning("[Slot] 他プレイヤー名義のBET要求を拒否しました。");
+            return;
+        }
+
+        if (Vector3.Distance(requestingPlayer.transform.position, transform.position) >
+            serverInteractDistance)
+        {
+            Debug.LogWarning("[Slot] 遠すぎるBET要求を拒否しました。");
             return;
         }
 

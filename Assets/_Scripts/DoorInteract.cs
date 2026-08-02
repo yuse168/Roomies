@@ -11,6 +11,9 @@ public class DoorInteract : NetworkBehaviour
     public float openAngle = 90f;
     public float rotateSpeed = 8f;
 
+    [Header("Server検証")]
+    [SerializeField, Min(0.1f)] private float serverInteractDistance = 4f;
+
     // ドアが開いているか
     private NetworkVariable<bool> isOpen = new NetworkVariable<bool>(false);
 
@@ -31,8 +34,23 @@ public class DoorInteract : NetworkBehaviour
 
     // ドア開閉
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
-    public void ToggleDoorServerRpc()
+    public void ToggleDoorServerRpc(RpcParams rpcParams = default)
     {
+        if (NetworkManager.Singleton == null ||
+            !NetworkManager.Singleton.ConnectedClients.TryGetValue(
+                rpcParams.Receive.SenderClientId,
+                out NetworkClient client) ||
+            client.PlayerObject == null)
+            return;
+
+        Transform target = doorPivot != null ? doorPivot : transform;
+        if (Vector3.Distance(client.PlayerObject.transform.position, target.position) >
+            serverInteractDistance)
+        {
+            Debug.LogWarning("[Door] 遠すぎるドア操作要求を拒否しました。");
+            return;
+        }
+
         isOpen.Value = !isOpen.Value;
     }
 }

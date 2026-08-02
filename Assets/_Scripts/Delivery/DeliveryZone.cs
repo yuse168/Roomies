@@ -10,6 +10,8 @@ public class DeliveryZone : NetworkBehaviour
 
     [Header("スポーン位置")]
     [SerializeField] private Transform boxSpawnPoint;
+    [SerializeField] private Vector2 spawnJitter = new Vector2(0.6f, 0.6f);
+    [SerializeField] private float spawnHeight = 0.5f;
 
     [Header("箱の最大数")]
     [SerializeField] private int maxBoxCount = 3;
@@ -36,7 +38,7 @@ public class DeliveryZone : NetworkBehaviour
         if (!other.CompareTag("DeliveryBox")) return;
 
         NetworkObject boxNetObj =
-            other.GetComponent<NetworkObject>();
+            other.GetComponentInParent<NetworkObject>();
 
         if (boxNetObj != null && !boxesInZone.Contains(boxNetObj))
         {
@@ -52,7 +54,7 @@ public class DeliveryZone : NetworkBehaviour
         if (!other.CompareTag("DeliveryBox")) return;
 
         NetworkObject boxNetObj =
-            other.GetComponent<NetworkObject>();
+            other.GetComponentInParent<NetworkObject>();
 
         if (boxNetObj != null && boxesInZone.Contains(boxNetObj))
         {
@@ -64,11 +66,13 @@ public class DeliveryZone : NetworkBehaviour
 
     public bool HasBox()
     {
+        PruneInvalidBoxes();
         return boxesInZone.Count > 0;
     }
 
     public DeliveryItem GetCurrentItem()
     {
+        PruneInvalidBoxes();
         if (boxesInZone.Count == 0) return null;
 
         return boxesInZone[0]
@@ -78,6 +82,7 @@ public class DeliveryZone : NetworkBehaviour
     public void RemoveBox()
     {
         if (!IsServer) return;
+        PruneInvalidBoxes();
 
         if (boxesInZone.Count > 0)
         {
@@ -126,9 +131,9 @@ public class DeliveryZone : NetworkBehaviour
 
         Vector3 spawnPos = boxSpawnPoint.position
             + new Vector3(
-                Random.Range(-0.6f, 0.6f),
-                0.5f,
-                Random.Range(-0.6f, 0.6f)
+                Random.Range(-Mathf.Abs(spawnJitter.x), Mathf.Abs(spawnJitter.x)),
+                spawnHeight,
+                Random.Range(-Mathf.Abs(spawnJitter.y), Mathf.Abs(spawnJitter.y))
             );
 
         NetworkObject newBox = Instantiate(
@@ -163,5 +168,12 @@ public class DeliveryZone : NetworkBehaviour
         }
 
         Debug.Log("新しい箱をスポーンしました");
+    }
+
+    private void PruneInvalidBoxes()
+    {
+        boxesInZone.RemoveAll(box =>
+            box == null ||
+            !box.IsSpawned);
     }
 }

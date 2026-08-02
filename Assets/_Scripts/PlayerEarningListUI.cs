@@ -24,6 +24,11 @@ public class PlayerEarningListUI : MonoBehaviour
     private float refreshTimer;
     private const float RefreshInterval = 0.25f;
 
+    private const float CardWidth    = 580f;
+    private const float HeaderHeight = 84f;
+    private const float RowHeight    = 62f;
+    private const float RowSpacing   = 10f;
+
     // ランクバッジの色（1位:金 / 2位:銀 / 3位:銅 / それ以下:グレー）
     private static readonly Color[] RankColors =
     {
@@ -31,7 +36,7 @@ public class PlayerEarningListUI : MonoBehaviour
         new Color(0.78f, 0.82f, 0.88f),
         new Color(0.80f, 0.52f, 0.28f),
     };
-    private static readonly Color RankDefault = new Color(0.32f, 0.35f, 0.45f);
+    private static readonly Color RankDefault = UITheme.Grape;
 
     private void Start()
     {
@@ -50,42 +55,37 @@ public class PlayerEarningListUI : MonoBehaviour
         group.blocksRaycasts = false;
         group.interactable = false;
 
-        // 中央のカード
-        var card = UITheme.Card(canvas.transform, "EarningCard");
+        // 中央のパネル（白いカードではなく濃色＋太い白フチ）
+        var card = UITheme.Surface(canvas.transform, "EarningCard", 30f, 5f);
         cardRt = card.rectTransform;
         cardRt.anchorMin = new Vector2(0.5f, 0.5f);
         cardRt.anchorMax = new Vector2(0.5f, 0.5f);
         cardRt.pivot     = new Vector2(0.5f, 0.5f);
         cardRt.anchoredPosition = Vector2.zero;
-        cardRt.sizeDelta = new Vector2(520, 200); // 高さは行数に応じて更新
+        cardRt.sizeDelta = new Vector2(CardWidth, 200); // 高さは行数に応じて更新
 
         // ヘッダー（¥バッジ＋タイトル）
-        var badge = new GameObject("Badge", typeof(RectTransform));
-        badge.transform.SetParent(card.transform, false);
-        var badgeRt = badge.GetComponent<RectTransform>();
+        Image badge = UITheme.Chip(card.transform, "Badge", UITheme.Sun, 25f);
+        var badgeRt = badge.rectTransform;
         badgeRt.anchorMin = new Vector2(0f, 1f);
         badgeRt.anchorMax = new Vector2(0f, 1f);
         badgeRt.pivot     = new Vector2(0f, 1f);
-        badgeRt.anchoredPosition = new Vector2(24, -18);
-        badgeRt.sizeDelta = new Vector2(44, 44);
-        var badgeImg = badge.AddComponent<Image>();
-        badgeImg.sprite = UITheme.RoundedSprite;
-        badgeImg.type   = Image.Type.Sliced;
-        badgeImg.pixelsPerUnitMultiplier = 1.8f;
-        badgeImg.color  = UITheme.Accent;
+        badgeRt.anchoredPosition = new Vector2(24, -20);
+        badgeRt.sizeDelta = new Vector2(50, 50);
 
         var badgeGlyph = UITheme.Label(badge.transform, "Glyph", "¥",
-            26f, Color.white, TextAlignmentOptions.Center, bold: true);
+            30f, new Color(0.16f, 0.09f, 0.02f), TextAlignmentOptions.Center, bold: true);
         StretchFull(badgeGlyph.rectTransform);
 
         var title = UITheme.Label(card.transform, "Title", "みんなの稼ぎ",
-            28f, UITheme.TextMain, TextAlignmentOptions.Left, bold: true);
+            30f, Color.white, TextAlignmentOptions.Left, bold: true);
         var titleRt = title.rectTransform;
         titleRt.anchorMin = new Vector2(0f, 1f);
         titleRt.anchorMax = new Vector2(1f, 1f);
         titleRt.pivot     = new Vector2(0f, 1f);
-        titleRt.anchoredPosition = new Vector2(82, -22);
-        titleRt.sizeDelta = new Vector2(-110, 36);
+        titleRt.anchoredPosition = new Vector2(88, -24);
+        titleRt.sizeDelta = new Vector2(-120, 40);
+        title.textWrappingMode = TextWrappingModes.NoWrap;
 
         // 行コンテナ
         var rows = new GameObject("Rows", typeof(RectTransform));
@@ -94,11 +94,11 @@ public class PlayerEarningListUI : MonoBehaviour
         rowsRt.anchorMin = new Vector2(0f, 1f);
         rowsRt.anchorMax = new Vector2(1f, 1f);
         rowsRt.pivot     = new Vector2(0.5f, 1f);
-        rowsRt.anchoredPosition = new Vector2(0, -76);
-        rowsRt.sizeDelta = new Vector2(-48, 0);
+        rowsRt.anchoredPosition = new Vector2(0, -HeaderHeight);
+        rowsRt.sizeDelta = new Vector2(-44, 0);
 
         var vlg = rows.AddComponent<VerticalLayoutGroup>();
-        vlg.spacing = 8f;
+        vlg.spacing = 10f;
         vlg.childControlWidth      = true;
         vlg.childControlHeight     = true;
         vlg.childForceExpandWidth  = true;
@@ -150,7 +150,7 @@ public class PlayerEarningListUI : MonoBehaviour
 
         // 稼ぎ降順で並べる
         var players = new List<PlayerEarning>(
-            FindObjectsByType<PlayerEarning>(FindObjectsSortMode.None));
+            FindObjectsByType<PlayerEarning>());
         players.Sort((a, b) => b.GetEarning().CompareTo(a.GetEarning()));
 
         for (int i = 0; i < players.Count; i++)
@@ -158,11 +158,11 @@ public class PlayerEarningListUI : MonoBehaviour
             CreateRow(i + 1, players[i]);
         }
 
-        // カードの高さを行数に合わせる（ヘッダー76 + 行56*+ 余白）
+        // パネルの高さを行数に合わせる
         if (cardRt != null)
         {
-            float height = 76f + players.Count * (56f + 8f) + 16f;
-            cardRt.sizeDelta = new Vector2(520, height);
+            float height = HeaderHeight + players.Count * (RowHeight + RowSpacing) + 18f;
+            cardRt.sizeDelta = new Vector2(CardWidth, height);
         }
     }
 
@@ -179,41 +179,42 @@ public class PlayerEarningListUI : MonoBehaviour
         row.transform.SetParent(rowsParent, false);
 
         var rowLe = row.AddComponent<LayoutElement>();
-        rowLe.minHeight = rowLe.preferredHeight = 56f;
+        rowLe.minHeight = rowLe.preferredHeight = RowHeight;
 
         var rowBg = row.AddComponent<Image>();
-        rowBg.sprite = UITheme.RoundedSprite;
-        rowBg.type   = Image.Type.Sliced;
-        rowBg.pixelsPerUnitMultiplier = 2f;
+        rowBg.sprite = UITheme.PillSprite;
         rowBg.color  = isSelf
-            ? new Color(UITheme.Accent.r, UITheme.Accent.g, UITheme.Accent.b, 0.16f)
-            : UITheme.PanelSoft;
+            ? Color.Lerp(UITheme.MenuInkSoft, UITheme.Sun, 0.26f)
+            : UITheme.MenuInkSoft;
+        UITheme.SetCornerRadius(rowBg, RowHeight * 0.5f);
 
         var hlg = row.AddComponent<HorizontalLayoutGroup>();
         hlg.childAlignment         = TextAnchor.MiddleLeft;
-        hlg.spacing                = 12f;
-        hlg.padding                = new RectOffset(10, 16, 8, 8);
+        hlg.spacing                = 14f;
+        hlg.padding                = new RectOffset(8, 20, 6, 6);
         hlg.childControlWidth      = true;
         hlg.childControlHeight     = true;
         hlg.childForceExpandWidth  = false;
         hlg.childForceExpandHeight = false;
 
-        // --- ランクバッジ ---
-        var rankGo = new GameObject("Rank", typeof(RectTransform));
+        // --- ランクバッジ（丸） ---
+        var rankGo = new GameObject("Rank", typeof(RectTransform), typeof(Image));
         rankGo.transform.SetParent(row.transform, false);
         var rankLe = rankGo.AddComponent<LayoutElement>();
-        rankLe.minWidth = rankLe.preferredWidth = 40f;
-        rankLe.minHeight = rankLe.preferredHeight = 40f;
+        rankLe.minWidth = rankLe.preferredWidth = 46f;
+        rankLe.minHeight = rankLe.preferredHeight = 46f;
 
-        var rankImg = rankGo.AddComponent<Image>();
-        rankImg.sprite = UITheme.RoundedSprite;
-        rankImg.type   = Image.Type.Sliced;
-        rankImg.pixelsPerUnitMultiplier = 2f;
+        var rankImg = rankGo.GetComponent<Image>();
+        rankImg.sprite = UITheme.PillSprite;
         rankImg.color  = rank <= RankColors.Length ? RankColors[rank - 1] : RankDefault;
+        rankImg.raycastTarget = false;
+        UITheme.SetCornerRadius(rankImg, 22f);
 
+        // メダル色が明るい1〜3位は濃い文字、4位以降は白文字にする
         var rankLabel = UITheme.Label(rankGo.transform, "Num", rank.ToString(),
-            22f, new Color(0.10f, 0.10f, 0.14f), TextAlignmentOptions.Center, bold: true);
-        if (rank > RankColors.Length) rankLabel.color = UITheme.TextMain;
+            24f,
+            rank <= RankColors.Length ? new Color(0.14f, 0.08f, 0.02f) : Color.white,
+            TextAlignmentOptions.Center, bold: true);
         StretchFull(rankLabel.rectTransform);
 
         // --- 名前 ---
@@ -223,10 +224,10 @@ public class PlayerEarningListUI : MonoBehaviour
         nameLe.flexibleWidth = 1f;
 
         var nameLabel = nameGo.AddComponent<TextMeshProUGUI>();
-        nameLabel.text = isSelf ? $"{playerName} (あなた)" : playerName;
-        nameLabel.fontSize  = 24f;
+        nameLabel.text = isSelf ? $"{playerName}（あなた）" : playerName;
+        nameLabel.fontSize  = 26f;
         nameLabel.fontStyle = FontStyles.Bold;
-        nameLabel.color     = isSelf ? UITheme.Gold : UITheme.TextMain;
+        nameLabel.color     = isSelf ? UITheme.Sun : Color.white;
         nameLabel.alignment = TextAlignmentOptions.Left;
         nameLabel.textWrappingMode = TextWrappingModes.NoWrap;
         nameLabel.overflowMode = TextOverflowModes.Ellipsis;
@@ -235,13 +236,14 @@ public class PlayerEarningListUI : MonoBehaviour
         var amountGo = new GameObject("Amount", typeof(RectTransform));
         amountGo.transform.SetParent(row.transform, false);
         var amountLe = amountGo.AddComponent<LayoutElement>();
-        amountLe.minWidth = amountLe.preferredWidth = 140f;
+        amountLe.minWidth = amountLe.preferredWidth = 160f;
 
+        int earning = player.GetEarning();
         var amountLabel = amountGo.AddComponent<TextMeshProUGUI>();
-        amountLabel.text = "¥" + player.GetEarning().ToString("N0");
-        amountLabel.fontSize  = 24f;
+        amountLabel.text = "¥" + earning.ToString("N0");
+        amountLabel.fontSize  = 27f;
         amountLabel.fontStyle = FontStyles.Bold;
-        amountLabel.color     = new Color(0.50f, 0.88f, 0.54f);
+        amountLabel.color     = earning < 0 ? UITheme.Red : UITheme.Lime;
         amountLabel.alignment = TextAlignmentOptions.Right;
         amountLabel.textWrappingMode = TextWrappingModes.NoWrap;
     }

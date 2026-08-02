@@ -9,6 +9,10 @@ public class DayManager : NetworkBehaviour
     [Header("スカイドーム")]
     [SerializeField] private Material morningSkyMaterial;
     [SerializeField] private Material nightSkyMaterial;
+    [SerializeField, Range(0f, 2f)] private float morningAmbientIntensity = 0.9f;
+    [SerializeField, Range(0f, 2f)] private float nightAmbientIntensity = 0.5f;
+    [SerializeField, Range(0f, 2f)] private float morningReflectionIntensity = 0.7f;
+    [SerializeField, Range(0f, 2f)] private float nightReflectionIntensity = 0.45f;
 
     [Header("Day設定")]
     [SerializeField] private int maxDay = 3;
@@ -17,7 +21,11 @@ public class DayManager : NetworkBehaviour
     [SerializeField] private int rentAmount = 500;
 
     [Header("ターン時間")]
-    [SerializeField] private float turnDuration = 180f;
+    [SerializeField, Min(10f)] private float turnDuration = 180f;
+
+    [Header("開発用")]
+    [Tooltip("Editor/Development BuildのHostでのみ、Nキーによるターン送りを許可します。")]
+    [SerializeField] private bool enableDebugDaySkip;
 
     [Header("UI")]
     [SerializeField] private TextMeshProUGUI dayText;
@@ -115,8 +123,6 @@ public class DayManager : NetworkBehaviour
 
     private void Awake()
     {
-        // 朝・夜はどちらも3分固定。Inspectorの古い値が残っていても新仕様を優先する。
-        turnDuration = 180f;
         // DayManagerはNetworkObjectと同じGameObjectに1つだけ置く。
         // UIへ誤って追加されたコンポーネントが昼夜状態を上書きしないよう防止する。
         if (GetComponent<NetworkObject>() == null)
@@ -213,16 +219,16 @@ public class DayManager : NetworkBehaviour
 
         UpdateTimerUI();
 
-        if (Keyboard.current != null &&
+        if (!IsServer) return;
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (enableDebugDaySkip &&
+            Keyboard.current != null &&
             Keyboard.current.nKey.wasPressedThisFrame)
         {
-            if (NetworkObject != null && NetworkObject.IsSpawned)
-            {
-                NextDayServerRpc();
-            }
+            AdvanceTurnServer();
         }
-
-        if (!IsServer) return;
+#endif
 
         // 朝への切り替え演出中はタイマーを止める
         if (isTransitioning) return;
@@ -231,13 +237,13 @@ public class DayManager : NetworkBehaviour
 
         if (remainingTime.Value <= 0f)
         {
-            NextDayServerRpc();
+            AdvanceTurnServer();
         }
     }
 
-    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
-    private void NextDayServerRpc()
+    private void AdvanceTurnServer()
     {
+        if (!IsServer) return;
         if (isGameOver.Value) return;
         if (isTransitioning) return;
 
@@ -416,7 +422,7 @@ public class DayManager : NetworkBehaviour
     private void ActivateAllFurnitureEffects()
     {
         if (!IsServer) return;
-        foreach (var nf in FindObjectsByType<NetworkFurniture>(FindObjectsSortMode.None))
+        foreach (var nf in FindObjectsByType<NetworkFurniture>())
         {
             nf.ServerActivateEffect();
         }
@@ -426,7 +432,7 @@ public class DayManager : NetworkBehaviour
     private void SnapshotDayStartEarnings()
     {
         dayStartEarning.Clear();
-        var players = FindObjectsByType<PlayerEarning>(FindObjectsSortMode.None);
+        var players = FindObjectsByType<PlayerEarning>();
         foreach (var pe in players)
         {
             var no = pe.GetComponent<NetworkObject>();
@@ -438,7 +444,7 @@ public class DayManager : NetworkBehaviour
     private string BuildResultData(out int playerCount)
     {
         var list = new System.Collections.Generic.List<(string name, int amount)>();
-        var players = FindObjectsByType<PlayerEarning>(FindObjectsSortMode.None);
+        var players = FindObjectsByType<PlayerEarning>();
 
         foreach (var pe in players)
         {
@@ -643,11 +649,17 @@ public class DayManager : NetworkBehaviour
 
     private void ApplySkyMaterial(int time)
     {
+        bool isMorning = time == 0;
         Material skyMaterial = time == 0 ? morningSkyMaterial : nightSkyMaterial;
 
         if (skyMaterial != null)
         {
             RenderSettings.skybox = skyMaterial;
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Skybox;
+            RenderSettings.ambientIntensity =
+                isMorning ? morningAmbientIntensity : nightAmbientIntensity;
+            RenderSettings.reflectionIntensity =
+                isMorning ? morningReflectionIntensity : nightReflectionIntensity;
             DynamicGI.UpdateEnvironment();
         }
     }

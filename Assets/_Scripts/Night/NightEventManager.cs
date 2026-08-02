@@ -132,7 +132,7 @@ public class NightEventManager : MonoBehaviour
             case NightEventType.FoodBill:
             {
                 int amount = RandomAmount(foodBillMin, foodBillMax);
-                foreach (var pe in FindObjectsByType<PlayerEarning>(FindObjectsSortMode.None))
+                foreach (var pe in FindObjectsByType<PlayerEarning>())
                 {
                     pe.SpendEarning(Mathf.Min(amount, Mathf.Max(0, pe.GetEarning())));
                 }
@@ -243,7 +243,7 @@ public class NightEventManager : MonoBehaviour
         prevAmbientLight = RenderSettings.ambientLight;
 
         disabledLights.Clear();
-        foreach (var light in FindObjectsByType<Light>(FindObjectsSortMode.None))
+        foreach (var light in FindObjectsByType<Light>())
         {
             if (light != null && light.enabled)
             {
@@ -280,7 +280,7 @@ public class NightEventManager : MonoBehaviour
         for (int i = 0; i < pulses; i++)
         {
             // 部屋の持てる物を吹っ飛ばす（持たれている物＝kinematicは除外）
-            foreach (var obj in FindObjectsByType<CarryableObject>(FindObjectsSortMode.None))
+            foreach (var obj in FindObjectsByType<CarryableObject>())
             {
                 if (obj == null || obj.rb == null || obj.rb.isKinematic) continue;
 

@@ -12,6 +12,15 @@ public class DeliveryButton : NetworkBehaviour
     [Header("レア報酬")]
     [SerializeField] private int rareRewardMoney = 300;
 
+    [Header("Server検証")]
+    [SerializeField, Min(0.1f)] private float serverInteractDistance = 4f;
+
+    [Header("フィードバック")]
+    [Tooltip("納品結果を既存のゲーム内バナーで表示します。オフの場合はログ表示だけになります。")]
+    [SerializeField] private bool showResultBanner = true;
+    [Tooltip("成功を全員へ知らせます。オフの場合は納品した本人だけに表示します。")]
+    [SerializeField] private bool announceSuccessToEveryone = true;
+
     public void PressButton(PlayerEarning playerEarning)
     {
         if (playerEarning == null)
@@ -30,13 +39,21 @@ public class DeliveryButton : NetworkBehaviour
     {
         if (deliveryZone == null)
         {
-            ShowResultClientRpc("DeliveryZoneが設定されていません");
+            ShowToRequester(
+                rpcParams.Receive.SenderClientId,
+                "納品できません",
+                "DeliveryZoneが設定されていません",
+                NightEventManager.StyleDanger);
             return;
         }
 
         if (!deliveryZone.HasBox())
         {
-            ShowResultClientRpc("納品する箱がありません");
+            ShowToRequester(
+                rpcParams.Receive.SenderClientId,
+                "納品できません",
+                "納品エリアに箱がありません",
+                NightEventManager.StyleInfo);
             return;
         }
 
@@ -48,10 +65,21 @@ public class DeliveryButton : NetworkBehaviour
             return;
         }
 
+        if (Vector3.Distance(playerObj.transform.position, transform.position) >
+            serverInteractDistance)
+        {
+            Debug.LogWarning("[Delivery] 遠すぎる納品要求を拒否しました。");
+            return;
+        }
+
         PlayerEarning playerEarning = playerObj.GetComponent<PlayerEarning>();
         if (playerEarning == null || SharedMoneyManager.Instance == null)
         {
-            ShowResultClientRpc("報酬システムが見つかりません");
+            ShowToRequester(
+                rpcParams.Receive.SenderClientId,
+                "納品できません",
+                "報酬システムが見つかりません",
+                NightEventManager.StyleDanger);
             return;
         }
 
@@ -76,14 +104,59 @@ public class DeliveryButton : NetworkBehaviour
 
         if (!credited)
         {
-            ShowResultClientRpc("報酬の反映に失敗しました");
+            ShowToRequester(
+                rpcParams.Receive.SenderClientId,
+                "納品失敗",
+                "報酬を共同口座へ反映できませんでした",
+                NightEventManager.StyleDanger);
             return;
         }
 
         playerEarning.AddEarning(finalReward);
         deliveryZone.RemoveBox();
 
-        ShowResultClientRpc("納品成功 +" + finalReward);
+        if (showResultBanner && NightEventManager.Instance != null)
+        {
+            if (announceSuccessToEveryone)
+            {
+                NightEventManager.Instance.ServerAnnounce(
+                    "納品成功！",
+                    $"+¥{finalReward:N0}　共同口座へ",
+                    NightEventManager.StylePeace);
+            }
+            else
+            {
+                NightEventManager.Instance.ServerAnnounceTo(
+                    rpcParams.Receive.SenderClientId,
+                    "納品成功！",
+                    $"+¥{finalReward:N0}　共同口座へ",
+                    NightEventManager.StylePeace);
+            }
+        }
+        else
+        {
+            ShowResultClientRpc("納品成功 +" + finalReward);
+        }
+    }
+
+    private void ShowToRequester(
+        ulong clientId,
+        string title,
+        string message,
+        byte style)
+    {
+        if (showResultBanner && NightEventManager.Instance != null)
+        {
+            NightEventManager.Instance.ServerAnnounceTo(
+                clientId,
+                title,
+                message,
+                style);
+        }
+        else
+        {
+            ShowResultClientRpc(title + ": " + message);
+        }
     }
 
     [ClientRpc]

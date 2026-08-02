@@ -47,14 +47,8 @@ public class DayResultUI : MonoBehaviour
         group.alpha = 0f;
         group.blocksRaycasts = false;
 
-        // 背景
-        var bgGo = new GameObject("BG", typeof(RectTransform));
-        bgGo.transform.SetParent(canvasGo.transform, false);
-        var bgRt = bgGo.GetComponent<RectTransform>();
-        bgRt.anchorMin = Vector2.zero; bgRt.anchorMax = Vector2.one;
-        bgRt.offsetMin = Vector2.zero; bgRt.offsetMax = Vector2.zero;
-        bgGo.AddComponent<Image>().color = new Color(
-            UITheme.WarmBottom.r, UITheme.WarmBottom.g, UITheme.WarmBottom.b, 0.97f);
+        // 背景（部屋がうっすら残る遮光。他の全画面演出と同じ型）
+        UITheme.StageBackdrop(canvasGo.transform, UITheme.Lime, 0.9f);
 
         // タイトル
         var titleGo = new GameObject("Title", typeof(RectTransform));
@@ -62,14 +56,19 @@ public class DayResultUI : MonoBehaviour
         var trt = titleGo.GetComponent<RectTransform>();
         trt.anchorMin = trt.anchorMax = new Vector2(0.5f, 1f);
         trt.pivot = new Vector2(0.5f, 1f);
-        trt.anchoredPosition = new Vector2(0, -80);
-        trt.sizeDelta = new Vector2(1200, 120);
+        trt.anchoredPosition = new Vector2(0, -84);
+        trt.sizeDelta = new Vector2(1200, 110);
         title = titleGo.AddComponent<TextMeshProUGUI>();
         title.text = "今日の収支";
-        title.fontSize = 80;
+        title.fontSize = 76;
         title.fontStyle = FontStyles.Bold;
-        title.color = UITheme.Accent;
+        title.color = Color.white;
         title.alignment = TextAlignmentOptions.Center;
+        title.characterSpacing = -1f;
+        title.enableAutoSizing = true;
+        title.fontSizeMin = 44f;
+        title.fontSizeMax = 76f;
+        title.textWrappingMode = TextWrappingModes.NoWrap;
 
         // 行を並べる親
         var listGo = new GameObject("List", typeof(RectTransform));
@@ -121,7 +120,9 @@ public class DayResultUI : MonoBehaviour
         if (string.IsNullOrWhiteSpace(data)) return;
 
         string[] lines = data.Replace("\r", "").Split('\n');
-        float rowH = 86f;
+        const float rowH = 96f;
+        const float rowWidth = 900f;
+        const float plateHeight = 86f;
         float startY = (lines.Length - 1) * rowH * 0.5f;
 
         for (int i = 0; i < lines.Length; i++)
@@ -133,47 +134,92 @@ public class DayResultUI : MonoBehaviour
             string name = sep >= 0 ? line.Substring(0, sep) : line;
             string amount = sep >= 0 ? line.Substring(sep + 1) : "0";
             int rank = i + 1;
+            int.TryParse(amount, out int amt);
 
+            Color medal = RankColor(rank);
+
+            // --- 名札（枠＝メダル色、中は濃色。ロビーの名札と同じ語彙） ---
             var rowGo = new GameObject($"Row{i}", typeof(RectTransform));
             rowGo.transform.SetParent(listRoot, false);
             var rrt = rowGo.GetComponent<RectTransform>();
             rrt.anchorMin = rrt.anchorMax = new Vector2(0.5f, 0.5f);
             rrt.pivot = new Vector2(0.5f, 0.5f);
             rrt.anchoredPosition = new Vector2(0, startY - i * rowH);
-            rrt.sizeDelta = new Vector2(900, rowH - 10);
+            rrt.sizeDelta = new Vector2(rowWidth, plateHeight);
 
-            // 背景（1位は金色）
-            var bg = rowGo.AddComponent<Image>();
-            bg.color = RankColor(rank);
+            var plate = rowGo.AddComponent<Image>();
+            plate.sprite = UITheme.PillSprite;
+            plate.color = medal;
+            UITheme.SetCornerRadius(plate, plateHeight * 0.5f);
+            UITheme.AddShadow(rowGo, 0.45f, 8f);
 
-            // テキスト
-            var txtGo = new GameObject("Text", typeof(RectTransform));
-            txtGo.transform.SetParent(rowGo.transform, false);
-            var txtRt = txtGo.GetComponent<RectTransform>();
-            txtRt.anchorMin = Vector2.zero; txtRt.anchorMax = Vector2.one;
-            txtRt.offsetMin = new Vector2(28, 0); txtRt.offsetMax = new Vector2(-28, 0);
-            var txt = txtGo.AddComponent<TextMeshProUGUI>();
-            // 例:  1位  Alice                ¥1,200
-            int amt; int.TryParse(amount, out amt);
-            txt.text = $"<b>{rank}位</b>   {name}<pos=70%>¥{amt:N0}";
-            txt.fontSize = 44;
-            txt.color = rank == 1 ? new Color(0.15f, 0.1f, 0.02f) : Color.white;
-            txt.alignment = TextAlignmentOptions.Left;
-            txt.textWrappingMode = TextWrappingModes.NoWrap;
+            var fill = UITheme.Chip(rowGo.transform, "Fill",
+                UITheme.MenuInk, plateHeight * 0.5f - 5f);
+            var fillRt = fill.rectTransform;
+            fillRt.anchorMin = Vector2.zero;
+            fillRt.anchorMax = Vector2.one;
+            fillRt.offsetMin = new Vector2(5f, 5f);
+            fillRt.offsetMax = new Vector2(-5f, -5f);
+
+            // --- 順位メダル（丸） ---
+            var medalImage = UITheme.Chip(rowGo.transform, "Medal", medal, 33f);
+            var medalRt = medalImage.rectTransform;
+            medalRt.anchorMin = medalRt.anchorMax = new Vector2(0f, 0.5f);
+            medalRt.pivot = new Vector2(0f, 0.5f);
+            medalRt.anchoredPosition = new Vector2(12f, 0f);
+            medalRt.sizeDelta = new Vector2(66f, 66f);
+
+            // メダル色が明るい1〜3位は濃い文字、4位以降の紫は白文字にする
+            var medalLabel = UITheme.Label(medalImage.transform, "Num", rank.ToString(),
+                36f, rank <= 3 ? new Color(0.14f, 0.08f, 0.02f) : Color.white,
+                TextAlignmentOptions.Center, bold: true);
+            StretchFull(medalLabel.rectTransform);
+
+            // --- 名前（左） ---
+            var nameLabel = UITheme.Label(rowGo.transform, "Name", name,
+                40f, Color.white, TextAlignmentOptions.Left, bold: true);
+            nameLabel.textWrappingMode = TextWrappingModes.NoWrap;
+            nameLabel.overflowMode = TextOverflowModes.Ellipsis;
+            var nameRt = nameLabel.rectTransform;
+            nameRt.anchorMin = new Vector2(0f, 0f);
+            nameRt.anchorMax = new Vector2(0f, 1f);
+            nameRt.pivot = new Vector2(0f, 0.5f);
+            nameRt.anchoredPosition = new Vector2(96f, 0f);
+            nameRt.sizeDelta = new Vector2(480f, 0f);
+
+            // --- 金額（右） ---
+            var amountLabel = UITheme.Label(rowGo.transform, "Amount", $"¥{amt:N0}",
+                44f, amt < 0 ? UITheme.Red : UITheme.Lime,
+                TextAlignmentOptions.Right, bold: true);
+            amountLabel.textWrappingMode = TextWrappingModes.NoWrap;
+            var amountRt = amountLabel.rectTransform;
+            amountRt.anchorMin = new Vector2(1f, 0f);
+            amountRt.anchorMax = new Vector2(1f, 1f);
+            amountRt.pivot = new Vector2(1f, 0.5f);
+            amountRt.anchoredPosition = new Vector2(-32f, 0f);
+            amountRt.sizeDelta = new Vector2(300f, 0f);
 
             rowGo.SetActive(false);
             rows.Add(rowGo);
         }
     }
 
+    private static void StretchFull(RectTransform rt)
+    {
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+    }
+
     private static Color RankColor(int rank)
     {
         switch (rank)
         {
-            case 1:  return new Color(1.0f, 0.80f, 0.20f, 0.98f); // 金
-            case 2:  return new Color(0.75f, 0.78f, 0.85f, 0.95f); // 銀
-            case 3:  return new Color(0.80f, 0.52f, 0.30f, 0.95f); // 銅
-            default: return UITheme.PanelSoft;
+            case 1:  return new Color(1.00f, 0.80f, 0.20f); // 金
+            case 2:  return new Color(0.80f, 0.84f, 0.92f); // 銀
+            case 3:  return new Color(0.84f, 0.56f, 0.32f); // 銅
+            default: return UITheme.Grape;
         }
     }
 

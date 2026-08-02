@@ -1,5 +1,648 @@
 # PROGRESS.md
 
+## 2026/07/30｜20回目
+
+### 今回の変更
+- 持ち運び、ドア、納品、スロット、ブラックジャックのServer側RPC検証を強化
+- 持ち運びの同時取得競合と、所持中Client切断後に箱が残る問題を修正
+- Clientから日付を進められる処理と、製品版で動くデバッグキーを修正
+- 家具ショップのInspector設定とServer側価格・効果が一致しない問題を修正
+- 配送箱の子Collider判定、破棄済み参照、スポーン位置調整を改善
+- クローゼットをEscapeで閉じた直後にESCメニューが開く競合を修正
+- 納品成功・失敗を既存のゲーム内バナーで分かりやすく表示
+- Unity 6.4の非推奨API警告を解消
+- 全体レビュー結果と次回候補を詳細レポートへ記録
+
+### 変更ファイル
+- 変更：`Assets/_Scripts/CarryableObject.cs`
+- 変更：`Assets/_Scripts/PlayerInteract.cs`
+- 変更：`Assets/_Scripts/DoorInteract.cs`
+- 変更：`Assets/_Scripts/SharedMoneyManager.cs`
+- 変更：`Assets/_Scripts/DayManager.cs`
+- 変更：`Assets/_Scenes/GameRoom.unity`
+- 変更：`Assets/_Scripts/Furniture/FurnitureCatalog.cs`
+- 変更：`Assets/_Scripts/Furniture/FurnitureEditController.cs`
+- 変更：`Assets/_Scripts/Delivery/DeliveryButton.cs`
+- 変更：`Assets/_Scripts/Delivery/DeliveryZone.cs`
+- 変更：`Assets/_Scripts/Slot/SlotMachine.cs`
+- 変更：`Assets/_Scripts/Blackjack/BlackjackTable.cs`
+- 変更：`Assets/_Scripts/CharacterCloset.cs`
+- 変更：`Assets/_Scripts/UI/EscMenuUI.cs`
+- 変更：`Assets/_Scripts/PlayerEarningListUI.cs`
+- 変更：`Assets/_Scripts/Night/NightEventManager.cs`
+- 新規：`ROOMIES_NIGHTLY_REVIEW_2026-07-30.md`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- 日付進行、所持状態、施設利用、報酬反映の最終判定はServer側で行う
+- 朝・夜は各180秒を初期値とし、`DayManager`のInspectorから変更可能
+- 家具カタログはScene上の`FurnitureEditController`の設定をServerと設置家具で共有する
+- 納品演出は`Show Result Banner`で無効化可能
+- 納品成功の全員通知は`Announce Success To Everyone`で切り替え可能
+- 配送箱の散らばりと高さは`DeliveryZone`のInspectorから変更可能
+
+### 影響範囲
+- マルチプレイ同期とRPC検証
+- 持ち運び
+- 日付・朝夜進行
+- 共同口座
+- 家具ショップと設置家具
+- デリバリーバイト
+- スロット、ブラックジャック、ドア
+- クローゼットとESCメニュー
+
+### 確認状況
+- コンパイル：確認済み（エラー0・警告0）
+- BootScene開始：確認済み
+- ロゴ後のMainMenuSteam遷移：確認済み
+- Play停止：確認済み
+- Missing Script：確認済み（Scene・Prefabとも0件）
+- Build Settings：確認済み（BootScene 0 / MainMenuSteam 1 / GameRoom 2）
+- Host動作：未確認
+- Client動作：未確認
+- Steamロビー・再接続：未確認
+- 実ビルド：未確認
+
+### 未完了・次の作業
+- Host/Clientで同じ箱を同時に拾う競合テスト
+- 箱を所持したClientの切断テスト
+- 朝夜、家賃、DAY 4以降の通しプレイ
+- Steam終了・離脱・再接続の実ビルド確認
+- 実行時生成UIのPrefab化
+- `DayManager`の残り時間同期頻度を削減
+
+## 2026/07/30｜19回目
+
+### 今回の変更
+- 起動ロゴ演出を約2.8秒から約4.6秒へ延長
+- ロゴとStudio表記を見せる保持時間、光沢演出、フェードアウトのタイミングを調整
+- Unity EditorでどのSceneを開いていても、Play時は製品版と同じ`BootScene`から開始するように設定
+- Build Settingsの先頭が`BootScene`になっていることを再確認
+
+### 変更ファイル
+- 変更：`Assets/_Scripts/UI/LNStudioSplash.cs`
+- 変更：`Assets/_Scripts/Editor/BootSceneBuilder.cs`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- ビルドのScene Index 0は`Assets/_Scenes/BootScene.unity`
+- 起動順は`BootScene` → `MainMenuSteam`
+- EditorのPlay開始Sceneも`BootScene`へ固定
+- クリック、Space、Enter、Escape、ゲームパッドによるスキップ機能は維持
+
+### 影響範囲
+- ゲーム起動時のロゴ演出
+- EditorでのPlay開始Scene
+- ビルドScene順
+
+### 確認状況
+- コンパイル：確認済み（エラー0）
+- Build Settings：確認済み（`BootScene`がIndex 0）
+- Unity Play開始直後：確認済み（`BootScene`）
+- ロゴ後のScene遷移：確認済み（`MainMenuSteam`）
+- Play停止：確認済み
+
+### 未完了・次の作業
+- 実ビルドしたexeでの起動表示は未確認
+
+## 2026/07/30｜18回目
+
+### 今回の変更
+- 起動ロゴ「LN Studio」を、サンセリフから明朝相当のセリフ体へ変更
+- ロゴ用のTMPフォントアセットを生成する仕組みを追加（`Roomies/Build Splash Logo Fonts`）
+- セリフ体向けにロゴの組みを調整：擬似ボールドを外してRegularのまま使用
+- `LN`の字間を-4から+14へ広げ、サイズを210→200へ
+- `Studio`の字間を18から30へ広げ、サイズを44→38へ、擬似ボールドを解除
+- `LN`と`Studio`の間に細い罫線（1px）を追加し、`Studio`と一緒に中央から横へ開く演出にした
+- セリフの細い線が潰れないよう、ボケ→シャープの滲み量を弱めた（alpha 0.90/0.55→0.70/0.40、scale 1.055/1.115→1.035/1.075）
+- 光沢の強さを0.55→0.42へ弱めた
+- ロゴ本体の色を`#D7DCE6`から`#E4E7EE`へ上げ、高コントラストなセリフが細く見えすぎないようにした
+
+### 変更ファイル
+- 新規：`Assets/_Scripts/Editor/SplashFontBuilder.cs`
+- 新規：`Assets/_Fonts/TimesNewRoman.ttf`
+- 新規：`Assets/_Fonts/PalatinoLinotype.ttf`
+- 新規：`Assets/Resources/Fonts/LogoSerif SDF.asset`
+- 新規：`Assets/Resources/Fonts/LogoSerifAlt SDF.asset`
+- 変更：`Assets/_Scripts/UI/LNStudioSplash.cs`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- ロゴのフォントは`Resources/Fonts/LogoSerif SDF`（Times New Roman由来）
+- 差し替え候補として`LogoSerifAlt SDF`（Palatino Linotype由来、より柔らかい印象）も生成済み。`LNStudioSplash.FontResourcePath`の1行変更で切り替わる
+- フォントアセットはダイナミック（`m_AtlasPopulationMode: 1`）。ロゴで使う文字は"LNStudio"の8文字だけなのでアトラスの事前ベイクは不要
+- セリフ体には擬似ボールドをかけない。細い線が潰れて明朝らしさが失われるため
+- セリフ体は太らせず字間を開けて見せる（`LN`は+14、`Studio`は+30）
+- `SplashFontBuilder`は冪等。出力先に`.asset`が既にあれば何もしない
+- **ライセンス注意：現在の元TTFはWindowsのシステムフォント（Monotype / Linotype）で、ゲームへ同梱して配布する権利は無い。** 製品ビルド前にOFLのフォント（Shippori Mincho / Playfair Display / Cormorant など）へ差し替える必要がある。差し替えは`Assets/_Fonts`へ.ttfを置き`SplashFontBuilder.SourceFonts`へ追記するだけ
+- ダイナミックフォントアセットは元TTFを参照するため、TTFもビルドに含まれる（上のライセンス注意はビルド成果物にも及ぶ）
+
+### 影響範囲
+- 起動ロゴ演出の見た目のみ
+- 他のUI・ゲーム機能には影響しない（フォントはロゴ専用で、既存UIは`MPLUSU`のまま）
+
+### 確認状況
+- C#コンパイル：確認済み（エラー0）
+- Unity Console：確認済み（エラー0件）
+- TTFのインポート：確認済み（`.meta`生成済み）
+- TMPフォントアセット2種の生成：確認済み
+- フォントアセットの元TTF参照GUID一致：確認済み（Times / Palatino ともに一致）
+- ダイナミックモード（`m_AtlasPopulationMode: 1`）：確認済み
+- **Unity Playでの実表示：未確認**（Play Mode開始はUnity Skillsの権限区分で現在のautoモードから実行できないため）
+- セリフ体の字面・字間・罫線幅の体感：未確認
+- 200pxでのSDF品質（サンプリング90pxからの拡大）：未確認
+
+### 未完了・次の作業
+- Unity PlayでBootSceneを再生し、セリフ体の印象と字間・罫線のバランスを確認する
+- Times（`LogoSerif SDF`）とPalatino（`LogoSerifAlt SDF`）を見比べてどちらを採用するか決める
+- 200px表示でSDFのエッジが甘い場合、`SplashFontBuilder`のサンプリングサイズを上げて再生成する
+- 製品ビルド前にOFLフォントへ差し替える（ライセンス対応）
+- 12回目で変更したプレイ中UIの実表示確認（前回からの持ち越し）
+
+## 2026/07/30｜17回目
+
+### 今回の変更
+- 起動時のスタジオロゴ演出「LN Studio」を追加
+- 専用の`BootScene`を新規作成し、Build SettingsのIndex 0へ登録（`MainMenuSteam`は1、`GameRoom`は2へ繰り下げ）
+- ロゴを大きな`LN`＋その下に小さな`Studio`の中央揃えロックアップで構成
+- フォントに既存の`MPLUSU-Black SDF`（M PLUS、モダンな幾何学サンセリフ）を使用
+- 背景を中央`#17191F`／外側`#08090C`の弱いラジアルグラデーションにした
+- 0.4秒の黒画面 → `LN`フェードイン（Scale 95%→100%、ボケ→シャープ）→ `Studio`が遅れて出現 → 約1秒保持 → フェードアウト（Scale→102.5%）→ `MainMenuSteam`へ遷移、の2.8秒の演出を実装
+- 保持中の控えめな演出として、`LN`の表面を細い光が1回だけ横切る演出とロゴの1%拡大を追加
+- クリック・Space・Enter・Escape・ゲームパッド(South/Start)でスキップできるようにした
+- 保持中に遷移先シーンを裏で非同期読み込みし、演出の最後で切り替えるようにした
+- `UITheme`にラジアルグラデーション生成`RadialGradient`を追加
+
+### 変更ファイル
+- 新規：`Assets/_Scenes/BootScene.unity`
+- 新規：`Assets/_Scripts/UI/LNStudioSplash.cs`
+- 新規：`Assets/_Scripts/Editor/BootSceneBuilder.cs`
+- 変更：`Assets/_Scripts/UI/UITheme.cs`
+- 変更：`ProjectSettings/EditorBuildSettings.asset`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- Build Index 0は`BootScene`。ゲーム起動時はここから始まる
+- `BootScene`の中身は`Boot Camera`と`LNStudioSplash`の2つだけ。Canvas以下は`LNStudioSplash`がランタイム生成する（既存UIと同じ方針）
+- `Boot Camera`は`cullingMask=0`の黒クリア専用。UIは`ScreenSpaceOverlay`なので描画には使わず、「No cameras rendering」警告を消すためだけに置く
+- 演出はDOTweenやTimelineではなくコルーチン1本で持つ。DOTweenは未導入で、既存演出（`DayTransitionUI`等）も同じ手法のため合わせた
+- 演出の時間はすべて`Time.unscaledDeltaTime`で進める
+- 毎フレーム経過時間から全チャンネルを算出する方式にしている。`LN`（0.4〜1.0秒）と`Studio`（0.8〜1.2秒）の表示区間が重なるため、逐次実行のコルーチンでは表現できない
+- ボケ→シャープはシェーダーではなく、`LN`の複製2枚を大きめ・薄めに重ねて中盤だけ滲ませる方式。マテリアルを触らないのでフォントアセットを壊さず、マテリアルインスタンスも増えない
+- 光沢は`RectMask2D`（softness 52）の細いマスクを横へ動かし、中の`LN`複製を逆方向へオフセットして文字を止めて見せる
+- `BootSceneBuilder`は冪等。シーンが既にあり、Index 0に登録済みなら何もしない
+- 既存シーンから`LNStudioSplash`が失われていた場合は`BootSceneBuilder`が付け直す
+- 手動実行は`Roomies/Build Boot Scene`から可能
+- 遷移先がBuild Settingsに無い場合はエラーログを出して遷移しない（黒画面で止まらないよう`SceneExists`で事前確認する）
+- プロジェクト内のシーン遷移はすべてシーン名指定なので、Index繰り下げの影響を受けない
+
+### 影響範囲
+- ゲーム起動フロー（起動 → ロゴ → メインメニュー）
+- Build Settingsのシーン順
+- `UITheme`（グラデーション生成の追加のみ。既存の見た目には影響しない）
+
+### 確認状況
+- C#コンパイル：確認済み（エラー0、既存警告19件）
+- Unity Console：確認済み（エラー0件）
+- `BootScene.unity`の生成：確認済み
+- `BootScene`の内容（`Boot Camera` ＋ `LNStudioSplash`）：確認済み
+- `nextSceneName: MainMenuSteam`のシリアライズ：確認済み
+- Build SettingsのIndex 0が`BootScene`：確認済み
+- シーン遷移がすべて名前指定であること：確認済み（grep）
+- **Unity Playでの演出の実表示：未確認**（Play Mode開始はUnity Skillsの権限区分で現在のautoモードから実行できないため）
+- ロゴの字面バランス・タイミングの体感：未確認
+- ビルド実機での起動：未確認
+
+### 未完了・次の作業
+- Unity PlayでBootSceneを再生し、2.8秒の流れと`MainMenuSteam`への遷移を確認する
+- `LN`と`Studio`の横幅バランス、字間、光沢の強さを実画面で最終調整する
+- ボケ→シャープの滲み量（複製2枚のalphaとscale）が狙いどおりか確認する
+- スキップ操作4種（クリック／Space／Enter／Escape）を確認する
+- 12回目で変更したプレイ中UIの実表示確認（前回からの持ち越し）
+
+## 2026/07/30｜16回目
+
+### 今回の変更
+- 15回目で追加した施設のプレイ中移動機能を撤回
+- クローゼットを固定施設Prefabとして作成し、GameRoomへ実体配置
+- UnityのSceneビューとHierarchyから位置・回転・サイズを直接調整可能に変更
+- 見た目差し替え用の`Appearance_REPLACE_ME`子オブジェクトを追加
+
+### 変更ファイル
+- 新規：`Assets/_Prefabs/Facilities/CharacterCloset.prefab`
+- 新規：`Assets/_Materials/Facilities/ClosetBody.mat`
+- 新規：`Assets/_Materials/Facilities/ClosetDoor.mat`
+- 新規：`Assets/_Materials/Facilities/ClosetHandle.mat`
+- 変更：`Assets/_Scenes/GameRoom.unity`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- クローゼットはプレイヤーが持ち運ぶ物ではなく、Sceneに固定配置する施設
+- 位置調整はGameRoom内の`CharacterCloset`のTransformで行う
+- 見た目を交換する場合は、機能を持つPrefabルートを残して`Appearance_REPLACE_ME`だけをFBXまたは別Prefabへ置き換える
+- `CharacterCloset`コンポーネントとColliderを残せばカラー変更機能は維持される
+
+### 影響範囲
+- クローゼット
+- GameRoomの施設配置
+- キャラクターカラー変更
+
+### 確認状況
+- C#コンパイル：確認済み（エラー0）
+- Prefab作成・Scene保存：確認済み
+- GameRoom上のPrefab接続：確認済み
+- Play時のクローゼット重複：なし（1個のみ）
+- Host/Client実プレイ：未確認
+
+### 未完了・次の作業
+- 本番FBXへ差し替え後、Collider範囲を調整
+
+## 2026/07/30｜15回目
+
+### 今回の変更
+- 追加設備を直接持って位置調整できる共通システムを追加
+- クローゼット、ブラックジャック台、スロット台をFで移動・設置、Rで45度回転できるように変更
+- 設備の位置・向き・保持者をHostから全Clientへ同期
+- プレイヤー離脱時に設備の保持状態が残らない復旧処理を追加
+
+### 変更ファイル
+- 新規：`Assets/_Scripts/Furniture/MovableRoomObject.cs`
+- 変更：`Assets/_Scripts/DayManager.cs`
+- 変更：`Assets/_Scripts/PlayerInteract.cs`
+- 変更：`Assets/_Scripts/CharacterCloset.cs`
+- 変更：`Assets/_Scripts/Blackjack/BlackjackTable.cs`
+- 変更：`Assets/_Scripts/Slot/SlotMachine.cs`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- 操作は既存家具と統一し、Fで持つ・置く、Rで45度回転する
+- 設備ごとのNetworkPrefab追加は不要で、`DayManager`の共有リストが位置と保持状態を同期する
+- 今後追加する設備もColliderと`MovableRoomObject`を付ければ同じ方式で移動できる
+- 配置位置の距離制限と操作権限はServer側で検証する
+
+### 影響範囲
+- クローゼット
+- ブラックジャック
+- スロット
+- プレイヤーのインタラクト表示
+- マルチプレイ同期
+
+### 確認状況
+- C#コンパイル：確認済み（エラー0）
+- Unity AssetDatabase反映：確認済み
+- 操作案内の競合防止：確認済み
+- Host/Client実プレイ：未確認
+
+### 未完了・次の作業
+- Host/Clientで設備の移動と同時表示を実プレイ確認
+
+## 2026/07/30｜14回目
+
+### 今回の変更
+- ゲーム本編の朝を鮮やかな青空と白い雲のスカイドームへ変更
+- 夜を月明かりが残る深い青のスカイドームへ変更
+- 朝夜ごとに環境光と反射の強さを切り替える処理を追加
+- GameRoomの初期Skyboxも朝空へ統一し、開始直後の表示差を解消
+
+### 変更ファイル
+- 変更：`Assets/_Scripts/DayManager.cs`
+- 変更：`Assets/_Scenes/GameRoom.unity`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- 朝は`Epic_BlueSunset`、夜は`Cold Night`を使用する
+- 夜の環境光は暗くしつつ、移動や警察回避に必要な視認性を残す
+- Skybox参照と明るさは`DayManager`のInspectorから交換・調整できる
+
+### 影響範囲
+- ゲーム本編の朝夜背景
+- 環境光
+- 環境反射
+
+### 確認状況
+- C#コンパイル：確認済み（エラー0）
+- GameRoomのInspector参照：確認済み
+- 朝夜Skybox素材の画像確認：確認済み
+- PlayerカメラのSkybox描画設定：確認済み
+- Host/Client実プレイ：未確認
+
+### 未完了・次の作業
+- Host/Clientで朝夜切り替え時の最終的な明るさを確認
+
+## 2026/07/30｜13回目
+
+### 今回の変更
+- メインメニューの背景を青・ピンク系の夕焼けスカイドームへ変更
+- Skyboxの色を環境光と反射へ反映
+- メニューカメラをSkybox描画へ変更
+
+### 変更ファイル
+- 変更：`Assets/_Scripts/UI/MainMenuRoomShowcase.cs`
+- 変更：`Assets/_Scripts/Editor/MainMenuShowcaseBuilder.cs`
+- 変更：`Assets/_Scenes/MainMenuSteam.unity`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- メインメニューは`Epic_GloriousPink`のSkyboxを使用する
+- ゲーム本編の朝夜Skybox設定には影響しない
+- Skybox素材はInspector参照として`MainMenuSteam`へ保存する
+
+### 影響範囲
+- メインメニュー背景
+- メニューの環境光・反射
+
+### 確認状況
+- C#コンパイル：確認済み（エラー0）
+- Unity Play表示：確認済み
+- Skybox表示：確認済み
+
+### 未完了・次の作業
+- なし
+
+## 2026/07/30｜12回目
+
+### 今回の変更
+- プレイ中UIをメインメニューと同じデザイン言語（濃色の面＋太い白フチ＋厚みピル）へ統一
+- HUDのDAYカードと共同口座カードから白いカードを廃止
+- DAYカードとタイマーを1枚に統合し、文字を大きくした（DAY 34px / 残り時間 40px / 残高 46px）
+- 残り時間バーを5pxの罫線から16pxの太いバーへ変更し、残り20%で赤へ寄せるようにした
+- 共同口座の表示を「残高が主役、必要額は添え物」へ変更し、不足時は残高を赤にして不足額を表示
+- 家賃の期限をチップ化し、残り2日で橙、残り1日以下で赤く鼓動するようにした
+- 共同口座カードの1px罫線（Divider）を削除
+- 共同口座の増減表示を厚みのあるピルへ変更
+- インタラクト表示を白いチップから濃色の厚みチップへ変更し、文字を22px→26pxへ拡大
+- 全画面演出3種（朝・収支・家賃）の背景を、バラバラなベタ塗りから共通の「濃紫の遮光＋演出色のグラデ」へ統一
+- 収支ランキングの行を、タブ揃えの表からメダルの丸＋名前＋金額の名札へ変更
+- 家賃支払い画面の白い巨大カード1120x650を濃色パネル940x560へ縮小し、請求額を76pxの主役にした
+- 夜イベントバナーを白いトースト通知から濃色の厚みバナー＋色付き丸バッジへ変更
+- 夜イベントの種類色を暗い色から明るい色（シアン／赤／ピンク／ライム）へ変更し、タイトルは常に白へ
+- TAB長押しの稼ぎランキングを濃色パネル＋丸メダルの名札行へ変更
+- ESCメニューの白カードを濃色パネルへ変更し、全ボタンを厚みピルへ変更
+- ESCメニュー左上の意味のない5pxアクセントバーを削除
+- キャラクターカラー画面を濃色パネル＋厚みピルへ変更
+
+### 変更ファイル
+- 変更：`Assets/_Scripts/UI/UITheme.cs`
+- 変更：`Assets/_Scripts/UI/HudThemer.cs`
+- 変更：`Assets/_Scripts/UI/EscMenuUI.cs`
+- 変更：`Assets/_Scripts/DayTransitionUI.cs`
+- 変更：`Assets/_Scripts/DayResultUI.cs`
+- 変更：`Assets/_Scripts/RentPaymentUI.cs`
+- 変更：`Assets/_Scripts/Night/NightEventUI.cs`
+- 変更：`Assets/_Scripts/PlayerEarningListUI.cs`
+- 変更：`Assets/_Scripts/CharacterCloset.cs`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- プレイ中UIの面は`UITheme.Surface`（濃色＋太い白フチ＋影）で作る。白いカードは使わない
+- 小さな情報表示は`UITheme.Chip`（カプセル型の面）で作る
+- 全画面演出の背景は`UITheme.StageBackdrop`で統一する。ベタ塗りの板は使わない
+- `DayTransitionUI`だけは`BlackoutDelay`の間にプレイヤーをリスポーンさせるため、`StageBackdrop`のopacityを1（完全遮光）にする。他の演出は0.9で部屋をうっすら残す
+- 濃色パネルの上の文字は白（`Ink`）と白66%（`InkSoft`）を使い、`UITheme.TextMain`／`TextSub`は使わない
+- ボタンは全画面で`UITheme.StylePill`を使い、押した時の沈み込みとバネの手触りを統一する
+- 夜イベントの種類は「下端の太いキャップ」と「丸バッジ」の色で示し、タイトルの色は変えない
+- `UITheme.MenuSurface`が作る内側の面`Fill`と`StylePill`が作る天面`Cap`には`LayoutElement.ignoreLayout`が付く。親にLayoutGroupがあっても全面へ張るため
+- 記号（✓など）は日本語フォントに無い場合があるので使わず、言葉で示す
+- プレイヤー一覧の再生成条件、家賃・共同口座の計算、ネットワーク処理は変更しない
+
+### 影響範囲
+- ゲーム中HUD（日数・朝夜・残り時間・共同口座・家賃期限）
+- インタラクト表示
+- 朝の日付切り替え演出
+- 夜終わりの収支発表
+- 家賃支払い演出
+- 夜イベント通知
+- TAB長押しの稼ぎランキング
+- ESCメニュー・設定・キー設定・確認ダイアログ
+- キャラクターカラー選択
+
+### 確認状況
+- コード全文の読み返しレビュー：実施済み
+- 旧・白カードAPI（`UITheme.Card` / `StyleButton` / `TextMain` / `TextSub` / `Panel` / `PanelSoft`）の残存呼び出し：0件（grepで確認）
+- C#コンパイル：**未確認**（書き込み系ツールの安全判定が断続的に停止しており、Unityへ接続できていない）
+- Unity Play表示：未確認
+- 各演出の実発生タイミングでの表示：未確認
+- Host動作：未確認
+- Client動作：未確認
+- 16:9以外の解像度：未確認
+
+### 未完了・次の作業
+- Unityでコンパイルを通し、エラー0を確認する
+- Unity PlayでHUDの文字サイズと、明るい部屋の上でのコントラストを確認する
+- 朝の演出でリスポーンが見えないこと（完全遮光が効いていること）を確認する
+- 収支発表・家賃支払い・夜イベントを実発生させて表示を確認する
+- ESCメニューと設定・キー設定の全行が濃色パネル上で読めることを確認する
+- `UITheme`の旧API（`Card` / `StyleButton` / 白系パレット）が未使用になったので、整理するか残すかを決める
+
+## 2026/07/30｜11回目
+
+### 今回の変更
+- メインメニューを「3Dの部屋が主役、UIは画面の縁」という構成へ再設計
+- ブランド・タイトル・タグライン・主操作・補助操作を左下ブロックへ集約し、画面上半分を3Dの部屋だけにした
+- 白いカードUIを廃止し、3Dの上に乗る面を「濃い紫の面＋太い白フチ」へ変更
+- 意味のない装飾（全面の半透明グラデ板`SurfaceTone`、左上の棒`SurfaceAccent`）を全画面から撤去
+- フラットなボタンを、厚みのあるカプセル型ボタンへ変更（土台＋天面の2層構造）
+- ボタンの反応を「ホバーで浮く／押すと天面が土台へ沈む／離すとバネで跳ね返る」へ刷新し、Z軸の傾き演出を廃止
+- 表示時に下からバネで飛び込む入場演出を追加
+- ロビーを白カード内の一覧から「部屋の内見」構成へ変更（コードは上中央、メンバーの名札は下端に横一列）
+- 参加コード入力と設定画面を濃色パネル＋大型行へ変更
+- メニューのカメラをキャラ寄りにし、注視点をキャラの左へずらしてキャラを画面右寄りに配置
+- メニューのポストプロセスを専用のローカルVolumeへ分離し、ビネットを追加
+- メニューのライティングを明るくし、キャラの輪郭を出すリムライトを追加
+
+### 変更ファイル
+- 変更：`Assets/_Scripts/UI/UITheme.cs`
+- 変更：`Assets/_Scripts/UI/MenuThemer.cs`
+- 変更：`Assets/_Scripts/UI/MainMenuSettingsUI.cs`
+- 変更：`Assets/_Scripts/UI/MainMenuRoomShowcase.cs`
+- 変更：`Assets/_Scripts/LobbyUIManager.cs`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- 画面の上半分にはUIを置かず、常に部屋とキャラが見える状態を保つ
+- 1画面1決定。`あそぶ`を主操作とし、`部屋をつくる`・`部屋にはいる`へ段階展開する
+- 3Dの上に乗る面は白いカードではなく、濃色の面＋太い白フチで表現する
+- ボタンは`UITheme.StylePill`で土台（色を46%暗くした側面）と天面`Cap`の2層にする
+- ラベルは自動で`Cap`の中へ移設され、押下時に文字も一緒に沈む
+- 角丸半径は`UITheme.SetCornerRadius`でピクセル指定し、`pixelsPerUnitMultiplier`で9-slice境界を拡縮する
+- `UITheme.AddSurfaceDetail`は装飾を生成せず、残っていれば削除する（呼び出し元12ファイルの互換のためシグネチャは維持）
+- ゲーム中HUDが使う既存パレット（`Panel`・`Accent`など）と`StyleButton`は変更しない
+- 初期非表示パネル内のTMPはマテリアル未生成のため、縁取りは`UITextOutline`が表示時に適用する
+- プレイヤー名札はメンバー構成とアバター読込状況の署名が変化した時だけ作り直す
+- メニューのポストプロセスは実行時生成プロファイルのローカルVolumeで持ち、共有VolumeProfileアセットを書き換えない
+- メニューの注視点はキャラの実位置から毎回算出するため、キャラを動かしても構図が崩れない
+- `MainMenuSteam.unity`は変更しない。`MainMenuManager`・`LobbyUIManager`のInspector配線を壊さないよう、RectTransformとGraphicの差し替えだけで見た目を作る
+- `MainMenuRoomShowcase.CurrentBuildVersion`は据え置きのため、`MainMenuShowcaseBuilder`はシーンを再構築しない
+
+### 影響範囲
+- メインメニュー
+- ホスト・参加導線
+- Steamロビー
+- 参加コード入力
+- 設定画面
+- MainMenuSteamのカメラ・ライティング・ポストプロセス
+- `UITheme.AddSurfaceDetail`を呼ぶゲーム中UI全体（装飾の撤去のみ）
+- `UIButtonJuice`を使う全ボタンの押下演出
+
+### 確認状況
+- コード全文の読み返しレビュー：実施済み
+- C#コンパイル：**未確認**（Unity Skillsおよび書き込み系ツールの安全判定が停止中でUnityへ接続不可）
+- Unity Skills接続：`/health`のみ確認済み（Unity 6000.4.7f1、mode=auto、エラー0）
+- Unity Play表示：未確認
+- ボタンの沈み込み・バネ演出：未確認
+- ロビーの横一列名札：未確認
+- 16:9以外の解像度：未確認
+- Host動作：未確認
+- Client動作：未確認
+
+### 未完了・次の作業
+- Unityでコンパイルを通し、エラー0を確認する
+- Unity Playでメインメニュー・参加コード入力・設定画面の表示と見切れを確認する
+- Host・Clientでロビーの名札、ルームコード、`ゲーム開始`導線を確認する
+- ボタンの厚み・沈み込み量と入場演出の速さを実画面で最終調整する
+- 既存不具合：`LobbyUIManager.joinErrorText`がJoinPanel内の`ErrorText`を参照しているため、ホストのロビー解散メッセージが非表示のJoinPanel内に出て見えない。メインメニュー側の`StatusText`へ向け直す
+
+## 2026/07/30｜10回目
+
+### 今回の変更
+- メインメニューをWebサイト風のカード構成から3Dパーティーゲーム構成へ刷新
+- GameRoomと同じ3Dルームを背景へ配置し、3人のRoomiesをメインビジュアル化
+- 大きな`PLAY`から`HOST`・`JOIN`へ展開する操作フローを追加
+- `SETTINGS`・`QUIT`を小さな補助操作へ整理
+- 左側の短いコピー、読みやすさ用グラデーション、DOF、暖色・寒色ライトを追加
+- キャラクターの色分け、待機中のバウンド、カメラの緩やかな揺れを追加
+
+### 変更ファイル
+- 新規：`Assets/_Scripts/UI/MainMenuRoomShowcase.cs`
+- 新規：`Assets/_Scripts/UI/MainMenuSettingsUI.cs`
+- 新規：`Assets/_Scripts/Editor/MainMenuShowcaseBuilder.cs`
+- 変更：`Assets/_Scenes/MainMenuSteam.unity`
+- 変更：`Assets/_Scripts/UI/MenuThemer.cs`
+- 変更：`Assets/_Scripts/UI/UITheme.cs`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- 3Dゲーム画面を主役にし、メニューUIは画面左側へ集約する
+- 白い縦長カードと長い説明文は使用しない
+- `PLAY`を主操作、`SETTINGS`・`QUIT`を補助操作として扱う
+- 背景用ルームは表示専用で、ゲーム本編のManagerやNetworkObjectは追加しない
+- キャラクター色は`BobBody`だけに反映する
+
+### 影響範囲
+- メインメニュー
+- ホスト・参加導線
+- 設定画面
+- MainMenuSteamの3D背景・カメラ・ライティング
+
+### 確認状況
+- C#コンパイル：確認済み（エラー0）
+- Unity Skills診断：正常
+- Unity Play表示：確認済み
+- `PLAY`から`HOST`・`JOIN`への展開：確認済み
+- Host動作：未確認
+- Client動作：未確認
+
+### 未完了・次の作業
+- Host・Client実機で新しいメニュー導線を確認
+- 本番用の家具モデル追加時にメニュー背景の構図を最終調整
+
+## 2026/07/30｜9回目
+
+### 今回の変更
+- 全体UIを明るくポップなオリジナルパーティーゲーム調へ再デザイン
+- 白・クリームを基調にピンク、紫、水色のアクセントカラーへ統一
+- ボタンのHover・Selected・Pressedに拡大、傾き、沈み込み演出を追加
+- メインメニューとロビーへ柔らかい背景グラデーションと装飾を追加
+- ESC設定、HUD、カラー選択、通知、家賃、日付・収支演出を新テーマへ統一
+- ESCメニュー表示時のゲーム画面へ軽量なソフトブラーを追加
+
+### 変更ファイル
+- 変更：`Assets/_Scripts/UI/UITheme.cs`
+- 変更：`Assets/_Scripts/UI/MenuThemer.cs`
+- 変更：`Assets/_Scripts/UI/HudThemer.cs`
+- 変更：`Assets/_Scripts/UI/EscMenuUI.cs`
+- 新規：`Assets/Resources/Shaders/RoomiesSoftBlur.shader`
+- 変更：`Assets/_Scripts/CharacterCloset.cs`
+- 変更：`Assets/_Scripts/DayTransitionUI.cs`
+- 変更：`Assets/_Scripts/DayResultUI.cs`
+- 変更：`Assets/_Scripts/Night/NightEventUI.cs`
+- 変更：`Assets/_Scripts/RentPaymentUI.cs`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- UIはゲーム画面を主役にし、HUDは日数・時間・共同口座へ絞る
+- お金は緑、必要額はオレンジ、警告は赤、選択中はピンクで示す
+- 状態は色だけでなく拡大、傾き、枠線でも判別できる
+- 常設画面は明るく柔らかく、全画面演出は短い文言を大きく表示する
+- 既存機能とネットワーク処理は変更しない
+
+### 影響範囲
+- メインメニュー・ロビー
+- HUD・共同口座表示
+- ESC・設定・キーバインド
+- キャラクターカラー選択
+- 日付遷移・収支・夜イベント・家賃演出
+
+### 確認状況
+- C#コンパイル：確認済み（エラー0）
+- Unity Skills接続：未確認（ローカルAPI応答なし）
+- Unity Play表示：未確認
+- Host動作：未確認
+- Client動作：未確認
+
+### 未完了・次の作業
+- Unity Playで全画面の見切れと文字コントラストを確認
+- ゲームパッドで選択移動と押下演出を確認
+- Unity Skillsサーバー再起動後にUnity側コンソールを確認
+
+## 2026/07/30｜8回目
+
+### 今回の変更
+- 全体UIをPC・コンソール向けパーティーゲーム調へ刷新
+- 切り欠きパネル、控えめな階調、意味色による共通テーマを追加
+- メインメニュー、HUD、ESC、クローゼット、ロビー、夜イベント、ブラックジャックへ反映
+- マウス・キーボード・コントローラーの選択状態を視覚化
+- ESCメニューを左寄せ半透明表示にしてゲーム画面の視認性を改善
+
+### 変更ファイル
+- 変更：`Assets/_Scripts/UI/UITheme.cs`
+- 変更：`Assets/_Scripts/UI/MenuThemer.cs`
+- 変更：`Assets/_Scripts/UI/HudThemer.cs`
+- 変更：`Assets/_Scripts/UI/EscMenuUI.cs`
+- 変更：`Assets/_Scripts/CharacterCloset.cs`
+- 変更：`Assets/_Scripts/LobbyUIManager.cs`
+- 変更：`Assets/_Scripts/Night/NightEventUI.cs`
+- 変更：`Assets/_Scripts/Blackjack/BlackjackTable.cs`
+- 変更：`Assets/_Scripts/PlayerEarningListUI.cs`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- 主操作は黄、危険操作は赤、所持金は黄緑、情報は青・紫で意味を統一する
+- 常設HUDは画面端へ置き、ゲームプレイ中央を空ける
+- 主ボタンと補助ボタンはサイズ・明度・アクセント線で優先度を分ける
+- 選択状態は色だけでなく枠線とスケール変化でも示す
+- 小さな状態表示以外では角丸カードを多用しない
+
+### 影響範囲
+- メインメニュー・ロビーUI
+- ゲーム内HUD
+- ESC・設定・キーバインドUI
+- キャラクターカラー選択
+- 夜イベント・ブラックジャック結果演出
+- 夜終了時の収支ランキング
+
+### 確認状況
+- C#コンパイル：確認済み（エラー0）
+- Unity再コンパイル：確認済み（エラー0）
+- Unity診断：正常
+- Host動作：未確認
+- Client動作：未確認
+- 解像度別の見切れ：未確認
+
+### 未完了・次の作業
+- Unity Playでメニュー、HUD、ESC、クローゼットの実画面を確認
+- 16:9以外の解像度とゲームパッド操作を確認
+
 ## 2026/07/30｜7回目
 
 ### 今回の変更

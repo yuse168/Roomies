@@ -17,6 +17,28 @@ public static class FurnitureCatalog
 
     public static int Count => Items.Count;
 
+    /// <summary>
+    /// Scene上のFurnitureEditControllerで編集したカタログを、
+    /// NetworkFurnitureやServer購入処理と共有する。
+    /// indexが同期キーなので全クライアントで同じ並びを使うこと。
+    /// </summary>
+    public static void Configure(IReadOnlyList<FurnitureItem> items)
+    {
+        if (items == null || items.Count == 0)
+        {
+            _items = Build();
+            return;
+        }
+
+        _items = new List<FurnitureItem>(items);
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics()
+    {
+        _items = null;
+    }
+
     public static FurnitureItem Get(int index)
     {
         var list = Items;

@@ -36,6 +36,9 @@ public class BlackjackTable : NetworkBehaviour
     [SerializeField, Min(1f)] private float normalWinReturnMultiplier = 2f;
     [SerializeField, Min(1f)] private float blackjackReturnMultiplier = 2.5f;
 
+    [Header("Server検証")]
+    [SerializeField, Min(0.1f)] private float serverInteractDistance = 4f;
+
     [Header("表示")]
     [SerializeField] private Vector3 displayLocalPosition = new Vector3(0f, 1.35f, 0.68f);
     [SerializeField] private Vector2 displaySize = new Vector2(700f, 430f);
@@ -226,6 +229,13 @@ public class BlackjackTable : NetworkBehaviour
                 rpcParams.Receive.SenderClientId,
                 out PlayerEarning playerEarning))
             return;
+
+        if (Vector3.Distance(playerEarning.transform.position, transform.position) >
+            serverInteractDistance)
+        {
+            Debug.LogWarning("[Blackjack] 遠すぎるゲーム開始要求を拒否しました。");
+            return;
+        }
 
         requestedBetIndex = Mathf.Clamp(requestedBetIndex, 0, betAmounts.Length - 1);
         int wager = Mathf.Max(1, betAmounts[requestedBetIndex]);
@@ -710,9 +720,10 @@ public class BlackjackTable : NetworkBehaviour
         resultOverlayRect.offsetMax = new Vector2(-14f, -14f);
 
         resultOverlayBackground = overlayObject.GetComponent<Image>();
-        resultOverlayBackground.sprite = UITheme.RoundedSprite;
+        resultOverlayBackground.sprite = UITheme.PanelSprite;
         resultOverlayBackground.type = Image.Type.Sliced;
         resultOverlayBackground.raycastTarget = false;
+        UITheme.AddSurfaceDetail(resultOverlayBackground, UITheme.Accent);
 
         Outline outline = overlayObject.GetComponent<Outline>();
         outline.effectColor = new Color(1f, 0.83f, 0.31f, 0.9f);

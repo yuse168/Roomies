@@ -29,6 +29,10 @@ public class SharedMoneyManager : NetworkBehaviour
     [Header("共同金庫設定")]
     [SerializeField] private int startSharedMoney = 0;
 
+    [Header("開発用")]
+    [Tooltip("Editor/Development Buildでのみ、Kキーによる+100Rを許可します。")]
+    [SerializeField] private bool enableDebugGrant;
+
     [Header("UI")]
     [SerializeField] private TextMeshProUGUI sharedMoneyText;
 
@@ -70,6 +74,8 @@ public class SharedMoneyManager : NetworkBehaviour
 
     private void Update()
     {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (!enableDebugGrant) return;
         if (!IsServer) return;
 
         // テスト用：HostだけKキーで共同金庫に100円追加
@@ -77,6 +83,7 @@ public class SharedMoneyManager : NetworkBehaviour
         {
             TryAdd(100, SharedMoneyReason.DebugGrant, "Host K key");
         }
+#endif
     }
 
     /// <summary>
