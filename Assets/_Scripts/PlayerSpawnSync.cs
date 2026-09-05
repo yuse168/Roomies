@@ -38,6 +38,7 @@ public class PlayerSpawnSync : NetworkBehaviour
     public void ServerRespawn()
     {
         if (!IsServer) return;
+        GetComponent<MiningPlayer>()?.ServerSetLevel(0);
 
         SmugglingPlayer smuggling = GetComponent<SmugglingPlayer>();
         if (smuggling != null && smuggling.ServerShouldStayInJail())
@@ -48,6 +49,27 @@ public class PlayerSpawnSync : NetworkBehaviour
 
         if (assignedIndex < 0) assignedIndex = 0;
         ApplySpawnPointRpc(assignedIndex);
+    }
+
+    /// <summary>Jobs use the same owner-authoritative relocation path as spawning.</summary>
+    public void ServerTeleport(Vector3 position, float yaw)
+    {
+        if (!IsServer) return;
+        if (!IsOwner) ApplyTeleport(position, yaw);
+        TeleportOwnerRpc(position, yaw);
+    }
+
+    [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
+    private void TeleportOwnerRpc(Vector3 position, float yaw) => ApplyTeleport(position, yaw);
+
+    private void ApplyTeleport(Vector3 position, float yaw)
+    {
+        var controller = GetComponent<CharacterController>();
+        bool wasEnabled = controller != null && controller.enabled;
+        if (wasEnabled) controller.enabled = false;
+        transform.SetPositionAndRotation(position, Quaternion.Euler(0, yaw, 0));
+        GetComponent<PlayerMovement>()?.ResetMotion();
+        if (wasEnabled) controller.enabled = true;
     }
 
     // 所有クライアントでのみ実行される

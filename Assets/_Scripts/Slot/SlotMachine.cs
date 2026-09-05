@@ -47,6 +47,8 @@ public class SlotMachine : NetworkBehaviour
 
     [Header("Server検証")]
     [SerializeField, Min(0.1f)] private float serverInteractDistance = 4f;
+    [Tooltip("距離判定は筐体のColliderを基準にする。インポート由来の親原点は使用しない。")]
+    [SerializeField] private Collider interactionCollider;
 
     [Header("UI")]
     [SerializeField] private TextMeshProUGUI reelText1;
@@ -56,6 +58,7 @@ public class SlotMachine : NetworkBehaviour
     [SerializeField] private TextMeshProUGUI feverText;
     [SerializeField] private TextMeshProUGUI betText;
     [SerializeField] private Sprite[] symbolSprites = new Sprite[5];
+    [SerializeField] private Sprite panelSprite;
 
     [Header("演出")]
     [SerializeField] private float spinDuration = 0.8f;
@@ -109,10 +112,7 @@ public class SlotMachine : NetworkBehaviour
     private void Start()
     {
         feverSpinCount.OnValueChanged += OnFeverChanged;
-        PreparePresentation();
-        SetReels(0, 1, Mathf.Min(4, slotSymbols.Length - 1));
-        UpdateFeverUI();
-        UpdateBetUI();
+        RefreshPresentation();
     }
 
     public string CurrentBetLabel => CurrentBet + " R";
@@ -141,9 +141,8 @@ public class SlotMachine : NetworkBehaviour
         if (betText == null) return;
 
         betText.text =
-            "<size=60%><color=#A8B0C0>BET</color></size>  " +
-            "<color=#FFD34E><b>" + CurrentBet + " R</b></color>\n" +
-            "<size=40%><color=#7E8CA5>&lt;  MOUSE WHEEL  &gt;</color></size>";
+            "<size=65%><color=#ABC7C8>BET</color></size>  " +
+            "<color=#F5CB76><b>" + CurrentBet + " R</b></color>";
     }
 
     public override void OnDestroy()
@@ -183,8 +182,7 @@ public class SlotMachine : NetworkBehaviour
             return;
         }
 
-        if (Vector3.Distance(requestingPlayer.transform.position, transform.position) >
-            serverInteractDistance)
+        if (!IsWithinInteractionRange(requestingPlayer.transform.position))
         {
             Debug.LogWarning("[Slot] 遠すぎるBET要求を拒否しました。");
             return;
@@ -269,6 +267,23 @@ public class SlotMachine : NetworkBehaviour
         SpinClientRpc(r1, r2, r3, resultMessage);
 
         StartCoroutine(ApplyRewardAfterSpin(reward, addFever, playerNetworkObjectId));
+    }
+
+    /// <summary>Server validation shared with the editor regression check.</summary>
+    public bool IsWithinInteractionRange(Vector3 playerPosition)
+    {
+        if (!float.IsFinite(playerPosition.x) || !float.IsFinite(playerPosition.y) || !float.IsFinite(playerPosition.z))
+            return false;
+        if (interactionCollider == null)
+        {
+            foreach (var candidate in GetComponentsInChildren<Collider>())
+                if (candidate.GetComponent<Renderer>() != null && !candidate.isTrigger)
+                { interactionCollider = candidate; break; }
+        }
+        if (interactionCollider == null || !interactionCollider.enabled || !interactionCollider.gameObject.activeInHierarchy)
+            return false;
+        Vector3 closest = interactionCollider.ClosestPoint(playerPosition);
+        return (closest - playerPosition).sqrMagnitude <= serverInteractDistance * serverInteractDistance;
     }
 
     private float GetSpinAnimationDuration()
@@ -516,9 +531,22 @@ public class SlotMachine : NetworkBehaviour
 
     private void PreparePresentation()
     {
-        PrepareReel(reelText1, new Color(1f, 0.28f, 0.38f, 0.24f));
-        PrepareReel(reelText2, new Color(1f, 0.76f, 0.18f, 0.24f));
-        PrepareReel(reelText3, new Color(0.25f, 0.62f, 1f, 0.24f));
+        if (reelText1 == null) return;
+        Transform face = reelText1.transform.parent;
+        FacePanel(face, "FaceBackground", Vector2.zero, new Vector2(520,760), new Color(.045f,.1f,.14f));
+        FacePanel(face, "HeaderAccent", new Vector2(0,330), new Vector2(440,4), new Color(.91f,.68f,.35f));
+        FaceLabel(face, "CabinetTitle", "LUCKY ROOM", new Vector2(0,278), new Vector2(450,78), 48, new Color(.97f,.87f,.65f));
+        FaceLabel(face, "CabinetCaption", "THREE OF A KIND", new Vector2(0,219), new Vector2(430,32), 20, new Color(.57f,.75f,.75f));
+        LayoutText(reelText1, new Vector2(-148,57), new Vector2(124,228), 46);
+        LayoutText(reelText2, new Vector2(0,57), new Vector2(124,228), 46);
+        LayoutText(reelText3, new Vector2(148,57), new Vector2(124,228), 46);
+        PrepareReel(reelText1, new Color(.94f,.91f,.82f));
+        PrepareReel(reelText2, new Color(.98f,.95f,.86f));
+        PrepareReel(reelText3, new Color(.94f,.91f,.82f));
+        LayoutText(betText, new Vector2(0,-134), new Vector2(420,60), 39);
+        LayoutText(resultText, new Vector2(0,-210), new Vector2(430,58), 30);
+        LayoutText(feverText, new Vector2(0,-262), new Vector2(430,34), 22);
+        FaceLabel(face, "ControlHint", "[ E ]  SPIN   /   SCROLL  BET", new Vector2(0,-325), new Vector2(450,36), 20, new Color(.66f,.82f,.8f));
 
         if (reelText2 != null)
         {
@@ -530,17 +558,58 @@ public class SlotMachine : NetworkBehaviour
                 RectTransform line = lineObject.GetComponent<RectTransform>();
                 line.SetParent(parent, false);
                 line.SetSiblingIndex(0);
-                line.anchoredPosition = Vector2.zero;
-                line.sizeDelta = new Vector2(470f, 4f);
+                line.anchoredPosition = new Vector2(0,57);
+                line.sizeDelta = new Vector2(470f, 3f);
                 lineObject.GetComponent<Image>().color = new Color(1f, 0.75f, 0.12f, 0.75f);
+                lineObject.GetComponent<Image>().raycastTarget = false;
             }
+            else existing.gameObject.SetActive(false);
         }
 
         if (resultText != null)
         {
             resultText.fontStyle = FontStyles.Bold;
-            resultText.text = "<color=#A8B0C0>READY</color>";
+            resultText.text = "<color=#ADCAC7>READY TO PLAY</color>";
         }
+    }
+
+    [ContextMenu("Refresh Slot Presentation")]
+    public void RefreshPresentation()
+    {
+        PreparePresentation();
+        SetReels(0, 1, Mathf.Min(4, slotSymbols.Length - 1));
+        UpdateFeverUI();
+        UpdateBetUI();
+    }
+
+    private static void LayoutText(TMP_Text label, Vector2 position, Vector2 size, float fontSize)
+    {
+        if (label == null) return;
+        var rect = label.rectTransform;
+        rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(.5f,.5f);
+        rect.anchoredPosition = position; rect.sizeDelta = size; rect.localScale = Vector3.one;
+        label.fontSize = fontSize; label.enableAutoSizing = true; label.fontSizeMin = fontSize*.7f; label.fontSizeMax = fontSize;
+        label.alignment = TextAlignmentOptions.Center; label.raycastTarget = false;
+        label.textWrappingMode = TextWrappingModes.NoWrap;
+    }
+
+    private void FaceLabel(Transform parent, string name, string text, Vector2 position, Vector2 size, float fontSize, Color color)
+    {
+        var child=parent.Find(name);
+        var label=child!=null?child.GetComponent<TextMeshProUGUI>():UITheme.Label(parent,name,text,fontSize,color,TextAlignmentOptions.Center,true);
+        label.text=text; label.color=color;
+        LayoutText(label,position,size,fontSize);
+    }
+
+    private void FacePanel(Transform parent, string name, Vector2 position, Vector2 size, Color color)
+    {
+        var existing=parent.Find(name);
+        var go=existing!=null?existing.gameObject:new GameObject(name,typeof(RectTransform),typeof(Image));
+        if(existing==null)go.transform.SetParent(parent,false);
+        var image=go.GetComponent<Image>(); image.sprite=panelSprite!=null?panelSprite:UITheme.RoundedSprite;
+        image.type=Image.Type.Sliced; image.color=color; image.raycastTarget=false;
+        var rect=image.rectTransform; rect.anchorMin=rect.anchorMax=rect.pivot=new Vector2(.5f,.5f);
+        rect.anchoredPosition=position;rect.sizeDelta=size;if(name=="FaceBackground")rect.SetAsFirstSibling();
     }
 
     private void PrepareReel(TextMeshProUGUI reel, Color glowColor)
@@ -548,7 +617,7 @@ public class SlotMachine : NetworkBehaviour
         if (reel == null) return;
 
         RectTransform rect = reel.rectTransform;
-        rect.sizeDelta = new Vector2(118f, 160f);
+        rect.sizeDelta = new Vector2(124f, 228f);
         reel.fontSize = 46f;
         reel.alignment = TextAlignmentOptions.Center;
         reel.textWrappingMode = TextWrappingModes.NoWrap;
@@ -557,9 +626,9 @@ public class SlotMachine : NetworkBehaviour
 
         ReelImages images = new ReelImages
         {
-            previous = GetOrCreateSymbolImage(reel.transform, "PreviousEmoji", new Vector2(0f, 48f), 42f, 0.32f),
-            current = GetOrCreateSymbolImage(reel.transform, "CurrentEmoji", Vector2.zero, 70f, 1f),
-            next = GetOrCreateSymbolImage(reel.transform, "NextEmoji", new Vector2(0f, -48f), 42f, 0.32f)
+            previous = GetOrCreateSymbolImage(reel.transform, "PreviousEmoji", new Vector2(0f, 77f), 43f, 0.24f),
+            current = GetOrCreateSymbolImage(reel.transform, "CurrentEmoji", Vector2.zero, 91f, 1f),
+            next = GetOrCreateSymbolImage(reel.transform, "NextEmoji", new Vector2(0f, -77f), 43f, 0.24f)
         };
         reelImages[reel] = images;
         reel.enabled = !HasSpriteSet();
@@ -567,9 +636,7 @@ public class SlotMachine : NetworkBehaviour
         Transform parent = reel.transform.parent;
         string glowName = reel.gameObject.name + "Glow";
         Transform existing = parent.Find(glowName);
-        if (existing != null) return;
-
-        GameObject glowObject = new GameObject(glowName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        GameObject glowObject = existing != null ? existing.gameObject : new GameObject(glowName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         RectTransform glow = glowObject.GetComponent<RectTransform>();
         glow.SetParent(parent, false);
         glow.anchorMin = rect.anchorMin;
@@ -577,8 +644,11 @@ public class SlotMachine : NetworkBehaviour
         glow.pivot = rect.pivot;
         glow.anchoredPosition = rect.anchoredPosition;
         glow.sizeDelta = rect.sizeDelta + new Vector2(16f, 8f);
-        glow.SetSiblingIndex(reel.transform.GetSiblingIndex());
-        glowObject.GetComponent<Image>().color = glowColor;
+        glow.SetAsLastSibling();
+        reel.transform.SetAsLastSibling();
+        var panel = glowObject.GetComponent<Image>(); panel.color = glowColor;
+        panel.sprite = panelSprite != null ? panelSprite : UITheme.RoundedSprite;
+        panel.type = Image.Type.Sliced; panel.raycastTarget = false;
     }
 
     private Image GetOrCreateSymbolImage(Transform parent, string objectName, Vector2 position, float size, float alpha)

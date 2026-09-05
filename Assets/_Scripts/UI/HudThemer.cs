@@ -21,12 +21,12 @@ using UnityEngine.UI;
 public class HudThemer : MonoBehaviour
 {
     // 1920x1080基準
-    private const float Margin      = 28f;
-    private const float StatusWidth = 430f;
-    private const float StatusHeight = 136f;
-    private const float MoneyWidth  = 386f;
-    private const float MoneyHeight = 172f;
-    private const float BarHeight   = 16f;
+    private const float Margin      = 24f;
+    private const float StatusWidth = 352f;
+    private const float StatusHeight = 110f;
+    private const float MoneyWidth  = 336f;
+    private const float MoneyHeight = 150f;
+    private const float BarHeight   = 9f;
 
     private Image timerFillBar;
     private TMP_Text moneyValueLabel;
@@ -35,6 +35,8 @@ public class HudThemer : MonoBehaviour
     private TMP_Text rentChipLabel;
     private RectTransform moneyCardRect;
     private float rentPulse;
+    private Image rentProgress;
+    private TMP_Text objectiveLabel;
 
     private void Awake()
     {
@@ -42,6 +44,7 @@ public class HudThemer : MonoBehaviour
 
         BuildStatusCard(canvas.transform);
         BuildMoneyCard(canvas.transform);
+        BuildObjective(canvas.transform);
     }
 
     private void OnEnable()
@@ -58,20 +61,20 @@ public class HudThemer : MonoBehaviour
     // 左上：日数・朝夜・残り時間
     // ================================================================
 
-    private void BuildStatusCard(Transform parent)
+    private void BuildStatusCard(Transform parent, TMP_Text previewDay = null, TMP_Text previewTimer = null)
     {
-        Image card = UITheme.Surface(parent, "StatusCard", 26f, 4f);
+        Image card = UITheme.Surface(parent, "StatusCard", 20f, 2f);
         var rt = card.rectTransform;
         rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0f, 1f);
         rt.anchoredPosition = new Vector2(Margin, -Margin);
         rt.sizeDelta = new Vector2(StatusWidth, StatusHeight);
 
         // 既存のDayTextを移設して整える
-        var dayGo = UITheme.FindDeep("DayText");
+        var dayGo = previewDay != null ? previewDay.gameObject : UITheme.FindDeep("DayText");
         if (dayGo != null && dayGo.TryGetComponent(out TMP_Text dayText))
         {
             MoveInto(dayText.rectTransform, card.transform,
-                new Vector2(26f, -18f), new Vector2(250f, 46f));
+                new Vector2(20f, -13f), new Vector2(158f, 44f));
             dayText.fontSize  = 34f;
             dayText.fontStyle = FontStyles.Bold;
             dayText.color     = Color.white;
@@ -83,21 +86,24 @@ public class HudThemer : MonoBehaviour
         }
 
         // 既存のTimer Textを移設（右上に大きく）
-        var timerGo = UITheme.FindDeep("Timer Text");
+        var timerGo = previewTimer != null ? previewTimer.gameObject : UITheme.FindDeep("Timer Text");
         if (timerGo != null && timerGo.TryGetComponent(out TMP_Text timerText))
         {
             timerText.transform.SetParent(card.transform, false);
             var timerRt = timerText.rectTransform;
             timerRt.anchorMin = timerRt.anchorMax = timerRt.pivot = new Vector2(1f, 1f);
-            timerRt.anchoredPosition = new Vector2(-26f, -16f);
-            timerRt.sizeDelta = new Vector2(150f, 50f);
+            timerRt.anchoredPosition = new Vector2(-20f, -11f);
+            timerRt.sizeDelta = new Vector2(144f, 50f);
             timerRt.localScale = Vector3.one;
             timerText.fontSize  = 40f;
             timerText.fontStyle = FontStyles.Bold;
             timerText.color     = UITheme.Sun;
             timerText.alignment = TextAlignmentOptions.Right;
-            timerText.enableAutoSizing = false;
-            timerText.characterSpacing = 2f;
+            timerText.enableAutoSizing = true;
+            timerText.fontSizeMin = 27f;
+            timerText.fontSizeMax = 40f;
+            timerText.textWrappingMode = TextWrappingModes.NoWrap;
+            timerText.characterSpacing = 1f;
         }
 
         // 残り時間バー（細い罫線ではなく、掴めそうな太さにする）
@@ -107,8 +113,8 @@ public class HudThemer : MonoBehaviour
         barBgRt.anchorMin = new Vector2(0f, 0f);
         barBgRt.anchorMax = new Vector2(1f, 0f);
         barBgRt.pivot     = new Vector2(0.5f, 0f);
-        barBgRt.anchoredPosition = new Vector2(0f, 22f);
-        barBgRt.sizeDelta = new Vector2(-52f, BarHeight);
+        barBgRt.anchoredPosition = new Vector2(0f, 18f);
+        barBgRt.sizeDelta = new Vector2(-40f, BarHeight);
 
         timerFillBar = UITheme.Chip(barBg.transform, "Fill",
             UITheme.Sun, BarHeight * 0.5f);
@@ -123,18 +129,18 @@ public class HudThemer : MonoBehaviour
     // その下：共同口座
     // ================================================================
 
-    private void BuildMoneyCard(Transform parent)
+    private void BuildMoneyCard(Transform parent, bool hideSource = true)
     {
-        Image card = UITheme.Surface(parent, "MoneyCard", 26f, 4f);
+        Image card = UITheme.Surface(parent, "MoneyCard", 20f, 2f);
         var rt = card.rectTransform;
-        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0f, 1f);
-        rt.anchoredPosition = new Vector2(Margin, -(Margin + StatusHeight + 16f));
+        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(1f, 1f);
+        rt.anchoredPosition = new Vector2(-Margin, -Margin);
         rt.sizeDelta = new Vector2(MoneyWidth, MoneyHeight);
         moneyCardRect = rt;
 
         var caption = UITheme.Label(card.transform, "Caption", "共同口座",
             20f, new Color(1f, 1f, 1f, 0.68f), TextAlignmentOptions.Left, bold: true);
-        SetTopLeft(caption.rectTransform, new Vector2(26f, -16f), new Vector2(240f, 28f));
+        SetTopLeft(caption.rectTransform, new Vector2(20f, -14f), new Vector2(120f, 26f));
 
         // 金額はカード内の自前ラベルに表示する。
         // ※シーンのSharedMoneyTextにはNetworkObjectが付いており、
@@ -146,27 +152,27 @@ public class HudThemer : MonoBehaviour
         moneyValueLabel.fontSizeMin = 26f;
         moneyValueLabel.fontSizeMax = 46f;
         moneyValueLabel.textWrappingMode = TextWrappingModes.NoWrap;
-        SetTopLeft(moneyValueLabel.rectTransform, new Vector2(26f, -44f), new Vector2(240f, 58f));
+        SetTopLeft(moneyValueLabel.rectTransform, new Vector2(20f, -41f), new Vector2(296f, 55f));
 
         // 必要額は添え物。主役の残高と同じ大きさにはしない
         moneyRequiredLabel = UITheme.Label(card.transform, "MoneyRequired", "",
-            22f, new Color(1f, 1f, 1f, 0.62f), TextAlignmentOptions.Right, bold: true);
+            17f, new Color(1f, 1f, 1f, 0.62f), TextAlignmentOptions.Right, bold: true);
         moneyRequiredLabel.enableAutoSizing = false;
         moneyRequiredLabel.textWrappingMode = TextWrappingModes.NoWrap;
         var requiredRt = moneyRequiredLabel.rectTransform;
         requiredRt.anchorMin = requiredRt.anchorMax = requiredRt.pivot = new Vector2(1f, 1f);
-        requiredRt.anchoredPosition = new Vector2(-26f, -58f);
-        requiredRt.sizeDelta = new Vector2(180f, 32f);
+        requiredRt.anchoredPosition = new Vector2(-20f, -14f);
+        requiredRt.sizeDelta = new Vector2(165f, 26f);
 
         // 家賃の期限はチップにして、残りが少ないと色と鼓動で警告する
         rentChip = UITheme.Chip(card.transform, "RentChip", UITheme.Grape, 20f);
         var chipRt = rentChip.rectTransform;
         chipRt.anchorMin = chipRt.anchorMax = chipRt.pivot = new Vector2(0f, 0f);
-        chipRt.anchoredPosition = new Vector2(26f, 20f);
-        chipRt.sizeDelta = new Vector2(MoneyWidth - 52f, 42f);
+        chipRt.anchoredPosition = new Vector2(20f, 14f);
+        chipRt.sizeDelta = new Vector2(MoneyWidth - 40f, 32f);
 
         rentChipLabel = UITheme.Label(rentChip.transform, "Label", "家賃まで あと3日",
-            21f, Color.white, TextAlignmentOptions.Center, bold: true);
+            18f, Color.white, TextAlignmentOptions.Center, bold: true);
         rentChipLabel.enableAutoSizing = true;
         rentChipLabel.fontSizeMin = 15f;
         rentChipLabel.fontSizeMax = 21f;
@@ -179,12 +185,41 @@ public class HudThemer : MonoBehaviour
         labelRt.offsetMax = new Vector2(-14f, -2f);
 
         // 元のSharedMoneyTextはコンポーネントだけ無効化（GameObjectは触らない）
-        var moneyGo = UITheme.FindDeep("SharedMoneyText");
+        var progressBg=UITheme.Chip(card.transform,"RentProgressTrack",new Color(1,1,1,.12f),2);
+        SetTopLeft(progressBg.rectTransform,new Vector2(20,-96),new Vector2(296,4));
+        rentProgress=UITheme.Chip(progressBg.transform,"RentProgress",UITheme.Lime,2);
+        rentProgress.rectTransform.anchorMin=Vector2.zero;rentProgress.rectTransform.anchorMax=Vector2.one;
+        rentProgress.rectTransform.offsetMin=rentProgress.rectTransform.offsetMax=Vector2.zero;
+
+        var moneyGo = hideSource ? UITheme.FindDeep("SharedMoneyText") : null;
         if (moneyGo != null && moneyGo.TryGetComponent(out TMP_Text moneyText))
         {
             moneyText.enabled = false;
         }
     }
+
+    private void BuildObjective(Transform parent)
+    {
+        var card=UITheme.Surface(parent,"ObjectiveCard",18,1.5f);
+        var rt=card.rectTransform;rt.anchorMin=rt.anchorMax=rt.pivot=new Vector2(0,0);
+        rt.anchoredPosition=new Vector2(Margin,Margin);rt.sizeDelta=new Vector2(430,106);
+        var title=UITheme.Label(card.transform,"Caption","いまの目標",15,new Color(.61f,.79f,.76f),TextAlignmentOptions.Left,true);
+        SetTopLeft(title.rectTransform,new Vector2(18,-10),new Vector2(354,22));
+        objectiveLabel=UITheme.Label(card.transform,"Objective","配達で家賃を集めよう",22,Color.white,TextAlignmentOptions.Left,true);
+        SetTopLeft(objectiveLabel.rectTransform,new Vector2(18,-36),new Vector2(394,58));
+        objectiveLabel.enableAutoSizing=true;objectiveLabel.fontSizeMin=15;objectiveLabel.fontSizeMax=22;
+    }
+
+#if UNITY_EDITOR
+    public Canvas BuildPreview(TMP_Text day, TMP_Text timer)
+    {
+        var canvas=UITheme.CreateCanvas(transform,"HudCanvas",100);
+        BuildStatusCard(canvas.transform,day,timer);BuildMoneyCard(canvas.transform,false);BuildObjective(canvas.transform);
+        moneyValueLabel.text="¥1,250";moneyRequiredLabel.text="家賃 ¥1,500";rentChipLabel.text="家賃まで あと2日";
+        rentProgress.rectTransform.anchorMax=new Vector2(.83f,1);timerFillBar.rectTransform.anchorMax=new Vector2(.63f,1);
+        return canvas;
+    }
+#endif
 
     private void OnSharedMoneyChanged(int oldValue, int newValue)
     {
@@ -209,11 +244,11 @@ public class HudThemer : MonoBehaviour
 
         var rt = pill.GetComponent<RectTransform>();
         rt.anchorMin = rt.anchorMax = new Vector2(1f, 1f);
-        rt.pivot = new Vector2(0f, 0.5f);
+        rt.pivot = new Vector2(1f, 0.5f);
         rt.sizeDelta = new Vector2(168f, 52f);
 
         // 厚みのあるピルで「増えた／減った」を物として見せる
-        Vector2 basePosition = new Vector2(14f, -70f);
+        Vector2 basePosition = new Vector2(-4f, -MoneyHeight - 38f);
         rt.anchoredPosition = basePosition;
 
         var baseImage = pill.AddComponent<Image>();
@@ -306,6 +341,15 @@ public class HudThemer : MonoBehaviour
         UpdateMoney(dm);
         UpdateRentChip(dm);
         UpdateTimerBar(dm);
+        if(objectiveLabel!=null && dm!=null)
+        {
+            var player=Unity.Netcode.NetworkManager.Singleton?.LocalClient?.PlayerObject;
+            var job=player!=null?player.GetComponent<SmugglingPlayer>():null;
+            var mining = player != null ? player.GetComponent<MiningPlayer>() : null;
+            objectiveLabel.text=job!=null&&job.IsJailed
+                ?(job.CanDoJailLabor?$"作業台で労働 {job.JailLaborProgress}/{SmugglingConfig.JailLaborCount}":"朝まで牢屋で待とう")
+                :(mining != null && mining.HudLabel != null ? mining.HudLabel : dm.IsNight?"家具を買って、夜の街を楽しもう":"配達・地下採掘で家賃を集めよう");
+        }
     }
 
     private void UpdateMoney(DayManager dm)
@@ -318,6 +362,7 @@ public class HudThemer : MonoBehaviour
 
         moneyValueLabel.text  = $"¥{current:N0}";
         moneyValueLabel.color = enough ? UITheme.Lime : UITheme.Red;
+        if(rentProgress!=null)rentProgress.rectTransform.anchorMax=new Vector2(required>0?Mathf.Clamp01((float)current/required):1,1);
 
         if (moneyRequiredLabel == null) return;
 

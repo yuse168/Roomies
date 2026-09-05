@@ -183,6 +183,22 @@ public class PlayerMovement : NetworkBehaviour
         isCrouching = GameSettings.IsPressed(GameAction.Crouch);
     }
 
+    public void ResetMotion()
+    {
+        horizontalVelocity = Vector3.zero;
+        verticalVelocity = -2f;
+        lastJumpPressedTime = float.NegativeInfinity;
+        lastGroundedTime = float.NegativeInfinity;
+    }
+
+    public void ApplyMiningImpact(Vector3 impulse)
+    {
+        if (!IsOwner) return;
+        horizontalVelocity += Vector3.ProjectOnPlane(impulse, Vector3.up);
+        verticalVelocity = Mathf.Max(verticalVelocity, impulse.y);
+        landingDip = Mathf.Max(landingDip, .025f);
+    }
+
     void Move()
     {
         bool grounded = controller.isGrounded;
@@ -220,6 +236,8 @@ public class PlayerMovement : NetworkBehaviour
                 currentSpeed *= Mathf.Clamp(slowRate, 0.35f, 1f);
             }
         }
+
+        if (MiningSite.Instance != null && MiningSite.Instance.IsGasAt(transform.position)) currentSpeed *= .6f;
 
         FurnitureEffectManager furnitureEffects = FurnitureEffectManager.InstanceOrNull;
         if (furnitureEffects != null)

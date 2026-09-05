@@ -1,0 +1,6 @@
+{
+  "name": "Roomies.RegressionTests",
+  "references": ["Unity.Netcode.Runtime"],
+  "includePlatforms": ["Editor"],
+  "optionalUnityReferences": ["TestAssemblies"]
+}

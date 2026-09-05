@@ -3,7 +3,7 @@ using UnityEngine;
 /// <summary>
 /// 家具の配達先（スポーン位置）。
 /// 空のGameObjectに付けて、部屋の床の上に置いて位置を調整する。
-/// シーンに無い場合はカメラ前方に仮配達される。
+/// Serverが全員の注文の配達先として使用する。未配置の場合は購入を受け付けない。
 /// </summary>
 public class FurnitureDeliveryPoint : MonoBehaviour
 {

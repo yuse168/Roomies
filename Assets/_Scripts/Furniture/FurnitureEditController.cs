@@ -24,7 +24,6 @@ public class FurnitureEditController : MonoBehaviour
     private Camera cam;
     private bool   editMode;
     private int    selected;
-    private int    deliveredCount; // 配達した数（配達先で重ならないようにずらす用）
 
     // ---- UI ----
     private GameObject uiRoot;     // キャンバス（常時有効）
@@ -87,14 +86,9 @@ public class FurnitureEditController : MonoBehaviour
         // P で開閉（開けるのは夜のみ）
         if (kb.pKey.wasPressedThisFrame)
         {
-            var allDm = FindObjectsByType<DayManager>();
-            string info = "";
-            foreach (var d in allDm)
-                info += $" [{d.name} time={d.DebugTime} day={d.DebugDay} spawned={d.DebugSpawned} isInstance={(d == DayManager.Instance)}]";
-            Debug.Log($"[Furniture] P押下: DayManager数={allDm.Length}{info}");
             if (editMode)            SetEditMode(false);
             else if (IsNight())      SetEditMode(true);
-            else                     ShowHint("家具ショップは「夜」だけ開けます（Nで夜にできます）", 2.2f);
+            else                     ShowHint("家具ショップは夜の自由行動中に開けます", 2.2f);
         }
 
         // O: 効果ステータスの表示切替（ランキングのTabと競合させない）
@@ -182,7 +176,7 @@ public class FurnitureEditController : MonoBehaviour
     private bool IsNight()
     {
         var dm = GetDayManager();
-        return dm != null && dm.IsNight;
+        return dm != null && dm.CanBuyFurniture;
     }
 
     // =========================================================
@@ -279,14 +273,13 @@ public class FurnitureEditController : MonoBehaviour
             return;
         }
 
-        Vector3 point = GetDeliveryPoint();
         var dm = GetDayManager();
 
         if (dm != null && dm.CanSpawnNetworkFurniture)
         {
             // ---- マルチ同期スポーン（サーバーが代金も引く） ----
-            dm.BuyFurnitureServerRpc(selected, point, 0f);
             ShowHint($"{item.displayName} を注文中…", 1.5f);
+            dm.BuyFurnitureServerRpc(selected);
         }
         else
         {
@@ -306,40 +299,11 @@ public class FurnitureEditController : MonoBehaviour
             return;
         }
 
-        deliveredCount++;
         FurnitureItem item = FurnitureCatalog.Get(catalogIndex);
         string itemName = item != null ? item.displayName : "家具";
         ShowHint(
             $"{itemName}が到着！ Fで持つ／Rで回転／Fで設置",
             3.2f);
-    }
-
-    /// <summary>家具の配達先ワールド座標を返す。マーカーが無ければ仮の位置。</summary>
-    private Vector3 GetDeliveryPoint()
-    {
-        Vector3 basePos;
-
-        var marker = FindAnyObjectByType<FurnitureDeliveryPoint>();
-        if (marker != null)
-        {
-            basePos = marker.transform.position;
-        }
-        else if (cam != null)
-        {
-            // 仮：カメラ前方2m（配達マーカーを作るまでの暫定）
-            basePos = cam.transform.position + cam.transform.forward * 2f;
-        }
-        else
-        {
-            basePos = Vector3.zero;
-        }
-
-        // 重ならないよう少しずつずらす
-        float angle = deliveredCount * 1.1f;
-        float radius = 0.4f + 0.25f * deliveredCount;
-        radius = Mathf.Min(radius, 1.6f);
-        Vector3 offset = new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
-        return basePos + offset;
     }
 
     /// <summary>家具インスタンスを生成。prefab優先、無ければ仮ブロック。</summary>

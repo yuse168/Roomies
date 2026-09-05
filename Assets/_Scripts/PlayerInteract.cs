@@ -24,6 +24,8 @@ public class PlayerInteract : NetworkBehaviour
     public LayerMask holdBlockMask;
 
     private CarryableObject heldObject;
+    public CarryableObject HeldObject => heldObject;
+    public bool HasHeldFurniture => heldFurniture != null;
     private NetworkFurniture heldFurniture;
     private SmugglingPlayer smugglingPlayer;
     private PlayerNameDisplay playerNameDisplay;
@@ -114,6 +116,13 @@ public class PlayerInteract : NetworkBehaviour
         UpdateInteractUI();
         UpdateSlotBetInput();
         UpdateBlackjackBetInput();
+        if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame &&
+            heldObject == null && heldFurniture == null && cameraTransform != null &&
+            Physics.Raycast(cameraTransform.position, cameraTransform.forward, out var miningHit, interactDistance))
+        {
+            var rock = miningHit.collider.GetComponentInParent<MiningInteractable>();
+            if (rock != null && rock.action == MiningAction.Rock) rock.Use(this);
+        }
 
         if (heldObject != null)
         {
@@ -164,7 +173,13 @@ public class PlayerInteract : NetworkBehaviour
         // 持ち中
         if (heldObject != null)
         {
-            label = Key(GameAction.Carry) + " 離す";
+            var ore = heldObject.GetComponent<MiningOre>();
+            label = Key(GameAction.Carry) + " 離す" + (ore != null ? " / " + ore.displayName + " " + ore.ValueLabel : "");
+            if (ore != null && TryInteractionHit(out var stationHit))
+            {
+                var station = stationHit.collider.GetComponentInParent<MiningInteractable>();
+                if (station != null) label = Key(GameAction.Interact) + " " + station.Label + " / " + Key(GameAction.Carry) + " 離す";
+            }
         }
         else if (heldFurniture != null)
         {
@@ -179,7 +194,12 @@ public class PlayerInteract : NetworkBehaviour
                 // 持てる物
                 SmugglingInteractable smuggling = hit.collider.GetComponentInParent<SmugglingInteractable>();
                 CharacterCloset closet = hit.collider.GetComponentInParent<CharacterCloset>();
-                if (closet != null && closet.CanInteract(playerNameDisplay))
+                var mining = hit.collider.GetComponentInParent<MiningInteractable>();
+                if (mining != null)
+                {
+                    label = (mining.action == MiningAction.Rock ? "" : Key(GameAction.Interact) + " ") + mining.Label;
+                }
+                else if (closet != null && closet.CanInteract(playerNameDisplay))
                 {
                     label = Key(GameAction.Interact) + " クローゼットを開く";
                 }
@@ -306,8 +326,10 @@ public class PlayerInteract : NetworkBehaviour
 
         Ray ray = new Ray(cameraTransform.position, cameraTransform.forward);
 
-        if (Physics.Raycast(ray, out RaycastHit hit, interactDistance))
+        if (TryInteractionHit(out RaycastHit hit))
         {
+            var mining = hit.collider.GetComponentInParent<MiningInteractable>();
+            if (mining != null) { mining.Use(this); return; }
             CharacterCloset closet = hit.collider.GetComponentInParent<CharacterCloset>();
             if (closet != null)
             {
@@ -373,6 +395,22 @@ public class PlayerInteract : NetworkBehaviour
         if (blackjack == null || !blackjack.CanLocalPlayerStand(OwnerClientId)) return;
 
         blackjack.Stand();
+    }
+
+    // A carried ore sits in front of the camera. Do not let it occlude the sell/lift button.
+    private bool TryInteractionHit(out RaycastHit result)
+    {
+        result = default;
+        if (cameraTransform == null) return false;
+        float nearest = float.PositiveInfinity;
+        foreach (var hit in Physics.RaycastAll(cameraTransform.position, cameraTransform.forward, interactDistance, ~0, QueryTriggerInteraction.UseGlobal))
+        {
+            if (hit.collider.transform.IsChildOf(transform)) continue;
+            if (heldObject != null && hit.collider.GetComponentInParent<CarryableObject>() == heldObject) continue;
+            if (hit.distance >= nearest) continue;
+            nearest = hit.distance; result = hit;
+        }
+        return !float.IsPositiveInfinity(nearest);
     }
 
     void TryPickup()

@@ -13,6 +13,9 @@ public class DayManager : NetworkBehaviour
     [SerializeField, Range(0f, 2f)] private float nightAmbientIntensity = 0.5f;
     [SerializeField, Range(0f, 2f)] private float morningReflectionIntensity = 0.7f;
     [SerializeField, Range(0f, 2f)] private float nightReflectionIntensity = 0.45f;
+    [SerializeField] private Light environmentSun;
+    [SerializeField, Range(0f, 3f)] private float morningSunIntensity = 1.2f;
+    [SerializeField, Range(0f, 1f)] private float nightSunIntensity = 0.12f;
 
     [Header("Day設定")]
     [SerializeField] private int maxDay = 3;
@@ -42,7 +45,8 @@ public class DayManager : NetworkBehaviour
     public bool CanSpawnNetworkFurniture => networkFurniturePrefab != null;
 
     // 朝への切り替え演出中フラグ（サーバー側でタイマー・再入を止める）
-    private bool isTransitioning = false;
+    private readonly NetworkVariable<bool> isTransitioning = new(false);
+    private int furnitureDeliveryCount;
 
     // 各プレイヤーの「その日の開始時点」の稼ぎ（今日の収支計算用）
     private readonly System.Collections.Generic.Dictionary<ulong, int> dayStartEarning
@@ -52,6 +56,8 @@ public class DayManager : NetworkBehaviour
     public static DayManager Instance { get; private set; }
     /// <summary>現在が夜ターンかどうか。</summary>
     public bool IsNight => currentTime != null && currentTime.Value == 1;
+    public bool IsGameOver => isGameOver.Value;
+    public bool CanBuyFurniture => IsSpawned && IsNight && !isGameOver.Value && !isTransitioning.Value;
 
     /// <summary>残り時間（秒）。HUDの進捗バーなどが参照する。</summary>
     public float RemainingSeconds => remainingTime != null ? remainingTime.Value : 0f;
@@ -146,10 +152,6 @@ public class DayManager : NetworkBehaviour
     {
         if (!enabled) return;
 
-        currentDay.OnValueChanged += OnDayChanged;
-        currentTime.OnValueChanged += OnTimeChanged;
-        isGameOver.OnValueChanged += OnGameOverChanged;
-
         // 全画面の朝演出UIが未設定ならランタイムで生成する（シーン配置不要）
         if (transitionUI == null)
         {
@@ -195,11 +197,26 @@ public class DayManager : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
+        currentDay.OnValueChanged += OnDayChanged;
+        currentTime.OnValueChanged += OnTimeChanged;
+        isGameOver.OnValueChanged += OnGameOverChanged;
         if (IsServer)
         {
             remainingTime.Value = turnDuration;
             SnapshotDayStartEarnings();
         }
+        UpdateDayUI();
+        UpdateTimerUI();
+        ApplySkyMaterial(currentTime.Value);
+        ApplySmugglingTime(currentTime.Value);
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        StopAllCoroutines();
+        currentDay.OnValueChanged -= OnDayChanged;
+        currentTime.OnValueChanged -= OnTimeChanged;
+        isGameOver.OnValueChanged -= OnGameOverChanged;
     }
 
     public override void OnDestroy()
@@ -207,15 +224,11 @@ public class DayManager : NetworkBehaviour
         base.OnDestroy();
 
         if (Instance == this) Instance = null;
-
-        currentDay.OnValueChanged -= OnDayChanged;
-        currentTime.OnValueChanged -= OnTimeChanged;
-        isGameOver.OnValueChanged -= OnGameOverChanged;
     }
 
     private void Update()
     {
-        if (isGameOver.Value) return;
+        if (!IsSpawned || isGameOver.Value) return;
 
         UpdateTimerUI();
 
@@ -231,7 +244,7 @@ public class DayManager : NetworkBehaviour
 #endif
 
         // 朝への切り替え演出中はタイマーを止める
-        if (isTransitioning) return;
+        if (isTransitioning.Value) return;
 
         remainingTime.Value -= Time.deltaTime;
 
@@ -245,7 +258,7 @@ public class DayManager : NetworkBehaviour
     {
         if (!IsServer) return;
         if (isGameOver.Value) return;
-        if (isTransitioning) return;
+        if (isTransitioning.Value) return;
 
         remainingTime.Value = turnDuration;
 
@@ -272,7 +285,7 @@ public class DayManager : NetworkBehaviour
     /// </summary>
     private IEnumerator NightEndRoutine(int nextDay, bool collectRent)
     {
-        isTransitioning = true;
+        isTransitioning.Value = true;
 
         // ---- 1) 今日の収支リザルト ----
         string resultData = BuildResultData(out int playerCount);
@@ -314,7 +327,7 @@ public class DayManager : NetworkBehaviour
 
             if (!canPay)
             {
-                isTransitioning = false;
+                isTransitioning.Value = false;
                 GameOver();
                 yield break;
             }
@@ -335,67 +348,104 @@ public class DayManager : NetworkBehaviour
 
         yield return new WaitForSeconds(2.6f);
 
-        isTransitioning = false;
+        isTransitioning.Value = false;
     }
 
     /// <summary>家具をネットワーク同期で生成する（サーバー権限・代金もここで引く）。</summary>
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
     public void BuyFurnitureServerRpc(
         int catalogIndex,
-        Vector3 ground,
-        float yaw,
         RpcParams rpcParams = default)
     {
         ulong requester = rpcParams.Receive.SenderClientId;
-        if (networkFurniturePrefab == null)
-        {
-            FurniturePurchaseResultClientRpc(
-                requester, false, catalogIndex,
-                "同期用家具Prefabが設定されていません");
-            return;
-        }
+        bool success = TryPurchaseFurniture(requester, catalogIndex, out string message);
+        FurniturePurchaseResultClientRpc(requester, success, catalogIndex, message);
+    }
+
+    // 金額・時間帯・配達先はServerで確定し、生成に成功した注文だけ決済する。
+    private bool TryPurchaseFurniture(ulong requester, int catalogIndex, out string message)
+    {
+        message = "家具ショップは夜の自由行動中だけ利用できます";
+        if (!IsServer || !CanBuyFurniture) return false;
+
+        message = "プレイヤーの準備ができていません";
+        if (NetworkManager == null ||
+            !NetworkManager.ConnectedClients.TryGetValue(requester, out var client) ||
+            client.PlayerObject == null || !client.PlayerObject.IsSpawned)
+            return false;
+
+        message = "同期用家具Prefabの設定が不正です";
+        if (networkFurniturePrefab == null ||
+            networkFurniturePrefab.GetComponent<NetworkObject>() == null ||
+            networkFurniturePrefab.GetComponent<NetworkFurniture>() == null ||
+            !NetworkManager.NetworkConfig.Prefabs.Contains(networkFurniturePrefab))
+            return false;
 
         var item = FurnitureCatalog.Get(catalogIndex);
-        if (item == null)
-        {
-            FurniturePurchaseResultClientRpc(
-                requester, false, catalogIndex,
-                "商品データが見つかりません");
-            return;
-        }
+        message = "商品データが不正です";
+        if (item == null || item.cost <= 0 ||
+            !float.IsFinite(item.placeholderSize.x) || item.placeholderSize.x <= 0f ||
+            !float.IsFinite(item.placeholderSize.y) || item.placeholderSize.y <= 0f ||
+            !float.IsFinite(item.placeholderSize.z) || item.placeholderSize.z <= 0f)
+            return false;
+
+        // カタログのPrefabは見た目用。同期ルートの子にNetworkObjectを追加しない。
+        if (item.prefab != null && item.prefab.GetComponentInChildren<NetworkObject>(true) != null)
+            return false;
+
+        var marker = FindAnyObjectByType<FurnitureDeliveryPoint>();
+        message = "家具の配達地点が設定されていません";
+        if (marker == null) return false;
+
+        // 注文者ごとのローカルカウンターではなく、全注文で一つの配置順を使う。
+        float angle = furnitureDeliveryCount * 1.1f;
+        float radius = Mathf.Min(0.4f + 0.25f * furnitureDeliveryCount, 1.6f);
+        Vector3 ground = marker.transform.position +
+                         new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+        Vector3 center = ground + Vector3.up * (item.placeholderSize.y * 0.5f);
+        message = "家具の配達地点が不正です";
+        if (!float.IsFinite(center.x) || !float.IsFinite(center.y) || !float.IsFinite(center.z))
+            return false;
 
         var money = SharedMoneyManager.Instance;
-        if (money == null)
+        message = $"残高不足（必要 ¥{item.cost}）";
+        if (money == null || !money.CanPay(item.cost)) return false;
+
+        GameObject go = null;
+        NetworkObject no = null;
+        try
         {
-            FurniturePurchaseResultClientRpc(
-                requester, false, catalogIndex,
-                "共有口座が見つかりません");
-            return;
+            go = Instantiate(networkFurniturePrefab, center, Quaternion.identity);
+            no = go.GetComponent<NetworkObject>();
+            no.Spawn(true);
+            go.GetComponent<NetworkFurniture>().ServerSetIndex(catalogIndex);
         }
+        catch (System.Exception exception)
+        {
+            RemoveFailedFurniture(go, no);
+            Debug.LogWarning($"[Furniture] 家具生成に失敗: {exception.Message}");
+            message = "家具を配達できませんでした。代金は引かれていません";
+            return false;
+        }
+
         if (!money.TrySpend(
                 item.cost,
                 SharedMoneyReason.FurniturePurchase,
                 $"client={requester}, item={item.id}"))
         {
-            FurniturePurchaseResultClientRpc(
-                requester, false, catalogIndex,
-                $"残高不足（必要 ¥{item.cost}）");
-            return;
+            RemoveFailedFurniture(go, no);
+            return false;
         }
 
-        // 仮ブロックの中心 = 地面 + 高さ/2（底が地面に乗るように）
-        Vector3 center = new Vector3(ground.x, ground.y + item.placeholderSize.y * 0.5f, ground.z);
+        furnitureDeliveryCount++;
+        message = $"{item.displayName}を配達しました";
+        return true;
+    }
 
-        var go = Instantiate(networkFurniturePrefab, center, Quaternion.Euler(0f, yaw, 0f));
-        var no = go.GetComponent<NetworkObject>();
-        no.Spawn(true);
-
-        var nf = go.GetComponent<NetworkFurniture>();
-        if (nf != null) nf.ServerSetIndex(catalogIndex);
-
-        FurniturePurchaseResultClientRpc(
-            requester, true, catalogIndex,
-            $"{item.displayName}を配達しました");
+    private static void RemoveFailedFurniture(GameObject go, NetworkObject no)
+    {
+        if (no != null && no.IsSpawned) no.Despawn(true);
+        else if (go != null) Destroy(go);
     }
 
     [ClientRpc]
@@ -651,6 +701,12 @@ public class DayManager : NetworkBehaviour
     {
         bool isMorning = time == 0;
         Material skyMaterial = time == 0 ? morningSkyMaterial : nightSkyMaterial;
+
+        if (environmentSun != null)
+        {
+            environmentSun.intensity = isMorning ? morningSunIntensity : nightSunIntensity;
+            environmentSun.color = isMorning ? new Color(1f, .94f, .82f) : new Color(.6f, .72f, 1f);
+        }
 
         if (skyMaterial != null)
         {

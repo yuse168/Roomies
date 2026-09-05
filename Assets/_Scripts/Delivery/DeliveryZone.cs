@@ -21,8 +21,9 @@ public class DeliveryZone : NetworkBehaviour
     private int rarePercent = 20;
 
     private List<NetworkObject> boxesInZone = new List<NetworkObject>();
+    private readonly Dictionary<NetworkObject, HashSet<Collider>> collidersInZone = new();
 
-    private void Start()
+    public override void OnNetworkSpawn()
     {
         if (!IsServer) return;
 
@@ -35,33 +36,44 @@ public class DeliveryZone : NetworkBehaviour
     private void OnTriggerEnter(Collider other)
     {
         if (!IsServer) return;
-        if (!other.CompareTag("DeliveryBox")) return;
 
         NetworkObject boxNetObj =
             other.GetComponentInParent<NetworkObject>();
 
-        if (boxNetObj != null && !boxesInZone.Contains(boxNetObj))
-        {
-            boxesInZone.Add(boxNetObj);
+        if (boxNetObj == null || !boxNetObj.IsSpawned ||
+            (!boxNetObj.CompareTag("DeliveryBox") && !other.CompareTag("DeliveryBox"))) return;
 
-            Debug.Log("箱が納品エリアに入りました エリア内: " + boxesInZone.Count);
+        if (!collidersInZone.TryGetValue(boxNetObj, out var colliders))
+        {
+            colliders = new HashSet<Collider>();
+            collidersInZone.Add(boxNetObj, colliders);
+            boxesInZone.Add(boxNetObj);
         }
+        colliders.Add(other);
     }
 
     private void OnTriggerExit(Collider other)
     {
         if (!IsServer) return;
-        if (!other.CompareTag("DeliveryBox")) return;
 
         NetworkObject boxNetObj =
             other.GetComponentInParent<NetworkObject>();
 
-        if (boxNetObj != null && boxesInZone.Contains(boxNetObj))
+        if (boxNetObj != null && collidersInZone.TryGetValue(boxNetObj, out var colliders))
         {
-            boxesInZone.Remove(boxNetObj);
-
-            Debug.Log("箱が納品エリアから出ました エリア内: " + boxesInZone.Count);
+            colliders.Remove(other);
+            if (colliders.Count == 0)
+            {
+                collidersInZone.Remove(boxNetObj);
+                boxesInZone.Remove(boxNetObj);
+            }
         }
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        boxesInZone.Clear();
+        collidersInZone.Clear();
     }
 
     public bool HasBox()
@@ -88,6 +100,7 @@ public class DeliveryZone : NetworkBehaviour
         {
             NetworkObject box = boxesInZone[0];
             boxesInZone.RemoveAt(0);
+            collidersInZone.Remove(box);
 
             box.Despawn(true);
 
@@ -172,8 +185,18 @@ public class DeliveryZone : NetworkBehaviour
 
     private void PruneInvalidBoxes()
     {
-        boxesInZone.RemoveAll(box =>
-            box == null ||
-            !box.IsSpawned);
+        for (int i = boxesInZone.Count - 1; i >= 0; i--)
+        {
+            var box = boxesInZone[i];
+            bool valid = box != null && box.IsSpawned;
+            if (valid && collidersInZone.TryGetValue(box, out var colliders))
+            {
+                colliders.RemoveWhere(c => c == null || !c.enabled || !c.gameObject.activeInHierarchy);
+                valid = colliders.Count > 0;
+            }
+            if (valid) continue;
+            collidersInZone.Remove(box);
+            boxesInZone.RemoveAt(i);
+        }
     }
 }

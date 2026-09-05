@@ -76,6 +76,7 @@ public class LobbyUIManager : MonoBehaviour
         SteamLobby.Instance.OnMembersChanged   += RefreshPlayerList;
         SteamLobby.Instance.OnHostStartedGame  += HandleGameStarting;
         SteamLobby.Instance.OnLobbyDisbanded   += HandleLobbyDisbanded;
+        SteamLobby.Instance.BusyStateChanged   += HandleBusyChanged;
     }
 
     private void OnDisable()
@@ -88,6 +89,7 @@ public class LobbyUIManager : MonoBehaviour
         SteamLobby.Instance.OnMembersChanged   -= RefreshPlayerList;
         SteamLobby.Instance.OnHostStartedGame  -= HandleGameStarting;
         SteamLobby.Instance.OnLobbyDisbanded   -= HandleLobbyDisbanded;
+        SteamLobby.Instance.BusyStateChanged   -= HandleBusyChanged;
     }
 
     // =========================================================
@@ -114,7 +116,10 @@ public class LobbyUIManager : MonoBehaviour
         // クライアント側: NGO接続開始を待つのでUIはそのまま
         // 接続が確立するとNGOがGameRoomシーンを同期ロードする
         if (waitingText != null)
+        {
+            waitingText.gameObject.SetActive(true);
             waitingText.text = "接続中...";
+        }
         if (startButton != null)
             startButton.interactable = false;
     }
@@ -123,6 +128,11 @@ public class LobbyUIManager : MonoBehaviour
     {
         HideLobbyUI();
         ShowError("ホストがロビーを解散しました");
+    }
+
+    private void HandleBusyChanged(bool busy)
+    {
+        if (busy && startButton != null) startButton.interactable = false;
     }
 
     // =========================================================
@@ -163,7 +173,10 @@ public class LobbyUIManager : MonoBehaviour
 
         // クライアント専用
         if (waitingText != null)
+        {
             waitingText.gameObject.SetActive(!isHost);
+            waitingText.text = "ホストの開始を待っています…";
+        }
 
         // Leave
         if (leaveButton != null)
@@ -241,7 +254,8 @@ public class LobbyUIManager : MonoBehaviour
         // Start ボタンの有効/無効
         if (startButton != null && SteamLobby.Instance.IsHost)
         {
-            startButton.interactable = members.Count >= minPlayersToStart;
+            startButton.interactable = !SteamLobby.Instance.IsBusy &&
+                                       members.Count >= minPlayersToStart;
         }
 
         string signature = BuildSignature(members, hostId);
@@ -474,6 +488,7 @@ public class LobbyUIManager : MonoBehaviour
     {
         if (SteamLobby.Instance == null) return;
         if (!SteamLobby.Instance.IsHost) return;
+        if (SteamLobby.Instance.IsBusy) return;
 
         startButton.interactable = false;
         SteamLobby.Instance.StartGame();
@@ -493,6 +508,20 @@ public class LobbyUIManager : MonoBehaviour
 
     private void ShowError(string message)
     {
+        if (lobbyPanel != null && lobbyPanel.activeInHierarchy && waitingText != null)
+        {
+            waitingText.text = message;
+            waitingText.gameObject.SetActive(true);
+            return;
+        }
+
+        // JoinPanel内のErrorTextはロビー解散時には非表示。メインの状態表示を使う。
+        var menu = GetComponent<MainMenuManager>();
+        if (menu != null)
+        {
+            menu.ShowConnectionStatus(message);
+            return;
+        }
         if (joinErrorText == null) return;
         joinErrorText.text = message;
         joinErrorText.gameObject.SetActive(true);

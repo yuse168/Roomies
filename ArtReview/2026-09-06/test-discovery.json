@@ -1,0 +1,42 @@
+[
+  {
+    "name": "MiningCannotSellLooseOreOrAnotherPlayersCargo",
+    "fullName": "RoomiesRegressionTests.MiningCannotSellLooseOreOrAnotherPlayersCargo",
+    "runState": "Runnable",
+    "categories": [
+      "Uncategorized"
+    ]
+  },
+  {
+    "name": "MiningClosureConfiscatesOnlyUndergroundHeldCargoWithoutChargingMoney",
+    "fullName": "RoomiesRegressionTests.MiningClosureConfiscatesOnlyUndergroundHeldCargoWithoutChargingMoney",
+    "runState": "Runnable",
+    "categories": [
+      "Uncategorized"
+    ]
+  },
+  {
+    "name": "MiningFailedDepositKeepsOreForRetry",
+    "fullName": "RoomiesRegressionTests.MiningFailedDepositKeepsOreForRetry",
+    "runState": "Runnable",
+    "categories": [
+      "Uncategorized"
+    ]
+  },
+  {
+    "name": "MiningForcedDropReleasesHolderAndKeepsOrePublic",
+    "fullName": "RoomiesRegressionTests.MiningForcedDropReleasesHolderAndKeepsOrePublic",
+    "runState": "Runnable",
+    "categories": [
+      "Uncategorized"
+    ]
+  },
+  {
+    "name": "MiningSaleCreditsSharedAndIndividualExactlyOnce",
+    "fullName": "RoomiesRegressionTests.MiningSaleCreditsSharedAndIndividualExactlyOnce",
+    "runState": "Runnable",
+    "categories": [
+      "Uncategorized"
+    ]
+  }
+]

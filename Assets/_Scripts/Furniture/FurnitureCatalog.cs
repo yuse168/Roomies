@@ -31,6 +31,7 @@ public static class FurnitureCatalog
         }
 
         _items = new List<FurnitureItem>(items);
+        BindDefaultVisuals(_items);
     }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -48,7 +49,7 @@ public static class FurnitureCatalog
 
     private static List<FurnitureItem> Build()
     {
-        return new List<FurnitureItem>
+        var items = new List<FurnitureItem>
         {
             // 第1弾
             new FurnitureItem{ id="coffee_maker",        displayName="コーヒーメーカー", cost=300,  effect=FurnitureEffect.MoveSpeed,     effectValue=15, placeholderSize=new Vector3(0.4f,0.6f,0.4f),  placeholderColor=new Color(0.45f,0.28f,0.18f)},
@@ -66,5 +67,16 @@ public static class FurnitureCatalog
             new FurnitureItem{ id="trampoline",          displayName="トランポリン",     cost=700,  placeholderSize=new Vector3(1.5f,0.3f,1.5f),  placeholderColor=new Color(0.30f,0.75f,0.55f)},
             new FurnitureItem{ id="arcade_machine",      displayName="アーケード筐体",   cost=2500, placeholderSize=new Vector3(0.8f,1.8f,0.8f),  placeholderColor=new Color(0.55f,0.30f,0.80f)},
         };
+        BindDefaultVisuals(items);
+        return items;
+    }
+
+    private static void BindDefaultVisuals(List<FurnitureItem> items)
+    {
+        foreach (var item in items)
+        {
+            if (item != null && item.prefab == null && !string.IsNullOrEmpty(item.id))
+                item.prefab = Resources.Load<GameObject>("RoomiesArt/Furniture/" + item.id);
+        }
     }
 }

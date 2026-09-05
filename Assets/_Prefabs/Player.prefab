@@ -156,6 +156,7 @@ GameObject:
   - component: {fileID: 1111111111111111111}
   - component: {fileID: 6273409185634918264}
   - component: {fileID: 1831777166222390729}
+  - component: {fileID: 6313867958169767751}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -426,6 +427,19 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &6313867958169767751
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2715674321747750427}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 96da8fd862a1b3e49917547dec560ea8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MiningPlayer
+  ShowTopMostFoldoutHeaderGroup: 1
 --- !u!1 &3093804080407733222
 GameObject:
   m_ObjectHideFlags: 0

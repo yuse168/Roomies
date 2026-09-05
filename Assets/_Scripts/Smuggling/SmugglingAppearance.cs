@@ -30,7 +30,8 @@ public class SmugglingAppearance : MonoBehaviour
 
     /// <summary>差し替え後（または仮）の見た目ルート。向きを合わせたいときに使う。</summary>
     public Transform VisualRoot => modelRoot != null ? modelRoot : transform;
-    public bool HasReplacementModel => modelPrefab != null;
+    public bool HasReplacementModel => modelPrefab != null ||
+        (modelRoot != null && modelRoot.GetComponentInChildren<Renderer>(true) != null);
 
     /// <summary>
     /// 仮モデルだけを夜でも視認できるUnlit材質へ切り替える。
@@ -38,7 +39,7 @@ public class SmugglingAppearance : MonoBehaviour
     /// </summary>
     public void PreparePlaceholderForNight()
     {
-        if (placeholderPrepared || modelPrefab != null || placeholder == null) return;
+        if (placeholderPrepared || HasReplacementModel || placeholder == null) return;
         placeholderPrepared = true;
 
         Shader unlit = Shader.Find("Universal Render Pipeline/Unlit");

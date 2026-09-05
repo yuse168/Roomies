@@ -604,8 +604,8 @@ public sealed class EscMenuUI : MonoBehaviour
         IsOpen = false;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
-        yield return null;
-        yield return null;
+        var network = NetworkManager.Singleton;
+        while (network != null && network.ShutdownInProgress) yield return null;
         SceneManager.LoadScene(MenuSceneName);
     }
 

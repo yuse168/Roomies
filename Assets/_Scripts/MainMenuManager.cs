@@ -260,6 +260,8 @@ public class MainMenuManager : MonoBehaviour
             joinStatusText.gameObject.SetActive(false);
     }
 
+    public void ShowConnectionStatus(string message) => ShowStatus(message);
+
     public void Quit()
     {
         SteamLobby.Instance?.LeaveLobby();

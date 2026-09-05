@@ -39,6 +39,16 @@ public class CarryableObject : NetworkBehaviour
     private Collider[] holderColliders;
     private Coroutine restoreCollisionCoroutine;
     private float disconnectCheckTimer;
+    private float relocationUntil;
+
+    public void ServerRelocate(Vector3 position)
+    {
+        if (!IsServer) return;
+        transform.position = position;
+        relocationUntil = Time.time + .75f;
+    }
+
+    public void ServerRelease() => ReleaseHolder();
 
     public bool IsHeld => isHeld.Value;
     public bool IsHeldBy(ulong clientId)
@@ -68,6 +78,9 @@ public class CarryableObject : NetworkBehaviour
         if (clientId != rpcParams.Receive.SenderClientId) return;
         if (!TryGetPlayer(playerNetworkObjectId, clientId, out NetworkObject playerObject))
             return;
+        if (!playerObject.IsPlayerObject) return;
+        var interaction = playerObject.GetComponent<PlayerInteract>();
+        if (interaction == null || HasOtherHeldObject(clientId)) return;
 
         if (Vector3.Distance(playerObject.transform.position, transform.position) >
             serverPickupDistance)
@@ -76,6 +89,9 @@ public class CarryableObject : NetworkBehaviour
             return;
         }
 
+        // Another player may grab a thrown ore before the delayed collision restore.
+        // Restore the previous holder before replacing its network id/collider cache.
+        IgnoreHolderCollision(false);
         isHeld.Value = true;
         holderClientId.Value = clientId;
         holderNetworkObjectId.Value = playerNetworkObjectId;
@@ -106,6 +122,7 @@ public class CarryableObject : NetworkBehaviour
     {
         if (!isHeld.Value) return;
         if (rpcParams.Receive.SenderClientId != holderClientId.Value) return;
+        if (Time.time < relocationUntil) return;
         if (!IsFinite(position) || !IsFinite(rotation)) return;
         if (!TryGetHolderPlayer(out NetworkObject playerObject))
         {
@@ -170,6 +187,14 @@ public class CarryableObject : NetworkBehaviour
     void IgnoreHolderCollision(bool ignore)
     {
         if (objectCollider == null) return;
+        if (!ignore)
+        {
+            if (holderColliders != null)
+                foreach (var col in holderColliders)
+                    if (col != null) Physics.IgnoreCollision(objectCollider, col, false);
+            holderColliders = null;
+            return;
+        }
         if (NetworkManager.Singleton == null) return;
 
         if (NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(holderNetworkObjectId.Value, out NetworkObject holderObject))
@@ -236,6 +261,12 @@ public class CarryableObject : NetworkBehaviour
     {
         if (!IsServer) return;
 
+        if (restoreCollisionCoroutine != null)
+        {
+            StopCoroutine(restoreCollisionCoroutine);
+            restoreCollisionCoroutine = null;
+        }
+
         IgnoreHolderCollision(false);
         isHeld.Value = false;
         holderClientId.Value = NoHolder;
@@ -246,6 +277,19 @@ public class CarryableObject : NetworkBehaviour
             rb.isKinematic = false;
             rb.useGravity = true;
         }
+    }
+
+    private bool HasOtherHeldObject(ulong clientId)
+    {
+        foreach (var item in NetworkManager.SpawnManager.SpawnedObjectsList)
+        {
+            if (item == NetworkObject) continue;
+            var carry = item.GetComponent<CarryableObject>();
+            if (carry != null && carry.IsHeldBy(clientId)) return true;
+            var furniture = item.GetComponent<NetworkFurniture>();
+            if (furniture != null && furniture.IsHeldBy(clientId)) return true;
+        }
+        return false;
     }
 
     private static bool IsFinite(Vector3 value)
