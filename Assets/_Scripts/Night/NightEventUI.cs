@@ -15,13 +15,13 @@ using UnityEngine.UI;
 /// </summary>
 public class NightEventUI : MonoBehaviour
 {
-    private CanvasGroup group;
-    private RectTransform panelRt;
-    private Image accentLine;
-    private Image iconBadge;
-    private TextMeshProUGUI iconLabel;
-    private TextMeshProUGUI titleLabel;
-    private TextMeshProUGUI bodyLabel;
+    [SerializeField] private CanvasGroup group;
+    [SerializeField] private RectTransform panelRt;
+    [SerializeField] private Image accentLine;
+    [SerializeField] private Image iconBadge;
+    [SerializeField] private TextMeshProUGUI iconLabel;
+    [SerializeField] private TextMeshProUGUI titleLabel;
+    [SerializeField] private TextMeshProUGUI bodyLabel;
 
     // 演出のタイミング
     private const float InTime   = 0.45f;
@@ -45,14 +45,17 @@ public class NightEventUI : MonoBehaviour
     private void Awake()
     {
         BuildUI();
+        group.alpha = 0; group.blocksRaycasts = false; group.interactable = false;
     }
 
     // ================================================================
     // UI構築
     // ================================================================
 
-    private void BuildUI()
+    [ContextMenu("未配置のUIを作成")]
+    public void BuildUI()
     {
+        if (group != null) return;
         var canvasGo = new GameObject("NightEventCanvas");
         canvasGo.transform.SetParent(transform, false);
 

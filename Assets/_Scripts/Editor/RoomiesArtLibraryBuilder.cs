@@ -93,7 +93,25 @@ internal static partial class RoomiesArtLibraryBuilder
             string meshPath = $"{Root}/Meshes/{id}.asset";
             var existing = AssetDatabase.LoadAssetAtPath<Mesh>(meshPath);
             if (existing == null) AssetDatabase.CreateAsset(combined, meshPath);
-            else { EditorUtility.CopySerialized(combined, existing); Object.DestroyImmediate(combined); combined = existing; }
+            else
+            {
+                // Explicit buffer updates invalidate Unity's live GPU mesh cache as well as the asset data.
+                existing.Clear(); existing.indexFormat = combined.indexFormat;
+                existing.vertices = combined.vertices; existing.normals = combined.normals;
+                existing.subMeshCount = combined.subMeshCount;
+                for (int i = 0; i < combined.subMeshCount; i++)
+                    existing.SetIndices(combined.GetIndices(i), combined.GetTopology(i), i);
+                existing.bounds = combined.bounds; EditorUtility.SetDirty(existing);
+                Object.DestroyImmediate(combined); combined = existing;
+            }
+            // Keep authored texture coordinates valid when this library is regenerated.
+            var surfaceVertices=combined.vertices;var surfaceNormals=combined.normals;var surfaceUV=new Vector2[surfaceVertices.Length];
+            for(int i=0;i<surfaceUV.Length;i++)
+            {
+                var p=surfaceVertices[i];var n=surfaceNormals[i];var a=new Vector3(Mathf.Abs(n.x),Mathf.Abs(n.y),Mathf.Abs(n.z));
+                surfaceUV[i]=(a.y>=a.x&&a.y>=a.z?new Vector2(p.x,p.z):a.x>=a.z?new Vector2(p.z,p.y):new Vector2(p.x,p.y))*.8f;
+            }
+            combined.uv=surfaceUV;combined.RecalculateTangents();EditorUtility.SetDirty(combined);
             foreach (Transform child in go.transform.Cast<Transform>().ToArray()) Object.DestroyImmediate(child.gameObject);
             go.AddComponent<MeshFilter>().sharedMesh = combined;
             go.AddComponent<MeshRenderer>().sharedMaterials = materials;
@@ -111,6 +129,11 @@ internal static partial class RoomiesArtLibraryBuilder
     // Rounded boxes use a bevelled grid, preserving broad planar surfaces instead of scaled spheres.
     static void Box(string name, Vector3 p, Vector3 s, string color, float bevel = .025f, Vector3 rotation = default)
     {
+        Part(name, RoundedBoxMesh(s, bevel), p, rotation, color);
+    }
+
+    internal static Mesh RoundedBoxMesh(Vector3 s, float bevel)
+    {
         float radius = Mathf.Min(bevel, Mathf.Min(s.x, Mathf.Min(s.y, s.z)) * .45f);
         var verts = new List<Vector3>(); var normals = new List<Vector3>(); var tris = new List<int>();
         Vector3 half = s * .5f, core = half - Vector3.one * radius;
@@ -120,20 +143,20 @@ internal static partial class RoomiesArtLibraryBuilder
             Vector3 u = Mathf.Abs(n.y) > .5f ? Vector3.right : Vector3.up;
             Vector3 v = Vector3.Cross(n, u);
             float hn = Vector3.Dot(half, Abs(n)), hu = Vector3.Dot(half, Abs(u)), hv = Vector3.Dot(half, Abs(v));
-            float[] xs = { -hu, -hu + radius, hu - radius, hu };
-            float[] ys = { -hv, -hv + radius, hv - radius, hv };
+            float[] xs = { -hu, -hu + radius * .293f, -hu + radius, hu - radius, hu - radius * .293f, hu };
+            float[] ys = { -hv, -hv + radius * .293f, -hv + radius, hv - radius, hv - radius * .293f, hv };
             int start = verts.Count;
-            for (int y = 0; y < 4; y++) for (int x = 0; x < 4; x++)
+            for (int y = 0; y < 6; y++) for (int x = 0; x < 6; x++)
             {
                 Vector3 q = n * hn + u * xs[x] + v * ys[y];
                 Vector3 c = new Vector3(Mathf.Clamp(q.x, -core.x, core.x), Mathf.Clamp(q.y, -core.y, core.y), Mathf.Clamp(q.z, -core.z, core.z));
                 Vector3 normal = (q - c).normalized; verts.Add(c + normal * radius); normals.Add(normal);
             }
-            for (int y = 0; y < 3; y++) for (int x = 0; x < 3; x++)
-            { int a = start + y * 4 + x; tris.AddRange(new[] { a, a + 1, a + 5, a, a + 5, a + 4 }); }
+            for (int y = 0; y < 5; y++) for (int x = 0; x < 5; x++)
+            { int a = start + y * 6 + x; tris.AddRange(new[] { a, a + 1, a + 7, a, a + 7, a + 6 }); }
         }
         var mesh = new Mesh(); mesh.SetVertices(verts); mesh.SetNormals(normals); mesh.SetTriangles(tris, 0); mesh.RecalculateBounds();
-        Part(name, mesh, p, rotation, color);
+        return mesh;
     }
     static Vector3 Abs(Vector3 v) => new Vector3(Mathf.Abs(v.x), Mathf.Abs(v.y), Mathf.Abs(v.z));
     static Vector3 V(float x, float y, float z) => new Vector3(x, y, z);
@@ -147,7 +170,7 @@ internal static partial class RoomiesArtLibraryBuilder
     }
     static void Ellipsoid(string name, Vector3 p, Vector3 size, string color)
     {
-        const int rings = 10, segments = 16;
+        const int rings = 16, segments = 24;
         var verts = new List<Vector3>(); var tris = new List<int>();
         for (int j = 0; j <= rings; j++) for (int i = 0; i <= segments; i++)
         {
@@ -161,7 +184,7 @@ internal static partial class RoomiesArtLibraryBuilder
     }
     static void Cylinder(string name, Vector3 p, float radius, float height, string color, Vector3 rotation = default)
     {
-        const int segments = 24;
+        const int segments = 36;
         var verts = new List<Vector3>(); var tris = new List<int>();
         // Bevelled capped profile; separate rings keep a clean lip silhouette.
         float b = Mathf.Min(.012f, Mathf.Min(radius * .15f, height * .15f));

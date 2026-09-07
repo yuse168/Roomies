@@ -9,7 +9,7 @@ public class PlayerSpawnSync : NetworkBehaviour
 
 #if UNITY_2019_3_OR_NEWER
     [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
-    private static void ResetIndex() { s_spawnIndex = 0; }
+    internal static void ResetIndex() { s_spawnIndex = 0; }
 #endif
 
     // シーン読み込み完了を待つ最大時間（秒）

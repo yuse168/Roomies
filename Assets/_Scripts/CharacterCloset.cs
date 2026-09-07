@@ -18,10 +18,12 @@ public class CharacterCloset : MonoBehaviour
 
     private static int escapeConsumedFrame = -1;
 
-    private CanvasGroup overlay;
+    [SerializeField] private CanvasGroup overlay;
     private PlayerNameDisplay targetPlayer;
-    private TMP_Text selectedLabel;
-    private readonly Button[] swatches = new Button[16];
+    [SerializeField] private TMP_Text selectedLabel;
+    [SerializeField] private Button closeButton;
+    [SerializeField] private Button[] swatches = new Button[16];
+    private bool callbacksBound;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void RegisterSceneHook()
@@ -42,6 +44,25 @@ public class CharacterCloset : MonoBehaviour
             new Vector3(3.25f, 1.05f, -7.35f),
             Quaternion.Euler(0f, -90f, 0f));
         closet.AddComponent<CharacterCloset>().BuildClosetVisual();
+    }
+
+    void Awake()
+    {
+        // Hide saved canvases before binding, including legacy duplicate canvases.
+        foreach(var canvas in GetComponentsInChildren<Canvas>(true))
+            if(canvas.name=="CharacterClosetCanvas")
+                foreach(var group in canvas.GetComponentsInChildren<CanvasGroup>(true))
+                {group.alpha=0;group.blocksRaycasts=false;group.interactable=false;}
+        EnsureUI();
+    }
+
+    private void BindCallbacks()
+    {
+        if(callbacksBound || !Application.isPlaying)return;
+        for(int i=0;i<swatches.Length;i++)
+        {int index=i;if(swatches[i]!=null)swatches[i].onClick.AddListener(()=>SelectColor(index));}
+        if(closeButton!=null)closeButton.onClick.AddListener(Close);
+        callbacksBound=true;
     }
 
     public bool CanInteract(PlayerNameDisplay player)
@@ -117,14 +138,31 @@ public class CharacterCloset : MonoBehaviour
         if (!collider && partCollider != null) Destroy(partCollider);
     }
 
-    private void EnsureUI()
+    public void EnsureUI()
     {
-        if (overlay != null) return;
+        if(overlay==null)
+        {
+            var existing=transform.Find("CharacterClosetCanvas/Shade");
+            if(existing!=null)overlay=existing.GetComponent<CanvasGroup>();
+        }
+        if (overlay != null)
+        {
+            var savedCard=overlay.transform.Find("ClosetCard");
+            if(savedCard!=null)
+            {
+                selectedLabel=savedCard.Find("Selected")?.GetComponent<TMP_Text>();
+                closeButton=savedCard.Find("Close")?.GetComponent<Button>();
+                if(swatches==null||swatches.Length!=16)swatches=new Button[16];
+                for(int i=0;i<swatches.Length;i++)swatches[i]=savedCard.Find($"Color_{i+1:00}")?.GetComponent<Button>();
+            }
+            BindCallbacks();
+            return;
+        }
 
         if (EventSystem.current == null)
             new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
 
-        Canvas canvas = UITheme.CreateCanvas(null, "CharacterClosetCanvas", 500);
+        Canvas canvas = UITheme.CreateCanvas(transform, "CharacterClosetCanvas", 500);
         if (canvas.GetComponent<GraphicRaycaster>() == null)
             canvas.gameObject.AddComponent<GraphicRaycaster>();
 
@@ -133,6 +171,7 @@ public class CharacterCloset : MonoBehaviour
         Stretch(shade.GetComponent<RectTransform>());
         shade.GetComponent<Image>().color = new Color(0.06f, 0.03f, 0.13f, 0.62f);
         overlay = shade.AddComponent<CanvasGroup>();
+        overlay.alpha=0;overlay.blocksRaycasts=false;overlay.interactable=false;
 
         // 白いカードではなく、他のUIと同じ「濃色の面＋太い白フチ」
         Image card = UITheme.Surface(shade.transform, "ClosetCard", 40f, 6f);
@@ -151,7 +190,6 @@ public class CharacterCloset : MonoBehaviour
 
         for (int i = 0; i < swatches.Length; i++)
         {
-            int index = i;
             var go = new GameObject($"Color_{i + 1:00}", typeof(RectTransform), typeof(Image), typeof(Button));
             go.transform.SetParent(card.transform, false);
             RectTransform rt = go.GetComponent<RectTransform>();
@@ -176,7 +214,6 @@ public class CharacterCloset : MonoBehaviour
             colors.fadeDuration = 0.08f;
             button.colors = colors;
             go.AddComponent<UIButtonJuice>();
-            button.onClick.AddListener(() => SelectColor(index));
             swatches[i] = button;
         }
 
@@ -187,12 +224,12 @@ public class CharacterCloset : MonoBehaviour
         var closeGo = new GameObject("Close", typeof(RectTransform), typeof(Image), typeof(Button));
         closeGo.transform.SetParent(card.transform, false);
         SetBox(closeGo.GetComponent<RectTransform>(), 504f, 480f, 198f, 62f);
-        Button closeButton = closeGo.GetComponent<Button>();
+        closeButton = closeGo.GetComponent<Button>();
         UITheme.Label(
             closeGo.transform, "Label", "決定して戻る", 24f,
             Color.white, TextAlignmentOptions.Center, true);
         UITheme.StylePill(closeButton, UITheme.Pink, Color.white, 24f, 7f);
-        closeButton.onClick.AddListener(Close);
+        BindCallbacks();
     }
 
     private void SelectColor(int index)

@@ -81,6 +81,51 @@ public class RoomiesRegressionTests
     }
 
     [Test]
+    public void GameOverRejectsFurtherMoneyAndEarningsChanges()
+    {
+        var money=Spawn("SharedMoneyManager");var earner=Spawn("PlayerEarning");var day=Spawn("DayManager");
+        SetValue(money,"sharedMoney",250);SetValue(day,"isGameOver",true);
+        var reason=Enum.Parse(GameType("SharedMoneyReason"),"CashierWage");
+        Assert.That(Call(money,"TryAdd",35,reason,"late completion"),Is.False);
+        Assert.That(Call(money,"TrySpend",100,reason,"late purchase"),Is.False);
+        Call(earner,"AddEarning",35);
+        Assert.That(Value<int>(money,"sharedMoney"),Is.EqualTo(250));
+        Assert.That(Call(earner,"GetEarning"),Is.Zero);
+    }
+
+    [Test]
+    public void CashierPaysOnceAndReleasesClerkOnNightfall()
+    {
+        var money=Spawn("SharedMoneyManager");var day=Spawn("DayManager");
+        var player=NewObject("Cashier");var no=player.AddComponent<NetworkObject>();
+        var earner=(NetworkBehaviour)player.AddComponent(GameType("PlayerEarning"));earner.enabled=false;no.SpawnAsPlayerObject(network.LocalClientId);
+        var register=Spawn("CashRegister");register.GetType().GetField("clerkPoint").SetValue(register,register.transform);
+        void Use(int action){SetField(register,"nextAction",0f);Call(register,"UseRpc",no.NetworkObjectId,action,Value<int>(register,"order"),default(RpcParams));}
+        Use(-1);Assert.That(Value<int>(register,"phase"),Is.EqualTo(1));
+        Use(-1);Use(-1);Use(-1);Assert.That(Value<int>(register,"phase"),Is.EqualTo(2));
+        int answer=Value<int>(register,"order")%3;
+        Use((answer+1)%3);Assert.That(Value<int>(money,"sharedMoney"),Is.Zero);
+        Use(answer);Use(answer);
+        Assert.That(Value<int>(money,"sharedMoney"),Is.EqualTo(35));Assert.That(Call(earner,"GetEarning"),Is.EqualTo(35));
+        SetValue(day,"currentTime",1);Call(register,"Update");
+        Assert.That(Value<ulong>(register,"clerk"),Is.EqualTo(ulong.MaxValue));
+    }
+
+    [Test]
+    public void CashierRejectsImpersonationAndExpiredOrders()
+    {
+        var money=Spawn("SharedMoneyManager");Spawn("DayManager");
+        var player=NewObject("Cashier");var no=player.AddComponent<NetworkObject>();no.SpawnAsPlayerObject(network.LocalClientId);
+        var register=Spawn("CashRegister");register.GetType().GetField("clerkPoint").SetValue(register,register.transform);
+        Call(register,"UseRpc",no.NetworkObjectId+1000,-1,0,default(RpcParams));
+        Assert.That(Value<int>(register,"phase"),Is.Zero);
+        Call(register,"UseRpc",no.NetworkObjectId,-1,0,default(RpcParams));
+        SetField(register,"nextAction",0f);SetValue(register,"phase",2);SetValue(register,"expires",-1d);
+        Call(register,"UseRpc",no.NetworkObjectId,1,1,default(RpcParams));
+        Assert.That(Value<int>(money,"sharedMoney"),Is.Zero);
+    }
+
+    [Test]
     public void MiningSaleCreditsSharedAndIndividualExactlyOnce()
     {
         var money = Spawn("SharedMoneyManager");

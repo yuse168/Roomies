@@ -98,7 +98,7 @@ public class PlayerInteract : NetworkBehaviour
     {
         if (!IsOwner) return;
 
-        if (EscMenuUI.IsOpen || CharacterCloset.IsOpen)
+        if (DayManager.GameplayStopped || EscMenuUI.IsOpen || CharacterCloset.IsOpen)
         {
             SetInteractVisible(false);
             return;
@@ -195,7 +195,11 @@ public class PlayerInteract : NetworkBehaviour
                 SmugglingInteractable smuggling = hit.collider.GetComponentInParent<SmugglingInteractable>();
                 CharacterCloset closet = hit.collider.GetComponentInParent<CharacterCloset>();
                 var mining = hit.collider.GetComponentInParent<MiningInteractable>();
-                if (mining != null)
+                if (hit.collider.GetComponentInParent<CashRegisterTarget>() is CashRegisterTarget checkout)
+                {
+                    label = Key(GameAction.Interact) + " " + checkout.Label;
+                }
+                else if (mining != null)
                 {
                     label = (mining.action == MiningAction.Rock ? "" : Key(GameAction.Interact) + " ") + mining.Label;
                 }
@@ -219,7 +223,7 @@ public class PlayerInteract : NetworkBehaviour
                 {
                     label = furniture.IsHeld
                         ? "ほかの人が移動中"
-                        : Key(GameAction.Carry) + " " + furniture.DisplayName + "を持つ";
+                        : Key(GameAction.Interact) + " " + furniture.InteractionLabel + " / " + Key(GameAction.Carry) + " 移動";
                 }
                 // ドア
                 else if (hit.collider.GetComponentInParent<DoorInteract>() != null)
@@ -328,8 +332,12 @@ public class PlayerInteract : NetworkBehaviour
 
         if (TryInteractionHit(out RaycastHit hit))
         {
+            var checkout = hit.collider.GetComponentInParent<CashRegisterTarget>();
+            if (checkout != null) { checkout.Use(this); return; }
             var mining = hit.collider.GetComponentInParent<MiningInteractable>();
             if (mining != null) { mining.Use(this); return; }
+            var furniture = hit.collider.GetComponentInParent<NetworkFurniture>();
+            if (furniture != null) { furniture.UseFurnitureServerRpc(NetworkObjectId); return; }
             CharacterCloset closet = hit.collider.GetComponentInParent<CharacterCloset>();
             if (closet != null)
             {

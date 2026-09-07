@@ -28,20 +28,32 @@ public class MenuThemer : MonoBehaviour
     private const float TaglineY    = 274f;
     private const float TitleY      = 322f;
 
-    private TMP_Text waitingText;
+    [SerializeField] private TMP_Text waitingText;
     private float pulseTime;
 
-    private Button playButton;
-    private Button playBackButton;
-    private Button hostButton;
-    private Button joinButton;
+    [SerializeField] private Button playButton;
+    [SerializeField] private Button playBackButton;
+    [SerializeField] private Button hostButton;
+    [SerializeField] private Button joinButton;
 
+    [SerializeField] private bool authored;
+    [SerializeField] private Button settingsButton;
     private void Awake()
     {
+        if(!authored){BuildUI();return;}
+        playButton.onClick.AddListener(ShowPlayOptions);
+        playBackButton.onClick.AddListener(HidePlayOptions);
+        settingsButton.onClick.AddListener(GetComponent<MainMenuSettingsUI>().Open);
+        HidePlayOptions();
+    }
+    public void BuildUI()
+    {
+        if(authored)return;
         BuildMainMenu();
         BuildJoinPanel();
         BuildLobbyPanel();
         ApplyStatusTexts();
+        authored=true;
     }
 
     // ================================================================
@@ -127,7 +139,7 @@ public class MenuThemer : MonoBehaviour
         PopIn(playButton.gameObject, 0.12f);
 
         // --- フッター（設定・やめる） ---
-        Button settingsButton = CreatePill(root, "SettingsButton", "設定",
+        settingsButton = CreatePill(root, "SettingsButton", "設定",
             new Vector2(Margin, FooterY), new Vector2(190f, FooterH),
             UITheme.Grape, Color.white, 24f, 6f);
 
@@ -709,7 +721,7 @@ public class MenuThemer : MonoBehaviour
 
     private static void PopIn(GameObject go, float delay)
     {
-        if (go == null) return;
+        if (go == null || !Application.isPlaying) return;
         var pop = go.GetComponent<UIPopIn>();
         if (pop == null) pop = go.AddComponent<UIPopIn>();
         pop.Play(delay);

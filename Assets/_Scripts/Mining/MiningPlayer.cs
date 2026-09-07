@@ -6,7 +6,13 @@ public class MiningPlayer : NetworkBehaviour
     private readonly NetworkVariable<bool> equipped = new(false);
     private readonly NetworkVariable<int> level = new(0);
     private GameObject pickaxe;
-    private Light headlamp;
+    [Header("採掘の見た目")]
+    [SerializeField] private GameObject pickaxePrefab;
+    [SerializeField] private Light headlamp;
+    [SerializeField] private Vector3 firstPersonPosition = new(.43f,-.4f,.63f);
+    [SerializeField] private Vector3 thirdPersonPosition = new(.55f,0,.4f);
+    [SerializeField, Min(.01f)] private float firstPersonScale=.65f;
+    [SerializeField, Min(.01f)] private float thirdPersonScale=.8f;
     private float swingUntil, noticeUntil;
     private string notice;
     public int Level => level.Value;
@@ -36,13 +42,13 @@ public class MiningPlayer : NetworkBehaviour
         var interact = GetComponent<PlayerInteract>();
         if (equipped.Value && pickaxe == null)
         {
-            var prefab = Resources.Load<GameObject>("RoomiesArt/Mining/pickaxe");
+            var prefab = pickaxePrefab != null ? pickaxePrefab : Resources.Load<GameObject>("RoomiesArt/Mining/pickaxe");
             if (prefab != null)
             {
                 Transform parent = IsOwner && interact.cameraTransform != null ? interact.cameraTransform : transform;
                 pickaxe = Instantiate(prefab, parent);
                 foreach (var collider in pickaxe.GetComponentsInChildren<Collider>()) Destroy(collider);
-                pickaxe.transform.localScale = Vector3.one * (IsOwner ? .65f : .8f);
+                pickaxe.transform.localScale = Vector3.one * (IsOwner ? firstPersonScale : thirdPersonScale);
             }
         }
         if (pickaxe != null)
@@ -50,7 +56,7 @@ public class MiningPlayer : NetworkBehaviour
             pickaxe.SetActive(equipped.Value && Level > 0 && (!IsOwner || interact.HeldObject == null && !interact.HasHeldFurniture));
             float swing = Mathf.Clamp01((swingUntil - Time.time) / .42f);
             float arc = Mathf.Sin(swing * Mathf.PI);
-            pickaxe.transform.localPosition = IsOwner ? new Vector3(.43f, -.4f, .63f) : new Vector3(.55f, 0, .4f);
+            pickaxe.transform.localPosition = IsOwner ? firstPersonPosition : thirdPersonPosition;
             pickaxe.transform.localRotation = Quaternion.Euler(-18 - arc * 65, -15, -18 + arc * 20);
         }
         if (IsOwner && Level > 0 && headlamp == null && interact.cameraTransform != null)
@@ -61,12 +67,12 @@ public class MiningPlayer : NetworkBehaviour
             headlamp.range = 18; headlamp.spotAngle = 90; headlamp.intensity = 3;
             headlamp.color = new Color(1,.88f,.66f); headlamp.shadows = LightShadows.None;
         }
-        if (headlamp != null) headlamp.enabled = Level > 0;
+        if (headlamp != null) headlamp.enabled = IsOwner && Level > 0;
     }
     public override void OnNetworkDespawn()
     {
         if (pickaxe != null) Destroy(pickaxe);
-        if (headlamp != null) Destroy(headlamp.gameObject);
+        if (headlamp != null) headlamp.enabled=false;
     }
     [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)] public void SwingRpc()
     {

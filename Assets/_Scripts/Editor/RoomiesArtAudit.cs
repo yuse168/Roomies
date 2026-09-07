@@ -52,8 +52,10 @@ internal static class RoomiesArtAudit
         var rt = new RenderTexture(width, height, 24);
         var previous = RenderTexture.active;
         var tex = new Texture2D(width, height, TextureFormat.RGB24, false);
+        bool previousAsync=ShaderUtil.allowAsyncCompilation;
         try
         {
+            ShaderUtil.allowAsyncCompilation=false;
             camera.targetTexture = rt;
             Canvas.ForceUpdateCanvases();
             camera.Render();
@@ -65,6 +67,7 @@ internal static class RoomiesArtAudit
         }
         finally
         {
+            ShaderUtil.allowAsyncCompilation=previousAsync;
             RenderTexture.active = previous;
             camera.targetTexture = null;
             Object.DestroyImmediate(tex);

@@ -12,7 +12,7 @@ using UnityEngine;
 /// 見た目（仮ブロック）は実行時に子として生成する。
 /// </summary>
 [RequireComponent(typeof(NetworkObject), typeof(NetworkTransform))]
-public class NetworkFurniture : NetworkBehaviour
+public partial class NetworkFurniture : NetworkBehaviour
 {
     private readonly NetworkVariable<int> catalogIndex =
         new NetworkVariable<int>(-1, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
@@ -220,6 +220,7 @@ public class NetworkFurniture : NetworkBehaviour
 
     private void Update()
     {
+        UpdateActivityVisual();
         if (!IsServer || !isHeld.Value) return;
 
         disconnectCheckTimer += Time.deltaTime;
@@ -255,7 +256,7 @@ public class NetworkFurniture : NetworkBehaviour
         out NetworkObject playerObject)
     {
         playerObject = null;
-        if (NetworkManager.Singleton == null) return false;
+        if (NetworkManager.Singleton == null || DayManager.GameplayStopped) return false;
 
         if (!NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(
                 playerObjectId,

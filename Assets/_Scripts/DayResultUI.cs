@@ -11,10 +11,19 @@ using UnityEngine.UI;
 /// </summary>
 public class DayResultUI : MonoBehaviour
 {
-    private CanvasGroup     group;
-    private RectTransform   listRoot;
-    private TextMeshProUGUI title;
+    [SerializeField] private CanvasGroup     group;
+    [SerializeField] private RectTransform   listRoot;
+    [SerializeField] private TextMeshProUGUI title;
     private readonly List<GameObject> rows = new List<GameObject>();
+    [SerializeField] private GameObject[] authoredRows;
+
+    public void PrepareRows()
+    {
+        if(authoredRows!=null&&authoredRows.Length>0)return;
+        BuildRows("Player 1|0\nPlayer 2|0\nPlayer 3|0\nPlayer 4|0\nPlayer 5|0");
+        authoredRows=rows.ToArray();
+        ClearRows();
+    }
 
     // タイミング
     private const float FadeIn      = 0.4f;
@@ -29,10 +38,13 @@ public class DayResultUI : MonoBehaviour
     private void Awake()
     {
         BuildUI();
+        group.alpha = 0; group.blocksRaycasts = false; group.interactable = false;
     }
 
-    private void BuildUI()
+    [ContextMenu("未配置のUIを作成")]
+    public void BuildUI()
     {
+        if (group != null) return;
         var canvasGo = new GameObject("DayResultCanvas");
         canvasGo.transform.SetParent(transform, false);
         var canvas = canvasGo.AddComponent<Canvas>();
@@ -120,6 +132,19 @@ public class DayResultUI : MonoBehaviour
         if (string.IsNullOrWhiteSpace(data)) return;
 
         string[] lines = data.Replace("\r", "").Split('\n');
+        if(authoredRows!=null&&authoredRows.Length>0)
+        {
+            for(int i=0;i<Mathf.Min(lines.Length,authoredRows.Length);i++)
+            {
+                if(string.IsNullOrWhiteSpace(lines[i]))continue;
+                var row=authoredRows[i];int split=lines[i].LastIndexOf('|');
+                row.transform.Find("Name").GetComponent<TMP_Text>().text=split>=0?lines[i].Substring(0,split):lines[i];
+                int.TryParse(split>=0?lines[i].Substring(split+1):"0",out int amount);
+                var label=row.transform.Find("Amount").GetComponent<TMP_Text>();label.text=$"¥{amount:N0}";label.color=amount<0?UITheme.Red:UITheme.Lime;
+                rows.Add(row);
+            }
+            return;
+        }
         const float rowH = 96f;
         const float rowWidth = 900f;
         const float plateHeight = 86f;
@@ -240,7 +265,8 @@ public class DayResultUI : MonoBehaviour
 
     private void ClearRows()
     {
-        foreach (var r in rows) if (r != null) Destroy(r);
+        foreach (var r in rows) if (r != null)
+        {if(authoredRows!=null&&System.Array.IndexOf(authoredRows,r)>=0)r.SetActive(false);else Destroy(r);}
         rows.Clear();
     }
 

@@ -82,6 +82,7 @@ public class PlayerMovement : NetworkBehaviour
     private float landingDip;
     private float lastGroundedTime = float.NegativeInfinity;
     private float lastJumpPressedTime = float.NegativeInfinity;
+    private float nextStepSound;
     private bool wasGrounded;
 
     void Start()
@@ -126,7 +127,7 @@ public class PlayerMovement : NetworkBehaviour
     {
         if (!IsOwner || controller == null) return;
 
-        if (EscMenuUI.IsOpen || CharacterCloset.IsOpen)
+        if (DayManager.GameplayStopped || EscMenuUI.IsOpen || CharacterCloset.IsOpen)
         {
             moveInput = Vector2.zero;
             lookInput = Vector2.zero;
@@ -233,7 +234,8 @@ public class PlayerMovement : NetworkBehaviour
             if (weightLevel > 0)
             {
                 float slowRate = 1f - ((weightLevel - 1) * carrySlowAmount);
-                currentSpeed *= Mathf.Clamp(slowRate, 0.35f, 1f);
+                float relief=FurnitureEffectManager.InstanceOrNull?.CarryRelief??0;
+                currentSpeed *= Mathf.Lerp(Mathf.Clamp(slowRate, 0.35f, 1f),1,relief);
             }
         }
 
@@ -260,7 +262,8 @@ public class PlayerMovement : NetworkBehaviour
         bool canUseCoyoteJump = Time.time - lastGroundedTime <= coyoteTime;
         if (hasBufferedJump && canUseCoyoteJump)
         {
-            verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * gravity);
+            RoomiesAudio.Play("jump",.3f);
+            verticalVelocity = Mathf.Sqrt(jumpHeight * (FurnitureEffectManager.InstanceOrNull?.JumpMultiplier??1) * -2f * gravity);
             lastJumpPressedTime = float.NegativeInfinity;
             lastGroundedTime = float.NegativeInfinity;
             grounded = false;
@@ -268,6 +271,13 @@ public class PlayerMovement : NetworkBehaviour
 
         verticalVelocity += gravity * Time.deltaTime;
         controller.Move((horizontalVelocity + Vector3.up * verticalVelocity) * Time.deltaTime);
+        if(controller.isGrounded&&horizontalVelocity.sqrMagnitude>.5f&&Time.time>=nextStepSound)
+        {
+            string surface=transform.position.y< -5?"gravel":"concrete";
+            if(Physics.Raycast(transform.position,Vector3.down,out var ground,2.5f,~0,QueryTriggerInteraction.Ignore)&&ground.collider.CompareTag("Room"))surface="wood";
+            RoomiesAudio.Play("step_"+surface,.22f);
+            nextStepSound=Time.time+Mathf.Clamp(2.3f/horizontalVelocity.magnitude,.25f,.55f);
+        }
         wasGrounded = grounded;
     }
 

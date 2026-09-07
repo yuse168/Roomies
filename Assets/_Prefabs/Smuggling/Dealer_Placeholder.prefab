@@ -247,7 +247,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 5e3aabb5486ad924f8c365ae1532a689, type: 2}
+  - {fileID: 2100000, guid: b8bd506337db1784e889ea7c5ea845c2, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -520,6 +520,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 542249623754404075, guid: fe700ea8612ce864c8c5bc5359dd281d, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: ffb3b6f481eeade45b20706ce2ede335, type: 2}
     - target: {fileID: 919132149155446097, guid: fe700ea8612ce864c8c5bc5359dd281d, type: 3}
       propertyPath: m_Name
       value: RoomiesCharacterArt
@@ -527,7 +531,15 @@ PrefabInstance:
     - target: {fileID: 3394496175989068371, guid: fe700ea8612ce864c8c5bc5359dd281d, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: eb590286751cf98428446155871c587b, type: 2}
+      objectReference: {fileID: 2100000, guid: e7a46f69a14d67c4397ed0ea82cd8eee, type: 2}
+    - target: {fileID: 4286071807495912912, guid: fe700ea8612ce864c8c5bc5359dd281d, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: ffb3b6f481eeade45b20706ce2ede335, type: 2}
+    - target: {fileID: 6627045084448341300, guid: fe700ea8612ce864c8c5bc5359dd281d, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: ae430a3d13a2731488804f594b5b5aaf, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

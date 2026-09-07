@@ -82,14 +82,14 @@ internal static partial class RoomiesArtLibraryBuilder
     }
     static void Rock(string name, Vector3 p, Vector3 size, string color, int seed)
     {
-        const int segments=9,rings=5;
-        var random=new System.Random(seed);
+        const int segments=14,rings=8;
         var vertices=new System.Collections.Generic.List<Vector3>();
         var triangles=new System.Collections.Generic.List<int>();
         for(int j=0;j<=rings;j++)for(int i=0;i<segments;i++)
         {
             float phi=Mathf.PI*j/rings, a=2*Mathf.PI*i/segments;
-            float r=.85f+(float)random.NextDouble()*.18f;
+            // Broad, continuous lobes: more polygons should smooth the rock, not add noisy spikes.
+            float r=.94f+.055f*Mathf.Sin(a*3+seed*.71f)*Mathf.Sin(phi)+.025f*Mathf.Cos(phi*4+seed);
             vertices.Add(Vector3.Scale(V(Mathf.Sin(phi)*Mathf.Cos(a),Mathf.Cos(phi),Mathf.Sin(phi)*Mathf.Sin(a)),size*.5f)*r);
         }
         for(int j=0;j<rings;j++)for(int i=0;i<segments;i++)

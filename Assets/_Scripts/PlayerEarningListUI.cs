@@ -16,9 +16,18 @@ public class PlayerEarningListUI : MonoBehaviour
     [SerializeField] private TextMeshProUGUI earningListText;
 
     // ランタイム生成UI
-    private CanvasGroup group;
-    private RectTransform cardRt;
-    private Transform rowsParent;
+    [SerializeField] private CanvasGroup group;
+    [SerializeField] private RectTransform cardRt;
+    [SerializeField] private Transform rowsParent;
+    [SerializeField] private GameObject[] authoredRows;
+    public void PrepareRows()
+    {
+        if(authoredRows!=null&&authoredRows.Length>0)return;
+        BuildUI();
+        for(int i=1;i<=5;i++)CreateRow(i,null);
+        authoredRows=new GameObject[5];
+        for(int i=0;i<5;i++){authoredRows[i]=rowsParent.GetChild(i).gameObject;authoredRows[i].SetActive(false);}
+    }
 
     private bool visible;
     private float refreshTimer;
@@ -46,8 +55,9 @@ public class PlayerEarningListUI : MonoBehaviour
         BuildUI();
     }
 
-    private void BuildUI()
+    public void BuildUI()
     {
+        if (group != null) return;
         var canvas = UITheme.CreateCanvas(transform, "EarningListCanvas", 8000);
 
         group = canvas.gameObject.AddComponent<CanvasGroup>();
@@ -145,13 +155,27 @@ public class PlayerEarningListUI : MonoBehaviour
     {
         if (rowsParent == null) return;
 
-        foreach (Transform child in rowsParent)
-            Destroy(child.gameObject);
+        if(authoredRows==null||authoredRows.Length==0)
+            foreach (Transform child in rowsParent) Destroy(child.gameObject);
 
         // 稼ぎ降順で並べる
         var players = new List<PlayerEarning>(
             FindObjectsByType<PlayerEarning>());
         players.Sort((a, b) => b.GetEarning().CompareTo(a.GetEarning()));
+
+        if(authoredRows!=null&&authoredRows.Length>0)
+        {
+            for(int i=0;i<authoredRows.Length;i++)
+            {
+                var row=authoredRows[i];row.SetActive(i<players.Count);if(i>=players.Count)continue;
+                var player=players[i];var name=player.GetComponent<PlayerNameDisplay>()?.GetPlayerName()??"Player";
+                row.transform.Find("Name").GetComponent<TMP_Text>().text=player.IsOwner?name+"（あなた）":name;
+                var amount=row.transform.Find("Amount").GetComponent<TMP_Text>();amount.text=$"¥{player.GetEarning():N0}";
+                amount.color=player.GetEarning()<0?UITheme.Red:UITheme.Lime;
+            }
+            cardRt.sizeDelta=new Vector2(cardRt.sizeDelta.x,HeaderHeight+Mathf.Min(players.Count,authoredRows.Length)*(RowHeight+RowSpacing)+18);
+            return;
+        }
 
         for (int i = 0; i < players.Count; i++)
         {
@@ -168,10 +192,10 @@ public class PlayerEarningListUI : MonoBehaviour
 
     private void CreateRow(int rank, PlayerEarning player)
     {
-        bool isSelf = player.IsOwner;
+        bool isSelf = player!=null&&player.IsOwner;
 
         string playerName = "Player";
-        var nameDisplay = player.GetComponent<PlayerNameDisplay>();
+        var nameDisplay = player!=null?player.GetComponent<PlayerNameDisplay>():null;
         if (nameDisplay != null) playerName = nameDisplay.GetPlayerName();
 
         // --- 行（角丸の淡いカード。自分の行はアクセントで強調） ---
@@ -238,7 +262,7 @@ public class PlayerEarningListUI : MonoBehaviour
         var amountLe = amountGo.AddComponent<LayoutElement>();
         amountLe.minWidth = amountLe.preferredWidth = 160f;
 
-        int earning = player.GetEarning();
+        int earning = player!=null?player.GetEarning():0;
         var amountLabel = amountGo.AddComponent<TextMeshProUGUI>();
         amountLabel.text = "¥" + earning.ToString("N0");
         amountLabel.fontSize  = 27f;

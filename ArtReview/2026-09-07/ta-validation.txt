@@ -1,0 +1,15 @@
+GameRoom: transforms 2606; missing scripts 0
+  References OK: DayTransitionUI
+  References OK: DayResultUI
+  References OK: RentPaymentUI
+  References OK: NightEventUI
+  References OK: SessionEndUI
+  References OK: EscMenuUI
+  References OK: HudThemer
+  ESC buttons: 26, each has exactly one runtime callback after scene reload
+MainMenuSteam: transforms 133; missing scripts 0
+  References OK: MenuThemer
+  References OK: MainMenuSettingsUI
+BootScene: transforms 3; missing scripts 0
+PlayerNameDisplay Player: enabled True; nameCanvas NameCanvas (UnityEngine.RectTransform)
+PlayerNameDisplay Player: enabled True; nameCanvas null

@@ -32,30 +32,30 @@ public sealed class EscMenuUI : MonoBehaviour
 
     public static bool IsOpen { get; private set; }
 
-    GameObject overlay;
-    CanvasGroup overlayGroup;
-    RawImage blurredBackdrop;
+    [SerializeField] GameObject overlay;
+    [SerializeField] CanvasGroup overlayGroup;
+    [SerializeField] RawImage blurredBackdrop;
     Texture2D pauseCapture;
     Material blurMaterial;
-    RectTransform card;
-    CanvasGroup mainGroup;
-    CanvasGroup settingsGroup;
-    CanvasGroup keybindGroup;
-    CanvasGroup confirmGroup;
-    Button resumeButton;
-    Button settingsBackButton;
-    Button keybindBackButton;
-    Button confirmCancelButton;
-    TMP_Text sensitivityValue;
-    TMP_Text volumeValue;
-    TMP_Text fullscreenValue;
-    TMP_Text resolutionValue;
-    TMP_Text qualityValue;
-    TMP_Text cameraMotionValue;
-    TMP_Text confirmTitle;
-    TMP_Text confirmMessage;
-    Slider sensitivitySlider;
-    Slider volumeSlider;
+    [SerializeField] RectTransform card;
+    [SerializeField] CanvasGroup mainGroup;
+    [SerializeField] CanvasGroup settingsGroup;
+    [SerializeField] CanvasGroup keybindGroup;
+    [SerializeField] CanvasGroup confirmGroup;
+    [SerializeField] Button resumeButton;
+    [SerializeField] Button settingsBackButton;
+    [SerializeField] Button keybindBackButton;
+    [SerializeField] Button confirmCancelButton;
+    [SerializeField] TMP_Text sensitivityValue;
+    [SerializeField] TMP_Text volumeValue;
+    [SerializeField] TMP_Text fullscreenValue;
+    [SerializeField] TMP_Text resolutionValue;
+    [SerializeField] TMP_Text qualityValue;
+    [SerializeField] TMP_Text cameraMotionValue;
+    [SerializeField] TMP_Text confirmTitle;
+    [SerializeField] TMP_Text confirmMessage;
+    [SerializeField] Slider sensitivitySlider;
+    [SerializeField] Slider volumeSlider;
     ConfirmAction pendingAction;
     bool isLeavingScene;
     Coroutine animationCoroutine;
@@ -84,12 +84,30 @@ public sealed class EscMenuUI : MonoBehaviour
     {
         GameSettings.EnsureInitialized();
         EnsureEventSystem();
-        BuildUI();
+        if (overlay == null) BuildUI();
+        else BindAuthoredUI();
         SetOpen(false, true);
     }
 
+#if UNITY_EDITOR
+    public Canvas BuildSettingsPreview()
+    {
+        GameSettings.EnsureInitialized();
+        if(overlay==null)BuildUI();
+        overlay.SetActive(true);overlayGroup.alpha=1;
+        SetVisible(mainGroup,false);SetVisible(settingsGroup,true);SetVisible(keybindGroup,false);SetVisible(confirmGroup,false);
+        blurredBackdrop.gameObject.SetActive(false);
+        return overlay.GetComponentInParent<Canvas>();
+    }
+#endif
+
     void Update()
     {
+        if (DayManager.Instance != null && DayManager.Instance.IsGameOver)
+        {
+            if (IsOpen) CloseMenu();
+            return;
+        }
         Keyboard keyboard = Keyboard.current;
         if (keyboard == null || isLeavingScene) return;
 
@@ -174,9 +192,12 @@ public sealed class EscMenuUI : MonoBehaviour
         Select(settingsBackButton);
     }
 
-    void BuildUI()
+    [ContextMenu("未配置のUIを作成")]
+    public void BuildUI()
     {
+        if (overlay != null) return;
         Canvas canvas = UITheme.CreateCanvas(transform, "EscMenuCanvas", 32000);
+        canvas.GetComponent<CanvasScaler>().screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
         canvas.gameObject.AddComponent<GraphicRaycaster>();
 
         overlay = new GameObject("Overlay", typeof(RectTransform));
@@ -208,8 +229,8 @@ public sealed class EscMenuUI : MonoBehaviour
         var cardImage = UITheme.Surface(overlay.transform, "MenuCard", 40f, 6f);
         card = cardImage.rectTransform;
         card.anchorMin = card.anchorMax = card.pivot = new Vector2(0.5f, 0.5f);
-        card.anchoredPosition = new Vector2(-470f, 0f);
-        card.sizeDelta = new Vector2(820f, 790f);
+        card.anchoredPosition = Vector2.zero;
+        card.sizeDelta = new Vector2(900f, 820f);
 
         TMP_Text title = UITheme.Label(
             card, "Title", "PAUSE", 46f, Ink,
@@ -228,6 +249,38 @@ public sealed class EscMenuUI : MonoBehaviour
 
         confirmGroup = CreateGroup(card, "Confirmation");
         BuildConfirmation(confirmGroup.transform);
+    }
+
+    void BindAuthoredUI()
+    {
+        void Bind(Transform parent, string name, UnityEngine.Events.UnityAction action)
+        { var button=parent.Find(name)?.GetComponent<Button>(); if(button!=null)button.onClick.AddListener(action); }
+        Bind(mainGroup.transform,"ResumeButton",CloseMenu);
+        Bind(mainGroup.transform,"SettingsButton",OpenSettings);
+        Bind(mainGroup.transform,"MenuButton",()=>ShowConfirmation(ConfirmAction.MainMenu));
+        Bind(mainGroup.transform,"QuitButton",()=>ShowConfirmation(ConfirmAction.Quit));
+        sensitivitySlider.onValueChanged.AddListener(v=>{GameSettings.SetMouseSensitivity(v);sensitivityValue.text=v.ToString("0.00");});
+        volumeSlider.onValueChanged.AddListener(v=>{GameSettings.SetMasterVolume(v);volumeValue.text=$"{Mathf.RoundToInt(v*100)}%";});
+        var settings=settingsGroup.transform;
+        Bind(settings,"画面モードButton",()=>{GameSettings.SetFullscreen(!GameSettings.Fullscreen);RefreshSettings();});
+        Bind(settings,"カメラの揺れButton",()=>{GameSettings.SetCameraMotion(!GameSettings.CameraMotion);RefreshSettings();});
+        Bind(settings,"解像度Previous",()=>{GameSettings.SetResolutionIndex(GameSettings.ResolutionIndex-1);RefreshSettings();});
+        Bind(settings,"解像度Next",()=>{GameSettings.SetResolutionIndex(GameSettings.ResolutionIndex+1);RefreshSettings();});
+        Bind(settings,"グラフィック品質Previous",()=>{GameSettings.SetQualityLevel(GameSettings.QualityLevel-1);RefreshSettings();});
+        Bind(settings,"グラフィック品質Next",()=>{GameSettings.SetQualityLevel(GameSettings.QualityLevel+1);RefreshSettings();});
+        Bind(settings,"ResetButton",()=>{GameSettings.ResetDefaults();RefreshSettings();});
+        Bind(settings,"BackButton",ShowMain);Bind(settings,"KeybindButton",OpenKeyBindings);
+        keybindValues.Clear();
+        foreach(GameAction action in System.Enum.GetValues(typeof(GameAction)))
+        {
+            var button=keybindGroup.transform.Find(action+"Button").GetComponent<Button>();
+            keybindValues[action]=button.GetComponentInChildren<TMP_Text>();
+            button.onClick.AddListener(()=>BeginKeyCapture(action));
+        }
+        Bind(keybindGroup.transform,"BackButton",OpenSettings);
+        Bind(confirmGroup.transform.Find("Dialog"),"CancelButton",HideConfirmation);
+        Bind(confirmGroup.transform.Find("Dialog"),"ExecuteButton",ExecutePendingAction);
+        RefreshSettings();RefreshKeyBindings();
     }
 
     void BuildMainPanel(Transform parent)
@@ -814,6 +867,7 @@ public sealed class EscMenuUI : MonoBehaviour
         rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0f, 1f);
         rt.anchoredPosition = new Vector2(left, -top);
         rt.sizeDelta = new Vector2(width, height);
+        if(rt.GetComponent<UIButtonJuice>()!=null)UITheme.CenterPivot(rt);
     }
 
     static void Stretch(RectTransform rt)

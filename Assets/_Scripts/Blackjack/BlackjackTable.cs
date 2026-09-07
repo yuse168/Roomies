@@ -576,7 +576,8 @@ public class BlackjackTable : NetworkBehaviour
         }
     }
 
-    private void BuildDisplayIfNeeded()
+    [ContextMenu("未配置の表示を作成")]
+    public void BuildDisplayIfNeeded()
     {
         Transform existing = transform.Find("RuntimeDisplay");
         if (existing != null)

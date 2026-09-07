@@ -102,11 +102,20 @@ public class SlotMachine : NetworkBehaviour
     private Coroutine spinCoroutine;
     private readonly Dictionary<TextMeshProUGUI, ReelImages> reelImages = new();
 
+    [System.Serializable]
     private sealed class ReelImages
     {
         public Image previous;
         public Image current;
         public Image next;
+    }
+    [SerializeField] private ReelImages[] authoredReels;
+    public void PrepareAuthoredPresentation()
+    {
+        if(authoredReels!=null&&authoredReels.Length==3)return;
+        RefreshPresentation();
+        if(reelImages.TryGetValue(reelText1,out var a)&&reelImages.TryGetValue(reelText2,out var b)&&reelImages.TryGetValue(reelText3,out var c))
+            authoredReels=new[]{a,b,c};
     }
 
     private void Start()
@@ -531,6 +540,11 @@ public class SlotMachine : NetworkBehaviour
 
     private void PreparePresentation()
     {
+        if(authoredReels!=null&&authoredReels.Length==3)
+        {
+            reelImages[reelText1]=authoredReels[0];reelImages[reelText2]=authoredReels[1];reelImages[reelText3]=authoredReels[2];
+            return;
+        }
         if (reelText1 == null) return;
         Transform face = reelText1.transform.parent;
         FacePanel(face, "FaceBackground", Vector2.zero, new Vector2(520,760), new Color(.045f,.1f,.14f));

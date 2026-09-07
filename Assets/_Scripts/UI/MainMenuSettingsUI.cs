@@ -9,14 +9,23 @@ public sealed class MainMenuSettingsUI : MonoBehaviour
     private const float PanelWidth  = 760f;
     private const float PanelHeight = 560f;
 
-    private CanvasGroup group;
-    private Slider sensitivity;
-    private Slider volume;
-    private TMP_Text sensitivityValue;
-    private TMP_Text volumeValue;
-    private TMP_Text fullscreenValue;
-    private Button closeButton;
+    [SerializeField] private CanvasGroup group;
+    [SerializeField] private Slider sensitivity;
+    [SerializeField] private Slider volume;
+    [SerializeField] private TMP_Text sensitivityValue;
+    [SerializeField] private TMP_Text volumeValue;
+    [SerializeField] private TMP_Text fullscreenValue;
+    [SerializeField] private Button closeButton;
 
+    void Awake()
+    {
+        if(group==null)return;
+        GameSettings.EnsureInitialized();
+        sensitivity.onValueChanged.AddListener(v=>{GameSettings.SetMouseSensitivity(v);sensitivityValue.text=v.ToString("0.00");});
+        volume.onValueChanged.AddListener(v=>{GameSettings.SetMasterVolume(v);volumeValue.text=$"{Mathf.RoundToInt(v*100)}%";});
+        fullscreenValue.GetComponentInParent<Button>().onClick.AddListener(()=>{GameSettings.SetFullscreen(!GameSettings.Fullscreen);RefreshValues();});
+        closeButton.onClick.AddListener(Close);SetVisible(false);
+    }
     public void Initialize(Transform parent)
     {
         if (group != null || parent == null) return;

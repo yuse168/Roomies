@@ -40,6 +40,12 @@ public class CarryableObject : NetworkBehaviour
     private Coroutine restoreCollisionCoroutine;
     private float disconnectCheckTimer;
     private float relocationUntil;
+    public override void OnNetworkSpawn()=>isHeld.OnValueChanged+=OnCarriedChanged;
+    public override void OnNetworkDespawn()=>isHeld.OnValueChanged-=OnCarriedChanged;
+    private void OnCarriedChanged(bool before,bool after)
+    {
+        if(after)RoomiesAudio.PlayAt("pickup",transform.position,.3f);
+    }
 
     public void ServerRelocate(Vector3 position)
     {
@@ -74,7 +80,7 @@ public class CarryableObject : NetworkBehaviour
         ulong playerNetworkObjectId,
         RpcParams rpcParams = default)
     {
-        if (isHeld.Value) return;
+        if (isHeld.Value || DayManager.GameplayStopped) return;
         if (clientId != rpcParams.Receive.SenderClientId) return;
         if (!TryGetPlayer(playerNetworkObjectId, clientId, out NetworkObject playerObject))
             return;
@@ -122,7 +128,7 @@ public class CarryableObject : NetworkBehaviour
     {
         if (!isHeld.Value) return;
         if (rpcParams.Receive.SenderClientId != holderClientId.Value) return;
-        if (Time.time < relocationUntil) return;
+        if (Time.time < relocationUntil || DayManager.GameplayStopped) return;
         if (!IsFinite(position) || !IsFinite(rotation)) return;
         if (!TryGetHolderPlayer(out NetworkObject playerObject))
         {

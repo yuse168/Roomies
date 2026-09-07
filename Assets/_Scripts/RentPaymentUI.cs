@@ -12,16 +12,16 @@ public sealed class RentPaymentUI : MonoBehaviour
     public const float SuccessDuration = 4.7f;
     public const float FailureDuration = 5.8f;
 
-    private CanvasGroup group;
-    private Image background;   // 拒否演出用の赤いフラッシュ層（通常は透明）
-    private Image card;         // パネルの白フチ
-    private Image cardFill;     // パネルの内側の面（成功／失敗で色を変える）
-    private Image progressFill;
-    private TMP_Text rentLabel;
-    private TMP_Text balanceLabel;
-    private TMP_Text statusLabel;
-    private TMP_Text resultLabel;
-    private Vector2 cardBasePosition;
+    [SerializeField] private CanvasGroup group;
+    [SerializeField] private Image background;   // 拒否演出用の赤いフラッシュ層（通常は透明）
+    [SerializeField] private Image card;         // パネルの白フチ
+    [SerializeField] private Image cardFill;     // パネルの内側の面（成功／失敗で色を変える）
+    [SerializeField] private Image progressFill;
+    [SerializeField] private TMP_Text rentLabel;
+    [SerializeField] private TMP_Text balanceLabel;
+    [SerializeField] private TMP_Text statusLabel;
+    [SerializeField] private TMP_Text resultLabel;
+    [SerializeField] private Vector2 cardBasePosition;
 
     private static readonly Color Clear = new Color(0.62f, 0f, 0.04f, 0f);
     private static readonly Color Orange = UITheme.Sun;
@@ -33,6 +33,7 @@ public sealed class RentPaymentUI : MonoBehaviour
     private void Awake()
     {
         BuildUI();
+        group.alpha = 0; group.blocksRaycasts = false; group.interactable = false;
     }
 
     public void Play(int rent, int balance, bool canPay)
@@ -48,8 +49,10 @@ public sealed class RentPaymentUI : MonoBehaviour
         if (resultLabel != null) resultLabel.gameObject.SetActive(false);
     }
 
-    private void BuildUI()
+    [ContextMenu("未配置のUIを作成")]
+    public void BuildUI()
     {
+        if (group != null) return;
         Canvas canvas = UITheme.CreateCanvas(transform, "RentPaymentCanvas", 9500);
 
         group = canvas.gameObject.AddComponent<CanvasGroup>();

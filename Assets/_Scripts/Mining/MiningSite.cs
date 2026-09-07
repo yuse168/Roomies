@@ -71,7 +71,7 @@ public class MiningSite : NetworkBehaviour
     public void RequestUseServerRpc(int index, ulong playerId, RpcParams rpcParams = default)
     {
         ulong sender = rpcParams.Receive.SenderClientId;
-        if (!IsSpawned || index < 0 || index >= targets.Length ||
+        if (!IsSpawned || DayManager.GameplayStopped || index < 0 || index >= targets.Length ||
             !NetworkManager.ConnectedClients.TryGetValue(sender, out var client) ||
             client.PlayerObject == null || client.PlayerObject.NetworkObjectId != playerId) return;
         var player = client.PlayerObject;
@@ -220,6 +220,7 @@ public class MiningSite : NetworkBehaviour
     private void CloseMine()
     {
         hazard.Value = 0;
+        int exitIndex = 0;
         foreach (var client in NetworkManager.ConnectedClientsList)
         {
             var player = client.PlayerObject;
@@ -230,7 +231,7 @@ public class MiningSite : NetworkBehaviour
                 if (ore != null && ore.Carry.IsHeldBy(client.ClientId)) { ore.Carry.ServerRelease(); ore.NetworkObject.Despawn(); }
             var jail = player.GetComponent<SmugglingPlayer>();
             if (jail != null && jail.IsJailed) { miner.ServerSetLevel(0); continue; }
-            Relocate(player, miner, surfaceReturn.position + Vector3.right * ((int)(client.ClientId % 4) * 1.1f), 0, 180);
+            Relocate(player, miner, surfaceReturn.position + Vector3.right * (exitIndex++ * 1.1f), 0, 180);
             miner.ServerNotice("閉鎖！未売却の手荷物を失った。地上へ避難しました", false);
         }
     }

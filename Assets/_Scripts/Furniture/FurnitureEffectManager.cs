@@ -9,8 +9,7 @@ using UnityEngine;
 /// ・MoveSpeed   … 部屋にある間、移動速度バフ（PlayerMovementが参照）
 /// ・PassiveIncome… 毎朝、共同口座へ自動収入（サーバーのみ付与）
 ///
-/// ※ 現状は家具がローカル管理（フェーズ2）のため、収入はサーバー(ホスト)の
-///    家具のみが対象。マルチ全員ぶんの同期はフェーズ3で対応。
+/// NetworkFurnitureの同期状態から集計し、報酬への加算はサーバーのみが行う。
 /// </summary>
 public class FurnitureEffectManager : MonoBehaviour
 {
@@ -89,6 +88,20 @@ public class FurnitureEffectManager : MonoBehaviour
         furniture.Remove(f);
     }
 
+    public float Bonus(FurnitureEffect type,float maximum)
+    {
+        float total=0;
+        foreach(var f in furniture)if(f!=null&&f.IsEffectActive&&f.effect==type)total+=f.effectValue;
+        return Mathf.Clamp(total,0,maximum);
+    }
+    public float CarryRelief => Bonus(FurnitureEffect.CarryAssist,60)/100f;
+    public float JumpMultiplier => 1+Bonus(FurnitureEffect.JumpHeight,60)/100f;
+    public int JobReward(int amount,bool delivery=false)
+    {
+        float bonus=Bonus(FurnitureEffect.JobBonus,30)+(delivery?Bonus(FurnitureEffect.DeliveryBonus,30):0);
+        return Mathf.RoundToInt(amount*(1+bonus/100f));
+    }
+
     private void Update()
     {
         recalcTimer += Time.deltaTime;
@@ -114,7 +127,7 @@ public class FurnitureEffectManager : MonoBehaviour
                 if (f.effect == FurnitureEffect.MoveSpeed)
                     bonusPercent += f.effectValue;
             }
-            return 1f + bonusPercent / 100f;
+            return 1f + Mathf.Min(50,bonusPercent) / 100f;
         }
     }
 

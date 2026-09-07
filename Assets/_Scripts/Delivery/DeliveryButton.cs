@@ -97,6 +97,7 @@ public class DeliveryButton : NetworkBehaviour
             finalReward = rareRewardMoney;
         }
 
+        finalReward=FurnitureEffectManager.InstanceOrNull?.JobReward(finalReward,true)??finalReward;
         bool credited = SharedMoneyManager.Instance.TryAdd(
             finalReward,
             SharedMoneyReason.DeliveryReward,

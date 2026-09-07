@@ -26,13 +26,14 @@ public class FurnitureEditController : MonoBehaviour
     private int    selected;
 
     // ---- UI ----
-    private GameObject uiRoot;     // キャンバス（常時有効）
-    private GameObject shopRoot;   // カタログバー（編集モード中だけ表示）
-    private TextMeshProUGUI hintText;
+    [SerializeField] private GameObject uiRoot;     // キャンバス（常時有効）
+    [SerializeField] private GameObject shopRoot;   // カタログバー（編集モード中だけ表示）
+    [SerializeField] private TextMeshProUGUI hintText;
 
     // 効果ステータス（Oで表示／非表示）
-    private GameObject effectPanel;
-    private TextMeshProUGUI effectText;
+    [SerializeField] private GameObject effectPanel;
+    [SerializeField] private TextMeshProUGUI productDetails;
+    [SerializeField] private TextMeshProUGUI effectText;
     private bool effectPanelVisible;
     private float effectUpdateTimer;
 
@@ -42,8 +43,8 @@ public class FurnitureEditController : MonoBehaviour
     {
         BuildDefaultCatalog();
     }
-    private readonly List<Image>          slotBgs   = new List<Image>();
-    private readonly List<TextMeshProUGUI> slotTexts = new List<TextMeshProUGUI>();
+    [SerializeField] private List<Image>          slotBgs   = new List<Image>();
+    [SerializeField] private List<TextMeshProUGUI> slotTexts = new List<TextMeshProUGUI>();
     private Coroutine hintCoroutine;
 
     private static readonly Key[] DigitKeys =
@@ -65,6 +66,7 @@ public class FurnitureEditController : MonoBehaviour
     {
         BuildUI();
         SetEditMode(false);
+        effectPanel.SetActive(false);
         Debug.Log("[Furniture] FurnitureEditController 起動（夜にPで家具ショップ）");
     }
 
@@ -78,6 +80,12 @@ public class FurnitureEditController : MonoBehaviour
     // =========================================================
     private void Update()
     {
+        if (DayManager.GameplayStopped)
+        {
+            if(editMode)SetEditMode(false);
+            if(effectPanelVisible){effectPanelVisible=false;if(effectPanel!=null)effectPanel.SetActive(false);}
+            return;
+        }
         if (EscMenuUI.IsOpen) return;
 
         var kb = Keyboard.current;
@@ -229,7 +237,7 @@ public class FurnitureEditController : MonoBehaviour
         {
             case FurnitureEffect.MoveSpeed:     return $"速度+{v}%";
             case FurnitureEffect.PassiveIncome: return $"収入+{v}/朝";
-            default:                            return "効果なし";
+                default:                            return FurnitureCatalog.EffectDescription(e,v);
         }
     }
 
@@ -387,8 +395,11 @@ public class FurnitureEditController : MonoBehaviour
     // =========================================================
     // UI（ランタイム生成・シーン配置不要）
     // =========================================================
-    private void BuildUI()
+    [ContextMenu("未配置のUIを作成")]
+    public void BuildUI()
     {
+        if (uiRoot != null) return;
+        if (catalog == null || catalog.Count == 0) BuildDefaultCatalog();
         var canvasGo = new GameObject("FurnitureEditCanvas");
         canvasGo.transform.SetParent(transform, false);
         var canvas = canvasGo.AddComponent<Canvas>();
@@ -431,6 +442,12 @@ public class FurnitureEditController : MonoBehaviour
         shopRt.anchorMin = Vector2.zero; shopRt.anchorMax = Vector2.one;
         shopRt.offsetMin = Vector2.zero; shopRt.offsetMax = Vector2.zero;
 
+        var details=UITheme.Surface(shopRoot.transform,"Selected furniture",20,2);
+        details.rectTransform.anchorMin=details.rectTransform.anchorMax=new Vector2(.5f,0);
+        details.rectTransform.anchoredPosition=new Vector2(0,196);
+        details.rectTransform.sizeDelta=new Vector2(1040,132);
+        productDetails=MakeText(details.transform,"Product details","",24,Vector2.zero,new Vector2(1000,116),Color.white,TextAlignmentOptions.Center,new Vector2(.5f,.5f));
+
         // 下部のカタログバー（多くてもはみ出さないよう自動で幅を縮める）
         int count = catalog.Count;
         float gap = 8f;
@@ -469,6 +486,12 @@ public class FurnitureEditController : MonoBehaviour
 
     private void UpdateSlotHighlight()
     {
+        if(productDetails!=null&&selected>=0&&selected<catalog.Count)
+        {
+            var item=catalog[selected];
+            string play=item.id=="arcade_machine"?" / Eでタイミングゲーム":item.id=="trampoline"?" / Eで大ジャンプ":item.id=="disco_ball"?" / Eでパーティー":"";
+            productDetails.text=$"<b>{item.displayName}</b>  ¥{item.cost:N0}\n{FurnitureCatalog.EffectDescription(item.effect,item.effectValue)}{play}\n<size=18>購入 → 家に運んで設置 → 翌朝から全員に効果</size>";
+        }
         for (int i = 0; i < slotBgs.Count; i++)
         {
             bool sel = (i == selected);

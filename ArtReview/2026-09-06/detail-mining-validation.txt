@@ -1,0 +1,173 @@
+PASS 11 ore/junk types
+PASS Registered MiningOre_0
+PASS Authority/physics MiningOre_0
+PASS Not a delivery parcel MiningOre_0
+PASS Registered MiningOre_1
+PASS Authority/physics MiningOre_1
+PASS Not a delivery parcel MiningOre_1
+PASS Registered MiningOre_2
+PASS Authority/physics MiningOre_2
+PASS Not a delivery parcel MiningOre_2
+PASS Registered MiningOre_3
+PASS Authority/physics MiningOre_3
+PASS Not a delivery parcel MiningOre_3
+PASS Registered MiningOre_4
+PASS Authority/physics MiningOre_4
+PASS Not a delivery parcel MiningOre_4
+PASS Registered MiningOre_5
+PASS Authority/physics MiningOre_5
+PASS Not a delivery parcel MiningOre_5
+PASS Registered MiningOre_6
+PASS Authority/physics MiningOre_6
+PASS Not a delivery parcel MiningOre_6
+PASS Registered MiningOre_7
+PASS Authority/physics MiningOre_7
+PASS Not a delivery parcel MiningOre_7
+PASS Registered MiningOre_8
+PASS Authority/physics MiningOre_8
+PASS Not a delivery parcel MiningOre_8
+PASS Registered MiningOre_9
+PASS Authority/physics MiningOre_9
+PASS Not a delivery parcel MiningOre_9
+PASS Registered MiningOre_10
+PASS Authority/physics MiningOre_10
+PASS Not a delivery parcel MiningOre_10
+PASS Existing player extended
+PASS Target 0
+PASS Travel destination 0
+PASS Clear arrival 0
+PASS Reject NaN 0
+PASS Reject remote use 0
+PASS Target 1
+PASS Reject NaN 1
+PASS Reject remote use 1
+PASS Target 2
+PASS Travel destination 2
+PASS Clear arrival 2
+PASS Reject NaN 2
+PASS Reject remote use 2
+PASS Target 3
+PASS Reject NaN 3
+PASS Reject remote use 3
+PASS Target 4
+PASS Travel destination 4
+PASS Clear arrival 4
+PASS Reject NaN 4
+PASS Reject remote use 4
+PASS Target 5
+PASS Rock HP/drop 5
+PASS Rock reachable at pickup side 5
+PASS Reject NaN 5
+PASS Reject remote use 5
+PASS Target 6
+PASS Rock HP/drop 6
+PASS Rock reachable at pickup side 6
+PASS Reject NaN 6
+PASS Reject remote use 6
+PASS Target 7
+PASS Rock HP/drop 7
+PASS Rock reachable at pickup side 7
+PASS Reject NaN 7
+PASS Reject remote use 7
+PASS Target 8
+PASS Rock HP/drop 8
+PASS Rock reachable at pickup side 8
+PASS Reject NaN 8
+PASS Reject remote use 8
+PASS Target 9
+PASS Rock HP/drop 9
+PASS Rock reachable at pickup side 9
+PASS Reject NaN 9
+PASS Reject remote use 9
+PASS Target 10
+PASS Rock HP/drop 10
+PASS Rock reachable at pickup side 10
+PASS Reject NaN 10
+PASS Reject remote use 10
+PASS Target 11
+PASS Travel destination 11
+PASS Clear arrival 11
+PASS Reject NaN 11
+PASS Reject remote use 11
+PASS Target 12
+PASS Reject NaN 12
+PASS Reject remote use 12
+PASS Target 13
+PASS Travel destination 13
+PASS Clear arrival 13
+PASS Reject NaN 13
+PASS Reject remote use 13
+PASS Target 14
+PASS Rock HP/drop 14
+PASS Rock reachable at pickup side 14
+PASS Reject NaN 14
+PASS Reject remote use 14
+PASS Target 15
+PASS Rock HP/drop 15
+PASS Rock reachable at pickup side 15
+PASS Reject NaN 15
+PASS Reject remote use 15
+PASS Target 16
+PASS Rock HP/drop 16
+PASS Rock reachable at pickup side 16
+PASS Reject NaN 16
+PASS Reject remote use 16
+PASS Target 17
+PASS Rock HP/drop 17
+PASS Rock reachable at pickup side 17
+PASS Reject NaN 17
+PASS Reject remote use 17
+PASS Target 18
+PASS Rock HP/drop 18
+PASS Rock reachable at pickup side 18
+PASS Reject NaN 18
+PASS Reject remote use 18
+PASS Target 19
+PASS Rock HP/drop 19
+PASS Rock reachable at pickup side 19
+PASS Reject NaN 19
+PASS Reject remote use 19
+PASS Target 20
+PASS Travel destination 20
+PASS Clear arrival 20
+PASS Reject NaN 20
+PASS Reject remote use 20
+PASS Target 21
+PASS Reject NaN 21
+PASS Reject remote use 21
+PASS Target 22
+PASS Rock HP/drop 22
+PASS Rock reachable at pickup side 22
+PASS Reject NaN 22
+PASS Reject remote use 22
+PASS Target 23
+PASS Rock HP/drop 23
+PASS Rock reachable at pickup side 23
+PASS Reject NaN 23
+PASS Reject remote use 23
+PASS Target 24
+PASS Rock HP/drop 24
+PASS Rock reachable at pickup side 24
+PASS Reject NaN 24
+PASS Reject remote use 24
+PASS Target 25
+PASS Rock HP/drop 25
+PASS Rock reachable at pickup side 25
+PASS Reject NaN 25
+PASS Reject remote use 25
+PASS Target 26
+PASS Rock HP/drop 26
+PASS Rock reachable at pickup side 26
+PASS Reject NaN 26
+PASS Reject remote use 26
+PASS Target 27
+PASS Rock HP/drop 27
+PASS Rock reachable at pickup side 27
+PASS Reject NaN 27
+PASS Reject remote use 27
+PASS 18 authored rocks over 3 levels
+PASS Events and warning lights wired
+PASS Cave geometry participates in existing carry wall mask
+PASS 4 sound assets
+Failures=0
+Editor asset/physics checks only; not a Host/Client playthrough.

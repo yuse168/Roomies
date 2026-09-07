@@ -423,6 +423,7 @@ public static class UITheme
         if (button == null) return;
 
         var rect = (RectTransform)button.transform;
+        CenterPivot(rect);
 
         var baseImage = button.GetComponent<Image>();
         if (baseImage == null) baseImage = button.gameObject.AddComponent<Image>();
@@ -500,6 +501,15 @@ public static class UITheme
         var juice = button.GetComponent<UIButtonJuice>();
         if (juice == null) juice = button.gameObject.AddComponent<UIButtonJuice>();
         juice.SetCap(capTr, depth);
+    }
+
+    // Preserve the rendered rectangle when changing an authoring pivot (ESC uses top-left anchors).
+    public static void CenterPivot(RectTransform rect)
+    {
+        Vector2 delta = Vector2.Scale(new Vector2(.5f,.5f)-rect.pivot,rect.rect.size);
+        Vector3 shift=rect.TransformVector(delta);
+        rect.pivot=new Vector2(.5f,.5f);
+        rect.position+=shift;
     }
 
     private static void Fill(RectTransform rect, float inset = 0f)
@@ -610,6 +620,7 @@ public static class UITheme
     public static GameObject BuildInteractChip(TMP_Text text)
     {
         var parent = text.transform.parent;
+        if(parent != null && parent.name == "InteractChip") return parent.gameObject;
 
         var chip = new GameObject("InteractChip", typeof(RectTransform));
         chip.transform.SetParent(parent, false);
@@ -712,99 +723,3 @@ public static class UITheme
 /// UITheme.StylePill が Cap を渡すと厚みの沈み込みが有効になる。
 /// Capが無いフラットなボタン（UITheme.StyleButton）ではスケールだけが動く。
 /// </summary>
-public class UIButtonJuice : MonoBehaviour,
-    IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler, IPointerUpHandler,
-    ISelectHandler, IDeselectHandler
-{
-    private const float Stiffness = 620f;
-    private const float Damping   = 26f;
-
-    private RectTransform cap;
-    private float depth;
-
-    private float scale = 1f;
-    private float scaleVelocity;
-    private float sink;
-    private float sinkVelocity;
-
-    private bool hovered;
-    private bool pressed;
-    private bool selected;
-
-    private Outline border;
-    private Color defaultBorder;
-
-    /// <summary>厚みのあるボタンの天面と厚み量を登録する。</summary>
-    public void SetCap(RectTransform capRect, float capDepth)
-    {
-        cap = capRect;
-        depth = capDepth;
-    }
-
-    private void Awake()
-    {
-        border = GetComponent<Outline>();
-        if (border != null) defaultBorder = border.effectColor;
-    }
-
-    public void OnPointerEnter(PointerEventData e) => hovered = true;
-    public void OnPointerExit(PointerEventData e)  { hovered = false; pressed = false; }
-    public void OnPointerDown(PointerEventData e)  => pressed = true;
-    public void OnPointerUp(PointerEventData e)    => pressed = false;
-
-    public void OnSelect(BaseEventData eventData)
-    {
-        selected = true;
-        if (border != null && border.enabled)
-            border.effectColor = new Color(UITheme.Sun.r, UITheme.Sun.g, UITheme.Sun.b, 0.95f);
-    }
-
-    public void OnDeselect(BaseEventData eventData)
-    {
-        selected = false;
-        pressed = false;
-        if (border != null) border.effectColor = defaultBorder;
-    }
-
-    private void OnDisable()
-    {
-        hovered = pressed = selected = false;
-        scale = 1f;
-        scaleVelocity = 0f;
-        sink = 0f;
-        sinkVelocity = 0f;
-        transform.localScale = Vector3.one;
-        transform.localRotation = Quaternion.identity;
-        ApplySink();
-        if (border != null) border.effectColor = defaultBorder;
-    }
-
-    private void Update()
-    {
-        bool lifted = hovered || selected;
-
-        float targetScale = pressed ? 0.975f : lifted ? 1.05f : 1f;
-        float targetSink  = pressed ? depth : lifted ? -2f : 0f;
-
-        Spring(ref scale, ref scaleVelocity, targetScale);
-        Spring(ref sink, ref sinkVelocity, targetSink);
-
-        transform.localScale = new Vector3(scale, scale, 1f);
-        ApplySink();
-    }
-
-    private static void Spring(ref float value, ref float velocity, float target)
-    {
-        float dt = Mathf.Min(Time.unscaledDeltaTime, 1f / 30f);
-        velocity += (target - value) * Stiffness * dt;
-        velocity *= Mathf.Exp(-Damping * dt);
-        value += velocity * dt;
-    }
-
-    private void ApplySink()
-    {
-        if (cap == null) return;
-        cap.offsetMin = new Vector2(cap.offsetMin.x, depth - sink);
-        cap.offsetMax = new Vector2(cap.offsetMax.x, -sink);
-    }
-}

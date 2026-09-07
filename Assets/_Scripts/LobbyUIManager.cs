@@ -371,7 +371,9 @@ public class LobbyUIManager : MonoBehaviour
         label.textWrappingMode = TextWrappingModes.NoWrap;
         label.raycastTarget = false;
 
-        float nameWidth = label.GetPreferredValues(displayName).x;
+        // Five name plates must fit even with long Steam display names.
+        float nameWidth = Mathf.Min(160f,label.GetPreferredValues(displayName).x);
+        label.overflowMode = TextOverflowModes.Ellipsis;
 
         var nameRt = label.rectTransform;
         nameRt.anchorMin = new Vector2(0f, 0f);

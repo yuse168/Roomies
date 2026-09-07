@@ -28,13 +28,13 @@ public class PlayerEarning : NetworkBehaviour
 
     public void AddEarning(int amount)
     {
-        if (!IsServer) return;
+        if (!IsServer || DayManager.GameplayStopped) return;
         earning.Value += amount;
     }
 
     public void SpendEarning(int amount)
     {
-        if (!IsServer) return;
+        if (!IsServer || DayManager.GameplayStopped) return;
         earning.Value -= amount;
     }
 }

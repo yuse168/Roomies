@@ -19,7 +19,8 @@ public enum SharedMoneyReason
     FurniturePassiveIncome,
     UtilityBill,
     Rent,
-    MiningSale
+    MiningSale,
+    CashierWage
 }
 
 public class SharedMoneyManager : NetworkBehaviour
@@ -169,6 +170,7 @@ public class SharedMoneyManager : NetworkBehaviour
         string operation,
         SharedMoneyReason reason)
     {
+        if (DayManager.GameplayStopped) return false;
         if (!IsServer)
         {
             Debug.LogWarning(

@@ -1,0 +1,17 @@
+{
+  "status": "error",
+  "errorCode": "MODE_FORBIDDEN",
+  "error": "This skill is classified as never-in-semi and is only allowed in Bypass mode.",
+  "skill": "test_run_by_name",
+  "details": {
+    "currentMode": "auto",
+    "riskLevel": "low",
+    "mayEnterPlayMode": true,
+    "mayTriggerReload": false,
+    "operation": [
+      "Execute"
+    ],
+    "hint": "Switch the Unity panel to Bypass mode, or use a different skill."
+  },
+  "retryStrategy": "abort"
+}

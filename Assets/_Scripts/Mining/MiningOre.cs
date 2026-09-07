@@ -14,8 +14,8 @@ public class MiningOre : NetworkBehaviour
     private bool sold;
     private readonly NetworkVariable<int> appraisedPrice = new(0,
         NetworkVariableReadPermission.Owner, NetworkVariableWritePermission.Server);
-    public string ValueLabel => mystery ? "鑑定まで価格不明" : $"¥{price:N0}";
-    public int ServerPrice => mystery ? appraisedPrice.Value : price;
+    public string ValueLabel => mystery ? "鑑定まで価格不明" : $"¥{FurnitureEffectManager.InstanceOrNull?.JobReward(price) ?? price:N0}";
+    public int ServerPrice => FurnitureEffectManager.InstanceOrNull?.JobReward(mystery?appraisedPrice.Value:price) ?? (mystery?appraisedPrice.Value:price);
 
     private void Awake() => Carry = GetComponent<CarryableObject>();
     public override void OnNetworkSpawn()

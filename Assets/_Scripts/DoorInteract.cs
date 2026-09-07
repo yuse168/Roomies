@@ -16,6 +16,9 @@ public class DoorInteract : NetworkBehaviour
 
     // ドアが開いているか
     private NetworkVariable<bool> isOpen = new NetworkVariable<bool>(false);
+    public override void OnNetworkSpawn()=>isOpen.OnValueChanged+=OnDoorChanged;
+    public override void OnNetworkDespawn()=>isOpen.OnValueChanged-=OnDoorChanged;
+    private void OnDoorChanged(bool before,bool after)=>RoomiesAudio.PlayAt("door",doorPivot!=null?doorPivot.position:transform.position);
 
     void Update()
     {

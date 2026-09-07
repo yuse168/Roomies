@@ -28,18 +28,22 @@ public class HudThemer : MonoBehaviour
     private const float MoneyHeight = 150f;
     private const float BarHeight   = 9f;
 
-    private Image timerFillBar;
-    private TMP_Text moneyValueLabel;
-    private TMP_Text moneyRequiredLabel;
-    private Image rentChip;
-    private TMP_Text rentChipLabel;
-    private RectTransform moneyCardRect;
+    [SerializeField] private Image timerFillBar;
+    [SerializeField] private TMP_Text moneyValueLabel;
+    [SerializeField] private TMP_Text moneyRequiredLabel;
+    [SerializeField] private Image rentChip;
+    [SerializeField] private TMP_Text rentChipLabel;
+    [SerializeField] private RectTransform moneyCardRect;
     private float rentPulse;
-    private Image rentProgress;
-    private TMP_Text objectiveLabel;
+    [SerializeField] private Image rentProgress;
+    [SerializeField] private TMP_Text objectiveLabel;
 
-    private void Awake()
+    private void Awake() => BuildUI();
+
+    [ContextMenu("未配置のUIを作成")]
+    public void BuildUI()
     {
+        if (timerFillBar != null) return;
         var canvas = UITheme.CreateCanvas(transform, "HudCanvas", 100);
 
         BuildStatusCard(canvas.transform);

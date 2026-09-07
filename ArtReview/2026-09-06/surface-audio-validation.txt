@@ -1,0 +1,22 @@
+PASS: all 51 distinct Lit world materials in GameRoom have textures (existing detailed textures preserved).
+PASS: register sounds assigned.
+PASS: 26 ESC buttons keep their center under 1.05x scale, including settings buttons repositioned after styling.
+PASS: pivot conversion preserves all four rectangle corners.
+AUDIO day_loop: 40.000s stereo 44.1kHz
+AUDIO door: 0.400s stereo 44.1kHz
+AUDIO game_over: 1.600s stereo 44.1kHz
+AUDIO income: 0.650s stereo 44.1kHz
+AUDIO jump: 0.300s stereo 44.1kHz
+AUDIO menu_loop: 36.923s stereo 44.1kHz
+AUDIO morning: 1.200s stereo 44.1kHz
+AUDIO night_loop: 48.000s stereo 44.1kHz
+AUDIO night_start: 1.200s stereo 44.1kHz
+AUDIO pickup: 0.160s stereo 44.1kHz
+AUDIO purchase: 0.160s stereo 44.1kHz
+AUDIO register: 0.650s stereo 44.1kHz
+AUDIO scan: 0.160s stereo 44.1kHz
+AUDIO step_concrete: 0.160s stereo 44.1kHz
+AUDIO step_gravel: 0.160s stereo 44.1kHz
+AUDIO step_wood: 0.160s stereo 44.1kHz
+AUDIO ui_click: 0.160s stereo 44.1kHz
+AUDIO ui_hover: 0.160s stereo 44.1kHz

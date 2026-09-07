@@ -31,7 +31,7 @@ public static class FurnitureCatalog
         }
 
         _items = new List<FurnitureItem>(items);
-        BindDefaultVisuals(_items);
+        BindDefaultVisuals(_items, false);
     }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -71,12 +71,41 @@ public static class FurnitureCatalog
         return items;
     }
 
-    private static void BindDefaultVisuals(List<FurnitureItem> items)
+    private static void BindDefaultVisuals(List<FurnitureItem> items, bool applyEffects = true)
     {
         foreach (var item in items)
         {
+            if (applyEffects && item != null) ApplyGameplayEffect(item);
             if (item != null && item.prefab == null && !string.IsNullOrEmpty(item.id))
                 item.prefab = Resources.Load<GameObject>("RoomiesArt/Furniture/" + item.id);
         }
+    }
+
+    private static void ApplyGameplayEffect(FurnitureItem item)
+    {
+        switch(item.id)
+        {
+            case "energy_drink_fridge": item.effect=FurnitureEffect.CarryAssist;item.effectValue=10;break;
+            case "comfy_bed": item.effect=FurnitureEffect.CarryAssist;item.effectValue=15;break;
+            case "welcome_mat": item.effect=FurnitureEffect.MoveSpeed;item.effectValue=5;break;
+            case "wall_clock": item.effect=FurnitureEffect.JobBonus;item.effectValue=5;break;
+            case "delivery_terminal": item.effect=FurnitureEffect.DeliveryBonus;item.effectValue=15;break;
+            case "lucky_cat": item.effect=FurnitureEffect.JobBonus;item.effectValue=10;break;
+            case "trampoline": item.effect=FurnitureEffect.JumpHeight;item.effectValue=35;break;
+            case "arcade_machine": item.effect=FurnitureEffect.JobBonus;item.effectValue=10;break;
+        }
+    }
+
+    public static string EffectDescription(FurnitureEffect effect,float value)
+    {
+        return effect switch {
+            FurnitureEffect.MoveSpeed => $"移動速度 +{value}%",
+            FurnitureEffect.PassiveIncome => $"毎朝の共同収入 +¥{value}",
+            FurnitureEffect.CarryAssist => $"重量による減速を {value}% 軽減",
+            FurnitureEffect.JumpHeight => $"ジャンプの高さ +{value}%",
+            FurnitureEffect.JobBonus => $"採掘・レジ・配達報酬 +{value}%",
+            FurnitureEffect.DeliveryBonus => $"配達報酬 +{value}%",
+            _ => "部屋の飾り"
+        };
     }
 }

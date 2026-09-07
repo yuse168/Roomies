@@ -17,7 +17,7 @@ public class SteamLobby : MonoBehaviour
 {
     [SerializeField] private string gameSceneName = "GameRoom";
     [SerializeField] private string menuSceneName = "MainMenuSteam";
-    [SerializeField] private int maxMembers = 4;
+    [SerializeField, Range(1, 5)] private int maxMembers = 5;
 
     // ----- Steamコールバック -----
     private CallResult<LobbyCreated_t>    m_crLobbyCreated;
@@ -792,6 +792,8 @@ public class SteamLobby : MonoBehaviour
 
     private void OnHostSawClientDisconnected(ulong clientId)
     {
+        var manager = NetworkManager.Singleton;
+        if (manager == null || manager.ShutdownInProgress || !manager.IsListening) return;
         string reason = NetworkManager.Singleton?.DisconnectReason ?? "(なし)";
         Debug.LogWarning($"[SteamLobby][HOST] クライアント切断を検知 ClientID={clientId} 理由={reason}");
     }
@@ -827,6 +829,8 @@ public class SteamLobby : MonoBehaviour
     {
         if (NetworkManager.Singleton != null &&
             clientId != NetworkManager.Singleton.LocalClientId) return;
+        var manager = NetworkManager.Singleton;
+        if (manager == null || manager.ShutdownInProgress || !manager.IsListening) return;
         string reason = NetworkManager.Singleton?.DisconnectReason ?? "(なし)";
         Debug.LogWarning($"[SteamLobby] クライアント切断 ID={clientId} 理由={reason}");
 

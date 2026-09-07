@@ -9,9 +9,9 @@ using UnityEngine.UI;
 /// </summary>
 public class DayTransitionUI : MonoBehaviour
 {
-    private CanvasGroup    group;
-    private TextMeshProUGUI dayLabel;
-    private TextMeshProUGUI subLabel;
+    [SerializeField] private CanvasGroup    group;
+    [SerializeField] private TextMeshProUGUI dayLabel;
+    [SerializeField] private TextMeshProUGUI subLabel;
 
     // 演出のタイミング
     private const float FadeInTime  = 0.6f;
@@ -24,10 +24,13 @@ public class DayTransitionUI : MonoBehaviour
     private void Awake()
     {
         BuildUI();
+        group.alpha = 0; group.blocksRaycasts = false; group.interactable = false;
     }
 
-    private void BuildUI()
+    [ContextMenu("未配置のUIを作成")]
+    public void BuildUI()
     {
+        if (group != null) return;
         // 最前面に出すためのCanvas
         var canvasGo = new GameObject("DayTransitionCanvas");
         canvasGo.transform.SetParent(transform, false);

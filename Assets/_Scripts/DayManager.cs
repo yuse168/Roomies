@@ -57,6 +57,7 @@ public class DayManager : NetworkBehaviour
     /// <summary>現在が夜ターンかどうか。</summary>
     public bool IsNight => currentTime != null && currentTime.Value == 1;
     public bool IsGameOver => isGameOver.Value;
+    public static bool GameplayStopped => SessionRetryFlow.IsRestarting || (Instance != null && Instance.IsGameOver);
     public bool CanBuyFurniture => IsSpawned && IsNight && !isGameOver.Value && !isTransitioning.Value;
 
     /// <summary>残り時間（秒）。HUDの進捗バーなどが参照する。</summary>
@@ -151,6 +152,7 @@ public class DayManager : NetworkBehaviour
     private void Start()
     {
         if (!enabled) return;
+        if (FindAnyObjectByType<SessionEndUI>() == null) gameObject.AddComponent<SessionEndUI>();
 
         // 全画面の朝演出UIが未設定ならランタイムで生成する（シーン配置不要）
         if (transitionUI == null)
@@ -228,7 +230,7 @@ public class DayManager : NetworkBehaviour
 
     private void Update()
     {
-        if (!IsSpawned || isGameOver.Value) return;
+        if (!IsSpawned || isGameOver.Value || SessionRetryFlow.IsRestarting) return;
 
         UpdateTimerUI();
 
@@ -479,7 +481,7 @@ public class DayManager : NetworkBehaviour
     }
 
     // 各プレイヤーの現在の稼ぎを「その日の開始値」として記録
-    private void SnapshotDayStartEarnings()
+    internal void SnapshotDayStartEarnings()
     {
         dayStartEarning.Clear();
         var players = FindObjectsByType<PlayerEarning>();
