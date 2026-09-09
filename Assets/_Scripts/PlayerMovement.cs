@@ -75,6 +75,7 @@ public class PlayerMovement : NetworkBehaviour
     private static readonly int IsGroundedHash = Animator.StringToHash("IsGrounded");
     private static readonly int IsSprintingHash = Animator.StringToHash("IsSprinting");
     private static readonly int IsCrouchingHash = Animator.StringToHash("IsCrouching");
+    private static readonly int EmoteHash = Animator.StringToHash("Emote");
 
     private Vector3 cameraBaseLocalPosition;
     private float baseFieldOfView = 60f;
@@ -181,6 +182,11 @@ public class PlayerMovement : NetworkBehaviour
 
         // しゃがみはトグルではなく、キーを押している間だけ維持する。
         isCrouching = GameSettings.IsPressed(GameAction.Crouch);
+
+        if (GameSettings.WasPressedThisFrame(GameAction.Emote))
+        {
+            PlayEmoteRpc();
+        }
     }
 
     void Move()
@@ -359,5 +365,14 @@ public class PlayerMovement : NetworkBehaviour
         //animator.SetBool(IsGroundedHash, controller.isGrounded);
         //animator.SetBool(IsSprintingHash, isSprinting);
         //animator.SetBool(IsCrouchingHash, isCrouching);
+    }
+
+    [Rpc(SendTo.Everyone)]
+    private void PlayEmoteRpc()
+    {
+        if (animator != null)
+        {
+            animator.SetTrigger(EmoteHash);
+        }
     }
 }
