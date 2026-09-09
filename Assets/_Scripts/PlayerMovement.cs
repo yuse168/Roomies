@@ -76,6 +76,12 @@ public class PlayerMovement : NetworkBehaviour
     private static readonly int IsSprintingHash = Animator.StringToHash("IsSprinting");
     private static readonly int IsCrouchingHash = Animator.StringToHash("IsCrouching");
     private static readonly int EmoteHash = Animator.StringToHash("Emote");
+    private static readonly int EmoteIndexHash = Animator.StringToHash("EmoteIndex");
+    private static readonly int EmoteCancelHash = Animator.StringToHash("EmoteCancel");
+
+    private bool isEmoteWheelOpen;
+    private bool isEmoting;
+    private int currentEmoteIndex;
 
     private Vector3 cameraBaseLocalPosition;
     private float baseFieldOfView = 60f;
@@ -185,7 +191,28 @@ public class PlayerMovement : NetworkBehaviour
 
         if (GameSettings.WasPressedThisFrame(GameAction.Emote))
         {
-            PlayEmoteRpc();
+            isEmoteWheelOpen = true;
+            EmoteWheelUI.Instance.Show();
+        }
+
+        if (GameSettings.IsPressed(GameAction.Emote))
+        {
+            if (isEmoteWheelOpen)
+            {
+                EmoteWheelUI.Instance.AddMouseInput(mouse.delta.ReadValue());
+                lookInput = Vector2.zero; // ホイール操作中は視点移動を固定
+            }
+        }
+        else if (isEmoteWheelOpen)
+        {
+            isEmoteWheelOpen = false;
+            int selectedIndex = EmoteWheelUI.Instance.CurrentSelectedSlot;
+            EmoteWheelUI.Instance.Hide();
+
+            if (selectedIndex > 0)
+            {
+                PlayEmoteRpc(selectedIndex);
+            }
         }
     }
 
@@ -246,6 +273,11 @@ public class PlayerMovement : NetworkBehaviour
 
         bool hasBufferedJump = Time.time - lastJumpPressedTime <= jumpBufferTime;
         bool canUseCoyoteJump = Time.time - lastGroundedTime <= coyoteTime;
+
+        if (isEmoting && (moveInput.sqrMagnitude > 0.01f || (hasBufferedJump && canUseCoyoteJump)))
+        {
+            StopEmoteRpc();
+        }
         if (hasBufferedJump && canUseCoyoteJump)
         {
             verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * gravity);
@@ -368,11 +400,28 @@ public class PlayerMovement : NetworkBehaviour
     }
 
     [Rpc(SendTo.Everyone)]
-    private void PlayEmoteRpc()
+    private void PlayEmoteRpc(int emoteIndex)
     {
+        currentEmoteIndex = emoteIndex;
+        isEmoting = (emoteIndex > 0);
+
         if (animator != null)
         {
+            animator.SetInteger(EmoteIndexHash, emoteIndex);
             animator.SetTrigger(EmoteHash);
+        }
+    }
+
+    [Rpc(SendTo.Everyone)]
+    private void StopEmoteRpc()
+    {
+        currentEmoteIndex = 0;
+        isEmoting = false;
+
+        if (animator != null)
+        {
+            animator.SetInteger(EmoteIndexHash, 0);
+            animator.SetTrigger(EmoteCancelHash);
         }
     }
 }

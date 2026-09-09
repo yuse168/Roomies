@@ -192,7 +192,7 @@ ModelImporter:
         value: {x: 0, y: 0, z: 0}
         length: 0
         modified: 0
-    - boneName: neck_C0_1_jnt
+    - boneName: neck_C0_2_jnt
       humanName: Head
       limit:
         min: {x: 0, y: 0, z: 0}
@@ -274,14 +274,6 @@ ModelImporter:
         modified: 0
     - boneName: foot_R0_1_jnt
       humanName: RightToes
-      limit:
-        min: {x: 0, y: 0, z: 0}
-        max: {x: 0, y: 0, z: 0}
-        value: {x: 0, y: 0, z: 0}
-        length: 0
-        modified: 0
-    - boneName: neck_C0_2_jnt
-      humanName: RightEye
       limit:
         min: {x: 0, y: 0, z: 0}
         max: {x: 0, y: 0, z: 0}
