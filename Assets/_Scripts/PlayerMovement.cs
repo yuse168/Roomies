@@ -78,6 +78,7 @@ public class PlayerMovement : NetworkBehaviour
     private static readonly int EmoteHash = Animator.StringToHash("Emote");
     private static readonly int EmoteIndexHash = Animator.StringToHash("EmoteIndex");
     private static readonly int EmoteCancelHash = Animator.StringToHash("EmoteCancel");
+    private static readonly int JumpHash = Animator.StringToHash("Jump");
 
     private bool isEmoteWheelOpen;
     private bool isEmoting;
@@ -284,6 +285,7 @@ public class PlayerMovement : NetworkBehaviour
             lastJumpPressedTime = float.NegativeInfinity;
             lastGroundedTime = float.NegativeInfinity;
             grounded = false;
+            PlayJumpRpc();
         }
 
         verticalVelocity += gravity * Time.deltaTime;
@@ -394,9 +396,18 @@ public class PlayerMovement : NetworkBehaviour
             Time.deltaTime
         );
 
-        //animator.SetBool(IsGroundedHash, controller.isGrounded);
-        //animator.SetBool(IsSprintingHash, isSprinting);
-        //animator.SetBool(IsCrouchingHash, isCrouching);
+        animator.SetBool(IsGroundedHash, controller.isGrounded);
+        animator.SetBool(IsSprintingHash, isSprinting);
+        animator.SetBool(IsCrouchingHash, isCrouching);
+    }
+
+    [Rpc(SendTo.Everyone)]
+    private void PlayJumpRpc()
+    {
+        if (animator != null)
+        {
+            animator.SetTrigger(JumpHash);
+        }
     }
 
     [Rpc(SendTo.Everyone)]
