@@ -13,7 +13,8 @@ public enum GameAction
     Jump,
     Interact,
     Carry,
-    Rotate
+    Rotate,
+    Emote
 }
 
 public static class GameSettings
@@ -57,7 +58,8 @@ public static class GameSettings
         { GameAction.Jump, Key.Space },
         { GameAction.Interact, Key.E },
         { GameAction.Carry, Key.F },
-        { GameAction.Rotate, Key.R }
+        { GameAction.Rotate, Key.R },
+        { GameAction.Emote, Key.G }
     };
     static bool initialized;
 
@@ -330,6 +332,7 @@ public static class GameSettings
             GameAction.Interact => "使う",
             GameAction.Carry => "持つ・離す",
             GameAction.Rotate => "回転・スタンド",
+            GameAction.Emote => "エモート",
             _ => action.ToString()
         };
     }

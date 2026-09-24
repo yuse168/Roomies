@@ -73,8 +73,15 @@ public class PlayerMovement : NetworkBehaviour
 
     private static readonly int SpeedHash = Animator.StringToHash("Speed");
     private static readonly int IsGroundedHash = Animator.StringToHash("IsGrounded");
-    private static readonly int IsSprintingHash = Animator.StringToHash("IsSprinting");
     private static readonly int IsCrouchingHash = Animator.StringToHash("IsCrouching");
+    private static readonly int EmoteHash = Animator.StringToHash("Emote");
+    private static readonly int EmoteIndexHash = Animator.StringToHash("EmoteIndex");
+    private static readonly int EmoteCancelHash = Animator.StringToHash("EmoteCancel");
+    private static readonly int JumpHash = Animator.StringToHash("Jump");
+
+    private bool isEmoteWheelOpen;
+    private bool isEmoting;
+    private int currentEmoteIndex;
 
     private Vector3 cameraBaseLocalPosition;
     private float baseFieldOfView = 60f;
@@ -83,6 +90,15 @@ public class PlayerMovement : NetworkBehaviour
     private float lastGroundedTime = float.NegativeInfinity;
     private float lastJumpPressedTime = float.NegativeInfinity;
     private bool wasGrounded;
+
+    void Awake()
+    {
+        // Remote players also receive the jump/emote RPCs, before owner input starts.
+        if (animator == null)
+        {
+            animator = GetComponentInChildren<Animator>();
+        }
+    }
 
     void Start()
     {
@@ -115,11 +131,24 @@ public class PlayerMovement : NetworkBehaviour
 
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
+    }
 
-        if (animator == null)
-        {
-            animator = GetComponentInChildren<Animator>();
-        }
+    void OnDisable()
+    {
+        CancelEmoteWheel();
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        CancelEmoteWheel();
+        base.OnNetworkDespawn();
+    }
+
+    void CancelEmoteWheel()
+    {
+        if (!isEmoteWheelOpen) return;
+        isEmoteWheelOpen = false;
+        EmoteWheelUI.HideIfCreated();
     }
 
     void Update()
@@ -128,6 +157,7 @@ public class PlayerMovement : NetworkBehaviour
 
         if (EscMenuUI.IsOpen || CharacterCloset.IsOpen)
         {
+            CancelEmoteWheel();
             moveInput = Vector2.zero;
             lookInput = Vector2.zero;
             horizontalVelocity = Vector3.zero;
@@ -137,6 +167,7 @@ public class PlayerMovement : NetworkBehaviour
 
         if (smugglingPlayer != null && smugglingPlayer.IsControlLocked)
         {
+            CancelEmoteWheel();
             moveInput = Vector2.zero;
             lookInput = Vector2.zero;
             horizontalVelocity = Vector3.zero;
@@ -181,6 +212,31 @@ public class PlayerMovement : NetworkBehaviour
 
         // しゃがみはトグルではなく、キーを押している間だけ維持する。
         isCrouching = GameSettings.IsPressed(GameAction.Crouch);
+
+        if (GameSettings.WasPressedThisFrame(GameAction.Emote))
+        {
+            isEmoteWheelOpen = true;
+            EmoteWheelUI.Instance.Show();
+        }
+
+        if (GameSettings.IsPressed(GameAction.Emote))
+        {
+            if (isEmoteWheelOpen)
+            {
+                EmoteWheelUI.Instance.AddMouseInput(mouse.delta.ReadValue());
+                lookInput = Vector2.zero; // ホイール操作中は視点移動を固定
+            }
+        }
+        else if (isEmoteWheelOpen)
+        {
+            int selectedIndex = EmoteWheelUI.Instance.CurrentSelectedSlot;
+            CancelEmoteWheel();
+
+            if (selectedIndex > 0)
+            {
+                PlayEmoteRpc(selectedIndex);
+            }
+        }
     }
 
     public void ResetMotion()
@@ -258,12 +314,18 @@ public class PlayerMovement : NetworkBehaviour
 
         bool hasBufferedJump = Time.time - lastJumpPressedTime <= jumpBufferTime;
         bool canUseCoyoteJump = Time.time - lastGroundedTime <= coyoteTime;
+
+        if (isEmoting && (moveInput.sqrMagnitude > 0.01f || (hasBufferedJump && canUseCoyoteJump)))
+        {
+            StopEmoteRpc();
+        }
         if (hasBufferedJump && canUseCoyoteJump)
         {
             verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * gravity);
             lastJumpPressedTime = float.NegativeInfinity;
             lastGroundedTime = float.NegativeInfinity;
             grounded = false;
+            PlayJumpRpc();
         }
 
         verticalVelocity += gravity * Time.deltaTime;
@@ -374,8 +436,42 @@ public class PlayerMovement : NetworkBehaviour
             Time.deltaTime
         );
 
-        //animator.SetBool(IsGroundedHash, controller.isGrounded);
-        //animator.SetBool(IsSprintingHash, isSprinting);
-        //animator.SetBool(IsCrouchingHash, isCrouching);
+        animator.SetBool(IsGroundedHash, controller.isGrounded);
+        animator.SetBool(IsCrouchingHash, isCrouching);
+    }
+
+    [Rpc(SendTo.Everyone)]
+    private void PlayJumpRpc()
+    {
+        if (animator != null)
+        {
+            animator.SetTrigger(JumpHash);
+        }
+    }
+
+    [Rpc(SendTo.Everyone)]
+    private void PlayEmoteRpc(int emoteIndex)
+    {
+        currentEmoteIndex = emoteIndex;
+        isEmoting = (emoteIndex > 0);
+
+        if (animator != null)
+        {
+            animator.SetInteger(EmoteIndexHash, emoteIndex);
+            animator.SetTrigger(EmoteHash);
+        }
+    }
+
+    [Rpc(SendTo.Everyone)]
+    private void StopEmoteRpc()
+    {
+        currentEmoteIndex = 0;
+        isEmoting = false;
+
+        if (animator != null)
+        {
+            animator.SetInteger(EmoteIndexHash, 0);
+            animator.SetTrigger(EmoteCancelHash);
+        }
     }
 }
