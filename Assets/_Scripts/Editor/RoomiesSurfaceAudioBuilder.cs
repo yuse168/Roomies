@@ -56,7 +56,7 @@ internal static partial class RoomiesSurfaceAudioBuilder
         File.WriteAllText("ArtReview/2026-09-06/surface-audio-build.txt",$"Patterns: {Patterns.Length} albedo + {Patterns.Length} normal maps\nTextured materials: {touched.Count}\nUV meshes: {mapped.Count}\nRenderer material assignments: {converted}\nOriginal audio tracks generated and register/mining clips wired.\n");
         Debug.Log($"[Surfaces] {touched.Count} materials textured, {mapped.Count} meshes mapped, {converted} renderer assignments.");
     }
-    static bool Eligible(Material m)=>m!=null&&(m.shader.name.Contains("/Lit")||m.shader.name.Contains("Simple Lit")||m.shader.name.Contains("SimpleLit")||m.shader.name=="Standard");
+    static bool Eligible(Material m)=>m!=null&&!m.name.ToLowerInvariant().Contains("bob")&&(m.shader.name.Contains("/Lit")||m.shader.name.Contains("Simple Lit")||m.shader.name.Contains("SimpleLit")||m.shader.name=="Standard");
     static string Pattern(string name)
     {
         name=name.ToLowerInvariant();
@@ -85,6 +85,7 @@ internal static partial class RoomiesSurfaceAudioBuilder
         bool changed=false;
         foreach(var renderer in root.GetComponentsInChildren<Renderer>(true))
         {
+            if(renderer.name.Contains("BobBody")||renderer.name.StartsWith("Bobeye",StringComparison.OrdinalIgnoreCase))continue;
             if(renderer is not MeshRenderer && renderer is not SkinnedMeshRenderer)continue;
             var mats=renderer.sharedMaterials;bool materialChanged=false;
             for(int i=0;i<mats.Length;i++)

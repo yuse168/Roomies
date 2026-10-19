@@ -871,7 +871,7 @@ PrefabInstance:
     - target: {fileID: 542249623754404075, guid: fe700ea8612ce864c8c5bc5359dd281d, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: ffb3b6f481eeade45b20706ce2ede335, type: 2}
+      objectReference: {fileID: 2100000, guid: 5ac0b31d769ffcf43a8b12848eb1b4aa, type: 2}
     - target: {fileID: 919132149155446097, guid: fe700ea8612ce864c8c5bc5359dd281d, type: 3}
       propertyPath: m_Name
       value: RoomiesCharacterArt
@@ -879,11 +879,11 @@ PrefabInstance:
     - target: {fileID: 3394496175989068371, guid: fe700ea8612ce864c8c5bc5359dd281d, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 3cb7b9d6941193e418017422d4d01b9d, type: 2}
+      objectReference: {fileID: 2100000, guid: b1d11a2ac5e4bcb46bf6de34272a9679, type: 2}
     - target: {fileID: 4286071807495912912, guid: fe700ea8612ce864c8c5bc5359dd281d, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: ffb3b6f481eeade45b20706ce2ede335, type: 2}
+      objectReference: {fileID: 2100000, guid: 5ac0b31d769ffcf43a8b12848eb1b4aa, type: 2}
     - target: {fileID: 6627045084448341300, guid: fe700ea8612ce864c8c5bc5359dd281d, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 

@@ -27,6 +27,14 @@ public sealed class MainMenuRoomShowcase : MonoBehaviour
     [SerializeField] private Transform[] characters;
     [SerializeField] private Material skyboxMaterial;
     [SerializeField, HideInInspector] private int buildVersion;
+    [Header("ロビーのワールド背景カメラ")]
+    [SerializeField] private bool useWorldView;
+    [SerializeField] private Vector3 worldCameraPosition;
+    [SerializeField] private Vector3 worldCameraTarget;
+    [SerializeField, Range(20,80)] private float worldFieldOfView=48;
+
+    public void ConfigureWorldView(Vector3 position,Vector3 target,float fov)
+    {useWorldView=true;worldCameraPosition=position;worldCameraTarget=target;worldFieldOfView=fov;}
 
     private Camera showcaseCamera;
     private Vector3 cameraPosition;
@@ -103,6 +111,7 @@ public sealed class MainMenuRoomShowcase : MonoBehaviour
     /// </summary>
     private void FrameSubject()
     {
+        if(useWorldView){cameraPosition=worldCameraPosition;cameraFocus=worldCameraTarget;return;}
         cameraPosition = CameraPosition;
 
         Vector3 subject = FallbackSubject;
@@ -129,7 +138,7 @@ public sealed class MainMenuRoomShowcase : MonoBehaviour
         showcaseCamera.transform.position = cameraPosition;
         showcaseCamera.transform.rotation =
             Quaternion.LookRotation(cameraFocus - cameraPosition, Vector3.up);
-        showcaseCamera.fieldOfView = FieldOfView;
+        showcaseCamera.fieldOfView = useWorldView ? worldFieldOfView : FieldOfView;
         showcaseCamera.clearFlags = CameraClearFlags.Skybox;
 
         if (skyboxMaterial != null)
@@ -153,7 +162,7 @@ public sealed class MainMenuRoomShowcase : MonoBehaviour
         runtimeProfile.name = "MenuShowcaseProfile";
 
         var depthOfField = runtimeProfile.Add<DepthOfField>(true);
-        depthOfField.active = true;
+        depthOfField.active = !useWorldView;
         depthOfField.mode.Override(DepthOfFieldMode.Gaussian);
         depthOfField.gaussianStart.Override(7.5f);
         depthOfField.gaussianEnd.Override(22f);
