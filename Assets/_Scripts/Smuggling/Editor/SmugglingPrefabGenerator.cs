@@ -83,7 +83,7 @@ public static class SmugglingPrefabGenerator
     private static void CreateBag(string path, Material brown)
     {
         GameObject root = new GameObject("PaperBag_Placeholder");
-        Transform visualRoot = NewChild(root.transform, "VisualRoot");
+        Transform visualRoot = NewChild(root.transform, "Visual");
         Transform modelRoot = NewChild(visualRoot, "ModelRoot");
         GameObject placeholder = Primitive(PrimitiveType.Cube, visualRoot, "Placeholder", brown);
         placeholder.transform.localScale = new Vector3(0.75f, 1f, 0.36f);
@@ -106,7 +106,7 @@ public static class SmugglingPrefabGenerator
         collider.height = 2f;
         collider.radius = 0.45f;
 
-        Transform visualRoot = NewChild(root.transform, "VisualRoot");
+        Transform visualRoot = NewChild(root.transform, "Visual");
         Transform modelRoot = NewChild(visualRoot, "ModelRoot");
         GameObject placeholder = new GameObject("Placeholder");
         placeholder.transform.SetParent(visualRoot, false);
@@ -142,7 +142,7 @@ public static class SmugglingPrefabGenerator
         collider.height = 2f;
         collider.radius = 0.48f;
 
-        Transform visualRoot = NewChild(root.transform, "VisualRoot");
+        Transform visualRoot = NewChild(root.transform, "Visual");
         Transform modelRoot = NewChild(visualRoot, "ModelRoot");
         GameObject placeholder = new GameObject("Placeholder");
         placeholder.transform.SetParent(visualRoot, false);

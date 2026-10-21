@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -40,6 +41,7 @@ public class SmugglingPlayer : NetworkBehaviour
 
     private GameObject bagVisual;
     private bool localControlLocked;
+    private readonly HashSet<ulong> activeChaseSources = new HashSet<ulong>();
 
     public bool HasBag => state.Value == JobState.CarryingBag;
     public bool CanTakeBag => state.Value == JobState.None;
@@ -60,7 +62,27 @@ public class SmugglingPlayer : NetworkBehaviour
     {
         state.OnValueChanged -= OnStateChanged;
         DayManager.OnMorningArrived -= OnMorningArrived;
+        activeChaseSources.Clear();
+        if (IsOwner) SetLocalChaseOverlay(false);
         if (bagVisual != null) Destroy(bagVisual);
+    }
+
+    /// <summary>
+    /// 警察AIが追跡を始めた・やめた時だけServerから呼ぶ。
+    /// 警察ごとに記録し、複数人に追われている途中で表示が消えないようにする。
+    /// </summary>
+    public void ServerSetChasedBy(ulong policeNetworkObjectId, bool chasing)
+    {
+        if (!IsServer) return;
+
+        bool wasChased = activeChaseSources.Count > 0;
+        if (chasing)
+            activeChaseSources.Add(policeNetworkObjectId);
+        else
+            activeChaseSources.Remove(policeNetworkObjectId);
+
+        bool isChased = activeChaseSources.Count > 0;
+        if (wasChased != isChased) SetChaseStateOwnerRpc(isChased);
     }
 
     public void RequestContactInteraction(SmugglingContact.ContactRole role)
@@ -145,6 +167,7 @@ public class SmugglingPlayer : NetworkBehaviour
     {
         if (!IsServer || state.Value != JobState.CarryingBag) return;
 
+        ClearServerChaseState();
         state.Value = JobState.ArrestedWaitingMorning;
         contentIndex.Value = -1;
         laborProgress.Value = 0;
@@ -233,6 +256,34 @@ public class SmugglingPlayer : NetworkBehaviour
             DayManager.Instance.ServerSendAnnounceTo(OwnerClientId, title, body, style);
     }
 
+    private void ClearServerChaseState()
+    {
+        if (!IsServer || activeChaseSources.Count == 0) return;
+        activeChaseSources.Clear();
+        SetChaseStateOwnerRpc(false);
+    }
+
+    [Rpc(SendTo.Owner)]
+    private void SetChaseStateOwnerRpc(bool chasing)
+    {
+        SetLocalChaseOverlay(chasing);
+    }
+
+    private static void SetLocalChaseOverlay(bool chasing)
+    {
+        GetOrCreateArrestOverlay().SetChasing(chasing);
+    }
+
+    private static SmugglingArrestOverlay GetOrCreateArrestOverlay()
+    {
+        SmugglingArrestOverlay overlay = FindAnyObjectByType<SmugglingArrestOverlay>();
+        if (overlay != null) return overlay;
+
+        overlay = new GameObject("SmugglingArrestOverlay").AddComponent<SmugglingArrestOverlay>();
+        DontDestroyOnLoad(overlay.gameObject);
+        return overlay;
+    }
+
     private void OnStateChanged(JobState oldState, JobState newState)
     {
         RefreshBagVisual();
@@ -274,13 +325,8 @@ public class SmugglingPlayer : NetworkBehaviour
     [Rpc(SendTo.Owner)]
     private void ArrestOwnerRpc()
     {
-        SmugglingArrestOverlay overlay = FindAnyObjectByType<SmugglingArrestOverlay>();
-        if (overlay == null)
-        {
-            overlay = new GameObject("SmugglingArrestOverlay").AddComponent<SmugglingArrestOverlay>();
-            DontDestroyOnLoad(overlay.gameObject);
-        }
-
+        SmugglingArrestOverlay overlay = GetOrCreateArrestOverlay();
+        overlay.SetChasing(false);
         overlay.Play();
         StartCoroutine(LocalControlLockRoutine());
     }

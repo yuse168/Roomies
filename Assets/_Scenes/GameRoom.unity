@@ -24091,7 +24091,7 @@ MonoBehaviour:
   maxDay: 3
   rentAmount: 500
   turnDuration: 180
-  enableDebugDaySkip: 0
+  enableDebugDaySkip: 1
   dayText: {fileID: 1894333725}
   timerText: {fileID: 689711503}
   transitionUI: {fileID: 0}

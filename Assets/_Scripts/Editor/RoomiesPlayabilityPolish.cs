@@ -93,7 +93,7 @@ internal static class RoomiesPlayabilityPolish
         try
         {
             var slot=prefab.GetComponentInChildren<SlotMachine>();
-            var model=slot.GetComponentsInChildren<Transform>(true).First(t=>t.name=="Model");
+            var model=slot.GetComponentsInChildren<Transform>(true).First(t=>t.name=="Visual"||t.name=="Model");
             var collider=model.GetComponent<Collider>();
             if(collider==null)throw new InvalidOperationException("Slot cabinet collider missing.");
             if(collider is BoxCollider cabinet){cabinet.size=Vector3.one;cabinet.center=Vector3.zero;}

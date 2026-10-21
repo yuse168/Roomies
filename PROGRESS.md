@@ -1,5 +1,101 @@
 # PROGRESS.md
 
+## 2026/10/21｜既存プレハブを「見た目は Visual の下」の形にそろえた
+
+### 今回の変更
+- 見た目を `Visual` の下にまとめ、ロジック・通信・判定はその外に残した（オブジェクトは移動と名前変更だけ、参照は維持）
+  - CharacterCloset：`Appearance_REPLACE_ME` → `Visual`
+  - Slot：`Model` → `Visual`（画面の `Canvas` は外のまま）
+  - BlackjackTable：テーブル・レール・脚・プレートを新しい `Visual` の下へ
+  - DeliveryBox：`NormalVisual`／`RareVisual` → `Visual/Normal`／`Visual/Rare`
+  - MiningOre_0〜10：鉱石モデルを `Visual` の下へ
+  - Dealer／Giver／Police／PaperBag：`VisualRoot` → `Visual`
+  - JailLabor：仮の見た目を `Visual/Placeholder` へ
+- 名前で探していたエディタ用ツールを新しい名前に対応（旧名でも動く）
+- CharacterCloset を実行時に作る場合も、見た目を `Visual` の下に作るようにした
+- `AGENTS.md`：「ぶつかるだけ」のコライダーは `Visual` の中に置いてよいと明記
+
+### 変更ファイル
+- 新規：`Assets/_Scripts/Editor/RoomiesPrefabConventionFixer.cs`
+- 変更：上記プレハブ17個
+- 変更：`Assets/_Scripts/CharacterCloset.cs`
+- 変更：`Assets/_Scripts/Editor/RoomiesExistingArtFinisher.cs`
+- 変更：`Assets/_Scripts/Editor/RoomiesPlayabilityPolish.cs`
+- 変更：`Assets/_Scripts/Smuggling/Editor/SmugglingPrefabGenerator.cs`
+- 変更：`AGENTS.md`、`PROGRESS.md`
+
+### 確認
+- 確認済み：コンパイルエラーなし。コンソールにエラーなし。GameRoom に置かれた各プレハブ（スロット3台、NPC、ブラックジャック、クローゼット）が新しい形で読み込まれている。
+- 確認済み：プレハブの差分は名前・親子関係の変更と `Visual` の追加だけ（消えたオブジェクトはない）。
+- 未確認：自動テスト（Unity側のツールの安全モードで実行不可）。プレイでの動作確認。
+
+## 2026/10/21｜プレハブのルールを決定（見た目の差し替え前提）
+
+### 今回の変更
+- `AGENTS.md` に「プレハブと仮アセット」の決まりを追加（コード・プレハブ・シーンは変更なし）
+  - 背景・環境は直接置いて丸ごと置き換えてよい
+  - ギミック付きはプレハブにし、見た目は子の `Visual` の下だけに置く
+  - ギミックが使う位置は `Visual` の外の `Anchor_` オブジェクトにする
+  - ドアが開く冷蔵庫などもギミック付きに含める。動く部品は軸 `Pivot_〇〇` をルート直下に置き、見た目は `Pivot_〇〇/Visual` に入れる
+
+### 変更ファイル
+- 変更：`AGENTS.md`
+- 変更：`PROGRESS.md`
+
+### 未対応
+- 既存プレハブは旧名のまま：`Appearance_REPLACE_ME`、`Model`、`ModelRoot`、`NormalVisual`／`RareVisual`
+- BlackjackTable は見た目の部品がルート直下にあり、差し替えられる形になっていない
+
+## 2026/10/21｜効果音の再生基盤を追加・Audiostockから候補選定
+
+### 今回の変更
+- 効果音の再生口 `GameAudio` を新規追加
+- `Resources/Audio/` 以下へファイルを置くだけで鳴る方式にした（Inspector配線なし）
+- 連番ファイル（`key_1`〜`key_8`）をランダムに鳴り分ける仕組みを追加
+- `GameSettings` へ効果音音量 `SfxVolume` とBGM音量 `BgmVolume` を追加
+- 音声ファイルの置き場とファイル名規則を `Assets/Resources/Audio/README.md` に記載
+- Audiostockで第1段階ぶんの効果音候補を選定（未DL・未採用）
+
+### 変更ファイル
+- 新規：`Assets/_Scripts/Audio/GameAudio.cs`
+- 新規：`Assets/Resources/Audio/README.md`
+- 新規：`Assets/Resources/Audio/{player,ui,money,mining}/`（空フォルダ）
+- 変更：`Assets/_Scripts/UI/GameSettings.cs`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- 効果音は `GameAudio.Play("ui/confirm")` / `GameAudio.PlayAt("player/land", pos)` で鳴らす
+- キーは `Assets/Resources/Audio/` からの相対パス。**Inspector配線は不要**
+- 連番は1から詰めて置く。`key_3` が欠けると `key_4` 以降は読まれない
+- **クリップが未入荷のキーは黙って無視する。**音が無くてもゲームは壊れない
+- AudioMixerは使わない。Masterは既存の `AudioListener.volume`、効果音は `GameSettings.SfxVolume` を再生側で掛ける（AGENTS.mdの「軽さ・分かりやすさ優先」に合わせた）
+- AudioSourceは12個を使い回す。1音ごとにGameObjectを作らない
+- `Assets/_Audio/Mining/` の既存4ファイルは `RoomiesMiningBuilder.Tone()` が生成したサイン波＋ノイズのプレースホルダ。第2段階で差し替える
+
+### 影響範囲
+- 効果音の再生基盤（新規。既存挙動への影響なし）
+- `GameSettings`（音量項目の追加のみ。既存の Master 音量の挙動は変更していない）
+- まだどの呼び出し元にもフックしていないため、ゲームの見た目・音は現状変わらない
+
+### 確認状況
+- **C#コンパイル：未確認**（Unity自体は起動中。Unity MCPが `Connection revoked` で未承認、かつUnitySkills RESTサーバーが未起動のため接続できない）
+- Audiostockの契約確認：確認済み（定額制エンタープライズプラン・無料トライアル、2026/10/01〜2027/03/31、`tk230088` でログイン）
+- 定額制なのでダウンロードに追加課金が無いこと：確認済み（購入作品0件）
+- 候補の作品番号・尺・作者：確認済み（検索結果から取得）
+- 音声ファイルのダウンロード：**未実施**
+- 各候補の実際の音：**未試聴**（私は音を聞けないため、採用判断はユーザー側）
+- 呼び出し元へのフック：未実施
+
+### 未完了・次の作業
+- 候補を試聴して採用を決める（ユーザー）
+- 採用分をDLし `Resources/Audio/` 配下へ規則どおりの名前で配置する
+- 呼び出し元へフックする：`PlayerMovement`（足音・ジャンプ・着地）、`UIButtonJuice`／`EscMenuUI`（決定・キャンセル）、`SharedMoneyManager.SharedMoneyChanged`（入金・出金）
+- 第2段階として採掘4音を差し替え、`MiningSite` の `AudioClip` 参照を `GameAudio` 経由へ寄せるか検討
+- Unity側で接続を復帰させてからコンパイル確認とPlayでの音量バランス調整
+  - Unity MCP：`Project Settings > AI > Unity MCP` で接続を承認する
+  - UnitySkills REST：`Window > UnitySkills` でサーバーを起動する（自動起動の設定も可）
+- **ライセンス確認：**定額制プランの利用規約で、Steam配布のゲームへの同梱と、契約終了後の継続利用が認められるかを確認する（無料トライアル中の取得ぶんの扱いも）
+
 ## 2026/09/24｜main・採掘・アニメーションの統合
 
 ### 今回の変更
@@ -71,6 +167,208 @@
 - 回帰テスト → 2アカウントで接続・同時購入・切断・家賃成功／失敗を確認。
 - 1〜5人仕様に対し現SceneのSteamロビー上限は4人。上限と5人時のスポーン／UIを確認する。
 - 仮家具の本番化、Game Over導線、食費と共同資金、難易度上昇を既存システムで仕上げる。
+
+## 2026/08/07｜1回目
+
+### 今回の変更
+- しゃがみキーを離した際、立ち姿勢ぶんのカプセル空間が空いているか確認する処理を追加
+- 天井・家具・階段裏などで立ち上がれない間は、移動速度・カメラ・アニメーションを含めてしゃがみ状態を維持
+- 頭上判定は立ち上がり要求中だけ実行し、`OverlapCapsuleNonAlloc` と再利用バッファでGC負荷を回避
+- 自分自身と子オブジェクトのCollider、Triggerを判定対象から除外
+
+### 変更ファイル
+- 変更：`Assets/_Scripts/PlayerMovement.cs`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- 現在のCharacterController下端を固定した仮の立ち姿勢カプセルで空間を確認する
+- 判定カプセルは`skinWidth`ぶん内側へ縮め、床との接触を天井障害として誤検出しない
+- 立ち上がり途中に空間が塞がった場合も、次フレームからしゃがみ姿勢へ戻す
+- 判定対象レイヤーは`stanceCollisionMask`で調整可能（初期値は全レイヤー）
+
+### 確認状況
+- 変更差分：確認済み
+- `Assembly-CSharp.csproj`代替コンパイル：成功（警告0・エラー0）
+- Unity MCP経由のConsole確認：未確認（現在のCodexセッションにUnity MCPツールが公開されていないため）
+- 低い天井・家具の下での実プレイ確認：未確認
+
+### 未完了・次の作業
+- Unity上で低い天井の下からしゃがみキーを離し、姿勢が維持されることを確認
+- 頭上空間が空いた直後に自然に立ち上がることを確認
+- Host/Clientそれぞれで姿勢・移動速度・アニメーション表示を確認
+
+## 2026/08/05｜1回目
+
+### 今回の変更
+- 警察の追跡中に、対象プレイヤーだけへ赤い画面端の脈動を表示
+- 画面上部へ「警察に追われている！」と逃走案内を常時表示
+- 複数警察の追跡状態をServer側で軽量に管理し、全員から逃げ切るまで表示を維持
+- 逃走成功、紙袋消失、朝、逮捕、警察消滅時に追跡表示を自動解除
+
+### 変更ファイル
+- 変更：`Assets/_Scripts/Smuggling/SmugglingPolicePatrol.cs`
+- 変更：`Assets/_Scripts/Smuggling/SmugglingPlayer.cs`
+- 変更：`Assets/_Scripts/Smuggling/SmugglingArrestOverlay.cs`
+- 変更：`Assets/_Scripts/Smuggling/SETUP.md`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- 追跡表示は対象プレイヤーのOwnerだけに表示する
+- 追跡開始・終了時だけRPCを送り、毎フレーム通信しない
+- 既存の発見バナー、逃走成功バナー、逮捕演出は維持する
+- 追加のPhysics判定、全体検索、Scene配置、Prefab登録は不要
+
+### 影響範囲
+- 闇バイトの警察AI
+- 追跡中HUD
+- 逮捕・逃走演出
+- Host/ClientのOwner向け表示同期
+
+### 確認状況
+- 変更差分：確認済み
+- コンパイル：確認済み（変更3スクリプトすべてエラー0）
+- Console：確認済み（エラー0・警告0）
+- Host動作：未確認
+- Client動作：未確認
+
+### 未完了・次の作業
+- Host/Clientで追跡開始・逃走・逮捕時の表示切り替えを実プレイ確認
+- 実解像度で上部表示のサイズと視認性を確認
+
+## 2026/08/03｜5回目
+
+### 今回の変更
+- Roomiesのマルチプレイがフレンド招待中心であることをAI開発ルールへ明記
+- 重いアンチチートより軽さ・反応・遊びやすさを優先する方針を追加
+- 維持する基本検証と、避ける過剰検証の境界を明文化
+
+### 変更ファイル
+- 新規：`AGENTS.md`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- 野良プレイヤーとの公開マッチングは現時点で想定しない
+- 低負荷なNull・範囲・所有者確認と、共有状態のServer権限は維持する
+- 高頻度RPC、毎フレーム距離検証、重複Physics判定、過剰ログは避ける
+- 通常プレイに影響しない悪意ある操作だけの対策は過剰実装しない
+
+### 影響範囲
+- 今後のマルチプレイ実装
+- Server検証
+- グリッチ対策
+- 通信量と実行時パフォーマンス
+- AIによるコードレビューと実装判断
+
+### 確認状況
+- ルール記載：確認済み
+- 既存コード変更：なし
+- コンパイル：対象外
+- Host/Client動作：対象外
+
+### 未完了・次の作業
+- 今後の機能追加時に本ルールへ沿って検証コストを判断する
+
+## 2026/08/03｜4回目
+
+### 今回の変更
+- スロットのServer側距離拒否を削除し、通常操作でBETが誤拒否される問題を修正
+- デバッグ用Nキーのターン送りを通常ビルドでも一時的に再有効化
+- Nキー機能を初期状態で有効化
+
+### 変更ファイル
+- 変更：`Assets/_Scripts/Slot/SlotMachine.cs`
+- 変更：`Assets/_Scripts/DayManager.cs`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- スロットは距離では拒否しない
+- スロットのPlayer所有者検証、BET値検証、共同口座の支払い判定は維持する
+- Nキーのターン送りはHostのみ実行できる
+- Nキー機能は製品版確定前に無効化または削除する
+
+### 影響範囲
+- スロット
+- 朝夜ターン進行
+- Hostデバッグ操作
+- マルチプレイのServer検証
+
+### 確認状況
+- 変更差分：確認済み
+- コンパイル：確認済み（`SlotMachine.cs`・`DayManager.cs`ともエラー0）
+- Console：確認済み（エラー0・警告0）
+- `pCube4`警告：Domain Reload後も再発なし
+- Host動作：修正後未確認
+- Client動作：修正後未確認
+
+### 未完了・次の作業
+- HostでスロットBETとNキーを実プレイ確認
+- ClientからスロットBETできることを確認
+- 製品版前にNキーデバッグ機能を削除
+
+## 2026/08/03｜3回目
+
+### 今回の変更
+- `pCube4`の巨大三角形警告が無効化後もScene読み込み時に出る問題を根本修正
+- メインメニュー背景専用`pCube4`から不要なMeshColliderを削除
+
+### 変更ファイル
+- 変更：`Assets/_Scenes/MainMenuSteam.unity`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- `pCube4`のMeshRenderer、MeshFilter、Transform、Groundタグは維持する
+- MainMenuSteamにはRigidbodyと`pCube4`を参照するスクリプトがなく、物理判定は使用しない
+- GameRoomの地面・Colliderには変更を加えない
+
+### 影響範囲
+- メインメニュー背景Sceneの読み込み
+- Unity EditorのConsole警告
+
+### 確認状況
+- 修正対象Sceneの未ロード・未Dirty状態：確認済み
+- Scene YAML参照整合性：確認済み
+- MainMenuSteam再インポート：確認済み
+- コンパイル：確認済み（エラー0）
+- Console：確認済み（エラー0・警告0）
+- `pCube4`警告：再発なし
+
+### 未完了・次の作業
+- 実ゲーム起動時のMainMenuSteam表示を最終確認
+
+## 2026/08/03｜2回目
+
+### 今回の変更
+- メインメニュー背景の巨大三角形MeshCollider警告を解消
+- メインメニューの未収録文字「▶」を外し、TMPの文字欠け警告を解消
+- Player Prefab内の重複した`PlayerNameDisplay`を削除し、Netcodeスポーン警告を解消
+
+### 変更ファイル
+- 変更：`Assets/_Scenes/MainMenuSteam.unity`
+- 変更：`Assets/_Scripts/UI/MenuThemer.cs`
+- 変更：`Assets/_Prefabs/Player.prefab`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- 名前表示Canvasは非表示のまま維持する
+- プレイヤー名とBobBody色の同期を担当するルート側`PlayerNameDisplay`は維持する
+- `pCube4`はメインメニュー背景の表示を維持し、不要なMeshColliderのみ無効化する
+
+### 影響範囲
+- メインメニュー背景
+- メインメニューのPLAYボタン
+- プレイヤー名・キャラクター色のマルチプレイ同期
+
+### 確認状況
+- 修正前Host動作：ユーザー確認済み
+- 変更差分：確認済み
+- コンパイル：確認済み（エラー0）
+- Console：確認済み（エラー0・警告0）
+- Missing Script：確認済み（Scene・Prefabとも0件）
+- Host動作：修正後未確認
+- Client動作：修正後未確認
+
+### 未完了・次の作業
+- Host/Clientでキャラクター色同期と警告解消を確認
 
 ## 2026/07/30｜20回目
 

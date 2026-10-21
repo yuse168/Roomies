@@ -120,7 +120,7 @@ public class MenuThemer : MonoBehaviour
             UITheme.Grape, Color.white, 24f);
         playBackButton.onClick.AddListener(HidePlayOptions);
 
-        playButton = CreatePill(root, "PlayButton", "▶  あそぶ",
+        playButton = CreatePill(root, "PlayButton", "あそぶ",
             new Vector2(Margin, ActionY), new Vector2(480f, ActionH),
             UITheme.Pink, Color.white, 48f, 12f);
         playButton.onClick.AddListener(ShowPlayOptions);

@@ -35,6 +35,8 @@ public static class GameSettings
 
     const string SensitivityKey = "Settings.MouseSensitivity";
     const string VolumeKey = "Settings.MasterVolume";
+    const string SfxVolumeKey = "Settings.SfxVolume";
+    const string BgmVolumeKey = "Settings.BgmVolume";
     const string FullscreenKey = "Settings.Fullscreen";
     const string ResolutionWidthKey = "Settings.ResolutionWidth";
     const string ResolutionHeightKey = "Settings.ResolutionHeight";
@@ -65,6 +67,8 @@ public static class GameSettings
 
     public static float MouseSensitivity { get; private set; }
     public static float MasterVolume { get; private set; }
+    public static float SfxVolume { get; private set; }
+    public static float BgmVolume { get; private set; }
     public static bool Fullscreen { get; private set; }
     public static int ResolutionIndex { get; private set; }
     public static int QualityLevel { get; private set; }
@@ -95,6 +99,8 @@ public static class GameSettings
         MouseSensitivity = Mathf.Clamp(
             PlayerPrefs.GetFloat(SensitivityKey, DefaultSensitivity), 0.05f, 1.5f);
         MasterVolume = Mathf.Clamp01(PlayerPrefs.GetFloat(VolumeKey, DefaultVolume));
+        SfxVolume = Mathf.Clamp01(PlayerPrefs.GetFloat(SfxVolumeKey, DefaultVolume));
+        BgmVolume = Mathf.Clamp01(PlayerPrefs.GetFloat(BgmVolumeKey, DefaultVolume));
         Fullscreen = PlayerPrefs.GetInt(FullscreenKey, Screen.fullScreen ? 1 : 0) != 0;
         CameraMotion = PlayerPrefs.GetInt(CameraMotionKey, 1) != 0;
         QualityLevel = Mathf.Clamp(
@@ -219,6 +225,27 @@ public static class GameSettings
         MasterVolume = Mathf.Clamp01(value);
         AudioListener.volume = MasterVolume;
         PlayerPrefs.SetFloat(VolumeKey, MasterVolume);
+        PlayerPrefs.Save();
+    }
+
+    /// <summary>
+    /// 効果音の音量。Masterは AudioListener.volume で全体へ掛かるので、
+    /// ここは「効果音だけ」の倍率として GameAudio が掛ける。
+    /// </summary>
+    public static void SetSfxVolume(float value)
+    {
+        EnsureInitialized();
+        SfxVolume = Mathf.Clamp01(value);
+        PlayerPrefs.SetFloat(SfxVolumeKey, SfxVolume);
+        PlayerPrefs.Save();
+    }
+
+    /// <summary>BGMの音量。再生側（BGM実装時）がこの倍率を掛ける。</summary>
+    public static void SetBgmVolume(float value)
+    {
+        EnsureInitialized();
+        BgmVolume = Mathf.Clamp01(value);
+        PlayerPrefs.SetFloat(BgmVolumeKey, BgmVolume);
         PlayerPrefs.Save();
     }
 
@@ -357,6 +384,8 @@ public static class GameSettings
         EnsureInitialized();
         SetMouseSensitivity(DefaultSensitivity);
         SetMasterVolume(DefaultVolume);
+        SetSfxVolume(DefaultVolume);
+        SetBgmVolume(DefaultVolume);
         SetFullscreen(true);
         SetResolutionIndex(resolutionOptions.Count - 1);
         SetQualityLevel(Mathf.Max(0, QualitySettings.names.Length - 1));

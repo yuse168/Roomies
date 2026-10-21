@@ -182,12 +182,6 @@ public class SlotMachine : NetworkBehaviour
             return;
         }
 
-        if (!IsWithinInteractionRange(requestingPlayer.transform.position))
-        {
-            Debug.LogWarning("[Slot] 遠すぎるBET要求を拒否しました。");
-            return;
-        }
-
         PlayerEarning requestingEarning =
             requestingPlayer.GetComponent<PlayerEarning>();
 

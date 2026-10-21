@@ -107,7 +107,14 @@ public class CharacterCloset : MonoBehaviour
     {
         GameObject part = GameObject.CreatePrimitive(PrimitiveType.Cube);
         part.name = partName;
-        part.transform.SetParent(transform, false);
+        // 見た目は子の Visual の下にまとめる (AGENTS.md「プレハブと仮アセット」)
+        Transform visual = transform.Find("Visual");
+        if (visual == null)
+        {
+            visual = new GameObject("Visual").transform;
+            visual.SetParent(transform, false);
+        }
+        part.transform.SetParent(visual, false);
         part.transform.localPosition = localPosition;
         part.transform.localScale = scale;
         var rendererComponent = part.GetComponent<Renderer>();

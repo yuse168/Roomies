@@ -33,6 +33,8 @@ public class PlayerMovement : NetworkBehaviour
     public float crouchHeight = 1f;
     public float standHeight = 2f;
     public float crouchTransitionSpeed = 12f;
+    [Tooltip("立ち上がり時の空間チェックに含めるレイヤー")]
+    [SerializeField] private LayerMask stanceCollisionMask = ~0;
 
     [Header("コミカルなカメラ演出")]
     public bool enableCameraMotion = true;
@@ -66,6 +68,7 @@ public class PlayerMovement : NetworkBehaviour
     private float verticalVelocity;
     private float xRotation;
     private bool isCrouching;
+    private readonly Collider[] stanceOverlapBuffer = new Collider[16];
     private bool isSprinting;
 
     [Header("アニメーション設定")]
@@ -211,7 +214,20 @@ public class PlayerMovement : NetworkBehaviour
         }
 
         // しゃがみはトグルではなく、キーを押している間だけ維持する。
-        isCrouching = GameSettings.IsPressed(GameAction.Crouch);
+        // キーを離しても立ち姿勢ぶんの空間がなければ、実際の姿勢はしゃがみに保つ。
+        bool crouchHeld = GameSettings.IsPressed(GameAction.Crouch);
+        if (crouchHeld)
+        {
+            isCrouching = true;
+        }
+        else if (isCrouching || controller.height < standHeight - 0.001f)
+        {
+            isCrouching = !CanStandUp();
+        }
+        else
+        {
+            isCrouching = false;
+        }
 
         if (GameSettings.WasPressedThisFrame(GameAction.Emote))
         {
@@ -363,6 +379,70 @@ public class PlayerMovement : NetworkBehaviour
         Vector3 center = controller.center;
         center.y = bottom + nextHeight * 0.5f;
         controller.center = center;
+    }
+
+    bool CanStandUp()
+    {
+        if (controller == null)
+        {
+            return true;
+        }
+
+        float targetHeight = Mathf.Max(standHeight, controller.radius * 2f);
+        if (controller.height >= targetHeight - 0.001f)
+        {
+            return true;
+        }
+
+        Vector3 lossyScale = transform.lossyScale;
+        float radiusScale = Mathf.Max(Mathf.Abs(lossyScale.x), Mathf.Abs(lossyScale.z));
+        float heightScale = Mathf.Abs(lossyScale.y);
+        float worldRadius = controller.radius * radiusScale;
+        float worldHeight = Mathf.Max(targetHeight * heightScale, worldRadius * 2f);
+
+        // 接触している床を障害物として誤検出しないよう、skinWidthぶん内側を調べる。
+        float clearance = Mathf.Max(
+            0.01f,
+            controller.skinWidth * Mathf.Max(radiusScale, heightScale));
+        float checkRadius = Mathf.Max(0.01f, worldRadius - clearance);
+        float checkHeight = Mathf.Max(checkRadius * 2f, worldHeight - clearance * 2f);
+
+        // 現在の足元を固定したまま、立ち姿勢になった場合のカプセルを組み立てる。
+        float bottom = controller.center.y - controller.height * 0.5f;
+        Vector3 targetCenter = controller.center;
+        targetCenter.y = bottom + targetHeight * 0.5f;
+
+        Vector3 worldCenter = transform.TransformPoint(targetCenter);
+        float halfSegment = Mathf.Max(0f, checkHeight * 0.5f - checkRadius);
+        Vector3 upperPoint = worldCenter + transform.up * halfSegment;
+        Vector3 lowerPoint = worldCenter - transform.up * halfSegment;
+
+        int overlapCount = Physics.OverlapCapsuleNonAlloc(
+            upperPoint,
+            lowerPoint,
+            checkRadius,
+            stanceOverlapBuffer,
+            stanceCollisionMask,
+            QueryTriggerInteraction.Ignore);
+
+        for (int i = 0; i < overlapCount; i++)
+        {
+            Collider hit = stanceOverlapBuffer[i];
+            if (hit == null || hit == controller)
+            {
+                continue;
+            }
+
+            Transform hitTransform = hit.transform;
+            if (hitTransform == transform || hitTransform.IsChildOf(transform))
+            {
+                continue;
+            }
+
+            return false;
+        }
+
+        return true;
     }
 
     void UpdateCameraMotion()

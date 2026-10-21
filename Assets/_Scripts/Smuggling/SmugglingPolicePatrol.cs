@@ -98,6 +98,10 @@ public class SmugglingPolicePatrol : NetworkBehaviour
 
     public override void OnNetworkDespawn()
     {
+        if (IsServer && chaseTarget != null && chaseTarget.IsSpawned)
+            chaseTarget.ServerSetChasedBy(NetworkObjectId, false);
+        chaseTarget = null;
+
         Officers.Remove(this);
         rosterActive.OnValueChanged -= OnRosterActiveChanged;
         DayManager.OnNightArrived -= OnNightArrived;
@@ -343,6 +347,7 @@ public class SmugglingPolicePatrol : NetworkBehaviour
         aiState = AiState.Surprised;
         stateTimer = surpriseSeconds;
         chaseTimer = 0f;
+        best.ServerSetChasedBy(NetworkObjectId, true);
 
         if (DayManager.Instance != null)
             DayManager.Instance.ServerSendAnnounceTo(
@@ -436,7 +441,11 @@ public class SmugglingPolicePatrol : NetworkBehaviour
 
     private void ResetToPatrol()
     {
+        SmugglingPlayer previousTarget = chaseTarget;
         chaseTarget = null;
+        if (IsServer && previousTarget != null && previousTarget.IsSpawned)
+            previousTarget.ServerSetChasedBy(NetworkObjectId, false);
+
         aiState = AiState.Patrol;
         stateTimer = 0f;
         chaseTimer = 0f;

@@ -48,7 +48,7 @@ internal static class RoomiesExistingArtFinisher
         var slot=PrefabUtility.LoadPrefabContents(slotPath);
         try
         {
-            var model=slot.GetComponentsInChildren<Transform>(true).First(t=>t.name=="Model");
+            var model=slot.GetComponentsInChildren<Transform>(true).First(t=>t.name=="Visual"||t.name=="Model");
             if(model.Find("RoomiesSlotArt")==null)
             {
                 var asset=AssetDatabase.LoadAssetAtPath<GameObject>($"{RoomiesArtLibraryBuilder.Root}/Props/slot_cabinet.prefab");
