@@ -65,6 +65,12 @@ public class DayManager : NetworkBehaviour
     /// <summary>1ターンの長さ（秒）。</summary>
     public float TurnDurationSeconds => turnDuration;
 
+    /// <summary>現在のDay（1始まり）。夜イベントの難易度スケールなどが参照する。</summary>
+    public int CurrentDay => currentDay != null ? Mathf.Max(1, currentDay.Value) : 1;
+
+    /// <summary>家賃徴収までの日数サイクル（既定3日）。</summary>
+    public int MaxDay => Mathf.Max(1, maxDay);
+
     // 診断用
     public int  DebugDay     => currentDay  != null ? currentDay.Value  : -1;
     public int  DebugTime    => currentTime != null ? currentTime.Value : -1;
@@ -94,11 +100,16 @@ public class DayManager : NetworkBehaviour
         }
     }
 
-    /// <summary>夜イベントなどから次回家賃に上乗せする（サーバーのみ）。</summary>
+    /// <summary>
+    /// 夜イベントなどから次回家賃を上乗せ／値引きする（サーバーのみ）。
+    /// 負の値を渡すと値引き。値引きは基本家賃の半額までに制限する
+    /// （大家の気まぐれで家賃が無くなると3日の緊張感が消えるため）。
+    /// </summary>
     public void ServerAddRentSurcharge(int amount)
     {
-        if (!IsServer || amount <= 0) return;
-        rentSurcharge.Value += amount;
+        if (!IsServer || amount == 0) return;
+        int discountFloor = -(rentAmount / 2);
+        rentSurcharge.Value = Mathf.Max(discountFloor, rentSurcharge.Value + amount);
     }
 
     private NetworkVariable<int> currentDay = new NetworkVariable<int>(
@@ -657,11 +668,13 @@ public class DayManager : NetworkBehaviour
         // 夜(1)→朝(0) になったら配達などのトリガーを発火
         if (newTime == 0)
         {
+            GameAudio.Play("day/morning", 0.7f);
             OnMorningArrived?.Invoke();
         }
         // 朝(0)→夜(1) になったら夜イベントのトリガーを発火
         else if (newTime == 1)
         {
+            GameAudio.Play("day/night", 0.7f);
             OnNightArrived?.Invoke();
         }
     }

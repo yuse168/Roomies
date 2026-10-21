@@ -18,6 +18,9 @@ public class PlayerMovement : NetworkBehaviour
     [Header("持ち物による速度低下")]
     public float carrySlowAmount = 0.15f;
 
+    [Tooltip("夜イベント（寝不足など）で一時的に移動速度へ掛ける倍率。1で通常。")]
+    public float speedScale = 1f;
+
     [Header("視点設定")]
     public float mouseSensitivity = 0.22f;
 
@@ -48,6 +51,9 @@ public class PlayerMovement : NetworkBehaviour
     public float strafeTilt = 1.6f;
     [Tooltip("着地時にカメラが沈む最大量")]
     public float landingDipAmount = 0.09f;
+    [Header("足音")]
+    [Tooltip("この距離だけ水平移動するごとに足音を1回鳴らす")]
+    public float footstepDistance = 1.55f;
     public float cameraMotionSmoothness = 14f;
 
     [Header("ダッシュ演出")]
@@ -93,6 +99,7 @@ public class PlayerMovement : NetworkBehaviour
     private float lastGroundedTime = float.NegativeInfinity;
     private float lastJumpPressedTime = float.NegativeInfinity;
     private bool wasGrounded;
+    private float footstepTravel;
 
     void Awake()
     {
@@ -282,6 +289,8 @@ public class PlayerMovement : NetworkBehaviour
             {
                 float landingStrength = Mathf.InverseLerp(4f, 18f, -verticalVelocity);
                 landingDip = Mathf.Max(landingDip, landingDipAmount * landingStrength * 0.8f);
+                // 着地はジャンプ1回につき1度なので、RPCでも頻度は低い
+                PlayLandRpc();
             }
 
             if (verticalVelocity < 0f)
@@ -298,6 +307,9 @@ public class PlayerMovement : NetworkBehaviour
         float currentSpeed = isCrouching
             ? crouchSpeed
             : isSprinting ? sprintSpeed : walkSpeed;
+
+        // 夜イベント（寝不足など）の一時的な重さ。通常は1で何も変わらない。
+        currentSpeed *= Mathf.Clamp(speedScale, 0.2f, 2f);
 
         if (playerInteract != null)
         {
@@ -346,7 +358,38 @@ public class PlayerMovement : NetworkBehaviour
 
         verticalVelocity += gravity * Time.deltaTime;
         controller.Move((horizontalVelocity + Vector3.up * verticalVelocity) * Time.deltaTime);
+        UpdateFootsteps(grounded);
         wasGrounded = grounded;
+    }
+
+    /// <summary>
+    /// 接地中の水平移動distanceを積算し、歩幅ぶん進むごとに足音を鳴らす。
+    /// 速く動くほど自然に間隔が詰まる。
+    /// 高頻度なのでRPCは使わず、自分の足音だけをローカルで鳴らす。
+    /// </summary>
+    private void UpdateFootsteps(bool grounded)
+    {
+        if (!grounded)
+        {
+            footstepTravel = 0f;
+            return;
+        }
+
+        float speed = Vector3.ProjectOnPlane(horizontalVelocity, Vector3.up).magnitude;
+        if (speed < 0.6f)
+        {
+            footstepTravel = 0f;
+            return;
+        }
+
+        footstepTravel += speed * Time.deltaTime;
+
+        // しゃがみ移動は歩幅を広く・音量を小さくして忍び足にする
+        float stride = isCrouching ? footstepDistance * 1.4f : footstepDistance;
+        if (footstepTravel < stride) return;
+
+        footstepTravel = 0f;
+        GameAudio.Play("player/footstep", isCrouching ? 0.32f : 0.62f, 0.09f);
     }
 
     void Look()
@@ -527,6 +570,14 @@ public class PlayerMovement : NetworkBehaviour
         {
             animator.SetTrigger(JumpHash);
         }
+
+        GameAudio.PlayAt("player/jump", transform.position, 0.75f, 0.05f);
+    }
+
+    [Rpc(SendTo.Everyone)]
+    private void PlayLandRpc()
+    {
+        GameAudio.PlayAt("player/land", transform.position, 0.8f, 0.06f);
     }
 
     [Rpc(SendTo.Everyone)]

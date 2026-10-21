@@ -602,7 +602,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SteamLobby
   gameSceneName: GameRoom
   menuSceneName: MainMenuSteam
-  maxMembers: 4
+  maxMembers: 5
 --- !u!1 &100046
 GameObject:
   m_ObjectHideFlags: 0

@@ -162,6 +162,10 @@ public class DeliveryButton : NetworkBehaviour
     [ClientRpc]
     private void ShowResultClientRpc(string message)
     {
+        // 成功時だけ鳴らす。失敗の理由表示は無音のまま。
+        if (!string.IsNullOrEmpty(message) && message.StartsWith("納品成功"))
+            GameAudio.Play("delivery/complete", 0.8f);
+
         Debug.Log(message);
     }
 }

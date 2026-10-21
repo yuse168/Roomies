@@ -17,7 +17,7 @@ public class SteamLobby : MonoBehaviour
 {
     [SerializeField] private string gameSceneName = "GameRoom";
     [SerializeField] private string menuSceneName = "MainMenuSteam";
-    [SerializeField] private int maxMembers = 4;
+    [SerializeField] private int maxMembers = 5;
 
     // ----- Steamコールバック -----
     private CallResult<LobbyCreated_t>    m_crLobbyCreated;

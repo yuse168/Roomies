@@ -1,5 +1,197 @@
 # PROGRESS.md
 
+## 2026/10/22｜採掘を一旦閉鎖・5人対応・夜イベント拡充・効果音9本を追加
+
+### 今回の変更
+- **採掘場を閉鎖した**（リリース後のアップデートで開放する前提）
+  - `MiningSite.serviceClosed`（既定ON）を追加。ONの間はエレベーター・ツルハシ・買取機・岩のどれも反応しない
+  - 入口の建物はそのまま残し、昇降口にシャッターと警告帯をランタイム生成して「閉まっている」見た目にした
+  - 呼び出しボタンは押せる位置に残し、押すと「採掘場はシャッターが降りている。アップデートで開放予定」と出る
+- **5人プレイに対応した**
+  - Steamロビーの上限を4→5に変更（コードの既定値と`MainMenuSteam`の設定値の両方）
+  - ロビーの名札が画面幅に収まらないときだけ一列まとめて縮小する処理を追加。長すぎる名前は末尾を省略
+- **夜イベントを拡充した**（6種→13種、良いことも起きるようにした）
+  - 追加：空き巣／冷蔵庫の故障／隣人の騒音／宝くじ当選／大家の気まぐれ（家賃値引き）／落とし物／謎の小包（中身は半々）
+  - Dayが進むほど金額が上がり（上限2.5倍）、「何も起きない夜」の確率が下がる
+  - Day2以降はまれに2件同時に起きる。ただし出費イベントは同じ夜に重ならない
+  - 直前の夜と同じイベントは出さない。Day1では家賃値上げを出さない
+  - 冷蔵庫が壊れた次の食費は2倍。隣人の騒音があった翌朝は移動速度が0.85倍（夜になると戻る）
+- **効果音を9本追加して配線した**（Audiostockから取得、Chrome経由）
+  - 夜イベント3種（trouble/lucky/peace）、日付切替2種（morning/night）、スロット3種（spin/stop/win）、配達1種（complete）
+
+### 変更ファイル
+- 変更：`Assets/_Scripts/Mining/MiningSite.cs`（閉鎖フラグ・シャッター生成・閉鎖中の案内）
+- 変更：`Assets/_Scripts/Network/SteamLobby.cs`、`Assets/_Scenes/MainMenuSteam.unity`（上限5人）
+- 変更：`Assets/_Scripts/LobbyUIManager.cs`（名札のはみ出し対策）
+- 変更：`Assets/_Scripts/Night/NightEventManager.cs`（イベント13種・日数スケール・2件抽選・寝不足）
+- 変更：`Assets/_Scripts/DayManager.cs`（`CurrentDay`/`MaxDay`公開、家賃の値引き対応、朝夜の効果音）
+- 変更：`Assets/_Scripts/PlayerMovement.cs`（`speedScale`：一時的な移動速度倍率）
+- 変更：`Assets/_Scripts/SharedMoneyManager.cs`（`NightTrouble`/`NightLuck`の理由を追加）
+- 変更：`Assets/_Scripts/Slot/SlotMachine.cs`、`Assets/_Scripts/Delivery/DeliveryButton.cs`（効果音の配線）
+- 変更：`Assets/_Scenes/GameRoom.unity`（`MiningSite.serviceClosed: 1` を明示）
+- 変更：`Assets/Resources/Audio/README.md`、`Assets/_Audio/CREDITS.md`
+- 新規：`Assets/Resources/Audio/{night,day,slot,delivery}/`（WAV 9本）
+
+### 重要な仕様
+- 採掘の再開は `MiningSite.serviceClosed` をOFFにするだけ。シーンのオブジェクト・地下構造・鉱石プレハブは消していない
+- 閉鎖中のシャッターは各クライアントがローカルに生成する見た目だけのもの。ネットワーク同期はしない
+- 家賃は値引きもできるようになった（`ServerAddRentSurcharge`に負値）。ただし基本家賃の半額までが下限
+- 寝不足の速度低下は各クライアントが自分のプレイヤーにだけ掛ける（RPCは増やしていない）
+- 夜イベントのRPCは既存の`DayManager.ServerSendNightEvent`のまま。種類をbyteで足しただけなので通信量は変わらない
+- 効果音は`Resources/Audio/`に置くだけで鳴る方式のまま。未入荷のキーは黙って無視される
+
+### 影響範囲
+- 採掘ジョブ全体（事実上プレイ不可になる）
+- Steamロビー・参加人数・ロビーUI
+- 夜の進行、共同口座、個人所持金、次回家賃、朝の移動速度
+- スロット、配達、日付切替の音
+
+### 確認状況
+- C#コンパイル：確認済み（`dotnet build` で `Assembly-CSharp` / `Assembly-CSharp-Editor` / `Roomies.RegressionTests` の3つともエラー0。
+  警告1件は `EmoteWheelUI.cs` の既存の非推奨API警告で今回とは無関係）
+- 効果音9本のダウンロードとファイル配置：確認済み（WAV、長さ1.2〜6.3秒）
+- Audiostockの作品番号・クレジット名：確認済み（ダウンロードモーダルの表示から取得）
+- **Unity Editor／Play Modeでの確認：未実施**（UnityMCPが接続できずEditorを操作できなかった）
+- **効果音は未試聴**。タイトルと用途タグで選んだだけで、音は聴いていない
+- **閉鎖シャッターの見た目：未確認**。座標は`RoomiesMiningBuilder`の入口位置(29,0,14)から計算したもので、実際の位置合わせは未検証
+- **5人での接続：未確認**。スポーン地点はシーンに5つあることだけ確認（配置の妥当性は未検証）
+- **夜イベントの体感・金額バランス：未確認**
+
+### 未完了・次の作業
+- Unityを開いてコンパイルとConsoleを確認し、閉鎖シャッターの位置・見た目を目視で直す
+- 採掘入口に「アップデートで開放予定」の看板テキストを出すか決める（今は音・バナーの文言のみ）
+- 5人で接続し、スポーン5地点の重なり・ロビー名札・HUDの表示を確認する
+- 夜イベントを一通り引いて、金額・2件同時・寝不足の体感を調整する
+- 効果音9本を実際に鳴らし、長い／合わないものを差し替える（特に`day/morning`6.3秒、`night/peace`4.5秒）
+- No.949044（17秒のファンファーレ）はダウンロード済みだが長すぎて不採用。`Downloads`に残っている
+- ライセンス確認（Audiostock定額制エンタープライズの無料トライアル）の件は未解決のまま
+
+## 2026/10/22｜家具の仮アセットを作り直した（無地の板 → 特徴のある形）
+
+### 今回の変更
+- 家具12種の仮アセットを、プリミティブ組み立て方式で作り直した
+- 生成ツール `FurniturePlaceholderBuilder` を追加（メニュー `Roomies/Furniture/Rebuild Placeholder Art`）
+- 調査ツール `FurnitureArtInspector` を追加（読み込み状況の確認と、一列に並べての目視確認）
+- 既存パレット（`RoomiesArt/Materials` の13色）を流用し、新規マテリアルは作っていない
+
+### 変更ファイル
+- 新規：`Assets/_Scripts/Editor/FurniturePlaceholderBuilder.cs`
+- 新規：`Assets/_Scripts/Editor/FurnitureArtInspector.cs`
+- 変更：`Assets/Resources/RoomiesArt/Furniture/*.prefab`（12件すべて）
+- 変更：`PROGRESS.md`
+
+### 経緯：なぜ「箱」だったのか
+- 旧アセットは頂点数が768〜11,089あり、数値だけ見ると造形されているように見えた
+- しかし実際にレンダリングすると、面が細分化されているだけで**表面は完全に無地**だった
+  （自販機はボタン・窓・取り出し口が一切ない赤い板）
+- 頂点数を造形の指標にしたのが誤りで、目視確認で初めて判明した
+
+### 重要な仕様
+- 見た目はUnityプリミティブ（Cube/Sphere/Cylinder）を組み合わせて作る。メッシュアセットは生成しない
+- **原点は中心のまま。**足元原点に変えると既存の設置位置計算が全部ずれるため、あえて規約の「足元原点」は適用していない
+- 当たり判定はルートの `BoxCollider` ひとつだけ。飾りの子からはコライダーを削除している
+- `BoxCollider` のサイズは `FurnitureCatalog` の `placeholderSize` と一致させる（12件とも一致を確認済み）
+- 正面は +Z
+- このプレハブ自体が「見た目」。`NetworkFurniture` が `Visual` という名前の子として生成するため、中に `Visual` を作らない（AGENTS.mdの家具の扱いに合わせた）
+- 本アセットへ差し替えるときは `Assets/Resources/RoomiesArt/Furniture/<id>.prefab` を置き換えるだけでよい。カタログは `Resources.Load` で自動解決するのでコード変更は不要
+- `FurnitureArtInspector` のレポートにある bounds 列はメッシュのローカル値なので、実寸の判断には使えない（実寸はルートの BoxCollider を見る）
+
+### パーツ構成（主なもの）
+- 自販機：本体・窓・ボタン3・缶9・取り出し口・看板（17パーツ）
+- エナドリ冷蔵庫：本体・ガラス扉・取手・天板・棚3・缶9（16パーツ）
+- ミラーボール：球体＋鏡タイル50枚＋吊り棒（52パーツ）
+- ちょきんばこ：胴・鼻・コイン投入口・耳2・脚4（9パーツ）
+- かべ掛け時計：枠・文字盤・長針・短針・軸・目盛4（9パーツ）
+
+### 影響範囲
+- 夜の家具ショップのプレビュー表示
+- 設置済み家具の見た目
+- 当たり判定のサイズは変わらないため、設置・持ち運び・効果判定への影響はない
+
+### 確認状況
+- C#コンパイル：確認済み（エラー0）
+- 12件すべての `Resources.Load` 成功：確認済み（プレハブ無し0件）
+- レンダラー数が1→3〜52へ増えたこと：確認済み
+- `BoxCollider` のサイズがカタログ指定と一致：確認済み（12件すべて、不一致0）
+- パーツ名の構成：確認済み（自販機・冷蔵庫・時計・ちょきんばこを目視）
+- 作り直し前の見た目が無地の板だったこと：確認済み（シーンビューで撮影して確認）
+- **作り直し後の見た目：未確認**（シーンビューカメラの構図合わせがうまくいかず、全12件を並べた画で確認できていない）
+- Unity Playでの表示：未確認
+- GameRoomシーン：変更なし（一時配置したプレビューは削除済み、ファイル差分0件）
+
+### 未完了・次の作業
+- Unityで `Roomies/Furniture/Preview Row (place in scene)` を実行し、12件の見た目を目視で確認する（確認後は `Preview Row (clear)` で消す）
+- 形が分かりにくい家具があれば `FurniturePlaceholderBuilder` の該当メソッドを調整して再生成する
+- 旧アセットが参照していた `Assets/Resources/RoomiesArt/Meshes/*.asset` のうち、家具12件ぶんが未使用になった。他が参照していないか確認してから整理する
+- 本アセットが用意できたら `Furniture/<id>.prefab` を置き換える
+
+## 2026/10/21｜効果音を本番音源で導入・足音/UI/お金へ配線
+
+### 今回の変更
+- 採用が決まった効果音7本を本番WAVで取得し`Resources/Audio/`へ配置
+- 足音・ジャンプ・着地・UI決定・UIキャンセル・入金・出金に実音を配線
+- 足音を距離積算式で鳴らす処理を追加（速く動くほど間隔が詰まる）
+- しゃがみ移動は歩幅を1.4倍・音量を約半分にして忍び足にした
+- ジャンプ音を既存の`PlayJumpRpc`へ相乗りさせ、全クライアントで鳴るようにした
+- 着地音用に`PlayLandRpc`を追加（ジャンプ1回につき1度なので低頻度）
+- `UIButtonJuice`の押下時にUI音を鳴らす処理を追加
+- ボタン名とラベルから「戻る・閉じる系」を推定し、キャンセル音へ自動で振り分けるようにした
+- 共同口座の増減（`SharedMoneyManager.SharedMoneyChanged`）へ入金・出金音を配線
+- クレジット表記用に`Assets/_Audio/CREDITS.md`を追加
+
+### 変更ファイル
+- 新規：`Assets/Resources/Audio/player/footstep.wav`（No.805951）
+- 新規：`Assets/Resources/Audio/player/jump.wav`（No.69491）
+- 新規：`Assets/Resources/Audio/player/land.wav`（No.52495）
+- 新規：`Assets/Resources/Audio/ui/confirm.wav`（No.146290）
+- 新規：`Assets/Resources/Audio/ui/cancel.wav`（No.139690）
+- 新規：`Assets/Resources/Audio/money/gain.wav`（No.134475）
+- 新規：`Assets/Resources/Audio/money/spend.wav`（No.1014552）
+- 新規：`Assets/_Audio/CREDITS.md`
+- 変更：`Assets/_Scripts/PlayerMovement.cs`
+- 変更：`Assets/_Scripts/UI/UITheme.cs`
+- 変更：`Assets/_Scripts/UI/HudThemer.cs`
+- 変更：`Assets/Resources/Audio/README.md`
+- 変更：`PROGRESS.md`
+
+### 重要な仕様
+- 音源はAudiostockの定額制エンタープライズプランで取得した本番WAV（48kHz/24bit中心）。試聴用サンプルMP3は使っていない
+- 足音は`PlayerMovement.footstepDistance`（既定1.55m）だけ水平移動するごとに1回鳴る。Inspectorから調整できる
+- **足音は自分のぶんだけローカルで鳴る。** 高頻度でRPCを打たないため（AGENTS.mdの「不正対策だけを目的とした高頻度RPCは避ける」と同じ理由で通信量を抑えた）
+- ジャンプ・着地はRPC経由なので他プレイヤーのぶんも聞こえる
+- UI音は押した瞬間（`OnPointerDown`）に鳴らす。離した時より反応が良く感じるため
+- キャンセル音の振り分けは`UIButtonJuice.CancelNameHints`による名前・ラベルの推定。外した場合は生成側で`useCancelSound`を立てる
+- 足音は1本のみ採用のため、`GameAudio`のピッチ揺らぎ（±9%）で単調さを散らしている。増やす場合は`footstep_1`〜`_8`へ改名して並べればコード変更なしで鳴り分ける
+- 音源の差し替えは`Resources/Audio/`のファイルを置き換えるだけでよい。Inspector配線は無い
+
+### 影響範囲
+- プレイヤーの移動・ジャンプ・着地
+- `UIButtonJuice`が付く全ボタン（メインメニュー・ESC・ロビー・設定・クローゼット等）
+- 共同口座の増減表示
+- マルチプレイ（ジャンプ・着地のRPCが各1種増える）
+
+### 確認状況
+- C#コンパイル：確認済み（エラー0、警告1件は`EmoteWheelUI.cs`の既存の非推奨API警告で今回とは無関係）
+- Unity Console：確認済み（エラー0件）
+- WAV7本のインポート：確認済み（`.meta`生成済み）
+- `AudioClip`として認識されていること：確認済み（footstep/jump/confirm/gainをUnity側で型確認）
+- `Resources.Load`のパス整合：コード上で確認済み（`Audio/` ＋ キー）
+- Audiostockのクレジット名：確認済み（ダウンロード履歴から取得）
+- **Unity Playでの実際の発音：未確認**（Play Mode開始はUnity Skillsの権限区分で現在のautoモードから実行できないため）
+- 音量バランス：未調整（コード上の初期値のまま）
+- Host/Client間でのジャンプ・着地音:未確認
+- しゃがみ忍び足の体感：未確認
+
+### 未完了・次の作業
+- Unity Playで7音すべてが鳴ることと、音量バランスを確認する
+- 足音の歩幅（`footstepDistance`）とUI音の音量を実プレイで調整する
+- キャンセル音の名前推定が外しているボタンを洗い出し、`useCancelSound`を直接立てる
+- 他プレイヤーの足音をどう鳴らすか決める（NetworkAnimator経由かローカル位置差分か。RPCは使わない方針）
+- 第2段階：採掘4音（`mining/hit` `break` `sale` `warning`）の候補選定と差し替え。現在の`Assets/_Audio/Mining/`はコード生成のサイン波プレースホルダ
+- 未配線の箇所：スロット・ブラックジャック・配達・家具・日付切替・家賃・夜イベント・密輸/警察・エモート・起動ロゴ
+- **ライセンス確認：**定額制エンタープライズプランは現在**無料トライアル**（2026/10/01〜2027/03/31）。Steam配布への同梱と契約終了後の継続利用が認められるか担当営業に確認する
+- ライセンス証明書の発行（マイページ > 購入者情報 の設定が必要）
+
 ## 2026/10/21｜既存プレハブを「見た目は Visual の下」の形にそろえた
 
 ### 今回の変更

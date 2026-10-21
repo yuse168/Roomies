@@ -734,6 +734,18 @@ public class UIButtonJuice : MonoBehaviour,
     private Outline border;
     private Color defaultBorder;
 
+    /// <summary>
+    /// 押した時にキャンセル音を鳴らす（戻る・閉じる・退出系）。
+    /// 既定ではGameObject名とラベルから自動判定するので、個別の配線は不要。
+    /// 名前で拾えないボタンだけ、生成側からこの値を立てる。
+    /// </summary>
+    public bool useCancelSound;
+
+    // StyleButton/StylePillはボタンの意味を知らないため、ここで名前から推定する。
+    // 網羅ではないので、外した場合は useCancelSound を直接立てる。
+    private static readonly string[] CancelNameHints =
+        { "Cancel", "Back", "Close", "Leave", "Quit", "Exit", "もどる", "戻る", "やめる" };
+
     /// <summary>厚みのあるボタンの天面と厚み量を登録する。</summary>
     public void SetCap(RectTransform capRect, float capDepth)
     {
@@ -745,11 +757,32 @@ public class UIButtonJuice : MonoBehaviour,
     {
         border = GetComponent<Outline>();
         if (border != null) defaultBorder = border.effectColor;
+
+        if (!useCancelSound) useCancelSound = LooksLikeCancel();
+    }
+
+    private bool LooksLikeCancel()
+    {
+        TMP_Text label = GetComponentInChildren<TMP_Text>(true);
+        string labelText = label != null ? label.text : string.Empty;
+
+        foreach (string hint in CancelNameHints)
+        {
+            if (name.Contains(hint)) return true;
+            if (!string.IsNullOrEmpty(labelText) && labelText.Contains(hint)) return true;
+        }
+        return false;
     }
 
     public void OnPointerEnter(PointerEventData e) => hovered = true;
     public void OnPointerExit(PointerEventData e)  { hovered = false; pressed = false; }
-    public void OnPointerDown(PointerEventData e)  => pressed = true;
+    public void OnPointerDown(PointerEventData e)
+    {
+        pressed = true;
+        // 離した時より押した瞬間のほうが反応が良く感じるのでDownで鳴らす
+        GameAudio.Play(useCancelSound ? "ui/cancel" : "ui/confirm", 0.55f);
+    }
+
     public void OnPointerUp(PointerEventData e)    => pressed = false;
 
     public void OnSelect(BaseEventData eventData)

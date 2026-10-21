@@ -49822,6 +49822,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MiningSite
   ShowTopMostFoldoutHeaderGroup: 1
+  serviceClosed: 1
   targets:
   - {fileID: 324726968}
   - {fileID: 1544542237}

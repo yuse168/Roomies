@@ -19,7 +19,9 @@ public enum SharedMoneyReason
     FurniturePassiveIncome,
     UtilityBill,
     Rent,
-    MiningSale
+    MiningSale,
+    NightTrouble,
+    NightLuck
 }
 
 public class SharedMoneyManager : NetworkBehaviour

@@ -52,6 +52,9 @@ public class LobbyUIManager : MonoBehaviour
     // 最低起動人数（ホストを含む）
     [SerializeField] private int minPlayersToStart = 2;
 
+    // 名札の間隔。はみ出し判定（FitListToWidth）と同じ値を使う。
+    private const float ListSpacing = 18f;
+
     private Coroutine refreshCoroutine;
     private Coroutine feedbackCoroutine;
 
@@ -274,6 +277,36 @@ public class LobbyUIManager : MonoBehaviour
             CreatePlayerRow(id, name, PlayerColors[index % PlayerColors.Length], isSelf, isHost);
             index++;
         }
+
+        FitListToWidth();
+    }
+
+    /// <summary>
+    /// 名札を横一列に並べたとき画面幅に収まらない場合だけ、一列まとめて縮小する。
+    /// 5人＋長い名前でも札がはみ出さないようにするための保険（収まるときは等倍のまま）。
+    /// </summary>
+    private void FitListToWidth()
+    {
+        var listRt = playerListParent as RectTransform;
+        if (listRt == null) return;
+
+        float total = 0f;
+        int count = 0;
+        foreach (RectTransform child in listRt)
+        {
+            total += child.sizeDelta.x;
+            count++;
+        }
+        if (count == 0) { listRt.localScale = Vector3.one; return; }
+
+        total += (count - 1) * ListSpacing;
+
+        float available = listRt.rect.width - 40f;
+        float scale = (available > 0f && total > available)
+            ? Mathf.Clamp(available / total, 0.6f, 1f)
+            : 1f;
+
+        listRt.localScale = new Vector3(scale, scale, 1f);
     }
 
     /// <summary>
@@ -316,7 +349,7 @@ public class LobbyUIManager : MonoBehaviour
         hlg.childControlHeight     = false;
         hlg.childForceExpandWidth  = false;
         hlg.childForceExpandHeight = false;
-        hlg.spacing = 18f;
+        hlg.spacing = ListSpacing;
     }
 
     /// <summary>
@@ -371,7 +404,10 @@ public class LobbyUIManager : MonoBehaviour
         label.textWrappingMode = TextWrappingModes.NoWrap;
         label.raycastTarget = false;
 
-        float nameWidth = label.GetPreferredValues(displayName).x;
+        // 長すぎる名前は札を押し広げてしまうので、幅を切って末尾を省略する。
+        const float nameWidthLimit = 230f;
+        float nameWidth = Mathf.Min(label.GetPreferredValues(displayName).x, nameWidthLimit);
+        label.overflowMode = TextOverflowModes.Ellipsis;
 
         var nameRt = label.rectTransform;
         nameRt.anchorMin = new Vector2(0f, 0f);

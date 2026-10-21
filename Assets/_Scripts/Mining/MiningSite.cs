@@ -7,6 +7,14 @@ using UnityEngine;
 public class MiningSite : NetworkBehaviour
 {
     public static MiningSite Instance { get; private set; }
+
+    [Header("営業状態")]
+    [Tooltip("ONの間は採掘場を閉鎖する。入口の建物とシャッターは残るが、エレベーター・ツルハシ・買取機・岩のどれも反応しない。リリース後のアップデートで地下採掘を開放するときにOFFへ戻す。")]
+    [SerializeField] private bool serviceClosed = true;
+
+    /// <summary>採掘場がアップデート待ちで閉鎖中か（UIや他ジョブからの参照用）。</summary>
+    public bool IsServiceClosed => serviceClosed;
+
     public MiningInteractable[] targets;
     public MiningOre[] ores;
     public Transform surfaceReturn;
@@ -24,11 +32,12 @@ public class MiningSite : NetworkBehaviour
     private int lastWarning;
     private float[] lightIntensity;
     private GameObject gasVisual;
-    public bool IsOpen => DayManager.Instance != null && DayManager.Instance.IsSpawned &&
+    private GameObject closedGate;
+    public bool IsOpen => !serviceClosed && DayManager.Instance != null && DayManager.Instance.IsSpawned &&
         !DayManager.Instance.IsNight && !DayManager.Instance.IsGameOver && DayManager.Instance.RemainingSeconds > 0;
     public int Health(int index) => health != null && index >= 0 && index < health.Count ? health[index] :
         targets != null && index >= 0 && index < targets.Length ? targets[index].maxHits : 0;
-    public string HazardLabel => hazard.Value == 1 ? "停電中・ヘッドライトで帰ろう" :
+    public string HazardLabel => serviceClosed ? "" : hazard.Value == 1 ? "停電中・ヘッドライトで帰ろう" :
         hazard.Value == 2 ? $"地下{hazardLevel.Value}層にガス・足元注意" :
         hazard.Value == 3 ? $"地下{hazardLevel.Value}層で落盤予告！離れて！" : "";
 
@@ -42,6 +51,7 @@ public class MiningSite : NetworkBehaviour
         health.OnListChanged += HealthChanged;
         if (IsServer) ResetRocks();
         RefreshRocks();
+        if (serviceClosed) BuildClosedGate();
         dayWasOpen = IsOpen;
         nextHazard = Time.time + 24;
         lightIntensity = mineLights.Select(l => l != null ? l.intensity : 0).ToArray();
@@ -51,6 +61,7 @@ public class MiningSite : NetworkBehaviour
         health.OnListChanged -= HealthChanged;
         if (Instance == this) Instance = null;
         if (gasVisual != null) Destroy(gasVisual);
+        if (closedGate != null) Destroy(closedGate);
     }
     private void HealthChanged(NetworkListEvent<int> change) => RefreshRocks();
     private void RefreshRocks()
@@ -78,6 +89,14 @@ public class MiningSite : NetworkBehaviour
         var miner = player.GetComponent<MiningPlayer>();
         var job = player.GetComponent<SmugglingPlayer>();
         if (miner == null || job != null && (job.IsJailed || job.IsControlLocked)) return;
+        // 閉鎖中はどの設備も動かさない。シャッター前で理由だけ伝える。
+        if (serviceClosed)
+        {
+            if (nextAction.TryGetValue(sender, out float closedNext) && Time.time < closedNext) return;
+            nextAction[sender] = Time.time + 1.2f;
+            miner.ServerNotice("採掘場はシャッターが降りている。アップデートで開放予定", false);
+            return;
+        }
         if (nextAction.TryGetValue(sender, out float next) && Time.time < next) return;
         var target = targets[index];
         if (!CanReach(player.transform.position, target)) return;
@@ -230,7 +249,7 @@ public class MiningSite : NetworkBehaviour
                 if (ore != null && ore.Carry.IsHeldBy(client.ClientId)) { ore.Carry.ServerRelease(); ore.NetworkObject.Despawn(); }
             var jail = player.GetComponent<SmugglingPlayer>();
             if (jail != null && jail.IsJailed) { miner.ServerSetLevel(0); continue; }
-            Relocate(player, miner, surfaceReturn.position + Vector3.right * ((int)(client.ClientId % 4) * 1.1f), 0, 180);
+            Relocate(player, miner, surfaceReturn.position + Vector3.right * ((int)(client.ClientId % 5) * 1.1f), 0, 180);
             miner.ServerNotice("閉鎖！未売却の手荷物を失った。地上へ避難しました", false);
         }
     }
@@ -249,6 +268,53 @@ public class MiningSite : NetworkBehaviour
     }
     public bool IsGasAt(Vector3 position) => IsSpawned && hazard.Value == 2 &&
         Vector3.Distance(position, eventCenters[hazardLevel.Value - 1].position) < 5;
+
+    // 閉鎖中の見た目。入口の建物はそのまま残し、昇降口にシャッターと警告帯だけを足す。
+    // ネットワーク同期は不要なので各クライアントがローカルに生成する（アップデート時はserviceClosedをOFFにするだけ）。
+    private void BuildClosedGate()
+    {
+        if (closedGate != null) return;
+
+        closedGate = new GameObject("Mining closed gate (update pending)");
+        closedGate.transform.SetParent(transform, false);
+        // 入口はビルダーがルート基準 (29, 0, 14) に建てている。昇降口の正面は -Z 側。
+        closedGate.transform.localPosition = new Vector3(29f, 0f, 14f);
+
+        Material frame = Resources.Load<Material>("RoomiesArt/Materials/ink");
+        Material slat = Resources.Load<Material>("RoomiesArt/Materials/silver");
+        Material stripe = Resources.Load<Material>("RoomiesArt/Materials/mustard");
+
+        // シャッター本体。呼び出しボタン(z=-1.1)より奥に置くので、ボタンは押せる＝理由が読める。
+        GatePart("Shutter", new Vector3(0f, 1.9f, -0.7f), new Vector3(3.4f, 3.8f, 0.16f), frame, true);
+        for (int i = 0; i < 6; i++)
+            GatePart("Shutter slat", new Vector3(0f, 0.45f + i * 0.62f, -0.79f), new Vector3(3.3f, 0.42f, 0.04f), slat, false);
+        // 警告帯（黄色）を上下に。斜めに傾けて「立入禁止」に見せる。
+        foreach (float y in new[] { 0.85f, 2.95f })
+        {
+            var tape = GatePart("Warning tape", new Vector3(0f, y, -0.83f), new Vector3(3.5f, 0.3f, 0.04f), stripe, false);
+            tape.localEulerAngles = new Vector3(0f, 0f, y < 2f ? 6f : -6f);
+        }
+    }
+
+    private Transform GatePart(string name, Vector3 localPosition, Vector3 size, Material material, bool solid)
+    {
+        var part = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        part.name = name;
+        part.transform.SetParent(closedGate.transform, false);
+        part.transform.localPosition = localPosition;
+        part.transform.localScale = size;
+        if (material != null) part.GetComponent<MeshRenderer>().sharedMaterial = material;
+
+        var collider = part.GetComponent<Collider>();
+        if (solid)
+        {
+            int wall = LayerMask.NameToLayer("Wall");
+            if (wall >= 0) part.layer = wall;
+        }
+        else if (collider != null) Destroy(collider);
+
+        return part.transform;
+    }
 
     private void UpdateLights()
     {
