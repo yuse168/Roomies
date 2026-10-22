@@ -284,6 +284,16 @@ public class NetworkFurniture : NetworkBehaviour
         return isHeld.Value && holderClientId.Value == senderClientId;
     }
 
+    /// <summary>
+    /// いまの位置から真下の床を探して、その上に載せ直す（サーバーのみ）。
+    /// 買った家具が配達地点の高さのまま床に埋まるのを防ぐ。
+    /// </summary>
+    public void ServerPlaceOnGround()
+    {
+        if (!IsServer) return;
+        transform.position = SnapPositionToGround(transform.position, null);
+    }
+
     private Vector3 SnapPositionToGround(
         Vector3 requestedPosition,
         NetworkObject playerObject)

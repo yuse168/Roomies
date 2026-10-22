@@ -449,7 +449,10 @@ public class DayManager : NetworkBehaviour
             go = Instantiate(networkFurniturePrefab, center, Quaternion.identity);
             no = go.GetComponent<NetworkObject>();
             no.Spawn(true);
-            go.GetComponent<NetworkFurniture>().ServerSetIndex(catalogIndex);
+            NetworkFurniture furniture = go.GetComponent<NetworkFurniture>();
+            furniture.ServerSetIndex(catalogIndex);
+            // 見た目が決まってから床へ載せ直す（配達地点の高さのままだと床に埋まる）
+            furniture.ServerPlaceOnGround();
         }
         catch (System.Exception exception)
         {

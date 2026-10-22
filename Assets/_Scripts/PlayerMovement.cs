@@ -21,6 +21,10 @@ public class PlayerMovement : NetworkBehaviour
     [Tooltip("夜イベント（寝不足など）で一時的に移動速度へ掛ける倍率。1で通常。")]
     public float speedScale = 1f;
 
+    [Header("トランポリン")]
+    [Tooltip("跳ねたあと、続けて跳ねられるようになるまでの秒数")]
+    public float bounceCooldown = 0.2f;
+
     [Header("視点設定")]
     public float mouseSensitivity = 0.22f;
 
@@ -104,6 +108,7 @@ public class PlayerMovement : NetworkBehaviour
     private bool wasGrounded;
     private float footstepTravel;
     private float nextFootstepTime;
+    private float nextBounceTime;
 
     void Awake()
     {
@@ -400,6 +405,27 @@ public class PlayerMovement : NetworkBehaviour
 
         // 足元の材質でピッチと音量が少し変わる
         FootstepAudio.PlayLocal(transform.position, isCrouching ? 0.5f : 1f);
+    }
+
+    /// <summary>
+    /// 足元に当たった物を見て、トランポリンなら跳ねる。
+    /// CharacterControllerは普通の衝突イベントが来ないので、ここで拾う。
+    /// </summary>
+    private void OnControllerColliderHit(ControllerColliderHit hit)
+    {
+        if (!IsOwner || Time.time < nextBounceTime) return;
+        if (hit.normal.y < 0.5f) return;                 // 上から乗ったときだけ
+
+        var furniture = hit.collider.GetComponentInParent<PlacedFurniture>();
+        if (furniture == null || !furniture.IsEffectActive) return;
+        if (furniture.effect != FurnitureEffect.Bounce) return;
+
+        float height = Mathf.Max(0.5f, furniture.effectValue);
+        nextBounceTime = Time.time + bounceCooldown;
+
+        // 指定の高さまで届く初速を与える（重力は負の値）
+        verticalVelocity = Mathf.Sqrt(2f * Mathf.Abs(gravity) * height);
+        GameAudio.PlayAt("furniture/bounce", hit.point, 1f, 0.06f);
     }
 
     void Look()

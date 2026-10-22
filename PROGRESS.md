@@ -1,5 +1,56 @@
 # PROGRESS.md
 
+## 2026/10/23｜指摘7件の修正（夜BGM・家具の埋まり・マップ外・トランポリン・結果音・ドア・NPCの歩き）
+
+### 今回の変更
+1. **警察がAポーズのまま滑る**（原因を特定）
+   - NPCは `Bobs.fbx` を使っており、そのアバターが Humanoid として有効になっていなかった
+     （`isHuman = False`）。そのためコントローラーを割り当てても再生されていなかった
+   - NPCのモデルを**プレイヤーと同じ `bob_rig_mG.fbx` に差し替え**た（`Visual/ModelRoot` の中だけ交換）。
+     いまは `isHuman = True` で、同じ `Bob_animation.controller` が動く
+   - 体の色（警察=青・売人=黒・運び屋=茶）は差し替え後も当て直している
+2. **夜のBGMが鳴らない**
+   - イベント（朝・夜の切り替え）頼みだったため、取りこぼすと曲が変わらないままだった
+   - **0.5秒ごとに時間帯を見て曲を合わせ直す**ようにした（取りこぼしても必ず追いつく）
+   - フェード中に音量を上書きして戻してしまう不具合も直した
+   - 曲が未割り当てのときは警告を出す。夜の音量を 0.40→0.55、朝を 0.45→0.50 に上げた
+3. **買った家具が床に埋まる**
+   - 配達地点が y=1.93（家の床 3.3 より下）だったため、そのままの高さで出ていた
+   - 生成直後に**真下の床を探して載せ直す**ようにした（`ServerPlaceOnGround`）
+4. **マップの外に出られる**
+   - 遠景の地面を広げたことで柵の外へ歩けてしまっていた
+   - 見えない壁を追加（`Roomies/Environment/Build Map Boundary`。x±39.3 / z±24・高さ14m）
+5. **トランポリンに固有の機能**
+   - 家具の効果に `Bounce` を追加し、トランポリンに割り当て（高さ6m）
+   - 上に乗ると跳ねる（`PlayerMovement.OnControllerColliderHit` で判定）。跳ねる音も鳴る
+6. **スロット・ブラックジャックの結果で音を変える**
+   - スロット：WIN / MISS / FEVER WIN で別の音
+   - BJ：勝ち・負け・引き分け・ブラックジャックで別の音
+7. **ドアの開け閉めの音**を追加
+
+### 変更ファイル
+- 変更：`NpcMotionSetup`（モデルごと差し替えるツールに）、`GameMusic`、`NetworkFurniture`、
+  `DayManager`、`SlotMachine`、`BlackjackTable`、`DoorInteract`、`PlayerMovement`、
+  `FurnitureItem`、`FurnitureCatalog`、`SfxLevelsBuilder`
+- 新規：`Assets/_Scripts/Editor/RoomiesBoundaryBuilder.cs`
+- 新規（音源6本）：`slot/lose`、`blackjack/win`、`blackjack/lose`、`door/open`、`door/close`、
+  `furniture/bounce`
+- 変更：NPCプレハブ3体、`Assets/_Scenes/GameRoom.unity`（見えない壁・NPC差し替え・保存済み）
+
+### 確認状況
+- Unityでのコンパイル：**確認済み**（エラー0）
+- Console：**確認済み**（エラー0）
+- NPCのアバター：**確認済み**（`isHuman = True`、`bob_rig_mGAvatar`、`Bob_animation`、4体とも
+  `CharacterModel` に差し替わっている）
+- 見えない壁：**確認済み**（`Roomies_Boundary` がシーンにある）
+- 音源6本：**確認済み**（長さ1.0〜2.6秒で配置）
+- **Play Modeでの確認は未実施**：夜BGMが鳴るか、家具が床に載るか、壁で止まるか、
+  トランポリンで跳ねるか、各結果音の鳴り分けは未検証
+
+### まだ音が入っていないキー（無音で素通り）
+`slot/fever`、`blackjack/push`、`blackjack/blackjack`、`blackjack/deal`、
+`furniture/pickup`、`furniture/place`、`rent/paid`、`rent/failed`、`ui/emote`、`ui/logo`、`mining/*`
+
 ## 2026/10/23｜電車の音を電車に追従させ、CLOSEDの紙をシャッターへ移した
 
 ### 今回の変更

@@ -52,5 +52,14 @@ public class DoorInteract : NetworkBehaviour
         }
 
         isOpen.Value = !isOpen.Value;
+        DoorSoundRpc(isOpen.Value);
     }
+
+    /// <summary>ドアの開け閉めの音（全員に聞こえる。ドアの位置から鳴る）。</summary>
+    [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
+    private void DoorSoundRpc(bool opened)
+    {
+        GameAudio.PlayAt(opened ? "door/open" : "door/close", transform.position, 1f, 0.04f);
+    }
+
 }

@@ -475,11 +475,13 @@ public class SlotMachine : NetworkBehaviour
 
         UpdateFeverUI();
 
-        if (resultMessage.Contains("WIN"))
-        {
-            GameAudio.PlayAt("slot/win", transform.position,
-                resultMessage.Contains("FEVER") ? 1.2f : 1f);
-        }
+        // 結果ごとに音を変える
+        if (resultMessage.Contains("FEVER WIN"))
+            GameAudio.PlayAt("slot/fever", transform.position, 1.2f);
+        else if (resultMessage.Contains("WIN"))
+            GameAudio.PlayAt("slot/win", transform.position);
+        else if (resultMessage.Contains("MISS"))
+            GameAudio.PlayAt("slot/lose", transform.position);
 
         spinCoroutine = null;
     }

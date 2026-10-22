@@ -34,8 +34,8 @@ public class GameMusic : MonoBehaviour
     [Header("音量・フェード")]
     [Tooltip("曲ごとの音量差を吸収する倍率。設定画面のBGM音量にさらに掛かる。")]
     [SerializeField, Range(0f, 1f)] private float menuVolume = 0.55f;
-    [SerializeField, Range(0f, 1f)] private float dayVolume = 0.45f;
-    [SerializeField, Range(0f, 1f)] private float nightVolume = 0.40f;
+    [SerializeField, Range(0f, 1f)] private float dayVolume = 0.50f;
+    [SerializeField, Range(0f, 1f)] private float nightVolume = 0.55f;
     [Tooltip("曲を切り替えるときのクロスフェード秒数")]
     [SerializeField, Min(0f)] private float fadeSeconds = 1.6f;
     [Tooltip("ゲームオーバーで曲を消すまでの秒数")]
@@ -51,6 +51,11 @@ public class GameMusic : MonoBehaviour
     private AudioSource standby;   // 次に使う方
     private Coroutine fadeRoutine;
     private Coroutine waitRoutine;
+
+    // 時間帯と曲がずれていないか見直す間隔（秒）
+    private const float CheckInterval = 0.5f;
+    private float nextCheckTime;
+    private bool warnedMissingClip;
     private float targetVolume;
     private AudioClip targetClip;
 
@@ -104,7 +109,35 @@ public class GameMusic : MonoBehaviour
     private void Update()
     {
         // 設定画面のスライダーを動かした瞬間に反映させる。
-        if (current != null && current.isPlaying) current.volume = targetVolume * BgmVolume;
+        // フェード中はコルーチンが音量を作っているので触らない（触ると音が戻ってしまう）。
+        if (fadeRoutine == null && current != null && current.isPlaying)
+            current.volume = targetVolume * BgmVolume;
+
+        // いまの時間帯に合った曲になっているかを定期的に見直す。
+        // イベント（朝・夜の切り替え）を取りこぼしても、ここで必ず追いつく。
+        nextCheckTime -= Time.unscaledDeltaTime;
+        if (nextCheckTime > 0f) return;
+
+        nextCheckTime = CheckInterval;
+        RefreshTrack();
+    }
+
+    /// <summary>いまの状況に合う曲へ合わせる（既に合っていれば何もしない）。</summary>
+    private void RefreshTrack()
+    {
+        var day = DayManager.Instance;
+
+        // DayManagerがまだ出ていない間（ロビーから入った直後など）はメニュー曲
+        if (day == null || !day.IsSpawned)
+        {
+            Switch(menuTrack, menuVolume);
+            return;
+        }
+
+        if (day.IsGameOver) return;     // ゲームオーバーは StopMusic 側に任せる
+
+        if (day.IsNight) PlayNight();
+        else PlayDay();
     }
 
     private static float BgmVolume
@@ -123,12 +156,28 @@ public class GameMusic : MonoBehaviour
     /// <summary>朝の曲。切り替え演出が終わってから鳴らす（演出の音と被らせない）。</summary>
     public void PlayDay()
     {
-        if (!isActiveAndEnabled) return;
-        if (waitRoutine != null) StopCoroutine(waitRoutine);
+        if (!isActiveAndEnabled || dayTrack == null) return;
+
+        // すでに朝の曲が鳴っている／待っている最中なら何もしない
+        if (waitRoutine != null) return;
+        if (targetClip == dayTrack && current != null && current.isPlaying) return;
+
         waitRoutine = StartCoroutine(PlayAfterTransition(dayTrack, dayVolume));
     }
 
-    public void PlayNight() => Switch(nightTrack, nightVolume);
+    public void PlayNight()
+    {
+        if (!isActiveAndEnabled) return;
+
+        // 朝の曲を待っている途中なら取り消す（夜なのに朝の曲が始まるのを防ぐ）
+        if (waitRoutine != null)
+        {
+            StopCoroutine(waitRoutine);
+            waitRoutine = null;
+        }
+
+        Switch(nightTrack, nightVolume);
+    }
 
     private IEnumerator PlayAfterTransition(AudioClip clip, float volume)
     {
@@ -160,7 +209,19 @@ public class GameMusic : MonoBehaviour
 
     private void Switch(AudioClip clip, float volume)
     {
-        if (!isActiveAndEnabled || clip == null) return;
+        if (!isActiveAndEnabled) return;
+
+        if (clip == null)
+        {
+            // 曲が割り当てられていないと無音になる。原因が分かるように一度だけ知らせる。
+            if (!warnedMissingClip)
+            {
+                warnedMissingClip = true;
+                Debug.LogWarning("[GameMusic] 曲が割り当てられていません。" +
+                                 "GameMusic プレハブの Menu/Day/Night Track を確認してください。");
+            }
+            return;
+        }
         if (targetClip == clip && current != null && current.isPlaying) return;
 
         targetClip = clip;

@@ -6,6 +6,7 @@ public enum FurnitureEffect
     None,           // 効果なし（見た目だけ）
     MoveSpeed,      // 部屋にいる間 移動速度 +value%（常時）
     PassiveIncome,  // 毎朝 共同口座に +value（パッシブ収入）
+    Bounce,         // 上に乗ると value の高さまで跳ねる（トランポリン）
 }
 
 /// <summary>

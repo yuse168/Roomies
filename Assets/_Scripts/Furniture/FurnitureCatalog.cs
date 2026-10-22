@@ -64,7 +64,7 @@ public static class FurnitureCatalog
             new FurnitureItem{ id="vending_machine",     displayName="じはんき",         cost=1800, effect=FurnitureEffect.PassiveIncome, effectValue=80, placeholderSize=new Vector3(1.0f,2.0f,0.7f),  placeholderColor=new Color(0.85f,0.25f,0.30f)},
             // 第3弾・ネタ
             new FurnitureItem{ id="disco_ball",          displayName="ミラーボール",     cost=900,  effect=FurnitureEffect.MoveSpeed,     effectValue=5,  placeholderSize=new Vector3(0.6f,0.6f,0.6f),  placeholderColor=new Color(0.80f,0.80f,0.95f)},
-            new FurnitureItem{ id="trampoline",          displayName="トランポリン",     cost=700,  placeholderSize=new Vector3(1.5f,0.3f,1.5f),  placeholderColor=new Color(0.30f,0.75f,0.55f)},
+            new FurnitureItem{ id="trampoline",          displayName="トランポリン",     cost=700,  placeholderSize=new Vector3(1.5f,0.3f,1.5f),  placeholderColor=new Color(0.30f,0.75f,0.55f), effect=FurnitureEffect.Bounce, effectValue=6f},
             new FurnitureItem{ id="arcade_machine",      displayName="アーケード筐体",   cost=2500, placeholderSize=new Vector3(0.8f,1.8f,0.8f),  placeholderColor=new Color(0.55f,0.30f,0.80f)},
         };
         BindDefaultVisuals(items);

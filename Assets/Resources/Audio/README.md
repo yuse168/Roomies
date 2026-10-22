@@ -31,9 +31,15 @@
 | `day/night` | 夜になる | 朝→夜の切り替え |
 | `slot/spin` | スロット回転 | 筐体の位置から（距離減衰あり） |
 | `slot/stop` | リール停止 | リール3つが止まるたび |
-| `slot/win` | スロット当たり | WIN / FEVER WIN のとき |
+| `slot/win` | スロット当たり | WIN のとき |
+| `slot/lose` | スロットはずれ | MISS のとき |
+| `slot/fever` | FEVER当たり | FEVER WIN のとき（**音源未入荷**） |
 | `slot/reel` | リール回転中 | 回っている間（筐体の位置から） |
 | `delivery/complete` | 納品成功 | 配達ボタンの成功時 |
+| `blackjack/win` `blackjack/lose` | BJの勝ち負け | 結果が出た瞬間 |
+| `blackjack/push` `blackjack/blackjack` | 引き分け・BJ | 同上（**音源未入荷**） |
+| `door/open` `door/close` | ドアの開け閉め | ドアを操作したとき |
+| `furniture/bounce` | トランポリン | 上に乗って跳ねたとき |
 
 ## 足音の材質ごとの違い
 

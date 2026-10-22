@@ -573,12 +573,22 @@ public class BlackjackTable : NetworkBehaviour
     {
         RefreshDisplay();
 
-        // 勝ち負けの音（筐体の位置から鳴らすので、近くの人にだけ聞こえる）
-        var kind = (ResultKind)newValue;
-        if (kind == ResultKind.Win || kind == ResultKind.Blackjack)
-            GameAudio.PlayAt("blackjack/win", transform.position);
-        else if (kind == ResultKind.Lose)
-            GameAudio.PlayAt("blackjack/lose", transform.position);
+        // 結果ごとに音を変える（筐体の位置から鳴らすので、近くの人にだけ聞こえる）
+        switch ((ResultKind)newValue)
+        {
+            case ResultKind.Blackjack:
+                GameAudio.PlayAt("blackjack/blackjack", transform.position, 1.1f);
+                break;
+            case ResultKind.Win:
+                GameAudio.PlayAt("blackjack/win", transform.position);
+                break;
+            case ResultKind.Lose:
+                GameAudio.PlayAt("blackjack/lose", transform.position);
+                break;
+            case ResultKind.Push:
+                GameAudio.PlayAt("blackjack/push", transform.position);
+                break;
+        }
 
         if (newValue != (int)ResultKind.None && isActiveAndEnabled)
         {

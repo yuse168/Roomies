@@ -72,6 +72,17 @@ BGMは `Assets/_Audio/Music/` に置き、`GameMusic` プレハブのインス�
 | `drop/light.wav` | 1444784 | 【生録音】ウッドブロック01-ローピッチ | Icy Light / Audiostock |
 | `drop/heavy.wav` | 720444 | ヘビーダンベル：床に落とす、運動とトレーニング | SoundIdeas / Audiostock |
 
+### 2026/10/23 追加分（結果音・ドア・トランポリン）
+
+| 置き場所 | 作品番号 | タイトル | クレジット名 |
+|---|---|---|---|
+| `slot/lose.wav` | 1073179 | クイズ/不正解/はずれ/残念/失敗 | staindgla22 / Audiostock |
+| `blackjack/lose.wav` | 105037 | ブブー（不正解のブザー） | Y8MD / Audiostock |
+| `blackjack/win.wav` | 795165 | 王道の正解音！公共放送風ピンポン4連打 | OQ オーキュー / Audiostock |
+| `door/open.wav` | 104463 | 木のドアを開ける（癖のない音） | Killy / Audiostock |
+| `door/close.wav` | 108647 | ドアがバタンと閉まる音 | Scene Effects / Audiostock |
+| `furniture/bounce.wav` | 784701 | ボヨーン(ジャンプ/トランポリン/NES) | Sound Studio Tsukasa / Audiostock |
+
 ## エンドクレジット用のまとめ表記
 
 ```
@@ -102,6 +113,8 @@ Sound Effects
 　Killy / Audiostock
 　Icy Light / Audiostock
 　SoundIdeas / Audiostock
+　OQ オーキュー / Audiostock
+　Sound Studio Tsukasa / Audiostock
 ```
 
 ## 未確認・要対応

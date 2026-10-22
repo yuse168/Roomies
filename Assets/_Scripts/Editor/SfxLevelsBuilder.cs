@@ -47,15 +47,23 @@ internal static class SfxLevelsBuilder
         ("slot/stop", 0.45f),
         ("slot/win", 0.60f),
         ("slot/reel", 0.45f),
+        ("slot/lose", 0.50f),
+        ("slot/fever", 0.70f),
 
         ("blackjack/deal", 0.60f),
         ("blackjack/win", 0.70f),
         ("blackjack/lose", 0.60f),
+        ("blackjack/push", 0.55f),
+        ("blackjack/blackjack", 0.75f),
 
         ("delivery/complete", 0.50f),
 
+        ("door/open", 0.60f),
+        ("door/close", 0.55f),
+
         ("furniture/pickup", 0.50f),
         ("furniture/place", 0.60f),
+        ("furniture/bounce", 0.70f),
 
         ("rent/paid", 0.70f),
         ("rent/failed", 0.80f),
