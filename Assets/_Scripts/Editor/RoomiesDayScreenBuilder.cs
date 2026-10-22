@@ -19,6 +19,7 @@ using UnityEngine;
 ///  Roomies/UI/Rebuild Day Screens
 ///  Roomies/UI/Build Night Banner
 ///  Roomies/UI/Build Earning List
+///  Roomies/UI/Build HUD
 /// </summary>
 internal static class RoomiesDayScreenBuilder
 {
@@ -167,6 +168,47 @@ internal static class RoomiesDayScreenBuilder
         EditorSceneManager.MarkSceneDirty(list.gameObject.scene);
         Selection.activeGameObject = list.gameObject;
         Debug.Log("[UI] みんなの稼ぎの画面を置きました（シーンを保存してください）");
+    }
+
+    // ---------------- HUD ----------------
+
+    [MenuItem("Roomies/UI/Build HUD")]
+    private static void BuildHud()
+    {
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            Debug.LogError("[UI] Play Modeを抜けてから実行してください。");
+            return;
+        }
+
+        if (Object.FindAnyObjectByType<DayManager>() == null)
+        {
+            Debug.LogError("[UI] DayManager が見つかりません。GameRoom シーンを開いてから実行してください。");
+            return;
+        }
+
+        var hud = Object.FindAnyObjectByType<HudThemer>(FindObjectsInactive.Include);
+        if (hud == null)
+        {
+            var go = new GameObject("HudThemer");
+            Undo.RegisterCreatedObjectUndo(go, "Build HUD");
+            hud = Undo.AddComponent<HudThemer>(go);
+        }
+
+        if (hud.transform.Find("HudCanvas") != null)
+        {
+            Debug.Log("[UI] HUDはすでに置かれています。作り直すときは HudCanvas を消してから実行してください。");
+            Selection.activeGameObject = hud.gameObject;
+            return;
+        }
+
+        Undo.RegisterFullObjectHierarchyUndo(hud.gameObject, "Build HUD");
+        hud.EditorBuildUI();
+
+        EditorSceneManager.MarkSceneDirty(hud.gameObject.scene);
+        Selection.activeGameObject = hud.gameObject;
+        Debug.Log("[UI] HUDを置きました。既存の DayText / Timer Text / SharedMoneyText も中へ移しました" +
+                  "（シーンを保存してください）");
     }
 
     private static T Ensure<T>(Transform parent, string name, bool rebuild, System.Action<T> build)

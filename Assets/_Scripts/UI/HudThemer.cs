@@ -4,9 +4,9 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// GameRoomのHUD着せ替え。UIThemeBootstrapが自動生成する。
-/// シーンは編集せず、既存のテキスト（DayText / Timer Text / SharedMoneyText）を
-/// ランタイム生成した面へ移して整える。
+/// GameRoomのHUD。シーンに**実体として置く**（メニュー `Roomies/UI/Build HUD`）。
+/// 既存のテキスト（DayText / Timer Text / SharedMoneyText）は、組み立てのときに
+/// 作った面の中へ移される（そのままシーンに残るので、あとから位置も文字も直せる）。
 ///
 /// 設計方針：
 ///  ・白いカードを使わない。明るい部屋の上でも輪郭が消えないよう濃色＋太い白フチ
@@ -28,17 +28,33 @@ public class HudThemer : MonoBehaviour
     private const float MoneyHeight = 150f;
     private const float BarHeight   = 9f;
 
-    private Image timerFillBar;
-    private TMP_Text moneyValueLabel;
-    private TMP_Text moneyRequiredLabel;
-    private Image rentChip;
-    private TMP_Text rentChipLabel;
-    private RectTransform moneyCardRect;
+    [Header("シーンに置いた中身（配置ツールが入れる）")]
+    [SerializeField] private Image timerFillBar;
+    [SerializeField] private TMP_Text moneyValueLabel;
+    [SerializeField] private TMP_Text moneyRequiredLabel;
+    [SerializeField] private Image rentChip;
+    [SerializeField] private TMP_Text rentChipLabel;
+    [SerializeField] private RectTransform moneyCardRect;
+    [SerializeField] private Image rentProgress;
+    [SerializeField] private TMP_Text objectiveLabel;
+
     private float rentPulse;
-    private Image rentProgress;
-    private TMP_Text objectiveLabel;
 
     private void Awake()
+    {
+        if (moneyValueLabel == null)
+        {
+            Debug.LogError(
+                "[UI] HUDの中身が空です。メニュー『Roomies/UI/Build HUD』でシーンに置き直してください。", this);
+        }
+    }
+
+#if UNITY_EDITOR
+    /// <summary>
+    /// シーンへ実体を置くための組み立て（エディタ専用）。
+    /// 配置ツール `Roomies/UI/Build HUD` から呼ぶ。実行中は動かない。
+    /// </summary>
+    public void EditorBuildUI()
     {
         var canvas = UITheme.CreateCanvas(transform, "HudCanvas", 100);
 
@@ -46,6 +62,7 @@ public class HudThemer : MonoBehaviour
         BuildMoneyCard(canvas.transform);
         BuildObjective(canvas.transform);
     }
+#endif
 
     private void OnEnable()
     {
@@ -351,8 +368,21 @@ public class HudThemer : MonoBehaviour
             var mining = player != null ? player.GetComponent<MiningPlayer>() : null;
             objectiveLabel.text=job!=null&&job.IsJailed
                 ?(job.CanDoJailLabor?$"作業台で労働 {job.JailLaborProgress}/{SmugglingConfig.JailLaborCount}":"朝まで牢屋で待とう")
-                :(mining != null && mining.HudLabel != null ? mining.HudLabel : dm.IsNight?"家具を買って、夜の街を楽しもう":"配達・地下採掘で家賃を集めよう");
+                :(mining != null && mining.HudLabel != null ? mining.HudLabel : DefaultObjective(dm));
         }
+    }
+
+    /// <summary>
+    /// ふだんの目標の文。「今日のおねがい」が出ていればそれを優先して出す
+    /// （達成したあとは、ふだんの文に戻る）。
+    /// </summary>
+    private static string DefaultObjective(DayManager dm)
+    {
+        var request = DailyRequestManager.Instance;
+        if (request != null && request.Kind != DailyRequestManager.RequestKind.None && !request.IsDone)
+            return request.StatusText;
+
+        return dm.IsNight ? "家具を買って、夜の街を楽しもう" : "配達で家賃を集めよう";
     }
 
     private void UpdateMoney(DayManager dm)
