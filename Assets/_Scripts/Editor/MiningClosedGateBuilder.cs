@@ -151,6 +151,91 @@ internal static class MiningClosedGateBuilder
                 label.text = visible ? "MINING CO.  /  OPEN UNTIL SUNSET" : "CLOSED";
             }
         }
+
+        // 店名の看板には、閉店した店のように「CLOSED」の紙を貼る
+        foreach (string name in NoticeTargets)
+        {
+            Transform sign = Child(entrance, name);
+            if (sign == null) continue;
+
+            Transform existing = Child(sign, NoticeName);
+            if (existing != null) Undo.DestroyObjectImmediate(existing.gameObject);
+
+            if (!visible) AddPaperNotice(sign);
+        }
+    }
+
+    // 紙を貼る看板（店名が読める物だけ）
+    private static readonly string[] NoticeTargets =
+    {
+        "Sign - ONE MORE ROCK",
+        "Sign - ONE MORE?",
+    };
+
+    private const string NoticeName = "Closed notice";
+
+    /// <summary>
+    /// 看板の上に「CLOSED」と書いた紙をテープで貼った見た目を足す。
+    /// 看板そのものは消さないので、開放するときは紙を剥がすだけで戻る。
+    /// </summary>
+    private static void AddPaperNotice(Transform sign)
+    {
+        var label = sign.GetComponent<TMPro.TextMeshPro>();
+        Vector2 size = label != null ? label.rectTransform.sizeDelta : new Vector2(1.5f, 0.4f);
+
+        // 看板より少し小さい紙。手で貼ったように少し傾ける
+        float paperWidth = Mathf.Max(0.5f, size.x * 0.72f);
+        float paperHeight = Mathf.Max(0.3f, size.y * 1.9f);
+
+        var notice = new GameObject(NoticeName);
+        Undo.RegisterCreatedObjectUndo(notice, "Add closed notice");
+        notice.transform.SetParent(sign, false);
+        notice.transform.localPosition = new Vector3(0f, 0f, -0.04f);
+        notice.transform.localRotation = Quaternion.Euler(0f, 0f, -4f);
+
+        // 紙
+        var paper = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        paper.name = "Paper";
+        paper.transform.SetParent(notice.transform, false);
+        paper.transform.localScale = new Vector3(paperWidth, paperHeight, 0.015f);
+        Object.DestroyImmediate(paper.GetComponent<Collider>());
+        SetMaterial(paper, "paper");
+
+        // テープ（左上・右下）
+        foreach (int side in new[] { -1, 1 })
+        {
+            var tape = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            tape.name = "Tape";
+            tape.transform.SetParent(notice.transform, false);
+            tape.transform.localPosition = new Vector3(
+                side * paperWidth * 0.42f, side * paperHeight * 0.42f, -0.012f);
+            tape.transform.localRotation = Quaternion.Euler(0f, 0f, side * 38f);
+            tape.transform.localScale = new Vector3(paperWidth * 0.26f, paperHeight * 0.3f, 0.01f);
+            Object.DestroyImmediate(tape.GetComponent<Collider>());
+            SetMaterial(tape, "cream");
+        }
+
+        // 手書きの「CLOSED」
+        var textGo = new GameObject("Text");
+        textGo.transform.SetParent(notice.transform, false);
+        textGo.transform.localPosition = new Vector3(0f, 0f, -0.02f);
+
+        var text = textGo.AddComponent<TMPro.TextMeshPro>();
+        text.text = "CLOSED";
+        text.font = label != null ? label.font : null;
+        text.alignment = TMPro.TextAlignmentOptions.Center;
+        text.fontStyle = TMPro.FontStyles.Bold;
+        text.color = new Color(0.12f, 0.12f, 0.16f);
+        text.enableAutoSizing = true;
+        text.fontSizeMin = 0.5f;
+        text.fontSizeMax = paperHeight * 2.4f;
+        text.rectTransform.sizeDelta = new Vector2(paperWidth * 0.9f, paperHeight * 0.8f);
+    }
+
+    private static void SetMaterial(GameObject target, string id)
+    {
+        Material material = LoadMaterial(id);
+        if (material != null) target.GetComponent<MeshRenderer>().sharedMaterial = material;
     }
 
     /// <summary>

@@ -1,5 +1,23 @@
 # PROGRESS.md
 
+## 2026/10/22｜閉鎖中の看板に「CLOSED」の紙を貼った
+
+### 今回の変更
+- 店名の看板（`ONE MORE ROCK`、`ONE MORE?`）に、閉店した店のように
+  **紙をテープで貼った見た目**を足した（`Closed notice`：紙＋テープ2枚＋「CLOSED」の文字）
+- 紙の大きさは看板の `TextMeshPro` の実寸から決めるので、看板を替えても追従する
+- 看板そのものは消していない。`Roomies/Mining/Reopen Mine (remove gate)` で紙を剥がせば元に戻る
+
+### 変更ファイル
+- 変更：`Assets/_Scripts/Editor/MiningClosedGateBuilder.cs`
+- 変更：`Assets/_Scenes/GameRoom.unity`（紙の実体を配置・保存済み）
+
+### 確認状況
+- Unityでのコンパイル：**確認済み**（エラー0）
+- Console：**確認済み**（エラー0）
+- 見た目：**確認済み**（シーンビューで2か所の看板に紙が貼られ、「CLOSED」が読めることを目視）
+- 紙の大きさの好み（看板をどれだけ隠すか）は**未調整**。`AddPaperNotice` の倍率で変えられる
+
 ## 2026/10/22｜採掘入口から操作のヒントを消す・メニューにBGM・テストを初実行
 
 ### 今回の変更
