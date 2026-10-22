@@ -113,6 +113,7 @@ public class PlayerMovement : NetworkBehaviour
     private float footstepTravel;
     private float nextFootstepTime;
     private float nextBounceTime;
+    private bool isSleeping;
     private float boostScale = 1f;
 
     void Awake()
@@ -180,6 +181,16 @@ public class PlayerMovement : NetworkBehaviour
         if (!IsOwner || controller == null) return;
 
         if (EscMenuUI.IsOpen || CharacterCloset.IsOpen)
+        {
+            CancelEmoteWheel();
+            moveInput = Vector2.zero;
+            lookInput = Vector2.zero;
+            horizontalVelocity = Vector3.zero;
+            isSprinting = false;
+            return;
+        }
+
+        if (isSleeping)
         {
             CancelEmoteWheel();
             moveInput = Vector2.zero;
@@ -274,6 +285,41 @@ public class PlayerMovement : NetworkBehaviour
                 PlayEmoteRpc(selectedIndex);
             }
         }
+    }
+
+    /// <summary>
+    /// 寝ている間は動けなくする（<see cref="Bed"/> から手元の画面でだけ呼ぶ）。
+    /// </summary>
+    public void SetSleeping(bool sleeping)
+    {
+        if (!IsOwner) return;
+
+        isSleeping = sleeping;
+        if (!sleeping) return;
+
+        ResetMotion();
+        moveInput = Vector2.zero;
+        lookInput = Vector2.zero;
+    }
+
+    /// <summary>いま寝ているか。</summary>
+    public bool IsSleeping => isSleeping;
+
+    /// <summary>
+    /// その場へ移す（ベッドに入るときなど）。
+    /// CharacterController は位置を直接書き換えると戻されるので、いったん切って動かす。
+    /// </summary>
+    public void TeleportTo(Vector3 position, Quaternion rotation)
+    {
+        if (!IsOwner) return;
+
+        bool had = controller != null && controller.enabled;
+        if (had) controller.enabled = false;
+
+        transform.SetPositionAndRotation(position, rotation);
+
+        if (had) controller.enabled = true;
+        ResetMotion();
     }
 
     public void ResetMotion()

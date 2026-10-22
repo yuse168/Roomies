@@ -1,5 +1,47 @@
 # PROGRESS.md
 
+## 2026/10/23｜遊びの中身：寝る仕組みと「今日のおねがい」を追加
+
+3日ごとの家賃だけだと日ごとの変化が無かったので、夜の終わり方と、その日の目標を足した。
+
+### 今回の変更
+1. **寝る仕組み**（`Bed` / `SleepManager`）
+   - 夜にベッドへ E で寝る。寝ている間は動けない（もう一度 E で起きる）
+   - **全員が寝たら残り時間を待たずに朝になる**。寝るたびに「あと○人で朝」と告知
+   - 朝まで寝た人は、その朝のあいだ体が軽い（既定 1.15倍・180秒）
+   - 1人で遊んでいるときも寝たら朝になる（`Allow Solo Skip` で切れる）
+   - `PlayerMovement` に `SetSleeping()` と `TeleportTo()` を追加
+   - `DayManager.ServerSkipToMorning()` を追加（夜のあいだだけ効く）
+2. **今日のおねがい**（`DailyRequestManager`）
+   - 朝に1つ出る目標。達成で共同口座にボーナス（できなくても罰は無い）
+   - 5種類：¥○稼ぐ／配達○件／ギャンブル○回勝つ／家具○個／全員で寝る
+   - 1日目は「稼ぐ」「配達」だけ。必要数は日が進むと上がる（既定1.15倍ずつ）
+   - 進み具合は入金の**理由**（`SharedMoneyReason`）を見て数える。
+     新しい稼ぎ方を足しても、正しい理由で入金すればそのまま数えられる
+   - `SharedMoneyReason` に `DailyRequest` を追加
+3. **シーンへ実体で配置**（AGENTS.mdの規約どおり）
+   - `Assets/_Prefabs/Night/Bed.prefab`（`Visual/Placeholder` ＋ `Anchor_Sleep`）
+   - 家の西側の壁ぎわに5台（`Beds`）、`SleepManager`、`DailyRequestManager`
+   - 置き直しは `Roomies/Night/Rebuild Bed Prefab` と `Place Beds In Open Scene`
+4. 説明を `Assets/_Scripts/Night/SLEEP_AND_REQUESTS.md` に置いた
+
+### 確認したこと
+- `dotnet build` … Assembly-CSharp / Assembly-CSharp-Editor / RegressionTests すべてエラー0
+- Unity の `compile/status` … 成功・エラー0件、コンソールにもエラーなし
+- 配置ツールを実行し、`Beds/Bed 1`〜`Bed 5`（x=14.3・z=15.2〜21.4・床 y=3.3）、
+  `SleepManager`、`DailyRequestManager` がシーンにできたことを確認。シーンを保存
+- ベッドの位置は家の内側（壁は x 13.1〜22.8 / z 14.0〜23.5）に収まる数値になっている
+
+### まだ確認していないこと
+- **Play Modeでの動作は未確認**。寝る・起きる・全員で朝になる・ぐっすり・
+  おねがいの抽選と達成、どれも実際に動かしていない
+- **ベッドの見た目は目で見ていない**。家の屋根があってシーンビューの撮影では中が映らなかった。
+  数値上は部屋の中だが、他の物と重なっていないかは Game View か手でシーンを見て確認が必要
+- 寝ている間の見た目（画面を暗くするなど）は無い。立ったまま動けなくなるだけ
+- **おねがいの進み具合がHUDに出ない**。告知バナー（朝・半分・達成）だけ。
+  HUDを実体化したら `DailyRequestManager.StatusText` を1行出すとよい
+
+
 ## 2026/10/23｜負けたらセーブを消すようにした
 
 ### 今回の変更

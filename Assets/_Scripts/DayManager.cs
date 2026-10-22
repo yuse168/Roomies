@@ -275,6 +275,19 @@ public class DayManager : NetworkBehaviour
         }
     }
 
+    /// <summary>
+    /// 全員が寝たときに夜を切り上げる（サーバーのみ）。
+    /// 夜のあいだだけ効く。<see cref="SleepManager"/> から呼ぶ。
+    /// </summary>
+    public void ServerSkipToMorning()
+    {
+        if (!IsServer || !IsSpawned) return;
+        if (isGameOver.Value || isTransitioning.Value) return;
+        if (currentTime.Value != 1) return;
+
+        AdvanceTurnServer();
+    }
+
     private void AdvanceTurnServer()
     {
         if (!IsServer) return;

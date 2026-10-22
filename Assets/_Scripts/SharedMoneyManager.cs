@@ -21,7 +21,8 @@ public enum SharedMoneyReason
     Rent,
     MiningSale,
     NightTrouble,
-    NightLuck
+    NightLuck,
+    DailyRequest
 }
 
 public class SharedMoneyManager : NetworkBehaviour
@@ -109,6 +110,9 @@ public class SharedMoneyManager : NetworkBehaviour
         }
 
         ApplyTransaction((int)nextBalance, amount, reason, context);
+
+        // 「今日のおねがい」の進み具合は、入金の理由を見て数える
+        DailyRequestManager.ServerNotifyMoney(reason, amount);
         return true;
     }
 
