@@ -383,7 +383,7 @@ public class SlotMachine : NetworkBehaviour
         }
 
         // 筐体の位置から鳴らす（遠くの人には聞こえない）
-        GameAudio.PlayAt("slot/spin", transform.position, 0.7f);
+        GameAudio.PlayAt("slot/spin", transform.position);
 
         float elapsed = 0f;
         float[] stopTimes =
@@ -417,7 +417,7 @@ public class SlotMachine : NetworkBehaviour
                     shown[i] = targets[i];
                     SetReel(reels[i], shown[i]);
                     StartCoroutine(PulseReel(reels[i]));
-                    GameAudio.PlayAt("slot/stop", transform.position, 0.65f, 0.05f);
+                    GameAudio.PlayAt("slot/stop", transform.position, 1f, 0.05f);
 
                     if (i == 1 && targets[0] == targets[1] && targets[2] != targets[1] && resultText != null)
                     {
@@ -470,7 +470,7 @@ public class SlotMachine : NetworkBehaviour
         if (resultMessage.Contains("WIN"))
         {
             GameAudio.PlayAt("slot/win", transform.position,
-                resultMessage.Contains("FEVER") ? 1f : 0.8f);
+                resultMessage.Contains("FEVER") ? 1.2f : 1f);
         }
 
         spinCoroutine = null;

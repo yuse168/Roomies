@@ -26,6 +26,8 @@ public static class GameAudio
     private static readonly Dictionary<string, AudioClip[]> clipCache = new();
     private static AudioSource[] pool;
     private static int nextSource;
+    private static SfxLevels levels;
+    private static bool levelsLoaded;
 
     // ================================================================
     // 再生
@@ -43,7 +45,7 @@ public static class GameAudio
         source.transform.localPosition = Vector3.zero;
         source.spatialBlend = 0f;
         source.clip = clip;
-        source.volume = Mathf.Clamp01(volume) * SfxVolume;
+        source.volume = Mathf.Clamp01(volume * Level(key)) * SfxVolume;
         source.pitch = Pitch(pitchJitter);
         source.Play();
     }
@@ -65,7 +67,7 @@ public static class GameAudio
         source.minDistance = 1.5f;
         source.maxDistance = maxDistance;
         source.clip = clip;
-        source.volume = Mathf.Clamp01(volume) * SfxVolume;
+        source.volume = Mathf.Clamp01(volume * Level(key)) * SfxVolume;
         source.pitch = Pitch(pitchJitter);
         source.Play();
     }
@@ -80,6 +82,20 @@ public static class GameAudio
             GameSettings.EnsureInitialized();
             return GameSettings.SfxVolume;
         }
+    }
+
+    /// <summary>
+    /// 音ごとの音量。`Resources/Audio/SfxLevels.asset` をインスペクターで直せば効く。
+    /// 表が無くても 1.0 で鳴る。
+    /// </summary>
+    private static float Level(string key)
+    {
+        if (!levelsLoaded)
+        {
+            levels = Resources.Load<SfxLevels>(ResourceRoot + "SfxLevels");
+            levelsLoaded = true;
+        }
+        return levels != null ? levels.Get(key) : 1f;
     }
 
     private static float Pitch(float jitter)
@@ -128,7 +144,12 @@ public static class GameAudio
     }
 
     /// <summary>音声ファイルを差し替えた直後に鳴らし分けを作り直す（Editor用）。</summary>
-    public static void ClearCache() => clipCache.Clear();
+    public static void ClearCache()
+    {
+        clipCache.Clear();
+        levels = null;
+        levelsLoaded = false;
+    }
 
     // ================================================================
     // AudioSourceプール

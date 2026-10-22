@@ -226,8 +226,8 @@ public class HudThemer : MonoBehaviour
         int delta = newValue - oldValue;
         ShowMoneyDelta(delta);
 
-        if (delta > 0) GameAudio.Play("money/gain", 0.6f);
-        else if (delta < 0) GameAudio.Play("money/spend", 0.6f);
+        if (delta > 0) GameAudio.Play("money/gain");
+        else if (delta < 0) GameAudio.Play("money/spend");
     }
 
     /// <summary>共同口座カードの横へ増減額をポップ表示する。</summary>

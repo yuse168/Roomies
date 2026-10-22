@@ -33,6 +33,20 @@ Audiostockはクレジット表記を推奨しているため、ここに出典�
 | `slot/win.wav` | 180913 | コイン/払い出し/ジャラジャラ | MATSU / Audiostock |
 | `delivery/complete.wav` | 1420126 | 獲得•クリア•テロップ•発見【キラン】 | zuzu-づづ- / Audiostock |
 
+### 2026/10/22 追加分（BGM・逮捕演出・ゲームオーバー）
+
+BGMは `Assets/_Audio/Music/` に置き、`GameMusic` プレハブのインスペクターから差し替える
+（リポジトリを軽くするためMP3で取得）。
+
+| 置き場所 | 作品番号 | タイトル | クレジット名 |
+|---|---|---|---|
+| `_Audio/Music/menu.mp3` | 1292796 | パーティゲーム風の明るいバトルBGM | dice / Audiostock |
+| `_Audio/Music/day.mp3` | 828732 | ゲームや配信向け軽快なかわいい日常系 | MoppySound / Audiostock |
+| `_Audio/Music/night.mp3` | 1656932 | ループが可能な落ち着いたローファイチル♬ | Junk_Channel / Audiostock |
+| `Audio/day/gameover.wav` | 1507045 | コミカルなゲームオーバー01 | WOW Sound / Audiostock |
+| `Audio/police/siren.wav` | 1294250 | パトカー サイレン フェイク02-01 | OtoLogic / Audiostock |
+| `Audio/police/arrest.wav` | 1054413 | 【生演奏】手錠を腕にかける音 | 佐藤元気 / Audiostock |
+
 ## エンドクレジット用のまとめ表記
 
 ```
@@ -52,6 +66,12 @@ Sound Effects
 　ORTA / Audiostock
 　staindgla22 / Audiostock
 　zuzu-づづ- / Audiostock
+　dice / Audiostock
+　MoppySound / Audiostock
+　Junk_Channel / Audiostock
+　WOW Sound / Audiostock
+　OtoLogic / Audiostock
+　佐藤元気 / Audiostock
 ```
 
 ## 未確認・要対応

@@ -195,6 +195,8 @@ public class PlayerInteract : NetworkBehaviour
                 SmugglingInteractable smuggling = hit.collider.GetComponentInParent<SmugglingInteractable>();
                 CharacterCloset closet = hit.collider.GetComponentInParent<CharacterCloset>();
                 var mining = hit.collider.GetComponentInParent<MiningInteractable>();
+                // 閉鎖中はここで何ができるか見せない（操作の案内も出さない）
+                if (mining != null && MineClosed) mining = null;
                 if (mining != null)
                 {
                     label = (mining.action == MiningAction.Rock ? "" : Key(GameAction.Interact) + " ") + mining.Label;
@@ -202,6 +204,12 @@ public class PlayerInteract : NetworkBehaviour
                 else if (closet != null && closet.CanInteract(playerNameDisplay))
                 {
                     label = Key(GameAction.Interact) + " クローゼットを開く";
+                }
+                // 家の設備（冷蔵庫・ブレーカーなど）
+                else if (hit.collider.GetComponentInParent<HomeAppliance>() is HomeAppliance appliance
+                         && appliance.CanInteract())
+                {
+                    label = Key(GameAction.Interact) + " " + appliance.Label;
                 }
                 else if (smuggling != null && smuggling.CanInteract(smugglingPlayer))
                 {
@@ -329,11 +337,19 @@ public class PlayerInteract : NetworkBehaviour
         if (TryInteractionHit(out RaycastHit hit))
         {
             var mining = hit.collider.GetComponentInParent<MiningInteractable>();
-            if (mining != null) { mining.Use(this); return; }
+            if (mining != null && !MineClosed) { mining.Use(this); return; }
             CharacterCloset closet = hit.collider.GetComponentInParent<CharacterCloset>();
             if (closet != null)
             {
                 closet.Open(playerNameDisplay);
+                return;
+            }
+
+            // 家の設備（冷蔵庫・ブレーカーなど）
+            var appliance = hit.collider.GetComponentInParent<HomeAppliance>();
+            if (appliance != null && appliance.CanInteract())
+            {
+                appliance.Interact();
                 return;
             }
 
@@ -398,6 +414,10 @@ public class PlayerInteract : NetworkBehaviour
     }
 
     // A carried ore sits in front of the camera. Do not let it occlude the sell/lift button.
+    /// <summary>採掘場がアップデート待ちで閉鎖中か。閉鎖中は案内も操作も出さない。</summary>
+    private static bool MineClosed =>
+        MiningSite.Instance != null && MiningSite.Instance.IsServiceClosed;
+
     private bool TryInteractionHit(out RaycastHit result)
     {
         result = default;

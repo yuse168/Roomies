@@ -271,17 +271,25 @@ public class SmugglingPlayer : NetworkBehaviour
 
     private static void SetLocalChaseOverlay(bool chasing)
     {
-        GetOrCreateArrestOverlay().SetChasing(chasing);
+        ArrestCinematic cinematic = FindCinematic();
+        if (cinematic != null) cinematic.SetChasing(chasing);
     }
 
-    private static SmugglingArrestOverlay GetOrCreateArrestOverlay()
+    /// <summary>
+    /// 逮捕演出はシーンに置いてある実体を使う（実行時に作らない）。
+    /// 置き忘れていたら警告だけ出して、ゲームは止めない。
+    /// </summary>
+    private static ArrestCinematic FindCinematic()
     {
-        SmugglingArrestOverlay overlay = FindAnyObjectByType<SmugglingArrestOverlay>();
-        if (overlay != null) return overlay;
+        ArrestCinematic cinematic = ArrestCinematic.Instance != null
+            ? ArrestCinematic.Instance
+            : FindAnyObjectByType<ArrestCinematic>();
 
-        overlay = new GameObject("SmugglingArrestOverlay").AddComponent<SmugglingArrestOverlay>();
-        DontDestroyOnLoad(overlay.gameObject);
-        return overlay;
+        if (cinematic == null)
+            Debug.LogWarning("[Smuggling] ArrestCinematic がシーンにありません。" +
+                             "メニュー Roomies/Smuggling/Place Arrest Cinematic In Open Scene で置いてください。");
+
+        return cinematic;
     }
 
     private void OnStateChanged(JobState oldState, JobState newState)
@@ -325,16 +333,16 @@ public class SmugglingPlayer : NetworkBehaviour
     [Rpc(SendTo.Owner)]
     private void ArrestOwnerRpc()
     {
-        SmugglingArrestOverlay overlay = GetOrCreateArrestOverlay();
-        overlay.SetChasing(false);
-        overlay.Play();
+        ArrestCinematic cinematic = FindCinematic();
+        if (cinematic != null) cinematic.PlayArrest();
         StartCoroutine(LocalControlLockRoutine());
     }
 
     private IEnumerator LocalControlLockRoutine()
     {
         localControlLocked = true;
-        yield return new WaitForSecondsRealtime(1.8f);
+        // 演出（サイレン→白→暗転→牢屋で明転）が終わるまで操作を止める
+        yield return new WaitForSecondsRealtime(2.9f);
         localControlLocked = false;
     }
 

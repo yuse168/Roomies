@@ -33,6 +33,28 @@
 | `slot/win` | スロット当たり | WIN / FEVER WIN のとき |
 | `delivery/complete` | 納品成功 | 配達ボタンの成功時 |
 
+## BGM（`Assets/_Audio/Music/`）
+
+BGMはこのフォルダではなく `Assets/_Audio/Music/` に置き、`GameMusic` プレハブの
+インスペクターから割り当てる（実行時に読み込まない＝AGENTS.mdの「実行時に作らない」に合わせた）。
+
+| ファイル | 流れる場面 |
+|---|---|
+| `menu.mp3` | メインメニュー・ロビー |
+| `day.mp3` | 朝〜日没 |
+| `night.mp3` | 夜の自由行動 |
+
+差し替えは `GameMusic` プレハブの `Menu Track` / `Day Track` / `Night Track` を入れ替えるだけ。
+音量は同じプレハブの `Menu Volume` などで曲ごとに調整する（設定画面のBGM音量がさらに掛かる）。
+
+## 逮捕・ゲームオーバー
+
+| 置き場所 | 用途 | 鳴るタイミング |
+|---|---|---|
+| `police/siren` | パトカーのサイレン | 逮捕演出の始まり |
+| `police/arrest` | 手錠 | 白フラッシュと同時 |
+| `day/gameover` | ゲームオーバー | 家賃を払えずゲームオーバーになった瞬間 |
+
 ## 第3段階（採掘）＝ アップデート待ちで保留
 
 採掘場は `MiningSite.serviceClosed` で閉鎖中（リリース後のアップデートで開放予定）。

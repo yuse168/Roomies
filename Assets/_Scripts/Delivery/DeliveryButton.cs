@@ -164,7 +164,7 @@ public class DeliveryButton : NetworkBehaviour
     {
         // 成功時だけ鳴らす。失敗の理由表示は無音のまま。
         if (!string.IsNullOrEmpty(message) && message.StartsWith("納品成功"))
-            GameAudio.Play("delivery/complete", 0.8f);
+            GameAudio.Play("delivery/complete");
 
         Debug.Log(message);
     }

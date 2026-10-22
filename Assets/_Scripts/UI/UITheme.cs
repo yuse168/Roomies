@@ -780,7 +780,7 @@ public class UIButtonJuice : MonoBehaviour,
     {
         pressed = true;
         // 離した時より押した瞬間のほうが反応が良く感じるのでDownで鳴らす
-        GameAudio.Play(useCancelSound ? "ui/cancel" : "ui/confirm", 0.55f);
+        GameAudio.Play(useCancelSound ? "ui/cancel" : "ui/confirm");
     }
 
     public void OnPointerUp(PointerEventData e)    => pressed = false;

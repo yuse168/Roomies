@@ -1,5 +1,166 @@
 # PROGRESS.md
 
+## 2026/10/22｜採掘入口から操作のヒントを消す・メニューにBGM・テストを初実行
+
+### 今回の変更
+- **閉鎖中の採掘場で「何ができる場所か」を見せないようにした**
+  - 隠したもの：買取機 `mine_cashier`、`ORE BUYBACK` と `HOLD ORE + E` の看板、
+    `E / DOWN`（E / CLOSED）の案内、昇降ボタン
+  - 入口の小看板は `CLOSED` だけに変えた（`ONE MORE ROCK` の店名は残す）
+  - `PlayerInteract` も閉鎖中は採掘関連の案内を一切出さない（Eのプロンプトも出ない）
+  - 戻す用に メニュー `Roomies/Mining/Reopen Mine (remove gate)` を追加
+    （シャッターを消し、隠した物と看板の文言を元に戻す）
+- **メニューシーン（MainMenuSteam）にBGMを配置**して保存した
+- **EditModeテストを初めて実行した**（これまで一度も実行されていなかった）
+
+### 変更ファイル
+- 変更：`Assets/_Scripts/Editor/MiningClosedGateBuilder.cs`（ヒントの隠し／戻し）
+- 変更：`Assets/_Scripts/PlayerInteract.cs`（閉鎖中は採掘の案内と操作を出さない）
+- 変更：`Assets/_Scenes/GameRoom.unity`（買取機などを非表示・看板の文言・保存済み）
+- 変更：`Assets/_Scenes/MainMenuSteam.unity`（`GameMusic` を配置・保存済み）
+
+### 重要な仕様
+- `Transform.Find` は名前の中の `/` をパス区切りとして扱うため、
+  「Sign - E  /  DOWN」のような名前は見つけられない。子を総当たりで比較している
+- 隠した物は削除していない。アップデートで開放するときは Reopen メニューで戻せる
+
+### 確認状況
+- Unityでのコンパイル：**確認済み**（エラー0）
+- 入口の見た目：**確認済み**（シーンビューのキャプチャで「ONE MORE ROCK / CLOSED」と
+  シャッターだけになり、買取機・Eの案内が消えたことを目視）
+- メニューシーンのBGM：**確認済み**（`GameMusic` が1つ・シーン保存済み）
+- 新規テスト `RoomiesBalanceTests`：**5/5 成功**
+- EditMode全体：**229/245 成功・15失敗・1スキップ**
+
+### 未完了・次の作業：テストの失敗15件の切り分け
+このリポジトリでテストを実行したのは今回が初めてで、**変更前の基準が無い**。
+失敗が今回の変更によるものか、元から落ちていたのかは未判定。
+- 採掘関連（6件）：`MiningSceneConfigurationPassesExistingValidation`、
+  `MiningCannotSellLooseOreOrAnotherPlayersCargo`、`MiningClosureConfiscates...`、
+  `MiningFailedDepositKeepsOreForRetry`、`MiningForcedDropReleases...`、`MiningSaleCredits...`
+  → 採掘場を閉鎖した影響の可能性が高い
+- 家賃関連（3件）：`RentCyclesContinueBeyondDayThree`、`RentSuccessAdvances...`、
+  `RentFailurePreserves...` → 家賃を `GameBalance` 経由にした影響の可能性
+- 配達・家具（5件）：`DeliveryCreatesInitialBoxesOnNetworkSpawn`、`FurniturePurchase...`2件、
+  `MissingFurniturePrefabDoesNotCharge`、`UntaggedChildColliders...`
+  → 今回触っていない範囲なので、元から落ちていた可能性が高い
+- `UnitySkills.Tests.Core...` 1件はパッケージ側のテストで本件と無関係
+- **次回：1件ずつ原因を確認し、仕様変更なら期待値を直し、不具合なら修正する**
+
+## 2026/10/22｜夜の設備（冷蔵庫・ブレーカー）を追加して夜イベントとつないだ
+
+### 今回の変更
+- 夜イベントが「バナーが出るだけ」だったので、**触れる設備**を2つ足した
+  - **冷蔵庫 `NightFridge`**：夜に E で食材を補充（既定¥300）。食費の夜イベントが来たとき
+    在庫があれば請求を肩代わりして在庫が消える。夜イベント「冷蔵庫の故障」で壊れ、
+    壊れている間は補充できない（修理は夜に E・既定¥400）
+  - **ブレーカー `HouseBreaker`**：停電の夜だけ触れる。上げ直すと朝を待たずに明かりが戻る
+- 共通の形 `HomeAppliance` を追加（今後の夜ギミックはこれを継ぐだけで足せる）
+  - `PlayerInteract` への追加は1か所だけ（表示と実行の2分岐）
+- 夜イベント側に2種類を追加：`BlackoutFixed`（復旧した）、`FoodBillCovered`（冷蔵庫で肩代わり）
+- プレハブはAGENTS.mdの規約どおり：見た目は `Visual/Placeholder`、扉は `Pivot_Door/Visual`、
+  レバーは `Pivot_Lever/Visual`、触る判定はルートのコライダー1つ、原点は足元・正面+Z
+
+### 変更ファイル
+- 新規：`Assets/_Scripts/Night/HomeAppliance.cs`、`NightFridge.cs`、`HouseBreaker.cs`
+- 新規：`Assets/_Scripts/Editor/NightApplianceBuilder.cs`（`Roomies/Night/...`）
+- 新規：`Assets/_Prefabs/Night/{NightFridge,HouseBreaker}.prefab`
+- 変更：`Assets/_Scripts/Night/NightEventManager.cs`、`Assets/_Scripts/PlayerInteract.cs`
+- 変更：`Assets/_Scenes/GameRoom.unity`（設備2つを配置・**未保存**）
+
+### 重要な仕様
+- 共有状態（在庫・故障・停電）はServerだけが変える。操作はRPC1往復で、距離もServerで確認する
+- 金額・距離・扉の角度はすべて `[SerializeField]`。インスペクターで調整できる
+- 設備が無いシーンでも夜イベントはこれまで通り動く（`Instance` が無ければ素通り）
+- 置き場所は共用スペースの北側の壁ぎわ（冷蔵庫 21.8/3.3/22.9、ブレーカー 19.3/4.7/23.2）。
+  **現物合わせは未調整**なので、シーンビューで動かして詰める想定
+
+### 確認状況
+- Unityでのコンパイル：**確認済み**（エラー0）
+- Unity Console：**確認済み**（エラー0）
+- プレハブ生成と配置：**確認済み**（2つとも1つずつシーンに存在）
+- 見た目：**ざっくり確認**（室内のキャプチャで壁ぎわに置かれているのを確認。細かい位置は未調整）
+- **Play Modeでの動作（補充・故障・停電復旧）：未実施**
+- **シーンは未保存**
+
+### 未完了・次の作業
+- Unityで Ctrl+S（設備2つの配置）
+- UnitySkillsのモードはまだ `auto` のまま。Bypassにすればテスト実行・シーン保存・
+  メニューシーンへのBGM配置をこちらで行える
+- ベッド（寝て夜を早送り）は未着手
+- 残り：UIの実体化、ワールドの実行時生成の実体化、ミニバイト拡充
+
+## 2026/10/22｜BGM導入・逮捕演出の映像化・音量と数値の集約・ゲームオーバー画面
+
+### 今回の変更
+- **BGMを導入した**（これまで音量スライダーだけで再生の仕組みが無かった）
+  - Audiostockから3曲を取得（リポジトリを軽くするためMP3）。`Assets/_Audio/Music/` に配置
+  - `GameMusic`（プレハブ）がシーンに常駐し、朝＝`day`、夜＝`night`、メニュー＝`menu` をクロスフェード
+  - 音量は `GameSettings.BgmVolume`（設定画面のスライダー）がそのまま効く
+  - ゲームオーバーでBGMを止め、`day/gameover` を鳴らす
+- **逮捕演出を映像にした**（これまでIMGUIで青い四角と文字を出すだけだった）
+  - 旧 `SmugglingArrestOverlay` を削除し、`ArrestCinematic`（プレハブ）に置き換え
+  - 流れ：サイレン＋赤青フラッシュ → カメラが後ろ上へ引いて自分が映る → 白フラッシュ＋
+    「ARRESTED」スタンプ（手錠SE）→ 暗転（サーバーのテレポート1.7秒に合わせる）→ 牢屋で明転
+  - 追跡中の赤い脈動と警告文も同じ実体へ移した
+  - 操作ロックを1.8秒→2.9秒にし、明転までカメラが戻らない間の誤操作を防いだ
+- **効果音の音量をコードから外した**
+  - `Resources/Audio/SfxLevels.asset`（31キー）に集約。インスペクターで調整する
+  - 未配線だったSEを配線：ブラックジャック（配り始め・勝ち・負け）、家具（持ち上げ・設置）、
+    家賃（成功・失敗）、起動ロゴ
+  - 効果音を追加取得：`police/siren`、`police/arrest`、`day/gameover`
+- **数値を `GameBalance.asset` に集約し、難易度上昇を入れた**
+  - 家賃は周回ごとに上がる（既定：1周目500 → +150ずつ → 上限2000）
+  - 夜イベントの金額倍率・「何も起きない夜」の重みの下がり方もここで調整する
+  - `SmugglingConfig` の報酬・罰金・労働回数も同じ表から読むようにした
+- **ゲームオーバー画面を作った**
+  - `GameOverScreen`（プレハブ）。家賃がいくら払えなかったかを表示
+  - ホストだけに「もう一度」（Day1の朝からやり直す。家具と所持金は残す）、全員に「メインメニューへ」
+- **EditModeテストを6件追加**（`RoomiesBalanceTests`）：家賃の値上がりと上限、夜イベントの倍率と上限、
+  平和な夜の重みの下限、音量表の未登録キーとマイナス値の扱い
+
+### 変更ファイル
+- 新規：`Assets/_Scripts/Audio/GameMusic.cs`、`Assets/_Scripts/Audio/SfxLevels.cs`、
+  `Assets/_Scripts/GameBalance.cs`、`Assets/_Scripts/UI/GameOverScreen.cs`、
+  `Assets/_Scripts/Smuggling/ArrestCinematic.cs`
+- 新規（ツール）：`GameMusicBuilder`、`SfxLevelsBuilder`、`GameBalanceBuilder`、
+  `GameOverScreenBuilder`、`ArrestCinematicBuilder`
+- 新規（アセット）：`_Audio/Music/{menu,day,night}.mp3`、`Resources/Audio/police/{siren,arrest}.wav`、
+  `Resources/Audio/day/gameover.wav`、`Resources/Audio/SfxLevels.asset`、
+  `Resources/Balance/GameBalance.asset`、`_Prefabs/Audio/GameMusic.prefab`、
+  `_Prefabs/UI/{ArrestCinematic,GameOverScreen}.prefab`
+- 新規（テスト）：`Assets/Tests/Editor/RoomiesBalanceTests.cs`
+- 削除：`Assets/_Scripts/Smuggling/SmugglingArrestOverlay.cs`
+- 変更：`DayManager`、`NightEventManager`、`SmugglingPlayer`、`SmugglingConfig`、`GameAudio`、
+  `PlayerMovement`、`SlotMachine`、`BlackjackTable`、`DeliveryButton`、`NetworkFurniture`、
+  `LNStudioSplash`、`UITheme`、`HudThemer`、`Assets/Resources/Audio/README.md`、`Assets/_Audio/CREDITS.md`
+
+### 重要な仕様
+- 新しい物はすべて**シーン／プレハブの実体**。実行時に見た目を作らない（AGENTS.mdの新ルール）
+- 曲の差し替えは `GameMusic` プレハブの3つのスロットを入れ替えるだけ
+- 効果音の音量は `SfxLevels.asset`、ゲームの数値は `GameBalance.asset` に分けた
+- `GameBalance.asset` が無くてもコード側の既定値で動く（壊れない）
+- 家賃の値引き（大家の気まぐれ）は「その周の基本家賃の半額」までが下限
+
+### 確認状況
+- Unityでのコンパイル：**確認済み**（エラー0。テスト用アセンブリ込み）
+- Unity Console：**確認済み**（エラー0）
+- プレハブの参照割り当て：**確認済み**（`GameMusic` の3曲とAudioSource、`ArrestCinematic` の8要素）
+- GameRoomへの配置：**確認済み**（`GameMusic`・`ArrestCinematic`・`GameOverScreen` が各1つ）
+- `dotnet build`：**確認済み**（`Roomies.RegressionTests` もエラー0）
+- **テストの実行：未実施**（`test_run_by_name` はUnitySkillsのautoモードで禁止）
+- **Play Modeでの確認・音の試聴：未実施**（変わらず）
+- **メニューシーンへのBGM配置：未実施**（`scene_load` がautoモードで禁止）
+- **シーンは未保存**（`GameOverScreen` を置いた分）
+
+### 未完了・次の作業
+- Unityで Ctrl+S（`GameOverScreen` の配置）
+- `MainMenuSteam` を開いて `Roomies/Audio/Place Music In Open Scene` を実行する
+- UnitySkillsをBypassモードにすれば、シーンの保存・切り替え・テスト実行をこちらで行える
+- 残り：UIの実体化（HUD→ロビー→ESC/設定）、ワールドの実行時生成の実体化、
+  夜の中身（冷蔵庫・ブレーカー・ベッド）、ミニバイト拡充
+- 効果音は未試聴のまま。`SfxLevels.asset` で音量調整が必要
+
 ## 2026/10/22｜「実行時に作らない」ルールを追加し、閉鎖シャッターを実体化
 
 ### 今回の変更

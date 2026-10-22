@@ -50,6 +50,8 @@ public class NightEventManager : MonoBehaviour
         FoundMoney,         // 落とし物
         MysteryPackage,     // 謎の小包（当たり）
         MysteryPackageBad,  // 謎の小包（ハズレ）
+        BlackoutFixed,      // 停電がブレーカーで直った
+        FoodBillCovered,    // 食費を冷蔵庫の食材で肩代わりした
     }
 
     // バナー色の種類（RPCで送るためbyte化）
@@ -93,6 +95,7 @@ public class NightEventManager : MonoBehaviour
     // サーバー側の持ち越し状態
     private NightEventType lastEvent = NightEventType.Peace;
     private bool fridgeBroken;      // 次の食費請求が2倍になる
+    private bool serverBlackoutActive;
 
     // 各クライアントの持ち越し状態
     private bool sleepyMorning;     // 次の朝だけ移動が重くなる
@@ -173,7 +176,18 @@ public class NightEventManager : MonoBehaviour
             case NightEventType.Blackout:
             case NightEventType.FridgeBreak:
             case NightEventType.NoisyNeighbor:
-                if (type == NightEventType.FridgeBreak) fridgeBroken = true;
+                if (type == NightEventType.FridgeBreak)
+                {
+                    fridgeBroken = true;
+                    // 家に置いてある冷蔵庫も壊す（夜のうちに直せる）
+                    if (NightFridge.Instance != null) NightFridge.Instance.ServerBreak();
+                }
+                if (type == NightEventType.Blackout)
+                {
+                    serverBlackoutActive = true;
+                    // ブレーカーを落とす（夜のうちに上げ直せる）
+                    if (HouseBreaker.Instance != null) HouseBreaker.Instance.ServerTrip();
+                }
                 dm.ServerSendNightEvent((byte)type, 0);
                 break;
 
@@ -189,6 +203,14 @@ public class NightEventManager : MonoBehaviour
             case NightEventType.FoodBill:
             {
                 int amount = ScaledAmount(foodBillMin, foodBillMax, day);
+
+                // 冷蔵庫に食材が入っていれば、今回の食費はそれでしのげる
+                if (NightFridge.Instance != null && NightFridge.Instance.ServerConsumeStock())
+                {
+                    dm.ServerSendNightEvent((byte)NightEventType.FoodBillCovered, amount);
+                    break;
+                }
+
                 if (fridgeBroken)
                 {
                     // 冷蔵庫が壊れた次の夜は食材が傷んでいる
@@ -294,8 +316,8 @@ public class NightEventManager : MonoBehaviour
 
     private NightEventType PickRandomEvent(int day, bool skipMoneyLoss)
     {
-        // Dayが進むほど「何も起きない夜」が減る
-        int peaceWeight = Mathf.Max(6, 25 - 7 * (day - 1));
+        // Dayが進むほど「何も起きない夜」が減る（値は GameBalance.asset で調整）
+        int peaceWeight = GameBalance.Current.PeaceWeight(day);
 
         (NightEventType type, int weight)[] table =
         {
@@ -350,10 +372,10 @@ public class NightEventManager : MonoBehaviour
         return Random.Range(min / 10, max / 10 + 1) * 10;
     }
 
-    // Dayが進むほど請求も当たりも大きくなる（上限2.5倍）
+    // Dayが進むほど請求も当たりも大きくなる（倍率は GameBalance.asset で調整）
     private static int ScaledAmount(int min, int max, int day)
     {
-        float scale = Mathf.Min(1f + 0.3f * (day - 1), 2.5f);
+        float scale = GameBalance.Current.NightScale(day);
         int amount = Mathf.RoundToInt(RandomAmount(min, max) * scale);
         return Mathf.Max(10, amount / 10 * 10);
     }
@@ -426,6 +448,16 @@ public class NightEventManager : MonoBehaviour
                 ShowBanner("謎の小包が届いた", $"開けたら現金 ¥{value:N0}！差出人は不明……", StyleFun);
                 break;
 
+            case NightEventType.BlackoutFixed:
+                ShowBanner("ブレーカー復旧！", "明かりが戻った。よくやった！", StyleFun);
+                RestoreBlackout();
+                break;
+
+            case NightEventType.FoodBillCovered:
+                ShowBanner("食費はかからなかった",
+                    $"冷蔵庫の食材でしのいだ（浮いた額 ¥{value:N0}）。", StyleFun);
+                break;
+
             case NightEventType.MysteryPackageBad:
                 ShowBanner("謎の小包が届いた",
                     $"中身は請求書だった。¥{value:N0} 払わされた……",
@@ -448,6 +480,8 @@ public class NightEventManager : MonoBehaviour
             case NightEventType.LandlordMood:
             case NightEventType.FoundMoney:
             case NightEventType.MysteryPackage:
+            case NightEventType.BlackoutFixed:
+            case NightEventType.FoodBillCovered:
                 GameAudio.Play("night/lucky");
                 break;
             default:
@@ -460,6 +494,12 @@ public class NightEventManager : MonoBehaviour
     {
         // 停電の復旧（各クライアントがローカルで戻す）
         RestoreBlackout();
+
+        if (IsServer)
+        {
+            serverBlackoutActive = false;
+            if (HouseBreaker.Instance != null) HouseBreaker.Instance.ServerReset();
+        }
 
         // 隣人の騒音があった夜の翌朝だけ、寝不足で体が重い
         if (sleepyMorning)
@@ -602,6 +642,18 @@ public class NightEventManager : MonoBehaviour
     }
 
     // ---- 他スクリプト向けの告知API（サーバーから呼ぶ） ----
+
+    /// <summary>
+    /// ブレーカーを上げて停電を直す（サーバーのみ）。全員の画面の明かりを戻す。
+    /// </summary>
+    public void ServerFixBlackout()
+    {
+        if (!IsServer || !serverBlackoutActive) return;
+
+        serverBlackoutActive = false;
+        var dm = DayManager.Instance;
+        if (dm != null) dm.ServerSendNightEvent((byte)NightEventType.BlackoutFixed, 0);
+    }
 
     /// <summary>全員にバナー告知（サーバーのみ有効）。</summary>
     public void ServerAnnounce(string title, string body, byte style = StyleFun)

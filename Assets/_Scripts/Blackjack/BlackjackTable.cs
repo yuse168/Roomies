@@ -548,6 +548,10 @@ public class BlackjackTable : NetworkBehaviour
     private void OnStateChanged(int oldValue, int newValue)
     {
         RefreshDisplay();
+
+        // 配り始めの音
+        if (oldValue == (int)RoundPhase.Idle && newValue == (int)RoundPhase.PlayerTurn)
+            GameAudio.PlayAt("blackjack/deal", transform.position);
     }
 
     private void OnStateChanged(ulong oldValue, ulong newValue)
@@ -568,6 +572,13 @@ public class BlackjackTable : NetworkBehaviour
     private void OnResultKindChanged(int oldValue, int newValue)
     {
         RefreshDisplay();
+
+        // 勝ち負けの音（筐体の位置から鳴らすので、近くの人にだけ聞こえる）
+        var kind = (ResultKind)newValue;
+        if (kind == ResultKind.Win || kind == ResultKind.Blackjack)
+            GameAudio.PlayAt("blackjack/win", transform.position);
+        else if (kind == ResultKind.Lose)
+            GameAudio.PlayAt("blackjack/lose", transform.position);
 
         if (newValue != (int)ResultKind.None && isActiveAndEnabled)
         {

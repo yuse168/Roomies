@@ -21,6 +21,7 @@ public class DayManager : NetworkBehaviour
     [SerializeField] private int maxDay = 3;
 
     [Header("家賃設定")]
+    [Tooltip("GameBalance.asset が無いときに使う家賃。通常は Resources/Balance/GameBalance を見る。")]
     [SerializeField] private int rentAmount = 500;
 
     [Header("ターン時間")]
@@ -88,8 +89,26 @@ public class DayManager : NetworkBehaviour
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server);
 
+    /// <summary>
+    /// 何周目の家賃か（1始まり）。3日ごとに徴収するなら Day1〜3 が1周目、Day4〜6 が2周目。
+    /// </summary>
+    public int RentCycle => (Mathf.Max(1, CurrentDay) - 1) / MaxDay + 1;
+
+    /// <summary>
+    /// この周の基本家賃。`GameBalance.asset` があれば周ごとに上がる（難易度上昇）。
+    /// 資産が無いときはインスペクターの `rentAmount` をそのまま使う。
+    /// </summary>
+    public int BaseRentThisCycle
+    {
+        get
+        {
+            GameBalance balance = GameBalance.Current;
+            return balance != null ? balance.RentForCycle(RentCycle) : rentAmount;
+        }
+    }
+
     /// <summary>次回の家賃徴収額（基本額＋上乗せ）。</summary>
-    public int CurrentRentTotal => rentAmount + rentSurcharge.Value;
+    public int CurrentRentTotal => BaseRentThisCycle + rentSurcharge.Value;
     public int DaysUntilRent
     {
         get
@@ -108,7 +127,7 @@ public class DayManager : NetworkBehaviour
     public void ServerAddRentSurcharge(int amount)
     {
         if (!IsServer || amount == 0) return;
-        int discountFloor = -(rentAmount / 2);
+        int discountFloor = -(BaseRentThisCycle / 2);
         rentSurcharge.Value = Mathf.Max(discountFloor, rentSurcharge.Value + amount);
     }
 
@@ -305,7 +324,7 @@ public class DayManager : NetworkBehaviour
         // ---- 2) 3日目だけ、全員へ家賃支払いフェーズを表示 ----
         if (collectRent)
         {
-            int total = rentAmount + rentSurcharge.Value;
+            int total = CurrentRentTotal;
             SharedMoneyManager money = SharedMoneyManager.Instance;
             int balance = money != null
                 ? money.CurrentMoney
@@ -545,6 +564,8 @@ public class DayManager : NetworkBehaviour
     [Rpc(SendTo.ClientsAndHost)]
     private void PlayRentPaymentClientRpc(int rent, int balance, bool canPay)
     {
+        GameAudio.Play(canPay ? "rent/paid" : "rent/failed");
+
         if (rentPaymentUI != null)
             rentPaymentUI.Play(rent, balance, canPay);
     }
@@ -650,8 +671,66 @@ public class DayManager : NetworkBehaviour
         if (!IsServer) return;
 
         isGameOver.Value = true;
+        ShowGameOverClientRpc(CurrentRentTotal);
 
         Debug.Log("GAME OVER");
+    }
+
+    [Rpc(SendTo.ClientsAndHost)]
+    private void ShowGameOverClientRpc(int rent)
+    {
+        if (GameOverScreen.Instance != null) GameOverScreen.Instance.Show(rent);
+    }
+
+    /// <summary>
+    /// ゲームオーバー画面の「もう一度」から呼ぶ。Day1の朝からやり直す。
+    /// 家具と所持金はそのまま残す（建て直しの楽しみを消さないため）。
+    /// </summary>
+    public void ServerRestartGame()
+    {
+        if (!IsSpawned) return;
+        if (!IsServer)
+        {
+            RequestRestartServerRpc();
+            return;
+        }
+
+        ServerRestartInternal();
+    }
+
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    private void RequestRestartServerRpc(RpcParams rpcParams = default)
+    {
+        // やり直せるのはホストだけ（画面側でもボタンを隠しているが、念のため）
+        if (rpcParams.Receive.SenderClientId != NetworkManager.ServerClientId) return;
+        ServerRestartInternal();
+    }
+
+    private void ServerRestartInternal()
+    {
+        if (!IsServer || !isGameOver.Value) return;
+
+        StopAllCoroutines();
+
+        isGameOver.Value = false;
+        isTransitioning.Value = false;
+        rentSurcharge.Value = 0;
+        currentDay.Value = 1;
+        currentTime.Value = 0;
+        remainingTime.Value = turnDuration;
+        furnitureDeliveryCount = 0;
+
+        RespawnAllPlayers();
+        SnapshotDayStartEarnings();
+        HideGameOverClientRpc();
+
+        Debug.Log("ゲームをDay1からやり直します");
+    }
+
+    [Rpc(SendTo.ClientsAndHost)]
+    private void HideGameOverClientRpc()
+    {
+        if (GameOverScreen.Instance != null) GameOverScreen.Instance.Hide();
     }
 
     private void OnDayChanged(int oldDay, int newDay)
@@ -668,13 +747,13 @@ public class DayManager : NetworkBehaviour
         // 夜(1)→朝(0) になったら配達などのトリガーを発火
         if (newTime == 0)
         {
-            GameAudio.Play("day/morning", 0.7f);
+            GameAudio.Play("day/morning");
             OnMorningArrived?.Invoke();
         }
         // 朝(0)→夜(1) になったら夜イベントのトリガーを発火
         else if (newTime == 1)
         {
-            GameAudio.Play("day/night", 0.7f);
+            GameAudio.Play("day/night");
             OnNightArrived?.Invoke();
         }
     }
@@ -691,6 +770,12 @@ public class DayManager : NetworkBehaviour
     {
         UpdateDayUI();
         UpdateTimerUI();
+
+        if (newValue && !oldValue)
+        {
+            GameAudio.Play("day/gameover");
+            if (GameMusic.Instance != null) GameMusic.Instance.StopMusic();
+        }
     }
 
     private void UpdateDayUI()

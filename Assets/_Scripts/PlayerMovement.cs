@@ -389,7 +389,7 @@ public class PlayerMovement : NetworkBehaviour
         if (footstepTravel < stride) return;
 
         footstepTravel = 0f;
-        GameAudio.Play("player/footstep", isCrouching ? 0.32f : 0.62f, 0.09f);
+        GameAudio.Play("player/footstep", isCrouching ? 0.5f : 1f, 0.09f);
     }
 
     void Look()
@@ -571,13 +571,13 @@ public class PlayerMovement : NetworkBehaviour
             animator.SetTrigger(JumpHash);
         }
 
-        GameAudio.PlayAt("player/jump", transform.position, 0.75f, 0.05f);
+        GameAudio.PlayAt("player/jump", transform.position, 1f, 0.05f);
     }
 
     [Rpc(SendTo.Everyone)]
     private void PlayLandRpc()
     {
-        GameAudio.PlayAt("player/land", transform.position, 0.8f, 0.06f);
+        GameAudio.PlayAt("player/land", transform.position, 1f, 0.06f);
     }
 
     [Rpc(SendTo.Everyone)]

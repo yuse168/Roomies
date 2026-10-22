@@ -173,6 +173,10 @@ public class NetworkFurniture : NetworkBehaviour
 
     private void OnHeldChanged(bool oldValue, bool newValue)
     {
+        // 持ち上げ・設置の音（家具の位置から鳴らす）
+        if (oldValue != newValue)
+            GameAudio.PlayAt(newValue ? "furniture/pickup" : "furniture/place", transform.position);
+
         ApplyHeldState(newValue);
     }
 

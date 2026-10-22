@@ -179,6 +179,8 @@ public sealed class LNStudioSplash : MonoBehaviour
 
     private IEnumerator PlayRoutine()
     {
+        GameAudio.Play("ui/logo");
+
         float elapsed = 0f;
 
         while (elapsed < FadeOutEnd)

@@ -86,10 +86,82 @@ internal static class MiningClosedGateBuilder
         }
 
         AssignToMiningSite(gate);
+        SetHintsVisible(entrance.transform, false);
 
         EditorSceneManager.MarkSceneDirty(entrance.scene);
         Selection.activeGameObject = gate;
-        Debug.Log($"[Mining] 閉鎖シャッターを置きました → {EntrancePath}/{GateName}（シーンを保存してください）");
+        Debug.Log($"[Mining] 閉鎖シャッターを置き、操作のヒントを隠しました → {EntrancePath}/{GateName}（シーンを保存してください）");
+    }
+
+    [MenuItem("Roomies/Mining/Reopen Mine (remove gate)")]
+    private static void Reopen()
+    {
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            Debug.LogError("[Mining] Play Modeを抜けてから実行してください。");
+            return;
+        }
+
+        GameObject entrance = GameObject.Find(EntrancePath);
+        if (entrance == null)
+        {
+            Debug.LogError($"[Mining] 入口が見つかりません: {EntrancePath}");
+            return;
+        }
+
+        Transform gate = entrance.transform.Find(GateName);
+        if (gate != null) Undo.DestroyObjectImmediate(gate.gameObject);
+
+        SetHintsVisible(entrance.transform, true);
+
+        EditorSceneManager.MarkSceneDirty(entrance.scene);
+        Debug.Log("[Mining] シャッターを外し、買取機と案内を戻しました。" +
+                  "MiningSite の Service Closed もOFFにしてください（シーンを保存してください）");
+    }
+
+    // 閉鎖中は「ここで何ができるか」を見せない。
+    // 買取機・Eの案内・看板の文言を隠し、入口は「CLOSED」とだけ読めるようにする。
+    private static void SetHintsVisible(Transform entrance, bool visible)
+    {
+        string[] hidden =
+        {
+            "mine_cashier",
+            "Sign - ORE BUYBACK",
+            "Sign - HOLD ORE + E",
+            "Sign - E  /  DOWN",
+            "Lift call button",
+        };
+
+        foreach (string name in hidden)
+        {
+            Transform target = Child(entrance, name);
+            if (target == null) continue;
+            Undo.RecordObject(target.gameObject, "Toggle mine hints");
+            target.gameObject.SetActive(visible);
+        }
+
+        // 入口の小看板。閉鎖中は用途が分からない文言にする。
+        Transform subtitle = Child(entrance, "Sign - MINING CO.  /  OPEN UNTIL SUNSET");
+        if (subtitle != null)
+        {
+            var label = subtitle.GetComponent<TMPro.TextMeshPro>();
+            if (label != null)
+            {
+                Undo.RecordObject(label, "Toggle mine sign");
+                label.text = visible ? "MINING CO.  /  OPEN UNTIL SUNSET" : "CLOSED";
+            }
+        }
+    }
+
+    /// <summary>
+    /// 名前で子を探す。`Transform.Find` は名前の中の "/" をパス区切りとして扱うので、
+    /// 「Sign - E  /  DOWN」のような名前は見つけられない。ここは総当たりで比べる。
+    /// </summary>
+    private static Transform Child(Transform parent, string name)
+    {
+        foreach (Transform child in parent)
+            if (child.name == name) return child;
+        return null;
     }
 
     private static Transform Part(Transform parent, string name, Vector3 localPosition,
