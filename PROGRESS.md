@@ -1,5 +1,35 @@
 # PROGRESS.md
 
+## 2026/10/22｜遠景に山なみと走る電車を追加（奥行きを戻した）
+
+### 今回の変更
+- 遠景が無く平坦に見えていたので、**山なみ**と**海上の高架を走る電車**を足した
+  - 山：街の周りに3重の円で28個。手前は濃い緑、奥は青にして霞ませた（空気遠近）
+  - 高架：2本（街の奥 z=-120 と、海側 x=170）。どちらから見ても電車が通る
+  - 電車：先頭車＋客車3両。`BackdropTrain` が端から端へ走らせ、通り過ぎたら間を置いて次が来る
+- 山のメッシュは10角錐を生成して資産化（`Assets/_Prefabs/Backdrop/backdrop_mountain.asset`）
+- 既存の「遠景の家並み」（`Pocket gardens and distant silhouettes`）はそのまま
+
+### 変更ファイル
+- 新規：`Assets/_Scripts/Environment/BackdropTrain.cs`
+- 新規：`Assets/_Scripts/Editor/RoomiesBackdropBuilder.cs`
+  （`Roomies/Environment/Build Distant Backdrop` と `Remove Distant Backdrop`）
+- 新規：`Assets/_Prefabs/Backdrop/backdrop_mountain.asset`
+- 変更：`Assets/_Scenes/GameRoom.unity`（`Roomies_Backdrop` を配置・保存済み）
+
+### 重要な仕様
+- 遠景は**当たり判定なし・影の投影なし**。描画だけの飾りなので負荷はほぼ無い
+- 電車は実体として置いてあり、実行時は位置を動かすだけ（AGENTS.mdの「実行時に作らない」に合わせた）
+- 速さ・走る範囲・次の電車までの待ち時間は `BackdropTrain` のインスペクターで調整できる
+- 山の数・距離・高さを変えたいときはツールを編集して置き直す（既存の遠景は毎回作り直す）
+- 編集中は電車が端に止まって見える。動くのはPlay Mode中だけ
+
+### 確認状況
+- Unityでのコンパイル：**確認済み**（エラー0）
+- Console：**確認済み**（エラー0）
+- 見た目：**確認済み**（俯瞰と街の視点の両方をキャプチャし、山なみと高架が見えることを目視。山28個）
+- **Play Modeでの電車の動き：未確認**（速度・間隔の体感は未調整）
+
 ## 2026/10/22｜指摘された10点の修正（足音・NPC・UI・音の被りなど）
 
 ### 今回の変更
