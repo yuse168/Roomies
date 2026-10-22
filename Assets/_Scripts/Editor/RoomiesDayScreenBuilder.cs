@@ -20,6 +20,8 @@ using UnityEngine;
 ///  Roomies/UI/Build Night Banner
 ///  Roomies/UI/Build Earning List
 ///  Roomies/UI/Build HUD
+///  Roomies/UI/Build Menu
+///  Roomies/UI/Build Pause Menu
 /// </summary>
 internal static class RoomiesDayScreenBuilder
 {
@@ -209,6 +211,78 @@ internal static class RoomiesDayScreenBuilder
         Selection.activeGameObject = hud.gameObject;
         Debug.Log("[UI] HUDを置きました。既存の DayText / Timer Text / SharedMoneyText も中へ移しました" +
                   "（シーンを保存してください）");
+    }
+
+    // ---------------- メニューとロビー ----------------
+
+    [MenuItem("Roomies/UI/Build Menu")]
+    private static void BuildMenu()
+    {
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            Debug.LogError("[UI] Play Modeを抜けてから実行してください。");
+            return;
+        }
+
+        if (Object.FindAnyObjectByType<MainMenuManager>() == null)
+        {
+            Debug.LogError("[UI] MainMenuManager が見つかりません。MainMenuSteam シーンを開いてから実行してください。");
+            return;
+        }
+
+        var themer = Object.FindAnyObjectByType<MenuThemer>(FindObjectsInactive.Include);
+        if (themer == null)
+        {
+            var go = new GameObject("MenuThemer");
+            Undo.RegisterCreatedObjectUndo(go, "Build menu");
+            themer = Undo.AddComponent<MenuThemer>(go);
+        }
+
+        themer.EditorBuildUI();
+
+        EditorSceneManager.MarkSceneDirty(themer.gameObject.scene);
+        Selection.activeGameObject = themer.gameObject;
+        Debug.Log("[UI] メニューとロビーの見た目を置きました（シーンを保存してください）");
+    }
+
+    // ---------------- ポーズ・設定 ----------------
+
+    [MenuItem("Roomies/UI/Build Pause Menu")]
+    private static void BuildPauseMenu()
+    {
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            Debug.LogError("[UI] Play Modeを抜けてから実行してください。");
+            return;
+        }
+
+        if (Object.FindAnyObjectByType<DayManager>() == null)
+        {
+            Debug.LogError("[UI] DayManager が見つかりません。GameRoom シーンを開いてから実行してください。");
+            return;
+        }
+
+        var esc = Object.FindAnyObjectByType<EscMenuUI>(FindObjectsInactive.Include);
+        if (esc == null)
+        {
+            var go = new GameObject("EscMenuUI");
+            Undo.RegisterCreatedObjectUndo(go, "Build pause menu");
+            esc = Undo.AddComponent<EscMenuUI>(go);
+        }
+
+        if (esc.transform.Find("EscMenuCanvas") != null)
+        {
+            Debug.Log("[UI] ポーズ画面はすでに置かれています。作り直すときは EscMenuCanvas を消してから実行してください。");
+            Selection.activeGameObject = esc.gameObject;
+            return;
+        }
+
+        Undo.RegisterFullObjectHierarchyUndo(esc.gameObject, "Build pause menu");
+        esc.EditorBuildUI();
+
+        EditorSceneManager.MarkSceneDirty(esc.gameObject.scene);
+        Selection.activeGameObject = esc.gameObject;
+        Debug.Log("[UI] ポーズ・設定の画面を置きました（シーンを保存してください）");
     }
 
     private static T Ensure<T>(Transform parent, string name, bool rebuild, System.Action<T> build)

@@ -32,16 +32,21 @@ public sealed class EscMenuUI : MonoBehaviour
 
     public static bool IsOpen { get; private set; }
 
-    GameObject overlay;
-    CanvasGroup overlayGroup;
-    RawImage blurredBackdrop;
+    [Header("シーンに置いた中身（配置ツールが入れる）")]
+    [SerializeField] GameObject overlay;
+    [SerializeField] CanvasGroup overlayGroup;
+    [SerializeField] RawImage blurredBackdrop;
+    [SerializeField] RectTransform card;
+    [SerializeField] CanvasGroup mainGroup;
+    [SerializeField] CanvasGroup settingsGroup;
+    [SerializeField] CanvasGroup keybindGroup;
+    [SerializeField] CanvasGroup confirmGroup;
+
+    // ぼかしは「いまの画面を写したもの」なので、実行時に作る（見た目の置き物ではない）
     Texture2D pauseCapture;
     Material blurMaterial;
-    RectTransform card;
-    CanvasGroup mainGroup;
-    CanvasGroup settingsGroup;
-    CanvasGroup keybindGroup;
-    CanvasGroup confirmGroup;
+
+    // 下の参照とボタンの反応は、起動時に名前で結び直す（WireUI）
     Button resumeButton;
     Button settingsBackButton;
     Button keybindBackButton;
@@ -75,16 +80,24 @@ public sealed class EscMenuUI : MonoBehaviour
         IsOpen = false;
         if (scene.name != GameSceneName || FindAnyObjectByType<EscMenuUI>() != null) return;
 
-        var host = new GameObject(nameof(EscMenuUI));
-        SceneManager.MoveGameObjectToScene(host, scene);
-        host.AddComponent<EscMenuUI>();
+        // ポーズ画面はシーンに実体で置いてある（`Roomies/UI/Build Pause Menu`）
+        Debug.LogError("[UI] ポーズ画面がシーンにありません。メニュー『Roomies/UI/Build Pause Menu』で置いてください。");
     }
 
     void Awake()
     {
         GameSettings.EnsureInitialized();
         EnsureEventSystem();
-        BuildUI();
+
+        if (overlay == null)
+        {
+            Debug.LogError(
+                "[UI] ポーズ画面の中身が空です。" +
+                "メニュー『Roomies/UI/Build Pause Menu』でシーンに置き直してください。", this);
+            return;
+        }
+
+        WireUI();
         SetOpen(false, true);
     }
 
@@ -177,6 +190,21 @@ public sealed class EscMenuUI : MonoBehaviour
     [Header("レイアウト")]
     [Tooltip("ポーズカードの位置。(0,0)で画面中央")]
     [SerializeField] private Vector2 cardOffset = Vector2.zero;
+
+#if UNITY_EDITOR
+    /// <summary>
+    /// シーンへ実体を置くための組み立て（エディタ専用）。
+    /// 配置ツール `Roomies/UI/Build Pause Menu` から呼ぶ。実行中は動かない。
+    ///
+    /// ボタンの反応（onClick）はシーンに保存できないので、
+    /// 置いたあとも実行時に <see cref="WireUI"/> が名前で結び直す。
+    /// 名前がこの2か所の約束なので、名前を変えるときは両方そろえること。
+    /// </summary>
+    public void EditorBuildUI()
+    {
+        BuildUI();
+        WireUI();
+    }
 
     void BuildUI()
     {
@@ -459,6 +487,177 @@ public sealed class EscMenuUI : MonoBehaviour
             dialog, "ExecuteButton", "はい", 258f,
             UITheme.Red, 360f, 260f, 72f, 24f);
         executeButton.onClick.AddListener(ExecutePendingAction);
+    }
+
+#endif
+
+    /// <summary>
+    /// シーンに置いてある部品を名前で探して、参照とボタンの反応を結び直す。
+    /// 組み立て（<see cref="BuildUI"/>）と同じ名前を使うのが約束。
+    /// </summary>
+    void WireUI()
+    {
+        if (card == null) return;
+
+        // 下じきのぼかしは実行時に作る（画面を写したものなので置いておけない）
+        if (blurredBackdrop != null && blurredBackdrop.material == null)
+        {
+            Shader blurShader = Shader.Find("UI/RoomiesSoftBlur");
+            if (blurShader != null)
+            {
+                blurMaterial = new Material(blurShader);
+                blurMaterial.SetFloat("_BlurSize", 1.65f);
+                blurredBackdrop.material = blurMaterial;
+            }
+        }
+
+        // メニュー
+        Transform main = mainGroup != null ? mainGroup.transform : null;
+        resumeButton = Bind(main, "ResumeButton", CloseMenu);
+        Bind(main, "SettingsButton", OpenSettings);
+        Bind(main, "MenuButton", () => ShowConfirmation(ConfirmAction.MainMenu));
+        Bind(main, "QuitButton", () => ShowConfirmation(ConfirmAction.Quit));
+
+        // 設定
+        Transform settings = settingsGroup != null ? settingsGroup.transform : null;
+        sensitivitySlider = FindChild<Slider>(settings, "マウス感度Slider");
+        sensitivityValue = FindChild<TMP_Text>(settings, "マウス感度Value");
+        if (sensitivitySlider != null)
+        {
+            sensitivitySlider.onValueChanged.RemoveAllListeners();
+            sensitivitySlider.SetValueWithoutNotify(GameSettings.MouseSensitivity);
+            sensitivitySlider.onValueChanged.AddListener(value =>
+            {
+                GameSettings.SetMouseSensitivity(value);
+                if (sensitivityValue != null) sensitivityValue.text = value.ToString("0.00");
+            });
+        }
+
+        volumeSlider = FindChild<Slider>(settings, "マスター音量Slider");
+        volumeValue = FindChild<TMP_Text>(settings, "マスター音量Value");
+        if (volumeSlider != null)
+        {
+            volumeSlider.onValueChanged.RemoveAllListeners();
+            volumeSlider.SetValueWithoutNotify(GameSettings.MasterVolume);
+            volumeSlider.onValueChanged.AddListener(value =>
+            {
+                GameSettings.SetMasterVolume(value);
+                if (volumeValue != null) volumeValue.text = $"{Mathf.RoundToInt(value * 100f)}%";
+            });
+        }
+
+        fullscreenValue = ButtonLabel(settings, "画面モードButton");
+        Bind(settings, "画面モードButton", () =>
+        {
+            GameSettings.SetFullscreen(!GameSettings.Fullscreen);
+            RefreshSettings();
+        });
+
+        resolutionValue = FindChild<TMP_Text>(settings, "Value", "解像度ValueBackground");
+        Bind(settings, "解像度Previous", () =>
+        {
+            GameSettings.SetResolutionIndex(GameSettings.ResolutionIndex - 1);
+            RefreshSettings();
+        });
+        Bind(settings, "解像度Next", () =>
+        {
+            GameSettings.SetResolutionIndex(GameSettings.ResolutionIndex + 1);
+            RefreshSettings();
+        });
+
+        qualityValue = FindChild<TMP_Text>(settings, "Value", "グラフィック品質ValueBackground");
+        Bind(settings, "グラフィック品質Previous", () =>
+        {
+            GameSettings.SetQualityLevel(GameSettings.QualityLevel - 1);
+            RefreshSettings();
+        });
+        Bind(settings, "グラフィック品質Next", () =>
+        {
+            GameSettings.SetQualityLevel(GameSettings.QualityLevel + 1);
+            RefreshSettings();
+        });
+
+        cameraMotionValue = ButtonLabel(settings, "カメラの揺れButton");
+        Bind(settings, "カメラの揺れButton", () =>
+        {
+            GameSettings.SetCameraMotion(!GameSettings.CameraMotion);
+            RefreshSettings();
+        });
+
+        Bind(settings, "ResetButton", () =>
+        {
+            GameSettings.ResetDefaults();
+            RefreshSettings();
+        });
+        settingsBackButton = Bind(settings, "BackButton", ShowMain);
+        Bind(settings, "KeybindButton", OpenKeyBindings);
+
+        // キー設定
+        Transform keybind = keybindGroup != null ? keybindGroup.transform : null;
+        keybindValues.Clear();
+        foreach (GameAction action in (GameAction[])System.Enum.GetValues(typeof(GameAction)))
+        {
+            GameAction captured = action;
+            Button button = Bind(keybind, action + "Button", () => BeginKeyCapture(captured));
+            if (button != null) keybindValues[action] = button.GetComponentInChildren<TMP_Text>(true);
+        }
+        keybindBackButton = Bind(keybind, "BackButton", OpenSettings);
+
+        // 確認ダイアログ
+        Transform dialog = confirmGroup != null ? confirmGroup.transform.Find("Dialog") : null;
+        confirmTitle = FindChild<TMP_Text>(dialog, "Title");
+        confirmMessage = FindChild<TMP_Text>(dialog, "Message");
+        confirmCancelButton = Bind(dialog, "CancelButton", HideConfirmation);
+        Bind(dialog, "ExecuteButton", ExecutePendingAction);
+
+        RefreshSettings();
+        RefreshKeyBindings();
+    }
+
+    /// <summary>名前でボタンを探して、押したときの動きを付け直す。</summary>
+    Button Bind(Transform parent, string name, UnityEngine.Events.UnityAction action)
+    {
+        Button button = FindChild<Button>(parent, name);
+        if (button == null) return null;
+
+        button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(action);
+        return button;
+    }
+
+    static TMP_Text ButtonLabel(Transform parent, string name)
+    {
+        Button button = FindChild<Button>(parent, name);
+        return button != null ? button.GetComponentInChildren<TMP_Text>(true) : null;
+    }
+
+    /// <summary>
+    /// 子（孫も含む）から名前で探す。`insideName` を渡すと、その名前の子の中だけを見る。
+    /// </summary>
+    static T FindChild<T>(Transform parent, string name, string insideName = null) where T : Component
+    {
+        if (parent == null) return null;
+
+        Transform scope = parent;
+        if (!string.IsNullOrEmpty(insideName))
+        {
+            scope = null;
+            foreach (Transform t in parent.GetComponentsInChildren<Transform>(true))
+            {
+                if (t.name != insideName) continue;
+                scope = t;
+                break;
+            }
+            if (scope == null) return null;
+        }
+
+        foreach (Transform t in scope.GetComponentsInChildren<Transform>(true))
+        {
+            if (t.name != name) continue;
+            var component = t.GetComponent<T>();
+            if (component != null) return component;
+        }
+        return null;
     }
 
     void RefreshSettings()

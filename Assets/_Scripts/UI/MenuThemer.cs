@@ -28,21 +28,39 @@ public class MenuThemer : MonoBehaviour
     private const float TaglineY    = 274f;
     private const float TitleY      = 322f;
 
-    private TMP_Text waitingText;
+    [Header("シーンに置いた中身（配置ツールが入れる）")]
+    [SerializeField] private TMP_Text waitingText;
+    [SerializeField] private Button playButton;
+    [SerializeField] private Button playBackButton;
+    [SerializeField] private Button hostButton;
+    [SerializeField] private Button joinButton;
+
     private float pulseTime;
 
-    private Button playButton;
-    private Button playBackButton;
-    private Button hostButton;
-    private Button joinButton;
-
     private void Awake()
+    {
+        if (playButton == null)
+        {
+            Debug.LogError(
+                "[UI] メニューの中身が空です。" +
+                "メニュー『Roomies/UI/Build Menu』でシーンに置き直してください。", this);
+        }
+    }
+
+#if UNITY_EDITOR
+    /// <summary>
+    /// シーンへ実体を置くための組み立て（エディタ専用）。
+    /// 配置ツール `Roomies/UI/Build Menu` から呼ぶ。実行中は動かない。
+    /// すでにあるボタンやパネルは作り直さず、見た目を整えるだけ。
+    /// </summary>
+    public void EditorBuildUI()
     {
         BuildMainMenu();
         BuildJoinPanel();
         BuildLobbyPanel();
         ApplyStatusTexts();
     }
+#endif
 
     // ================================================================
     // メインメニュー

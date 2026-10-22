@@ -79,15 +79,25 @@
 - 夜イベントのバナー … `Roomies/UI/Build Night Banner`（`NightEventManager` と
   `FurnitureEditController` も一緒に置く）
 - みんなの稼ぎ … `Roomies/UI/Build Earning List`
+- HUD … `Roomies/UI/Build HUD`
+- メニューとロビーの見た目 … `Roomies/UI/Build Menu`（MainMenuSteamシーン）
+- ポーズ・設定・キー設定 … `Roomies/UI/Build Pause Menu`
 - ゲームオーバー画面 / 逮捕演出 / セーブの「続きから」ボタン
+- ベッド・睡眠の管理・今日のおねがい … `Roomies/Night/Place Beds In Open Scene`
 
 組み立てのコードは各クラスの `EditorBuildUI()` に `#if UNITY_EDITOR` で残してある。
 実行中は動かないので、置き直したいときだけ配置ツールから呼ぶ。
 参照は `[SerializeField]` でシーンに保存される。
 
+ポーズ画面だけは、ボタンの反応（onClick）がシーンに保存できないため、
+組み立て（`EditorBuildUI`）と実行時の結び直し（`WireUI`）の2つがある。
+**部品の名前がこの2つの約束**なので、名前を変えるときは両方そろえること。
+
 **まだ**（新しく同じ作り方をしない。触るついでに実体化する）
-- HUD（`HudThemer`）、ロビー（`LobbyUIManager`）、ポーズ・設定（`EscMenuUI`）
+- ロビーの参加者の行（`LobbyUIManager.CreatePlayerRow`）。人数が実行時に決まるので
+  生成自体は避けられないが、**シーンに置いた見本をコピーする形**にしたい
 - `NetworkFurniture` の `Visual`、`CharacterCloset` の見た目、`MiningFeedback` の演出
+- ポーズ中の背景ぼかしは、いまの画面を写したものなので実行時のままでよい
 - `UITheme` は部品を作る道具なので、**エディタの配置ツールから呼ぶぶんには問題ない**
   （実行時に呼ばないこと）
 

@@ -1,5 +1,54 @@
 # PROGRESS.md
 
+## 2026/10/23｜UIの実体化（その2：HUD・メニュー/ロビー・ポーズ/設定）
+
+残っていた大きい3つを実体化した。これでコードから実行時に組み立てるUIはほぼ無くなった。
+
+### 今回の変更
+1. **HUD**（`HudThemer`）
+   - 組み立てを `EditorBuildUI()` に移し、参照を `[SerializeField]` に
+   - 配置ツール `Roomies/UI/Build HUD`。既存の `DayText` / `Timer Text` /
+     `SharedMoneyText` も組み立て時に中へ移すので、そのままシーンに残って直せる
+   - 「いまの目標」に**今日のおねがいの進み具合**を出すようにした
+2. **メニューとロビーの見た目**（`MenuThemer`）
+   - 同じやり方で実体化。配置ツール `Roomies/UI/Build Menu`（MainMenuSteamシーン）
+3. **ポーズ・設定・キー設定**（`EscMenuUI`）
+   - ボタンの反応（onClick）とラムダはシーンに保存できないので、
+     **組み立て（`EditorBuildUI`）と実行時の結び直し（`WireUI`）の2本立て**にした
+   - `WireUI` は部品を**名前で**探して参照と反応を付け直す。名前が2つの約束になる
+   - キー設定の一覧（`Dictionary<GameAction, TMP_Text>`）も名前から組み直す
+   - 背景のぼかしは「いまの画面を写したもの」なので実行時のままにした
+   - 配置ツール `Roomies/UI/Build Pause Menu`
+4. **実行時生成をやめた**
+   - `UIThemeBootstrap` は作らなくなり、無いときにエラーを出すだけになった
+   - `EscMenuUI` のシーンロード時の自動生成も削除
+5. AGENTS.md の「実体化の進み具合」を更新
+
+### 確認したこと
+- `dotnet build` … Assembly-CSharp / Assembly-CSharp-Editor どちらもエラー0
+- Unity の `compile/status` … 成功・エラー0件、コンソールにもエラーなし
+- 3つの配置ツールを実行し、シーンに以下ができたことを確認
+  （`HudThemer/HudCanvas/StatusCard`・`ObjectiveCard`、`MenuThemer` と
+  `Canvas/MainMenuPanel/PlayButton`、`EscMenuUI/EscMenuCanvas/Overlay/MenuCard`）
+- `DayText` が `HudCanvas/StatusCard` の下へ移ったことを確認
+- 参照の割り当て（`timerFillBar` / `objectiveLabel` / `playButton` / `overlayGroup` など）を
+  シーンのテキスト上で確認
+- `WireUI` が名前で探す部品（`MoveForwardButton`〜`EmoteButton`、`マウス感度Slider`、
+  `マスター音量Slider`、`画面モードButton`、`解像度ValueBackground`、
+  `グラフィック品質ValueBackground`、`カメラの揺れButton`、`KeybindButton`、
+  `ResetButton`、`BackButton`、`Dialog/CancelButton`・`ExecuteButton`）が
+  すべてシーンに存在することを確認（UnityはYAMLで日本語名を \uXXXX で書く）
+- GameRoom と MainMenuSteam の両シーンを保存
+
+### まだ確認していないこと
+- **Play Modeでの見た目・動作は未確認**。とくにポーズ画面は結び直しの仕組みが新しいので、
+  ESCで開く・設定のスライダーとボタン・キー設定の変更・確認ダイアログを
+  一通り触って確かめる必要がある
+- ロビーの参加者の行はまだ実行時に作っている（人数が実行時に決まるため）。
+  シーンに置いた見本をコピーする形にしたい
+- `CharacterCloset` の見た目、`MiningFeedback` の演出、`NetworkFurniture` の `Visual` は未着手
+
+
 ## 2026/10/23｜遊びの中身：寝る仕組みと「今日のおねがい」を追加
 
 3日ごとの家賃だけだと日ごとの変化が無かったので、夜の終わり方と、その日の目標を足した。
