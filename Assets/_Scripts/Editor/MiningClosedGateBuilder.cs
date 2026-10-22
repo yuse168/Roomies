@@ -85,6 +85,11 @@ internal static class MiningClosedGateBuilder
             tape.localEulerAngles = new Vector3(0f, 0f, i == 0 ? 6f : -6f);
         }
 
+        // シャッターに「CLOSED」の紙を貼る（看板の上ではなく、閉まっている扉そのものに）
+        AddPaperNotice(gate.transform,
+            new Vector3(0f, ShutterHeight * 0.52f, ShutterZ - 0.1f),
+            paperWidth: 1.9f, paperHeight: 1.05f);
+
         AssignToMiningSite(gate);
         SetHintsVisible(entrance.transform, false);
 
@@ -148,25 +153,25 @@ internal static class MiningClosedGateBuilder
             if (label != null)
             {
                 Undo.RecordObject(label, "Toggle mine sign");
-                label.text = visible ? "MINING CO.  /  OPEN UNTIL SUNSET" : "CLOSED";
+                // 紙をシャッターに貼るので、ここは空にして二重に出さない
+                label.text = visible ? "MINING CO.  /  OPEN UNTIL SUNSET" : "";
             }
         }
 
-        // 店名の看板には、閉店した店のように「CLOSED」の紙を貼る
-        foreach (string name in NoticeTargets)
+        // 以前は店名の看板に紙を貼っていたが、「CLOSED」はシャッターに貼る形へ変えた。
+        // 前に貼った紙が残っていたら剥がす。
+        foreach (string name in OldNoticeTargets)
         {
             Transform sign = Child(entrance, name);
             if (sign == null) continue;
 
-            Transform existing = Child(sign, NoticeName);
-            if (existing != null) Undo.DestroyObjectImmediate(existing.gameObject);
-
-            if (!visible) AddPaperNotice(sign);
+            Transform leftover = Child(sign, NoticeName);
+            if (leftover != null) Undo.DestroyObjectImmediate(leftover.gameObject);
         }
     }
 
-    // 紙を貼る看板（店名が読める物だけ）
-    private static readonly string[] NoticeTargets =
+    // 以前「CLOSED」の紙を貼っていた看板（残っていたら剥がすためだけに使う）
+    private static readonly string[] OldNoticeTargets =
     {
         "Sign - ONE MORE ROCK",
         "Sign - ONE MORE?",
@@ -175,29 +180,26 @@ internal static class MiningClosedGateBuilder
     private const string NoticeName = "Closed notice";
 
     /// <summary>
-    /// 看板の上に「CLOSED」と書いた紙をテープで貼った見た目を足す。
-    /// 看板そのものは消さないので、開放するときは紙を剥がすだけで戻る。
+    /// 「CLOSED」と書いた紙を、テープで貼った見た目で足す。
+    /// `parent` のローカル座標 `localPosition` に、紙の面が -Z を向くように置く。
     /// </summary>
-    private static void AddPaperNotice(Transform sign)
+    private static void AddPaperNotice(Transform parent, Vector3 localPosition,
+                                       float paperWidth, float paperHeight)
     {
-        var label = sign.GetComponent<TMPro.TextMeshPro>();
-        Vector2 size = label != null ? label.rectTransform.sizeDelta : new Vector2(1.5f, 0.4f);
-
-        // 看板より少し小さい紙。手で貼ったように少し傾ける
-        float paperWidth = Mathf.Max(0.5f, size.x * 0.72f);
-        float paperHeight = Mathf.Max(0.3f, size.y * 1.9f);
+        Transform existing = Child(parent, NoticeName);
+        if (existing != null) Undo.DestroyObjectImmediate(existing.gameObject);
 
         var notice = new GameObject(NoticeName);
         Undo.RegisterCreatedObjectUndo(notice, "Add closed notice");
-        notice.transform.SetParent(sign, false);
-        notice.transform.localPosition = new Vector3(0f, 0f, -0.04f);
-        notice.transform.localRotation = Quaternion.Euler(0f, 0f, -4f);
+        notice.transform.SetParent(parent, false);
+        notice.transform.localPosition = localPosition;
+        notice.transform.localRotation = Quaternion.Euler(0f, 0f, -4f);   // 手で貼ったように少し傾ける
 
         // 紙
         var paper = GameObject.CreatePrimitive(PrimitiveType.Cube);
         paper.name = "Paper";
         paper.transform.SetParent(notice.transform, false);
-        paper.transform.localScale = new Vector3(paperWidth, paperHeight, 0.015f);
+        paper.transform.localScale = new Vector3(paperWidth, paperHeight, 0.02f);
         Object.DestroyImmediate(paper.GetComponent<Collider>());
         SetMaterial(paper, "paper");
 
@@ -208,9 +210,9 @@ internal static class MiningClosedGateBuilder
             tape.name = "Tape";
             tape.transform.SetParent(notice.transform, false);
             tape.transform.localPosition = new Vector3(
-                side * paperWidth * 0.42f, side * paperHeight * 0.42f, -0.012f);
+                side * paperWidth * 0.42f, side * paperHeight * 0.42f, -0.015f);
             tape.transform.localRotation = Quaternion.Euler(0f, 0f, side * 38f);
-            tape.transform.localScale = new Vector3(paperWidth * 0.26f, paperHeight * 0.3f, 0.01f);
+            tape.transform.localScale = new Vector3(paperWidth * 0.26f, paperHeight * 0.3f, 0.012f);
             Object.DestroyImmediate(tape.GetComponent<Collider>());
             SetMaterial(tape, "cream");
         }
@@ -218,16 +220,16 @@ internal static class MiningClosedGateBuilder
         // 手書きの「CLOSED」
         var textGo = new GameObject("Text");
         textGo.transform.SetParent(notice.transform, false);
-        textGo.transform.localPosition = new Vector3(0f, 0f, -0.02f);
+        textGo.transform.localPosition = new Vector3(0f, 0f, -0.025f);
 
         var text = textGo.AddComponent<TMPro.TextMeshPro>();
         text.text = "CLOSED";
-        text.font = label != null ? label.font : null;
+        text.font = Resources.Load<TMPro.TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
         text.alignment = TMPro.TextAlignmentOptions.Center;
         text.fontStyle = TMPro.FontStyles.Bold;
         text.color = new Color(0.12f, 0.12f, 0.16f);
         text.enableAutoSizing = true;
-        text.fontSizeMin = 0.5f;
+        text.fontSizeMin = 0.4f;
         text.fontSizeMax = paperHeight * 2.4f;
         text.rectTransform.sizeDelta = new Vector2(paperWidth * 0.9f, paperHeight * 0.8f);
     }

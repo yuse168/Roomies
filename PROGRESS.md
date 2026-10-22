@@ -1,5 +1,44 @@
 # PROGRESS.md
 
+## 2026/10/23｜電車の音を電車に追従させ、CLOSEDの紙をシャッターへ移した
+
+### 今回の変更
+- **電車の通過音が動かない問題を直した**
+  - これまでは線路の中ほどで1回鳴らすだけだったので、電車が走っても音は同じ場所から聞こえていた
+  - 電車の子に `AudioSource`（`Pass sound`）を置き、そこから鳴らすようにした。**音も電車と一緒に動く**
+  - 3D設定：spatialBlend 1／Linear減衰／最小25m・最大260m（遠い線路は380m）／
+    ドップラー0.6（通り過ぎるときに音程が変わる）
+  - 通過中はループ再生し、通り過ぎたら止める。音量は設定画面の効果音ボリュームを毎フレーム反映
+- **「CLOSED」の紙をシャッターに貼り替えた**
+  - 以前は看板（ONE MORE ROCK / ONE MORE?）の上に貼っていた
+  - いまはシャッターの面にテープで貼ってある。入口の小看板の文字は空にして二重表示をやめた
+  - 看板に貼った紙が残っていれば剥がす処理も入れた（作り直しで古い紙が残らない）
+
+### 変更ファイル
+- 変更：`Assets/_Scripts/Environment/BackdropTrain.cs`（AudioSourceから鳴らす方式へ）
+- 変更：`Assets/_Scripts/Editor/RoomiesBackdropBuilder.cs`（電車にAudioSourceを付ける）
+- 変更：`Assets/_Scripts/Editor/MiningClosedGateBuilder.cs`（紙をシャッターへ）
+- 変更：`Assets/_Scenes/GameRoom.unity`（置き直し・保存済み）
+
+### 重要な仕様
+- 音の口はシーンに置いた実体。実行時には作らない（AGENTS.mdの「実行時に作らない」に合わせた）
+- 音量は `BackdropTrain` の Pass Volume（近0.7／遠0.35）と `SfxLevels.asset` の両方で調整できる
+- 紙の位置・大きさは `MiningClosedGateBuilder.AddPaperNotice` の引数で変えられる
+
+### 確認状況
+- Unityでのコンパイル：**確認済み**（エラー0。`dotnet build` も両アセンブリともエラー0）
+- Console：**確認済み**（エラー0）
+- 音の口：**確認済み**（両方の電車に `Pass sound` があり、クリップ割り当て・spatialBlend 1・
+  ドップラー0.6・最大距離260mが入っている）
+- 紙の位置：**確認済み**（シーンビューでシャッター面に「CLOSED」が貼られ、
+  入口の小看板が空になっていることを目視）
+- **Play Modeでの確認は未実施**：音が電車と一緒に動くか、音量とドップラーの体感は未検証
+
+### 注意
+- gitでブランチを切り替えるとシーンファイルが書き換わり、Unityに
+  「The open scene(s) have been modified externally」ダイアログが出る。
+  未保存の変更が無い状態なら Reload で問題ない
+
 ## 2026/10/22｜投げた物の音を「落ちてぶつかった時」に変え、重さで鳴り分けるようにした
 
 ### 今回の変更

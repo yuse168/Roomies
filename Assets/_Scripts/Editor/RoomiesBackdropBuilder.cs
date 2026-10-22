@@ -744,6 +744,21 @@ internal static class RoomiesBackdropBuilder
             }
         }
 
+        // 通過音の口。電車の子なので、音も電車と一緒に動く
+        var soundGo = new GameObject("Pass sound");
+        soundGo.transform.SetParent(train.transform, false);
+        soundGo.transform.localPosition = new Vector3(0f, 1.5f, 0f);
+
+        AudioSource source = soundGo.AddComponent<AudioSource>();
+        source.clip = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Resources/Audio/train/pass.wav");
+        source.playOnAwake = false;
+        source.loop = true;
+        source.spatialBlend = 1f;                     // 位置のある音にする
+        source.rolloffMode = AudioRolloffMode.Linear;
+        source.minDistance = 25f;
+        source.maxDistance = detailed ? 260f : 380f;  // 遠い線路のほうが広く届かせる
+        source.dopplerLevel = 0.6f;                   // 通り過ぎるときの音程変化
+
         var mover = train.AddComponent<BackdropTrain>();
         var serialized = new SerializedObject(mover);
         serialized.FindProperty("startX").floatValue = -length / 2f;
@@ -755,6 +770,7 @@ internal static class RoomiesBackdropBuilder
         serialized.FindProperty("maxWaitSeconds").floatValue = waitSeconds * 2.6f;
         serialized.FindProperty("startDelay").floatValue = startDelay;
         serialized.FindProperty("passVolume").floatValue = detailed ? 0.7f : 0.35f;
+        serialized.FindProperty("passSource").objectReferenceValue = source;
         serialized.ApplyModifiedPropertiesWithoutUndo();
     }
 

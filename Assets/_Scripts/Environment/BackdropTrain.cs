@@ -38,12 +38,10 @@ public class BackdropTrain : MonoBehaviour
     [Tooltip("転がして見せる車輪の直径（m）")]
     [SerializeField, Min(0.1f)] private float wheelDiameter = 0.8f;
 
-    [Header("通過音")]
-    [Tooltip("Resources/Audio からのキー。未入荷なら無音のまま走る")]
-    [SerializeField] private string passSoundKey = "train/pass";
+    [Header("通過音（電車に付いた口から鳴らす＝音も一緒に動く）")]
+    [Tooltip("電車の子に置いたAudioSource。実行時には作らない")]
+    [SerializeField] private AudioSource passSource;
     [SerializeField, Range(0f, 1f)] private float passVolume = 0.7f;
-    [Tooltip("音が届く距離")]
-    [SerializeField, Min(10f)] private float passSoundRange = 260f;
 
     private readonly List<Transform> wheels = new();
     private Renderer[] renderers;
@@ -52,7 +50,6 @@ public class BackdropTrain : MonoBehaviour
     private bool running;
     private bool reversed;
     private float speed;
-    private bool soundPlayed;
 
     private void Awake()
     {
@@ -67,6 +64,8 @@ public class BackdropTrain : MonoBehaviour
         timer = -startDelay;
         running = false;
         SetVisible(false);
+
+        if (passSource != null) passSource.Stop();
     }
 
     private void Update()
@@ -95,13 +94,12 @@ public class BackdropTrain : MonoBehaviour
 
         SpinWheels(Time.deltaTime);
 
-        // いちばん近づくあたりで通過音を鳴らす（音は線路の中ほどから）
-        if (!soundPlayed && t >= 0.42f)
+        // 音は電車に付いた口から出るので、走るのに合わせて音も動く。
+        // 設定画面の効果音ボリュームをそのまま反映する。
+        if (passSource != null && passSource.isPlaying)
         {
-            soundPlayed = true;
-            GameAudio.PlayExclusiveAt(
-                passSoundKey, "train#" + GetInstanceID(),
-                transform.position, passVolume, 1f, passSoundRange);
+            GameSettings.EnsureInitialized();
+            passSource.volume = passVolume * GameSettings.SfxVolume;
         }
     }
 
@@ -109,7 +107,6 @@ public class BackdropTrain : MonoBehaviour
     {
         running = true;
         timer = 0f;
-        soundPlayed = false;
         speed = Random.Range(minSpeed, maxSpeed);
         reversed = randomDirection && Random.value < 0.5f;
 
@@ -121,6 +118,14 @@ public class BackdropTrain : MonoBehaviour
         transform.localPosition = position;
 
         SetVisible(true);
+
+        if (passSource != null && passSource.clip != null)
+        {
+            GameSettings.EnsureInitialized();
+            passSource.volume = passVolume * GameSettings.SfxVolume;
+            passSource.loop = true;      // 通過し終わるまで鳴らし続ける
+            passSource.Play();
+        }
     }
 
     private void EndPass()
@@ -128,6 +133,8 @@ public class BackdropTrain : MonoBehaviour
         running = false;
         timer = -Random.Range(minWaitSeconds, maxWaitSeconds);
         SetVisible(false);
+
+        if (passSource != null) passSource.Stop();
     }
 
     private void SpinWheels(float deltaTime)
