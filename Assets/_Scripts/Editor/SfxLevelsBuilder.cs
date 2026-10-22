@@ -23,7 +23,9 @@ internal static class SfxLevelsBuilder
         ("player/footstep", 0.55f),
         ("player/jump", 0.70f),
         ("player/land", 0.70f),
-        ("player/drop", 0.70f),
+        ("drop/light", 0.60f),
+        ("drop/medium", 0.70f),
+        ("drop/heavy", 0.85f),
 
         ("ui/confirm", 0.50f),
         ("ui/cancel", 0.50f),

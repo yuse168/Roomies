@@ -10,7 +10,7 @@
 | 置き場所 | 用途 | 鳴るタイミング |
 |---|---|---|
 | `player/footstep_1` `_2` | 歩きの足音 | 接地して一定距離進むたび（既定1.55m）。連番でランダムに鳴り分ける。増やすなら `_3` 以降を足す |
-| `player/drop` | 物を置く・落とす | 運んでいた物を離したとき |
+| `drop/light` `drop/medium` `drop/heavy` | 物が落ちてぶつかる | 運んでいた物が着地・衝突した瞬間。`CarryableObject.weightLevel` で鳴り分ける（1=light / 2〜3=medium / 4以上=heavy）。勢いで音量、重さでピッチが変わる |
 | `player/jump` | ジャンプ | 踏み切った瞬間 |
 | `player/land` | 着地 | 落下速度が一定以上で接地した瞬間 |
 | `ui/confirm` | 決定 | ボタン押下 |

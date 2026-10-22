@@ -1,5 +1,36 @@
 # PROGRESS.md
 
+## 2026/10/22｜投げた物の音を「落ちてぶつかった時」に変え、重さで鳴り分けるようにした
+
+### 今回の変更
+- **手を離した瞬間に鳴らすのをやめた**（`DropServerRpc` から音を外した）
+- 代わりに `CarryableObject.OnCollisionEnter` で判定し、**ぶつかった場所から鳴らす**
+  - サーバーだけが判定して全員へ配る（物理はサーバーが持っているため）
+  - 持っている間は鳴らさない。一定速度未満（既定1.6m/s）でも鳴らさない
+  - 転がって連続で鳴らないよう、0.18秒の間隔を空ける
+- **重さ（`weightLevel`）で音を変える**
+  - 1 → `drop/light`（ウッドブロック）／2〜3 → `drop/medium`（バン）／4以上 → `drop/heavy`（ダンベル）
+  - 重いほどピッチが下がる（1.12 → 0.7まで）、ぶつかった勢いで音量が変わる（0.45〜1.0）
+- 旧 `player/drop` は削除し、`drop/medium` へ移した
+
+### 変更ファイル
+- 変更：`Assets/_Scripts/CarryableObject.cs`
+- 新規：`Assets/Resources/Audio/drop/{light,medium,heavy}.wav`
+- 削除：`Assets/Resources/Audio/player/drop.wav`
+- 変更：`Assets/_Scripts/Editor/SfxLevelsBuilder.cs`、`Resources/Audio/SfxLevels.asset`、README、CREDITS
+
+### 重要な仕様
+- 判定に使う速度・間隔は `CarryableObject` のインスペクター（Impact Min Speed / Impact Loud Speed / Impact Cooldown）
+- 鉱石の重さは1〜5（`RoomiesMiningBuilder` の weights）なので、3段階すべてが使われる
+- 音量の最終調整は `SfxLevels.asset` の `drop/light` `drop/medium` `drop/heavy`
+
+### 確認状況
+- Unityでのコンパイル：**確認済み**（エラー0）
+- Console：**確認済み**（エラー0）
+- 音量表：**確認済み**（3キーが `SfxLevels.asset` に入った）
+- **Play Modeでの確認は未実施**：実際に投げて着地音が鳴るか、重さの違いが分かるかは未検証
+- 落下音は距離26mまで届く設定。遠くの物音がうるさい場合は調整が要る
+
 ## 2026/10/22｜電車を「たまに通る」動きにした（音・車輪の回転つき）
 
 ### 今回の変更

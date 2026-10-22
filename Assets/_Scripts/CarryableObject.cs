@@ -52,11 +52,56 @@ public class CarryableObject : NetworkBehaviour
 
     public bool IsHeld => isHeld.Value;
 
-    /// <summary>置いた・落とした音（全員に聞こえる。物の位置から鳴る）。</summary>
-    [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
-    private void DropSoundRpc(Vector3 position)
+    [Header("落ちてぶつかった音")]
+    [Tooltip("この速さ以上でぶつかったときだけ鳴らす（m/s）")]
+    [SerializeField, Min(0.1f)] private float impactMinSpeed = 1.6f;
+
+    [Tooltip("この速さでぶつかると音量が最大になる（m/s）")]
+    [SerializeField, Min(1f)] private float impactLoudSpeed = 7f;
+
+    [Tooltip("続けて鳴らさないための間隔（秒）。転がって何度も鳴るのを防ぐ")]
+    [SerializeField, Min(0f)] private float impactCooldown = 0.18f;
+
+    private float nextImpactTime;
+
+    /// <summary>
+    /// 落ちた先でぶつかったときの音。手を離した瞬間ではなく、着地した場所で鳴る。
+    /// 物理はサーバーが持っているので、サーバーだけが判定して全員へ配る。
+    /// </summary>
+    private void OnCollisionEnter(Collision collision)
     {
-        GameAudio.PlayAt("player/drop", position);
+        if (!IsSpawned || !IsServer) return;
+        if (isHeld.Value) return;                       // 持っている間は鳴らさない
+        if (Time.time < nextImpactTime) return;
+
+        float speed = collision.relativeVelocity.magnitude;
+        if (speed < impactMinSpeed) return;
+
+        nextImpactTime = Time.time + impactCooldown;
+
+        Vector3 point = collision.contactCount > 0
+            ? collision.GetContact(0).point
+            : transform.position;
+
+        float strength = Mathf.InverseLerp(impactMinSpeed, impactLoudSpeed, speed);
+        ImpactSoundRpc(point, strength);
+    }
+
+    /// <summary>ぶつかった音（全員に聞こえる。ぶつかった場所から鳴る）。</summary>
+    [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
+    private void ImpactSoundRpc(Vector3 position, float strength)
+    {
+        // 重さで音を変える。軽い物はカタッ、重い物はドスン
+        string key = weightLevel <= 1 ? "drop/light"
+            : weightLevel <= 3 ? "drop/medium"
+            : "drop/heavy";
+
+        // 重いものほど低く、勢いが強いほど大きく鳴らす
+        float pitch = Mathf.Clamp(1.12f - (weightLevel - 1) * 0.06f, 0.7f, 1.2f);
+        float volume = Mathf.Lerp(0.45f, 1f, Mathf.Clamp01(strength));
+
+        GameAudio.PlayExclusiveAt(
+            key, "drop#" + NetworkObjectId, position, volume, pitch, 26f);
     }
     public bool IsHeldBy(ulong clientId)
     {
@@ -164,7 +209,6 @@ public class CarryableObject : NetworkBehaviour
                            offset.normalized * serverMaxHeldDistance;
 
         isHeld.Value = false;
-        DropSoundRpc(transform.position);
         holderClientId.Value = NoHolder;
 
         transform.position = dropPosition;

@@ -56,7 +56,7 @@ BGMは `Assets/_Audio/Music/` に置き、`GameMusic` プレハブのインス�
 |---|---|---|---|
 | `player/footstep_1.wav` | 122340 | コツコツ_革靴_足音_01_単発 | MATSU / Audiostock |
 | `player/footstep_2.wav` | 122346 | ゴッ_革靴_足音_02_単発 | MATSU / Audiostock |
-| `player/drop.wav` | 107318 | バン！（物を置く叩くシンプルな効果音） | Scene Effects / Audiostock |
+| `drop/medium.wav` | 107318 | バン！（物を置く叩くシンプルな効果音） | Scene Effects / Audiostock |
 | `slot/reel.wav` | 258055 | カジノ、ゲームスロットマシン変動開始 | MOCHIXTONE / Audiostock |
 
 ### 2026/10/22 追加分（遠景の電車）
@@ -64,6 +64,13 @@ BGMは `Assets/_Audio/Music/` に置き、`GameMusic` プレハブのインス�
 | 置き場所 | 作品番号 | タイトル | クレジット名 |
 |---|---|---|---|
 | `train/pass.wav` | 1111465 | 電車が鉄橋を通過 | Killy / Audiostock |
+
+### 2026/10/22 追加分（重さ別の落下音）
+
+| 置き場所 | 作品番号 | タイトル | クレジット名 |
+|---|---|---|---|
+| `drop/light.wav` | 1444784 | 【生録音】ウッドブロック01-ローピッチ | Icy Light / Audiostock |
+| `drop/heavy.wav` | 720444 | ヘビーダンベル：床に落とす、運動とトレーニング | SoundIdeas / Audiostock |
 
 ## エンドクレジット用のまとめ表記
 
@@ -93,6 +100,8 @@ Sound Effects
 　Scene Effects / Audiostock
 　MOCHIXTONE / Audiostock
 　Killy / Audiostock
+　Icy Light / Audiostock
+　SoundIdeas / Audiostock
 ```
 
 ## 未確認・要対応
