@@ -748,9 +748,13 @@ internal static class RoomiesBackdropBuilder
         var serialized = new SerializedObject(mover);
         serialized.FindProperty("startX").floatValue = -length / 2f;
         serialized.FindProperty("endX").floatValue = length / 2f;
-        serialized.FindProperty("speed").floatValue = speed;
-        serialized.FindProperty("waitSeconds").floatValue = waitSeconds;
+        serialized.FindProperty("minSpeed").floatValue = speed * 0.8f;
+        serialized.FindProperty("maxSpeed").floatValue = speed * 1.25f;
+        // たまに通る程度の間隔。近い線路のほうが短い間隔で来る
+        serialized.FindProperty("minWaitSeconds").floatValue = waitSeconds;
+        serialized.FindProperty("maxWaitSeconds").floatValue = waitSeconds * 2.6f;
         serialized.FindProperty("startDelay").floatValue = startDelay;
+        serialized.FindProperty("passVolume").floatValue = detailed ? 0.7f : 0.35f;
         serialized.ApplyModifiedPropertiesWithoutUndo();
     }
 

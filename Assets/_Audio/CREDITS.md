@@ -59,6 +59,12 @@ BGMは `Assets/_Audio/Music/` に置き、`GameMusic` プレハブのインス�
 | `player/drop.wav` | 107318 | バン！（物を置く叩くシンプルな効果音） | Scene Effects / Audiostock |
 | `slot/reel.wav` | 258055 | カジノ、ゲームスロットマシン変動開始 | MOCHIXTONE / Audiostock |
 
+### 2026/10/22 追加分（遠景の電車）
+
+| 置き場所 | 作品番号 | タイトル | クレジット名 |
+|---|---|---|---|
+| `train/pass.wav` | 1111465 | 電車が鉄橋を通過 | Killy / Audiostock |
+
 ## エンドクレジット用のまとめ表記
 
 ```
@@ -86,6 +92,7 @@ Sound Effects
 　佐藤元気 / Audiostock
 　Scene Effects / Audiostock
 　MOCHIXTONE / Audiostock
+　Killy / Audiostock
 ```
 
 ## 未確認・要対応

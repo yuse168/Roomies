@@ -1,5 +1,35 @@
 # PROGRESS.md
 
+## 2026/10/22｜電車を「たまに通る」動きにした（音・車輪の回転つき）
+
+### 今回の変更
+- `BackdropTrain` を作り直し、**1回の通過ごとに間隔・速さ・向きを引き直す**ようにした
+  - 間隔：近い線路は16〜41秒、遠い線路は24〜62秒のランダム
+  - 速さ：指定値の0.8〜1.25倍をランダム（近い線路で約21〜33m/s）
+  - 向き：毎回ランダムで逆走する。逆走時は車両ごと向きを変えて鼻先が進行方向を向く
+- **車輪が転がるようにした**（進んだ距離から回転量を出す。逆走時は逆回り）
+- **通過音**を追加（`train/pass`）。線路の中ほどに差しかかったときに、その位置から鳴る
+  - 近い線路は音量0.7・遠い線路は0.35。届く距離は260m
+- 走っていない間は描画を切るので、端に止まった電車が見えることはない
+
+### 変更ファイル
+- 変更：`Assets/_Scripts/Environment/BackdropTrain.cs`
+- 変更：`Assets/_Scripts/Editor/RoomiesBackdropBuilder.cs`（新しい設定を割り当て）
+- 変更：`Assets/_Scripts/Editor/SfxLevelsBuilder.cs`、`Resources/Audio/SfxLevels.asset`
+- 新規：`Assets/Resources/Audio/train/pass.wav`（No.1111465「電車が鉄橋を通過」10.5秒）
+- 変更：`Assets/_Scenes/GameRoom.unity`（置き直し・保存済み）、README、CREDITS
+
+### 重要な仕様
+- 動かすのは位置・回転・描画の切り替えだけ。実行時にオブジェクトは作らない
+- 間隔や速さを変えたいときは `BackdropTrain` のインスペクター（Min/Max Wait、Min/Max Speed）
+- 音量は `SfxLevels.asset` の `train/pass` でも調整できる
+
+### 確認状況
+- Unityでのコンパイル：**確認済み**（エラー0）
+- Console：**確認済み**（エラー0）
+- 設定値：**確認済み**（近い電車に 16〜41.6秒・20.8〜32.5m/s・両方向が入っている）
+- **Play Modeでの走行・通過音・車輪の回転は未確認**（動きと音量の体感は未調整）
+
 ## 2026/10/22｜外側の街を不規則に作り直した（碁盤の目をやめた）
 
 ### 今回の変更

@@ -58,6 +58,8 @@ internal static class SfxLevelsBuilder
         ("rent/paid", 0.70f),
         ("rent/failed", 0.80f),
 
+        ("train/pass", 0.55f),
+
         ("police/siren", 0.70f),
         ("police/arrest", 0.80f),
 

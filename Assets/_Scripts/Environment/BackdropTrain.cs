@@ -1,40 +1,72 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// 遠景を走る電車。奥行きを出すための飾りで、当たり判定も通信も無い。
+/// 遠景を走る電車。たまに通り過ぎるだけの飾りで、当たり判定も通信も無い。
 ///
 /// 規約（AGENTS.md「実行時に作らない」）：
-///  ・車両も線路もシーンに実体で置く。ここでは位置を動かすだけ。
-///  ・速さ・走る範囲・待ち時間はインスペクターで調整する。
+///  ・車両も線路もシーンに実体で置く。ここでは位置と回転を動かすだけ。
+///  ・間隔・速さ・音はインスペクターで調整する。
 ///
-/// 動き：`startX` から `endX` まで走り、通り過ぎたら `waitSeconds` だけ待って
-/// また `startX` から走り直す（ループ）。全クライアントで同じ見た目になるよう、
-/// ゲーム内時間ではなく経過時間だけで決める。
+/// 1回の通過ごとに、間隔・速さ・向きを引き直すので、同じ間隔で機械的に往復しない。
+/// 走っていない間は描画を切って、画面の端に止まって見えないようにする。
 /// </summary>
 public class BackdropTrain : MonoBehaviour
 {
-    [Header("走る範囲（ワールドX座標）")]
+    [Header("走る範囲（親のローカルX座標）")]
     [SerializeField] private float startX = -260f;
     [SerializeField] private float endX = 320f;
 
-    [Header("速さと間隔")]
-    [Tooltip("秒速（m/s）。遠いので速めでちょうどよく見える")]
-    [SerializeField, Min(1f)] private float speed = 38f;
+    [Header("速さ")]
+    [Tooltip("1回ごとにこの範囲から引く（m/s）")]
+    [SerializeField, Min(1f)] private float minSpeed = 22f;
+    [SerializeField, Min(1f)] private float maxSpeed = 34f;
 
-    [Tooltip("走り終えてから次の電車が来るまでの秒数")]
-    [SerializeField, Min(0f)] private float waitSeconds = 14f;
+    [Header("通る間隔")]
+    [Tooltip("通り過ぎてから次が来るまでの秒数。毎回この範囲から引く")]
+    [SerializeField, Min(0f)] private float minWaitSeconds = 25f;
+    [SerializeField, Min(0f)] private float maxWaitSeconds = 70f;
 
     [Tooltip("最初の1本が来るまでの秒数")]
-    [SerializeField, Min(0f)] private float startDelay = 4f;
+    [SerializeField, Min(0f)] private float startDelay = 8f;
+
+    [Header("向き")]
+    [Tooltip("毎回ランダムで逆走させる（片方向だけだと作り物っぽいため）")]
+    [SerializeField] private bool randomDirection = true;
+
+    [Header("車輪")]
+    [Tooltip("転がして見せる車輪の直径（m）")]
+    [SerializeField, Min(0.1f)] private float wheelDiameter = 0.8f;
+
+    [Header("通過音")]
+    [Tooltip("Resources/Audio からのキー。未入荷なら無音のまま走る")]
+    [SerializeField] private string passSoundKey = "train/pass";
+    [SerializeField, Range(0f, 1f)] private float passVolume = 0.7f;
+    [Tooltip("音が届く距離")]
+    [SerializeField, Min(10f)] private float passSoundRange = 260f;
+
+    private readonly List<Transform> wheels = new();
+    private Renderer[] renderers;
 
     private float timer;
     private bool running;
+    private bool reversed;
+    private float speed;
+    private bool soundPlayed;
+
+    private void Awake()
+    {
+        renderers = GetComponentsInChildren<Renderer>(true);
+
+        foreach (Transform child in GetComponentsInChildren<Transform>(true))
+            if (child.name.StartsWith("Wheel")) wheels.Add(child);
+    }
 
     private void OnEnable()
     {
         timer = -startDelay;
         running = false;
-        Hide();
+        SetVisible(false);
     }
 
     private void Update()
@@ -44,42 +76,77 @@ public class BackdropTrain : MonoBehaviour
         if (!running)
         {
             if (timer < 0f) return;
-
-            running = true;
-            timer = 0f;
-            Show();
+            BeginPass();
         }
 
-        float distance = speed * timer;
         float total = Mathf.Abs(endX - startX);
+        float distance = speed * timer;
 
         if (distance >= total)
         {
-            running = false;
-            timer = -waitSeconds;
-            Hide();
+            EndPass();
             return;
         }
 
+        float t = distance / Mathf.Max(0.01f, total);
         Vector3 position = transform.localPosition;
-        position.x = Mathf.Lerp(startX, endX, distance / Mathf.Max(0.01f, total));
-        transform.localPosition = position;
-    }
-
-    // 走っていない間は端に置いて見えなくする（オブジェクトは消さない）
-    private void Hide()
-    {
-        Vector3 position = transform.localPosition;
-        position.x = startX;
+        position.x = reversed ? Mathf.Lerp(endX, startX, t) : Mathf.Lerp(startX, endX, t);
         transform.localPosition = position;
 
-        foreach (Renderer renderer in GetComponentsInChildren<Renderer>(true))
-            renderer.enabled = false;
+        SpinWheels(Time.deltaTime);
+
+        // いちばん近づくあたりで通過音を鳴らす（音は線路の中ほどから）
+        if (!soundPlayed && t >= 0.42f)
+        {
+            soundPlayed = true;
+            GameAudio.PlayExclusiveAt(
+                passSoundKey, "train#" + GetInstanceID(),
+                transform.position, passVolume, 1f, passSoundRange);
+        }
     }
 
-    private void Show()
+    private void BeginPass()
     {
-        foreach (Renderer renderer in GetComponentsInChildren<Renderer>(true))
-            renderer.enabled = true;
+        running = true;
+        timer = 0f;
+        soundPlayed = false;
+        speed = Random.Range(minSpeed, maxSpeed);
+        reversed = randomDirection && Random.value < 0.5f;
+
+        // 逆走するときは車両ごと向きを変える（鼻先が進行方向を向く）
+        transform.localRotation = Quaternion.Euler(0f, reversed ? 180f : 0f, 0f);
+
+        Vector3 position = transform.localPosition;
+        position.x = reversed ? endX : startX;
+        transform.localPosition = position;
+
+        SetVisible(true);
+    }
+
+    private void EndPass()
+    {
+        running = false;
+        timer = -Random.Range(minWaitSeconds, maxWaitSeconds);
+        SetVisible(false);
+    }
+
+    private void SpinWheels(float deltaTime)
+    {
+        if (wheels.Count == 0) return;
+
+        // 進んだぶんだけ回す（見た目だけなので厳密でなくてよい）
+        float degrees = speed * deltaTime / (Mathf.PI * wheelDiameter) * 360f;
+        if (reversed) degrees = -degrees;
+
+        foreach (Transform wheel in wheels)
+            if (wheel != null) wheel.Rotate(0f, degrees, 0f, Space.Self);
+    }
+
+    private void SetVisible(bool visible)
+    {
+        if (renderers == null) return;
+
+        foreach (Renderer renderer in renderers)
+            if (renderer != null) renderer.enabled = visible;
     }
 }
