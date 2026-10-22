@@ -55,6 +55,9 @@ public class LobbyUIManager : MonoBehaviour
     // 名札の間隔。はみ出し判定（FitListToWidth）と同じ値を使う。
     private const float ListSpacing = 18f;
 
+    // ロビーの決定音。メニューの音と区別するため別のキーにしている。
+    private const string LobbySoundKey = "ui/lobby";
+
     private Coroutine refreshCoroutine;
     private Coroutine feedbackCoroutine;
 
@@ -279,6 +282,20 @@ public class LobbyUIManager : MonoBehaviour
         }
 
         FitListToWidth();
+        ApplyLobbySound();
+    }
+
+    /// <summary>
+    /// ロビーのボタンだけ別の決定音にする（メニューと区別が付くように）。
+    /// 戻る・退出のボタンはキャンセル音のまま。
+    /// </summary>
+    private void ApplyLobbySound()
+    {
+        foreach (UIButtonJuice juice in GetComponentsInChildren<UIButtonJuice>(true))
+        {
+            if (juice == null || juice.useCancelSound) continue;
+            juice.soundKeyOverride = LobbySoundKey;
+        }
     }
 
     /// <summary>

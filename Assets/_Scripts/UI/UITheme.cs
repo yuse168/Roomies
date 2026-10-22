@@ -741,6 +741,9 @@ public class UIButtonJuice : MonoBehaviour,
     /// </summary>
     public bool useCancelSound;
 
+    [Tooltip("この画面だけ別の音にしたいときのキー（例：ui/lobby）。空なら決定/キャンセルの音")]
+    public string soundKeyOverride;
+
     // StyleButton/StylePillはボタンの意味を知らないため、ここで名前から推定する。
     // 網羅ではないので、外した場合は useCancelSound を直接立てる。
     private static readonly string[] CancelNameHints =
@@ -780,7 +783,10 @@ public class UIButtonJuice : MonoBehaviour,
     {
         pressed = true;
         // 離した時より押した瞬間のほうが反応が良く感じるのでDownで鳴らす
-        GameAudio.Play(useCancelSound ? "ui/cancel" : "ui/confirm");
+        GameAudio.Play(
+            !string.IsNullOrEmpty(soundKeyOverride) ? soundKeyOverride
+            : useCancelSound ? "ui/cancel"
+            : "ui/confirm");
     }
 
     public void OnPointerUp(PointerEventData e)    => pressed = false;

@@ -21,6 +21,10 @@ public class PlayerMovement : NetworkBehaviour
     [Tooltip("夜イベント（寝不足など）で一時的に移動速度へ掛ける倍率。1で通常。")]
     public float speedScale = 1f;
 
+    [Header("一時的な速度アップ（飲み物・コーヒー）")]
+    [Tooltip("効果が切れるまでの残り秒数。インスペクターで見るためのもの")]
+    public float boostSecondsLeft;
+
     [Header("トランポリン")]
     [Tooltip("跳ねたあと、続けて跳ねられるようになるまでの秒数")]
     public float bounceCooldown = 0.2f;
@@ -109,6 +113,7 @@ public class PlayerMovement : NetworkBehaviour
     private float footstepTravel;
     private float nextFootstepTime;
     private float nextBounceTime;
+    private float boostScale = 1f;
 
     void Awake()
     {
@@ -320,6 +325,10 @@ public class PlayerMovement : NetworkBehaviour
         // 夜イベント（寝不足など）の一時的な重さ。通常は1で何も変わらない。
         currentSpeed *= Mathf.Clamp(speedScale, 0.2f, 2f);
 
+        // 飲み物・コーヒーの一時的な速度アップ
+        UpdateSpeedBoost();
+        currentSpeed *= boostScale;
+
         if (playerInteract != null)
         {
             int weightLevel = playerInteract.GetHeldWeightLevel();
@@ -405,6 +414,28 @@ public class PlayerMovement : NetworkBehaviour
 
         // 足元の材質でピッチと音量が少し変わる
         FootstepAudio.PlayLocal(transform.position, isCrouching ? 0.5f : 1f);
+    }
+
+    /// <summary>
+    /// 飲み物などで一定時間だけ速くする（本人の画面だけで動く）。
+    /// 寝不足（speedScale）とは別枠なので、両方かかると掛け算になる。
+    /// </summary>
+    public void ApplyTemporarySpeed(float scale, float seconds)
+    {
+        boostScale = Mathf.Clamp(scale, 0.5f, 2f);
+        boostSecondsLeft = Mathf.Max(0f, seconds);
+    }
+
+    private void UpdateSpeedBoost()
+    {
+        if (boostSecondsLeft <= 0f)
+        {
+            boostScale = 1f;
+            return;
+        }
+
+        boostSecondsLeft -= Time.deltaTime;
+        if (boostSecondsLeft <= 0f) boostScale = 1f;
     }
 
     /// <summary>
@@ -627,6 +658,9 @@ public class PlayerMovement : NetworkBehaviour
             animator.SetInteger(EmoteIndexHash, emoteIndex);
             animator.SetTrigger(EmoteHash);
         }
+
+        // エモートの合図（本人の位置から鳴るので、近くの人にも聞こえる）
+        GameAudio.PlayAt("ui/emote", transform.position, 1f, 0.05f);
     }
 
     [Rpc(SendTo.Everyone)]

@@ -83,6 +83,31 @@ BGMは `Assets/_Audio/Music/` に置き、`GameMusic` プレハブのインス�
 | `door/close.wav` | 108647 | ドアがバタンと閉まる音 | Scene Effects / Audiostock |
 | `furniture/bounce.wav` | 784701 | ボヨーン(ジャンプ/トランポリン/NES) | Sound Studio Tsukasa / Audiostock |
 
+### 2026/10/23 追加分（無音だったキーを埋める・ロビーの決定音）
+
+鳴らすコードはあるのに音源が無く、**無音だったキー**を埋めた。
+`ui/lobby` はロビー専用の決定音（メインメニューと区別するため別の音にした）。
+
+| 置き場所 | 作品番号 | タイトル | クレジット名 |
+|---|---|---|---|
+| `slot/fever.wav` | 1006139 | チャキーンとパチスロ系ファンファーレSE | MATSU / Audiostock |
+| `blackjack/blackjack.wav` | 880493 | シンセブラスのミニファンファーレ | やまなかこ / Audiostock |
+| `blackjack/deal.wav` | 1597633 | カードを５枚配る | OTOnoniwa / Audiostock |
+| `blackjack/push.wav` | 918437 | やわらかな電子音によるサウンドロゴ | Kaw / Audiostock |
+| `rent/paid.wav` | 193125 | 短いファンファーレ | OTOTUKa(オトツカ) / Audiostock |
+| `ui/logo.wav` | 145552 | テレレレン(起動音・企業サウンドロゴ) | Y8MD / Audiostock |
+| `ui/emote.wav` | 918439 | やわらかな電子音によるサウンドロゴ | Kaw / Audiostock |
+| `ui/lobby.wav` | 1702053 | キラキラとした明るく軽やかなUI決定音 | Lanka / Audiostock |
+
+**既存音源の流用**（新しく取得していないので作品番号は元のまま）：
+
+| 置き場所 | 流用元 |
+|---|---|
+| `furniture/place.wav` | `drop/medium.wav`（No.107318） |
+| `furniture/pickup.wav` | `drop/light.wav`（No.1444784） |
+| `rent/failed.wav` | `night/trouble.wav`（No.78582） |
+| `mining/{hit,break,sale,warning}.wav` | `Assets/_Audio/Mining/` の生成プレースホルダ（Audiostock音源ではない） |
+
 ## エンドクレジット用のまとめ表記
 
 ```
@@ -115,6 +140,11 @@ Sound Effects
 　SoundIdeas / Audiostock
 　OQ オーキュー / Audiostock
 　Sound Studio Tsukasa / Audiostock
+　やまなかこ / Audiostock
+　OTOnoniwa / Audiostock
+　Kaw / Audiostock
+　OTOTUKa(オトツカ) / Audiostock
+　Lanka / Audiostock
 ```
 
 ## 未確認・要対応
@@ -124,7 +154,8 @@ Sound Effects
   契約終了後の継続利用が認められるかを担当営業に確認する。
 - **ライセンス証明書**：Audiostockのダウンロード履歴から作品ごとに発行できる。
   発行には マイページ > 購入者情報 の設定が必要。
-- **未試聴**：2026/10/22追加の9本はタイトル・用途タグで選んだだけで、音は聴いていない。
+- **未試聴**：2026/10/22追加の9本と2026/10/23追加の8本はタイトル・用途タグで選んだだけで、
+  音は聴いていない。
   Unity Playで鳴らして合わなければ差し替える。
 - **ダウンロードしたが未採用**：No.949044「パチスロ大当たりの電子音ファンファーレ」は
   17秒と長く、毎回の当たり演出には合わないので採用していない（`Downloads`に残っている）。

@@ -30,6 +30,7 @@ internal static class SfxLevelsBuilder
         ("ui/confirm", 0.50f),
         ("ui/cancel", 0.50f),
         ("ui/emote", 0.50f),
+        ("ui/lobby", 0.55f),
         ("ui/logo", 0.70f),
 
         ("money/gain", 1.00f),

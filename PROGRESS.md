@@ -1,5 +1,49 @@
 # PROGRESS.md
 
+## 2026/10/23｜無音の効果音を全部埋め、ロビーの音を分け、家具にギミックを付けた
+
+### 今回の変更
+1. **無音だったキーを無くした**
+   - コードは鳴らしているのにファイルが無いキーを洗い出し、Audiostockから8本取得して配置
+     （`slot/fever` `blackjack/blackjack` `blackjack/deal` `blackjack/push`
+     `rent/paid` `ui/logo` `ui/emote` `ui/lobby`）
+   - 既にある音で足りるものは流用（`furniture/place`←`drop/medium`、
+     `furniture/pickup`←`drop/light`、`rent/failed`←`night/trouble`）
+   - 採掘の4つ（`mining/hit` `break` `sale` `warning`）は `Assets/_Audio/Mining/` の
+     生成プレースホルダを `Resources/Audio/mining/` へ複製。採掘を開放するときに本物へ差し替える
+   - 出典は `Assets/_Audio/CREDITS.md`、用途は `Assets/Resources/Audio/README.md` に追記
+2. **ロビーの決定音をメニューと別にした**
+   - `UIButtonJuice` に `Sound Key Override` を追加（インスペクターで画面ごとに音を変えられる）
+   - ロビーのボタンには `ui/lobby` を当てる（戻る・退出はキャンセル音のまま）
+3. **置いてある家具に「押して使える」ギミックを追加**（`FurnitureGimmick`）
+   - 自販機・エナドリ冷蔵庫 … ¥120 で飲み物。30秒 移動速度1.25倍
+   - コーヒーメーカー … ¥80。25秒 1.15倍＋寝不足が消える
+   - ちょきんばこ … 自分の所持金を共同口座へ入れる
+   - アーケード機 … ¥50で1プレイ。当たると ¥50〜250 が共同口座へ
+   - 招き猫 … 1日1回、¥0〜120 が出ることがある
+   - 支払い・抽選はすべてサーバー側で判定し、近くにいるかも確認する（`HomeAppliance` を継承）
+   - 金額・効果時間・クールダウンは全部インスペクターで変えられる（AGENTS.mdの規約どおり）
+   - `Tools/Roomies/家具ネットワーク設定を修復` が `NetworkFurniture.prefab` へ
+     自動で付けるようにした（何度実行しても同じ結果）
+   - 一時的な速度変化のために `PlayerMovement.ApplyTemporarySpeed(倍率, 秒)` を追加
+
+### 確認したこと
+- `dotnet build` … Assembly-CSharp / Assembly-CSharp-Editor どちらもエラー0
+- Unity の `compile/status` … 成功・エラー0件、コンソールにもエラーなし
+- `Roomies/Audio/Rebuild Sfx Levels` を実行し、`SfxLevels.asset` に新しいキーの行が入った
+- `Tools/Roomies/家具ネットワーク設定を修復` を実行し、`NetworkFurniture.prefab` に
+  `FurnitureGimmick` が付いたことをプレハブのテキストで確認
+- 効果音のキー総なめ … `GameAudio` が引くキーに対応するファイルが全部あることを確認
+
+### まだ確認していないこと
+- **Play Modeでの動作は未確認**。ギミックの各効果（飲み物の速度アップ、ちょきんばこ、
+  アーケード、招き猫）、ロビーの音、新しく入れた8本の鳴り方はどれも実際に鳴らしていない
+- 新しい8本は**試聴していない**（タイトルと用途タグで選んだだけ）。合わなければ
+  `Assets/Resources/Audio/` の同じ名前のファイルを差し替えるだけでよい
+- 採掘の `mining/*` は生成音のままで、本物ではない
+- Audiostockのライセンス範囲（Steam配布・契約終了後）は未確認のまま
+
+
 ## 2026/10/23｜指摘7件の修正（夜BGM・家具の埋まり・マップ外・トランポリン・結果音・ドア・NPCの歩き）
 
 ### 今回の変更

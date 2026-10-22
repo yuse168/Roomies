@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 700114000000000001}
   - component: {fileID: 700114000000000002}
   - component: {fileID: 700114000000000003}
+  - component: {fileID: 5937850246901474452}
   m_Layer: 0
   m_Name: NetworkFurniture
   m_TagString: Untagged
@@ -118,3 +119,27 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NetworkFurniture
   ShowTopMostFoldoutHeaderGroup: 1
+--- !u!114 &5937850246901474452
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 700100000000000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 887b93bc2bbf3c147920b77cd95027c5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FurnitureGimmick
+  ShowTopMostFoldoutHeaderGroup: 1
+  interactDistance: 3
+  drinkCost: 120
+  drinkSpeed: 1.25
+  drinkSeconds: 30
+  coffeeCost: 80
+  coffeeSpeed: 1.15
+  coffeeSeconds: 25
+  arcadeCost: 50
+  arcadeMaxPrize: 250
+  luckyCatMax: 120
+  useCooldown: 1.2

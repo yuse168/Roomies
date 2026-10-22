@@ -33,13 +33,23 @@
 | `slot/stop` | リール停止 | リール3つが止まるたび |
 | `slot/win` | スロット当たり | WIN のとき |
 | `slot/lose` | スロットはずれ | MISS のとき |
-| `slot/fever` | FEVER当たり | FEVER WIN のとき（**音源未入荷**） |
+| `slot/fever` | FEVER当たり | FEVER WIN のとき |
 | `slot/reel` | リール回転中 | 回っている間（筐体の位置から） |
 | `delivery/complete` | 納品成功 | 配達ボタンの成功時 |
 | `blackjack/win` `blackjack/lose` | BJの勝ち負け | 結果が出た瞬間 |
-| `blackjack/push` `blackjack/blackjack` | 引き分け・BJ | 同上（**音源未入荷**） |
+| `blackjack/push` `blackjack/blackjack` | 引き分け・BJ | 同上 |
+| `blackjack/deal` | カードを配る | 配牌のたび |
 | `door/open` `door/close` | ドアの開け閉め | ドアを操作したとき |
 | `furniture/bounce` | トランポリン | 上に乗って跳ねたとき |
+| `furniture/pickup` `furniture/place` | 家具を持つ・置く | 模様替えで持ち上げ／設置したとき |
+| `ui/logo` | タイトルロゴ | メインメニューを開いたとき |
+| `ui/lobby` | ロビーの決定 | ロビー画面のボタン（メニューと別の音） |
+| `ui/emote` | エモート | エモートを出したとき |
+| `rent/paid` `rent/failed` | 家賃の成否 | 家賃日の精算結果 |
+
+**無音のキーは残っていない**（2026/10/23時点）。`GameAudio` が引くキーはすべて
+このフォルダにファイルがある。新しいキーを足すときは
+`Roomies/Audio/Rebuild Sfx Levels` で音量表（`SfxLevels.asset`）にも行を足す。
 
 ## 足音の材質ごとの違い
 
@@ -77,7 +87,8 @@ BGMはこのフォルダではなく `Assets/_Audio/Music/` に置き、`GameMus
 
 採掘場は `MiningSite.serviceClosed` で閉鎖中（リリース後のアップデートで開放予定）。
 `Assets/_Audio/Mining/` にある4つは `RoomiesMiningBuilder.Tone()` が生成した
-サイン波＋ノイズのプレースホルダ。開放するときに本物へ差し替える。
+サイン波＋ノイズのプレースホルダで、同じものを `Resources/Audio/mining/` へ複製して
+無音を無くしている。開放するときに本物へ差し替える。
 
 | 置き場所 | 用途 |
 |---|---|

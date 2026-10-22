@@ -42,6 +42,7 @@ internal static class FurnitureNetworkInstaller
         GameObject prefab = EnsurePrefab();
         if (prefab == null) return;
 
+        EnsureGimmick(prefab);
         bool listChanged = EnsureNetworkPrefabRegistration(prefab);
         bool sceneChanged = EnsureDayManagerReference(prefab);
         AssetDatabase.SaveAssets();
@@ -53,6 +54,27 @@ internal static class FurnitureNetworkInstaller
 
         if (showDialog)
             EditorUtility.DisplayDialog("家具ネットワーク設定", result, "OK");
+    }
+
+    /// <summary>
+    /// 押して使える家具（自販機・ちょきんばこなど）のために
+    /// `FurnitureGimmick` をプレハブへ付ける。既に付いていれば何もしない。
+    /// </summary>
+    private static void EnsureGimmick(GameObject prefab)
+    {
+        GameObject root = PrefabUtility.LoadPrefabContents(PrefabPath);
+        try
+        {
+            if (root.GetComponent<FurnitureGimmick>() != null) return;
+
+            root.AddComponent<FurnitureGimmick>();
+            PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
+            Debug.Log("[Furniture] FurnitureGimmick を家具プレハブへ追加しました");
+        }
+        finally
+        {
+            PrefabUtility.UnloadPrefabContents(root);
+        }
     }
 
     private static GameObject EnsurePrefab()
