@@ -188,41 +188,28 @@ public class DayManager : NetworkBehaviour
     {
         if (!enabled) return;
 
-        // 全画面の朝演出UIが未設定ならランタイムで生成する（シーン配置不要）
-        if (transitionUI == null)
+        // 朝の演出・今日の収支・家賃の支払いはシーンに実体で置いてある。
+        // 無いときは作らず知らせる（メニュー『Roomies/UI/Build Day Screens』で置き直す）
+        if (transitionUI == null || resultUI == null || rentPaymentUI == null)
         {
-            var go = new GameObject("DayTransitionUI");
-            transitionUI = go.AddComponent<DayTransitionUI>();
+            Debug.LogError(
+                "[UI] 朝・収支・家賃の画面がシーンにありません。" +
+                "メニュー『Roomies/UI/Build Day Screens』で置いてください。", this);
         }
 
-        // 収支リザルトUIも同様に生成
-        if (resultUI == null)
-        {
-            var go = new GameObject("DayResultUI");
-            resultUI = go.AddComponent<DayResultUI>();
-        }
-
-        // 3日目の家賃支払い演出も各クライアントでランタイム生成
-        if (rentPaymentUI == null)
-        {
-            var go = new GameObject("RentPaymentUI");
-            rentPaymentUI = go.AddComponent<RentPaymentUI>();
-        }
-
-        // 家具編集コントローラがシーンに無ければ生成する（仮カタログで動作）。
-        // 見た目を差し替えたい場合は GameRoom に FurnitureEditController を手動で置き、
-        // catalog に Prefab を割り当てること（手動配置があればそちらが使われる）。
+        // 家具編集と夜イベント管理もシーンに実体で置いてある
+        // （メニュー『Roomies/UI/Build Night Banner』が夜イベント管理も一緒に置く）
         if (FindAnyObjectByType<FurnitureEditController>() == null)
         {
-            var fgo = new GameObject("FurnitureEditController");
-            fgo.AddComponent<FurnitureEditController>();
+            Debug.LogError(
+                "[UI] FurnitureEditController がシーンにありません。GameRoom に置いてください。", this);
         }
 
-        // 夜イベント管理もシーンに無ければ生成する（シーン配置不要）
         if (FindAnyObjectByType<NightEventManager>() == null)
         {
-            var ngo = new GameObject("NightEventManager");
-            ngo.AddComponent<NightEventManager>();
+            Debug.LogError(
+                "[UI] NightEventManager がシーンにありません。" +
+                "メニュー『Roomies/UI/Build Night Banner』で置いてください。", this);
         }
 
         UpdateDayUI();

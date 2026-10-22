@@ -6,14 +6,19 @@ using UnityEngine.UI;
 
 /// <summary>
 /// 夜終わりに「今日の収支」を全画面で上位からドン！ドン！と表示する演出。
-/// シーン配置不要：DayManagerがランタイムで生成する。
+///
+/// シーンに**実体として置く**（メニュー `Roomies/UI/Build Day Screens`）。
+/// 人数ぶんの行だけは実行時に作る（人数が実行時に決まるため）。
 /// データは "名前|金額" を改行で並べた文字列（金額の降順で渡す）。
 /// </summary>
 public class DayResultUI : MonoBehaviour
 {
-    private CanvasGroup     group;
-    private RectTransform   listRoot;
-    private TextMeshProUGUI title;
+    [Header("シーンに置いた中身（配置ツールが入れる）")]
+    [SerializeField] private CanvasGroup     group;
+
+    [SerializeField] private RectTransform   listRoot;
+
+    [SerializeField] private TextMeshProUGUI title;
     private readonly List<GameObject> rows = new List<GameObject>();
 
     // タイミング
@@ -28,10 +33,20 @@ public class DayResultUI : MonoBehaviour
 
     private void Awake()
     {
-        BuildUI();
+        if (group == null)
+        {
+            Debug.LogError(
+                "[UI] DayResultUI の中身が空です。" +
+                "メニュー『Roomies/UI/Build Day Screens』でシーンに置き直してください。", this);
+        }
     }
 
-    private void BuildUI()
+#if UNITY_EDITOR
+    /// <summary>
+    /// シーンへ実体を置くための組み立て（エディタ専用）。
+    /// 配置ツール `Roomies/UI/Build Day Screens` から呼ぶ。実行中は動かない。
+    /// </summary>
+    public void EditorBuildUI()
     {
         var canvasGo = new GameObject("DayResultCanvas");
         canvasGo.transform.SetParent(transform, false);
@@ -81,6 +96,8 @@ public class DayResultUI : MonoBehaviour
 
         canvasGo.SetActive(true);
     }
+
+#endif
 
     public void Play(string data)
     {

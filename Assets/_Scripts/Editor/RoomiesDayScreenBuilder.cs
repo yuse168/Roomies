@@ -1,0 +1,166 @@
+#if UNITY_EDITOR
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+
+/// <summary>
+/// 朝の演出・今日の収支・家賃の支払いの3画面を、シーンへ実体として置くツール。
+///
+/// もともとは実行時に作っていたので、Play Modeに入らないと見えなかった。
+/// ここで置いておけば、文字・色・位置をインスペクターとシーンビューで直せる。
+///
+/// 置いたあとは `DayManager` の `Transition UI` / `Result UI` / `Rent Payment UI` に
+/// 自動で割り当てる。
+///
+/// 何度実行しても同じ結果（すでにある物は作り直さない。`Rebuild` は作り直す）。
+///
+/// メニュー：
+///  Roomies/UI/Build Day Screens
+///  Roomies/UI/Rebuild Day Screens
+///  Roomies/UI/Build Night Banner
+/// </summary>
+internal static class RoomiesDayScreenBuilder
+{
+    private const string RootName = "UI_DayScreens";
+
+    [MenuItem("Roomies/UI/Build Day Screens")]
+    private static void Build() => Build(rebuild: false);
+
+    [MenuItem("Roomies/UI/Rebuild Day Screens")]
+    private static void Rebuild()
+    {
+        if (!EditorUtility.DisplayDialog(
+                "画面を作り直す",
+                "3つの画面を作り直します。シーンで手を入れた位置や文字は元に戻ります。",
+                "作り直す", "やめる"))
+            return;
+
+        Build(rebuild: true);
+    }
+
+    private static void Build(bool rebuild)
+    {
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            Debug.LogError("[UI] Play Modeを抜けてから実行してください。");
+            return;
+        }
+
+        var dayManager = Object.FindAnyObjectByType<DayManager>();
+        if (dayManager == null)
+        {
+            Debug.LogError("[UI] DayManager が見つかりません。GameRoom シーンを開いてから実行してください。");
+            return;
+        }
+
+        GameObject root = GameObject.Find(RootName);
+        if (root == null)
+        {
+            root = new GameObject(RootName);
+            Undo.RegisterCreatedObjectUndo(root, "Build day screens");
+        }
+
+        var transition = Ensure<DayTransitionUI>(root.transform, "DayTransitionUI", rebuild,
+            ui => ui.EditorBuildUI());
+        var result = Ensure<DayResultUI>(root.transform, "DayResultUI", rebuild,
+            ui => ui.EditorBuildUI());
+        var rent = Ensure<RentPaymentUI>(root.transform, "RentPaymentUI", rebuild,
+            ui => ui.EditorBuildUI());
+
+        var so = new SerializedObject(dayManager);
+        so.FindProperty("transitionUI").objectReferenceValue = transition;
+        so.FindProperty("resultUI").objectReferenceValue = result;
+        so.FindProperty("rentPaymentUI").objectReferenceValue = rent;
+        so.ApplyModifiedProperties();
+
+        EditorSceneManager.MarkSceneDirty(root.scene);
+        Selection.activeGameObject = root;
+        Debug.Log("[UI] 朝・収支・家賃の3画面を置き、DayManager へ割り当てました（シーンを保存してください）");
+    }
+
+    /// <summary>
+    /// 子オブジェクトを用意して、中身が空なら組み立てさせる。
+    /// すでに中身があるときは触らない（手で直した位置を壊さないため）。
+    /// </summary>
+    // ---------------- 夜イベントのバナー ----------------
+
+    [MenuItem("Roomies/UI/Build Night Banner")]
+    private static void BuildNightBanner()
+    {
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            Debug.LogError("[UI] Play Modeを抜けてから実行してください。");
+            return;
+        }
+
+        if (Object.FindAnyObjectByType<DayManager>() == null)
+        {
+            Debug.LogError("[UI] DayManager が見つかりません。GameRoom シーンを開いてから実行してください。");
+            return;
+        }
+
+        // 夜イベント管理もこれまで実行時に作っていたので、ここでシーンへ置く
+        var manager = Object.FindAnyObjectByType<NightEventManager>();
+        if (manager == null)
+        {
+            var managerObject = new GameObject("NightEventManager");
+            Undo.RegisterCreatedObjectUndo(managerObject, "Build night event manager");
+            manager = Undo.AddComponent<NightEventManager>(managerObject);
+        }
+
+        GameObject root = GameObject.Find(RootName);
+        if (root == null)
+        {
+            root = new GameObject(RootName);
+            Undo.RegisterCreatedObjectUndo(root, "Build night banner");
+        }
+
+        var banner = Ensure<NightEventUI>(root.transform, "NightEventUI", false,
+            ui => ui.EditorBuildUI());
+
+        // 家具の模様替えもこれまで実行時に作っていたので、ここでシーンへ置く
+        if (Object.FindAnyObjectByType<FurnitureEditController>() == null)
+        {
+            var editObject = new GameObject("FurnitureEditController");
+            Undo.RegisterCreatedObjectUndo(editObject, "Build furniture edit controller");
+            Undo.AddComponent<FurnitureEditController>(editObject);
+        }
+
+        var so = new SerializedObject(manager);
+        so.FindProperty("eventUI").objectReferenceValue = banner;
+        so.ApplyModifiedProperties();
+
+        EditorSceneManager.MarkSceneDirty(root.scene);
+        Selection.activeGameObject = banner.gameObject;
+        Debug.Log("[UI] 夜イベントのバナー・NightEventManager・FurnitureEditController を置きました（シーンを保存してください）");
+    }
+
+    private static T Ensure<T>(Transform parent, string name, bool rebuild, System.Action<T> build)
+        where T : MonoBehaviour
+    {
+        Transform existing = parent.Find(name);
+
+        if (existing != null && rebuild)
+        {
+            Undo.DestroyObjectImmediate(existing.gameObject);
+            existing = null;
+        }
+
+        if (existing == null)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            Undo.RegisterCreatedObjectUndo(go, "Build day screen");
+            existing = go.transform;
+        }
+
+        T component = existing.GetComponent<T>();
+        if (component == null) component = Undo.AddComponent<T>(existing.gameObject);
+
+        // 中身（Canvas）がまだ無いときだけ組み立てる
+        if (existing.childCount == 0) build(component);
+
+        return component;
+    }
+}
+#endif

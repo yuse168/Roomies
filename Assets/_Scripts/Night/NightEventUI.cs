@@ -6,7 +6,9 @@ using UnityEngine.UI;
 
 /// <summary>
 /// 夜イベント・トラブルの告知バナー。
-/// シーンに配置不要：NightEventManagerがランタイムで生成する。
+///
+/// シーンに**実体として置く**（メニュー `Roomies/UI/Build Night Banner`）。
+/// 文字の大きさ・色・位置はインスペクターとシーンビューで直せる。
 ///
 /// 見た目：角丸パネル＋ドロップシャドウ＋スタイル色のアイコンバッジ＋上端のアクセントライン。
 /// 角丸はコード生成したスプライト（9-slice）なので画像アセット不要。
@@ -15,13 +17,14 @@ using UnityEngine.UI;
 /// </summary>
 public class NightEventUI : MonoBehaviour
 {
-    private CanvasGroup group;
-    private RectTransform panelRt;
-    private Image accentLine;
-    private Image iconBadge;
-    private TextMeshProUGUI iconLabel;
-    private TextMeshProUGUI titleLabel;
-    private TextMeshProUGUI bodyLabel;
+    [Header("シーンに置いた中身（配置ツールが入れる）")]
+    [SerializeField] private CanvasGroup group;
+    [SerializeField] private RectTransform panelRt;
+    [SerializeField] private Image accentLine;
+    [SerializeField] private Image iconBadge;
+    [SerializeField] private TextMeshProUGUI iconLabel;
+    [SerializeField] private TextMeshProUGUI titleLabel;
+    [SerializeField] private TextMeshProUGUI bodyLabel;
 
     // 演出のタイミング
     private const float InTime   = 0.45f;
@@ -44,14 +47,24 @@ public class NightEventUI : MonoBehaviour
 
     private void Awake()
     {
-        BuildUI();
+        if (group == null)
+        {
+            Debug.LogError(
+                "[UI] NightEventUI の中身が空です。" +
+                "メニュー『Roomies/UI/Build Night Banner』でシーンに置き直してください。", this);
+        }
     }
 
     // ================================================================
     // UI構築
     // ================================================================
 
-    private void BuildUI()
+#if UNITY_EDITOR
+    /// <summary>
+    /// シーンへ実体を置くための組み立て（エディタ専用）。
+    /// 配置ツール `Roomies/UI/Build Night Banner` から呼ぶ。実行中は動かない。
+    /// </summary>
+    public void EditorBuildUI()
     {
         var canvasGo = new GameObject("NightEventCanvas");
         canvasGo.transform.SetParent(transform, false);
@@ -123,6 +136,8 @@ public class NightEventUI : MonoBehaviour
         bodyRt.anchoredPosition = new Vector2(48, 30);
         bodyRt.sizeDelta = new Vector2(-186, 46);
     }
+
+#endif
 
     private static void StretchFull(RectTransform rt)
     {

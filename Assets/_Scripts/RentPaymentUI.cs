@@ -12,11 +12,12 @@ public sealed class RentPaymentUI : MonoBehaviour
     public const float SuccessDuration = 4.7f;
     public const float FailureDuration = 5.8f;
 
-    private CanvasGroup group;
-    private Image background;   // 拒否演出用の赤いフラッシュ層（通常は透明）
-    private Image card;         // パネルの白フチ
-    private Image cardFill;     // パネルの内側の面（成功／失敗で色を変える）
-    private Image progressFill;
+    [Header("シーンに置いた中身（配置ツールが入れる）")]
+    [SerializeField] private CanvasGroup group;
+    [SerializeField] private Image background;   // 拒否演出用の赤いフラッシュ層（通常は透明）
+    [SerializeField] private Image card;         // パネルの白フチ
+    [SerializeField] private Image cardFill;     // パネルの内側の面（成功／失敗で色を変える）
+    [SerializeField] private Image progressFill;
     private TMP_Text rentLabel;
     private TMP_Text balanceLabel;
     private TMP_Text statusLabel;
@@ -32,7 +33,12 @@ public sealed class RentPaymentUI : MonoBehaviour
 
     private void Awake()
     {
-        BuildUI();
+        if (group == null)
+        {
+            Debug.LogError(
+                "[UI] RentPaymentUI の中身が空です。" +
+                "メニュー『Roomies/UI/Build Day Screens』でシーンに置き直してください。", this);
+        }
     }
 
     public void Play(int rent, int balance, bool canPay)
@@ -48,7 +54,12 @@ public sealed class RentPaymentUI : MonoBehaviour
         if (resultLabel != null) resultLabel.gameObject.SetActive(false);
     }
 
-    private void BuildUI()
+#if UNITY_EDITOR
+    /// <summary>
+    /// シーンへ実体を置くための組み立て（エディタ専用）。
+    /// 配置ツール `Roomies/UI/Build Day Screens` から呼ぶ。実行中は動かない。
+    /// </summary>
+    public void EditorBuildUI()
     {
         Canvas canvas = UITheme.CreateCanvas(transform, "RentPaymentCanvas", 9500);
 
@@ -130,6 +141,8 @@ public sealed class RentPaymentUI : MonoBehaviour
         resultLabel.outlineColor = new Color32(20, 0, 0, 230);
         resultLabel.gameObject.SetActive(false);
     }
+
+#endif
 
     private IEnumerator PlayRoutine(int rent, int balance, bool canPay)
     {

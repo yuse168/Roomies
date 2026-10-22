@@ -113,11 +113,12 @@ public class NightEventManager : MonoBehaviour
 
     private void Start()
     {
-        // 告知UIが未設定ならランタイムで生成する（シーン配置不要）
+        // 告知バナーはシーンに実体で置いてある。無いときは作らず知らせる
         if (eventUI == null)
         {
-            var go = new GameObject("NightEventUI");
-            eventUI = go.AddComponent<NightEventUI>();
+            Debug.LogError(
+                "[UI] 夜イベントのバナーがシーンにありません。" +
+                "メニュー『Roomies/UI/Build Night Banner』で置いてください。", this);
         }
 
         DayManager.OnNightArrived += OnNight;

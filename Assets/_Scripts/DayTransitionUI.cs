@@ -5,13 +5,18 @@ using UnityEngine.UI;
 
 /// <summary>
 /// 夜→朝の切り替え時に表示する全画面の暗転＋「○日目」演出。
-/// シーンに配置不要：DayManagerがランタイムで生成する。
+///
+/// シーンに**実体として置く**（メニュー `Roomies/UI/Build Day Screens`）。
+/// 文字・色・位置はインスペクターとシーンビューで直せる。
 /// </summary>
 public class DayTransitionUI : MonoBehaviour
 {
-    private CanvasGroup    group;
-    private TextMeshProUGUI dayLabel;
-    private TextMeshProUGUI subLabel;
+    [Header("シーンに置いた中身（配置ツールが入れる）")]
+    [SerializeField] private CanvasGroup    group;
+
+    [SerializeField] private TextMeshProUGUI dayLabel;
+
+    [SerializeField] private TextMeshProUGUI subLabel;
 
     // 演出のタイミング
     private const float FadeInTime  = 0.6f;
@@ -23,10 +28,20 @@ public class DayTransitionUI : MonoBehaviour
 
     private void Awake()
     {
-        BuildUI();
+        if (group == null)
+        {
+            Debug.LogError(
+                "[UI] DayTransitionUI の中身が空です。" +
+                "メニュー『Roomies/UI/Build Day Screens』でシーンに置き直してください。", this);
+        }
     }
 
-    private void BuildUI()
+#if UNITY_EDITOR
+    /// <summary>
+    /// シーンへ実体を置くための組み立て（エディタ専用）。
+    /// 配置ツール `Roomies/UI/Build Day Screens` から呼ぶ。実行中は動かない。
+    /// </summary>
+    public void EditorBuildUI()
     {
         // 最前面に出すためのCanvas
         var canvasGo = new GameObject("DayTransitionCanvas");
@@ -87,6 +102,8 @@ public class DayTransitionUI : MonoBehaviour
         subLabel.rectTransform.offsetMin = new Vector2(18f, 4f);
         subLabel.rectTransform.offsetMax = new Vector2(-18f, -4f);
     }
+
+#endif
 
     private static void StretchFull(RectTransform rt)
     {
