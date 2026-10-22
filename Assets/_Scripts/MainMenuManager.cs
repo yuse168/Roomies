@@ -26,6 +26,16 @@ public class MainMenuManager : MonoBehaviour
     [SerializeField] private Button joinButton;
     [SerializeField] private Button quitButton;
 
+    [Header("続きから（セーブ）")]
+    [Tooltip("セーブがあるときだけ出すボタン。シーンに置いた実体を割り当てる。")]
+    [SerializeField] private Button continueButton;
+
+    [Tooltip("ボタンの中の説明文（「Day 2 夜 ／ 共同口座 ¥1,200」が入る）。")]
+    [SerializeField] private TMP_Text continueSummaryText;
+
+    // 「続きから」で始めるときに読み込んだセーブ。ホスト作成が成功したら引き渡す
+    private RoomiesSaveData loadedSave;
+
     // =========================================================
     // Unity ライフサイクル
     // =========================================================
@@ -61,7 +71,7 @@ public class MainMenuManager : MonoBehaviour
         if (hostButton != null)
         {
             hostButton.onClick.RemoveAllListeners();
-            hostButton.onClick.AddListener(OnHostClicked);
+            hostButton.onClick.AddListener(OnNewGameClicked);
         }
         if (joinButton != null)
         {
@@ -83,6 +93,13 @@ public class MainMenuManager : MonoBehaviour
             quitButton.onClick.RemoveAllListeners();
             quitButton.onClick.AddListener(Quit);
         }
+        if (continueButton != null)
+        {
+            continueButton.onClick.RemoveAllListeners();
+            continueButton.onClick.AddListener(OnContinueClicked);
+        }
+
+        RefreshContinueButton();
 
         UpdateButtons();
         StartCoroutine(RefreshMenuStateNextFrame());
@@ -105,6 +122,54 @@ public class MainMenuManager : MonoBehaviour
     // =========================================================
     // ボタン処理
     // =========================================================
+
+    /// <summary>
+    /// 「はじめから」。前回のセーブは読み込まず、まっさらな部屋でホストを作る
+    /// （セーブファイルは消さない。次のオートセーブで上書きされる）。
+    /// </summary>
+    private void OnNewGameClicked()
+    {
+        SaveSystem.ClearPendingLoad();
+        loadedSave = null;
+        OnHostClicked();
+    }
+
+    /// <summary>
+    /// セーブがあるときだけ「続きから」を出し、中身を1行で見せる。
+    /// セーブはホストの端末にあるので、押した人がそのままホストになる。
+    /// </summary>
+    private void RefreshContinueButton()
+    {
+        if (continueButton == null) return;
+
+        RoomiesSaveData data = SaveSystem.Load();
+        bool hasSave = data != null;
+
+        continueButton.gameObject.SetActive(hasSave);
+        if (!hasSave) return;
+
+        // ボタンの文字そのものに続きの内容を出す（別のラベルを足すと位置合わせが要るため）
+        if (continueSummaryText != null)
+            continueSummaryText.text = "続きから" + System.Environment.NewLine + data.Summary;
+    }
+
+    /// <summary>
+    /// 「続きから」。セーブを読んでからホストを作る。
+    /// 1人で始めても、あとから友達が入ってきても同じ続きで遊べる。
+    /// </summary>
+    private void OnContinueClicked()
+    {
+        loadedSave = SaveSystem.Load();
+        if (loadedSave == null)
+        {
+            ShowStatus("セーブが読めませんでした");
+            RefreshContinueButton();
+            return;
+        }
+
+        SaveSystem.SetPendingLoad(loadedSave);
+        OnHostClicked();
+    }
 
     private void OnHostClicked()
     {
@@ -131,12 +196,16 @@ public class MainMenuManager : MonoBehaviour
         }
 
         HideStatus();
-        ShowStatus("ロビーを作成中...");
+        ShowStatus(loadedSave != null ? "続きからロビーを作成中..." : "ロビーを作成中...");
         SteamLobby.Instance.CreateLobby();
     }
 
     private void OnJoinClicked()
     {
+        // 参加する側はホストのセーブで遊ぶので、自分のセーブは使わない
+        SaveSystem.ClearPendingLoad();
+        loadedSave = null;
+
         if (!SteamManager.Initialized)
         {
             ShowStatus(SteamManager.InitializationError ?? "Steamが起動していません");

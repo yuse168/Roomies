@@ -115,6 +115,20 @@ public class SharedMoneyManager : NetworkBehaviour
     /// <summary>現在の共同口座残高（全員が参照可）。</summary>
     public int CurrentMoney => sharedMoney.Value;
 
+    /// <summary>
+    /// セーブから残高を戻す（サーバーのみ）。入出金ではないので履歴の増減とは別扱い。
+    /// 続きから始めるときに <see cref="RunSaveManager"/> が1回だけ呼ぶ。
+    /// </summary>
+    public void ServerRestoreBalance(int balance)
+    {
+        if (!IsServer) return;
+
+        int clamped = Mathf.Max(0, balance);
+        int old = sharedMoney.Value;
+        sharedMoney.Value = clamped;
+        Debug.Log($"[Money] セーブから残高を復元: {old}R -> {clamped}R");
+    }
+
     public bool CanPay(int amount)
     {
         return amount >= 0 && sharedMoney.Value >= amount;

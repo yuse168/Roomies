@@ -110,6 +110,9 @@ public class DayManager : NetworkBehaviour
         }
     }
 
+    /// <summary>次回家賃への上乗せ額。セーブに残して続きから戻す。</summary>
+    public int RentSurcharge => rentSurcharge != null ? rentSurcharge.Value : 0;
+
     /// <summary>次回の家賃徴収額（基本額＋上乗せ）。</summary>
     public int CurrentRentTotal => BaseRentThisCycle + rentSurcharge.Value;
     public int DaysUntilRent
@@ -686,6 +689,66 @@ public class DayManager : NetworkBehaviour
     private void ShowGameOverClientRpc(int rent)
     {
         if (GameOverScreen.Instance != null) GameOverScreen.Instance.Show(rent);
+    }
+
+    /// <summary>
+    /// セーブから進行を戻す（サーバーのみ）。
+    /// 続きから始めるときに <see cref="RunSaveManager"/> が1回だけ呼ぶ。
+    /// </summary>
+    /// <param name="savedDay">Day（1始まり）</param>
+    /// <param name="savedTime">0=朝 / 1=夜</param>
+    /// <param name="savedRemaining">そのターンの残り秒。0以下ならターンの頭から</param>
+    /// <param name="savedSurcharge">次回家賃への上乗せ額</param>
+    public void ServerApplySavedState(int savedDay, int savedTime, float savedRemaining, int savedSurcharge)
+    {
+        if (!IsServer || !IsSpawned) return;
+
+        isGameOver.Value = false;
+        isTransitioning.Value = false;
+        currentDay.Value = Mathf.Max(1, savedDay);
+        currentTime.Value = savedTime == 1 ? 1 : 0;
+        rentSurcharge.Value = savedSurcharge;
+        remainingTime.Value = savedRemaining > 1f && savedRemaining <= turnDuration
+            ? savedRemaining
+            : turnDuration;
+
+        ApplySkyMaterial(currentTime.Value);
+        ApplySmugglingTime(currentTime.Value);
+        UpdateDayUI();
+        UpdateTimerUI();
+        SnapshotDayStartEarnings();
+    }
+
+    /// <summary>
+    /// セーブにあった家具を、覚えていた場所へ置き直す（サーバーのみ）。
+    /// 買うときと違ってお金は引かない。置けなければ null を返す。
+    /// </summary>
+    public NetworkFurniture ServerSpawnFurniture(int catalogIndex, Vector3 position, float yaw)
+    {
+        if (!IsServer || !IsSpawned) return null;
+        if (!CanSpawnNetworkFurniture) return null;
+        if (FurnitureCatalog.Get(catalogIndex) == null) return null;
+        if (!float.IsFinite(position.x) || !float.IsFinite(position.y) || !float.IsFinite(position.z)) return null;
+
+        GameObject go = null;
+        NetworkObject no = null;
+        try
+        {
+            go = Instantiate(networkFurniturePrefab, position, Quaternion.Euler(0f, yaw, 0f));
+            no = go.GetComponent<NetworkObject>();
+            no.Spawn(true);
+
+            NetworkFurniture furniture = go.GetComponent<NetworkFurniture>();
+            furniture.ServerSetIndex(catalogIndex);
+            furnitureDeliveryCount++;
+            return furniture;
+        }
+        catch (System.Exception exception)
+        {
+            RemoveFailedFurniture(go, no);
+            Debug.LogWarning($"[Save] 家具の復元に失敗: {exception.Message}");
+            return null;
+        }
     }
 
     /// <summary>

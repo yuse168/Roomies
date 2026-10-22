@@ -1,5 +1,49 @@
 # PROGRESS.md
 
+## 2026/10/23｜セーブ（続きから）を追加
+
+### 今回の変更
+1. **ホストの端末に部屋の進行を保存するようにした**
+   - 保存場所は `Application.persistentDataPath/roomies_save.json`（1枠・オートセーブ）
+   - 一時ファイルへ書いてから置き換えるので、保存中に落ちても前のセーブは壊れない
+   - 保存するもの：Day・朝/夜・残り秒・共同口座・家賃の上乗せ・置いてある家具・参加者の所持金
+   - 参加者は**名前で**覚える。保存は部屋の状態だけなので、**1人でも友達と一緒でも**
+     同じ続きから始められる（誰がいたかは再開の条件にしない）
+2. **メインメニューに「続きから」ボタンを追加**
+   - セーブがあるときだけ出る。ボタンにDay・時間帯・共同口座の額が出る
+   - 「ホスト」（はじめから）を押したときは前のセーブを読み込まない（ファイルは消さない）
+   - 参加する側は自分のセーブを使わない（ホストの続きで遊ぶ）
+3. **実体として置いた**（AGENTS.mdの「実行時に作らない」に合わせた）
+   - GameRoom に `RunSaveManager`、MainMenuSteam に `ContinueButton`
+   - 置き直しは `Roomies/Save/Build Save Manager` と `Roomies/Save/Build Continue Button`
+   - ボタンは `HostButton` を複製して作るので見た目がそろう。位置はシーンで動かせる
+   - 保存間隔・所持金を戻すかどうかは `RunSaveManager` のインスペクターで変えられる
+4. 既存スクリプトへの追加
+   - `DayManager.ServerApplySavedState` … Day・時間帯・残り時間・家賃上乗せを戻す
+   - `DayManager.ServerSpawnFurniture` … セーブにあった家具を場所ごと置き直す（代金は引かない）
+   - `SharedMoneyManager.ServerRestoreBalance` … 残高を戻す（入出金の履歴とは別扱い）
+   - `PlayerNameDisplay.PlayerName` と `ServerPlayerNamed` … 名前が届いたら所持金を戻すため
+5. 説明は `Assets/_Scripts/Save/SAVE.md` に置いた
+
+### 確認したこと
+- `dotnet build` … Assembly-CSharp / Assembly-CSharp-Editor どちらもエラー0
+- Unity の `compile/status` … 成功・エラー0件、コンソールにもエラーなし
+- `Roomies/Save/Build Save Manager` を実行し、GameRoom に `RunSaveManager` が1つ置かれた
+- `Roomies/Save/Build Continue Button` を実行し、`Canvas/MainMenuPanel/ContinueButton` が
+  HostButton の真上（y=136・幅360×高さ96）に置かれ、`MainMenuManager` の
+  `continueButton` / `continueSummaryText` へ割り当てられたことをシーンのテキストで確認
+- 両方のシーンを保存した
+
+### まだ確認していないこと
+- **Play Modeでの動作は未確認**。保存・読み込み・家具の復元・所持金の復元・
+  ボタンの表示はどれも実際に動かしていない
+- ボタンの**見た目は未確認**（Screen Space Overlay のためシーンビューに映らない）。
+  位置は数値で確かめただけなので、Game Viewで見て必要なら動かす
+- ゲームオーバーの瞬間は保存しないので、続きは「負ける直前」から始まる。
+  この挙動でよいかは要判断
+- セーブを消すUIはゲーム内に無い（Unityのメニューからのみ）
+
+
 ## 2026/10/23｜無音の効果音を全部埋め、ロビーの音を分け、家具にギミックを付けた
 
 ### 今回の変更

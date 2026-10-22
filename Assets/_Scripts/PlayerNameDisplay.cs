@@ -82,11 +82,21 @@ public class PlayerNameDisplay : NetworkBehaviour
         }
     }
 
+    /// <summary>同期されている表示名。セーブの突き合わせなどに使う。</summary>
+    public string PlayerName => playerName.Value.ToString();
+
+    /// <summary>
+    /// サーバーで表示名が決まった瞬間に発火する（サーバーのみ）。
+    /// セーブから所持金を戻すときに使う（<see cref="RunSaveManager"/>）。
+    /// </summary>
+    public static event System.Action<PlayerNameDisplay> ServerPlayerNamed;
+
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
     private void SubmitNameServerRpc(string name)
     {
         if (string.IsNullOrWhiteSpace(name)) return;
         playerName.Value = TruncateForFixedString(name);
+        ServerPlayerNamed?.Invoke(this);
     }
 
     // FixedString32Bytes（UTF-8で最大29バイト）に収まるよう安全に切り詰める。
