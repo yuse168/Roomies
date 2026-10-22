@@ -18,6 +18,7 @@ using UnityEngine;
 ///  Roomies/UI/Build Day Screens
 ///  Roomies/UI/Rebuild Day Screens
 ///  Roomies/UI/Build Night Banner
+///  Roomies/UI/Build Earning List
 /// </summary>
 internal static class RoomiesDayScreenBuilder
 {
@@ -133,6 +134,39 @@ internal static class RoomiesDayScreenBuilder
         EditorSceneManager.MarkSceneDirty(root.scene);
         Selection.activeGameObject = banner.gameObject;
         Debug.Log("[UI] 夜イベントのバナー・NightEventManager・FurnitureEditController を置きました（シーンを保存してください）");
+    }
+
+    // ---------------- みんなの稼ぎ ----------------
+
+    [MenuItem("Roomies/UI/Build Earning List")]
+    private static void BuildEarningList()
+    {
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            Debug.LogError("[UI] Play Modeを抜けてから実行してください。");
+            return;
+        }
+
+        var list = Object.FindAnyObjectByType<PlayerEarningListUI>(FindObjectsInactive.Include);
+        if (list == null)
+        {
+            Debug.LogError("[UI] PlayerEarningListUI が見つかりません。GameRoom シーンを開いてから実行してください。");
+            return;
+        }
+
+        if (list.transform.Find("EarningListCanvas") != null)
+        {
+            Debug.Log("[UI] みんなの稼ぎの画面はすでに置かれています。");
+            Selection.activeGameObject = list.gameObject;
+            return;
+        }
+
+        Undo.RegisterFullObjectHierarchyUndo(list.gameObject, "Build earning list");
+        list.EditorBuildUI();
+
+        EditorSceneManager.MarkSceneDirty(list.gameObject.scene);
+        Selection.activeGameObject = list.gameObject;
+        Debug.Log("[UI] みんなの稼ぎの画面を置きました（シーンを保存してください）");
     }
 
     private static T Ensure<T>(Transform parent, string name, bool rebuild, System.Action<T> build)

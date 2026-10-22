@@ -72,10 +72,24 @@
 - 本アセットに差し替えるとき、スクリプトを読まずにオブジェクトを入れ替えるだけで済むか。
 - 位置や数値を変えたいとき、コードを書き換えずにインスペクターで直せるか。
 
-### 既存の例外（新規では作らない。見つけたら実体化する）
-- UI全般（`UITheme` / `HudThemer` / `LobbyUIManager` / `NightEventUI` / 設定画面）はコードで組み立てている。
-- `NetworkFurniture` の `Visual`、`CharacterCloset` の見た目、`MiningFeedback` の演出も実行時生成。
-- これらは当面そのままにするが、**新しく同じ作り方をしない。**
+### 実体化の進み具合
+
+**済み**（シーンに置いてある。配置ツールで置き直せる）
+- 朝の演出・今日の収支・家賃の支払い … `Roomies/UI/Build Day Screens`
+- 夜イベントのバナー … `Roomies/UI/Build Night Banner`（`NightEventManager` と
+  `FurnitureEditController` も一緒に置く）
+- みんなの稼ぎ … `Roomies/UI/Build Earning List`
+- ゲームオーバー画面 / 逮捕演出 / セーブの「続きから」ボタン
+
+組み立てのコードは各クラスの `EditorBuildUI()` に `#if UNITY_EDITOR` で残してある。
+実行中は動かないので、置き直したいときだけ配置ツールから呼ぶ。
+参照は `[SerializeField]` でシーンに保存される。
+
+**まだ**（新しく同じ作り方をしない。触るついでに実体化する）
+- HUD（`HudThemer`）、ロビー（`LobbyUIManager`）、ポーズ・設定（`EscMenuUI`）
+- `NetworkFurniture` の `Visual`、`CharacterCloset` の見た目、`MiningFeedback` の演出
+- `UITheme` は部品を作る道具なので、**エディタの配置ツールから呼ぶぶんには問題ない**
+  （実行時に呼ばないこと）
 
 ## コミットメッセージ
 

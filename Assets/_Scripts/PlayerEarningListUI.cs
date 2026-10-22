@@ -16,9 +16,10 @@ public class PlayerEarningListUI : MonoBehaviour
     [SerializeField] private TextMeshProUGUI earningListText;
 
     // ランタイム生成UI
-    private CanvasGroup group;
-    private RectTransform cardRt;
-    private Transform rowsParent;
+    [Header("シーンに置いた中身（配置ツールが入れる）")]
+    [SerializeField] private CanvasGroup group;
+    [SerializeField] private RectTransform cardRt;
+    [SerializeField] private Transform rowsParent;
 
     private bool visible;
     private float refreshTimer;
@@ -43,10 +44,20 @@ public class PlayerEarningListUI : MonoBehaviour
         // 旧UIは完全に置き換え
         if (panel != null) panel.SetActive(false);
 
-        BuildUI();
+        if (group == null)
+        {
+            Debug.LogError(
+                "[UI] みんなの稼ぎの画面が空です。" +
+                "メニュー『Roomies/UI/Build Earning List』でシーンに置き直してください。", this);
+        }
     }
 
-    private void BuildUI()
+#if UNITY_EDITOR
+    /// <summary>
+    /// シーンへ実体を置くための組み立て（エディタ専用）。
+    /// 配置ツール `Roomies/UI/Build Earning List` から呼ぶ。実行中は動かない。
+    /// </summary>
+    public void EditorBuildUI()
     {
         var canvas = UITheme.CreateCanvas(transform, "EarningListCanvas", 8000);
 
@@ -106,6 +117,8 @@ public class PlayerEarningListUI : MonoBehaviour
 
         rowsParent = rows.transform;
     }
+
+#endif
 
     private void Update()
     {

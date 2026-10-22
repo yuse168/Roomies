@@ -1,5 +1,49 @@
 # PROGRESS.md
 
+## 2026/10/23｜UIの実体化（その1：朝・収支・家賃・夜バナー・みんなの稼ぎ）
+
+Play Modeに入らないと存在しなかった画面を、シーンに置いて触れるようにしていく作業の1回目。
+
+### 今回の変更
+1. **5つの画面をシーンの実体にした**
+   - 朝の演出（`DayTransitionUI`）、今日の収支（`DayResultUI`）、家賃の支払い（`RentPaymentUI`）、
+     夜イベントのバナー（`NightEventUI`）、みんなの稼ぎ（`PlayerEarningListUI`）
+   - 組み立てコードは各クラスに `EditorBuildUI()` として `#if UNITY_EDITOR` で残した
+     （実行中は動かない。置き直したいときだけ配置ツールから呼ぶ）
+   - 中身の参照を `[SerializeField]` にして、シーンに保存されるようにした
+   - 文字・色・位置がインスペクターとシーンビューで直せるようになった
+2. **配置ツールを追加**（`RoomiesDayScreenBuilder`）
+   - `Roomies/UI/Build Day Screens` … 3画面を `UI_DayScreens` の下に置き、`DayManager` へ割り当て
+   - `Roomies/UI/Rebuild Day Screens` … 作り直す（手で直した位置は戻る。確認ダイアログあり）
+   - `Roomies/UI/Build Night Banner` … バナー＋`NightEventManager`＋`FurnitureEditController`
+   - `Roomies/UI/Build Earning List` … みんなの稼ぎ
+3. **実行時生成をやめた**
+   - `DayManager` と `NightEventManager` が作っていた分を削除。無いときはエラーで知らせる
+   - これまで実行時に作られていた `NightEventManager` と `FurnitureEditController` も
+     シーンに実体として置いた
+4. AGENTS.md の「実行時に作らない」へ、実体化の済み・未をまとめ直した
+
+### 確認したこと
+- `dotnet build` … Assembly-CSharp / Assembly-CSharp-Editor / RegressionTests すべてエラー0
+- Unity の `compile/status` … 成功・エラー0件、コンソールにもエラーなし
+- 配置ツールを実行し、シーンに以下ができたことを確認
+  （`UI_DayScreens/DayTransitionUI/DayTransitionCanvas`、同 `DayResultUI`・`RentPaymentUI`、
+  `UI_DayScreens/NightEventUI/NightEventCanvas`、`Canvas/EarningListCanvas`、
+  `NightEventManager`、`FurnitureEditController`）
+- `DayManager` の `transitionUI` / `resultUI` / `rentPaymentUI`、`NightEventManager` の
+  `eventUI` がシーンのテキスト上で割り当て済みになっていることを確認
+- GameRoom シーンを保存
+
+### まだ確認していないこと
+- **Play Modeでの見た目・動作は未確認**。5画面とも実際に出していない。
+  Screen Space Overlay はシーンビューに映らないので、Game Viewで見るまで分からない
+- 置き直しが必要になったら `Rebuild Day Screens` で作り直せる（位置の調整は戻る）
+- **まだ実体化していないUI**：HUD（`HudThemer`）、ロビー（`LobbyUIManager`）、
+  ポーズ・設定（`EscMenuUI`）。ここが一番大きく、壊れたときの影響も大きいので、
+  今回の5画面をGame Viewで確かめてから手を付ける
+- `CharacterCloset` の見た目、`MiningFeedback` の演出、`NetworkFurniture` の `Visual` も未着手
+
+
 ## 2026/10/23｜セーブ（続きから）を追加
 
 ### 今回の変更
