@@ -28,6 +28,10 @@ public class RunSaveManager : MonoBehaviour
     [Tooltip("切ると保存しなくなる（デバッグ用）。")]
     [SerializeField] private bool autoSave = true;
 
+    [Header("ゲームオーバー")]
+    [Tooltip("家賃を払えずに負けたら、セーブを消す（その部屋の続きは無くなる）。")]
+    [SerializeField] private bool deleteSaveOnGameOver = true;
+
     [Header("続きから")]
     [Tooltip("参加者の所持金を名前で突き合わせて戻す。")]
     [SerializeField] private bool restorePlayerMoney = true;
@@ -37,6 +41,7 @@ public class RunSaveManager : MonoBehaviour
     private string lastSignature;
 
     private bool applied;
+    private bool deletedForThisRun;
     private readonly List<SavedPlayerMoney> pendingPlayerMoney = new List<SavedPlayerMoney>();
 
     private void OnEnable()
@@ -59,11 +64,29 @@ public class RunSaveManager : MonoBehaviour
             return;
         }
 
-        if (!autoSave || Time.time < nextCheckTime) return;
+        if (Time.time < nextCheckTime) return;
         nextCheckTime = Time.time + checkInterval;
 
         DayManager day = DayManager.Instance;
-        if (day == null || !day.IsSpawned || day.IsGameOver) return;
+        if (day == null || !day.IsSpawned) return;
+
+        // 負けたらセーブを消す（「負ける直前」から何度も始められないように）。
+        // やり直すと IsGameOver が戻るので、そのときはまた保存を始める
+        if (day.IsGameOver)
+        {
+            if (deleteSaveOnGameOver && !deletedForThisRun)
+            {
+                deletedForThisRun = true;
+                lastSignature = null;
+                if (SaveSystem.Exists() && SaveSystem.Delete())
+                    Debug.Log("[Save] ゲームオーバーなのでセーブを消しました");
+            }
+            return;
+        }
+
+        deletedForThisRun = false;
+
+        if (!autoSave) return;
 
         RoomiesSaveData data = Capture(day);
         if (data == null) return;
