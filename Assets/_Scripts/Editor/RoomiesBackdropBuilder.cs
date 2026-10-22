@@ -101,23 +101,80 @@ internal static class RoomiesBackdropBuilder
         Box(visual, "Outer ground", new Vector3(0f, -0.08f, 0f),
             new Vector3(900f, 0.1f, 900f), "green");
 
-        // 街路の続き（マップの道路と同じ z=0 の東西方向）
-        Box(visual, "Outer road", new Vector3(0f, -0.02f, 0f),
+        // 街路の続き（マップの道路と同じ z=0 の東西方向）。これだけは通しの道にする
+        Box(visual, "Main road", new Vector3(0f, -0.02f, 0f),
             new Vector3(900f, 0.06f, 7.4f), "ink");
         for (float x = -440f; x <= 440f; x += 14f)
         {
             if (Mathf.Abs(x) < 42f) continue;      // 遊べる範囲の道路は既存のものを使う
-            Box(visual, "Outer lane dash", new Vector3(x, 0.01f, 0f),
+            Box(visual, "Lane dash", new Vector3(x, 0.01f, 0f),
                 new Vector3(5f, 0.02f, 0.3f), "mustard");
         }
 
-        // 交差する道（奥行きが出る）
-        foreach (float z in new[] { -120f, 120f, -260f, 260f })
-            Box(visual, "Cross road", new Vector3(0f, -0.02f, z),
-                new Vector3(900f, 0.06f, 7.4f), "ink");
-        foreach (float x in new[] { -150f, 150f, -320f, 320f })
-            Box(visual, "Cross road", new Vector3(x, -0.02f, 0f),
-                new Vector3(7.4f, 0.06f, 900f), "ink");
+        BuildIrregularRoads(visual);
+    }
+
+    /// <summary>
+    /// 枝分かれする道。碁盤の目にせず、行き止まりやT字、斜めの道を混ぜる。
+    /// （「全部が交差点」に見えないようにするため）
+    /// </summary>
+    private static void BuildIrregularRoads(Transform visual)
+    {
+        // 本道から南北へ伸びる枝道。左右で本数も位置も変える
+        float[] branches = { -352f, -268f, -184f, -96f, -58f, 74f, 128f, 212f, 296f, 388f };
+
+        foreach (float x in branches)
+        {
+            bool north = random.Next(2) == 0;
+            float length = Range(70f, 280f);
+            float width = Range(5f, 8f);
+            float z = north ? length / 2f : -length / 2f;
+
+            Box(visual, "Side road", new Vector3(x, -0.02f, z),
+                new Vector3(width, 0.06f, length), "ink");
+
+            // 半分くらいはT字に曲がって終わる（十字にはしない）
+            if (random.Next(10) < 5)
+            {
+                float turnZ = north ? length : -length;
+                float turnLength = Range(60f, 190f);
+                float direction = random.Next(2) == 0 ? 1f : -1f;
+
+                Box(visual, "Side road turn",
+                    new Vector3(x + direction * turnLength / 2f, -0.02f, turnZ),
+                    new Vector3(turnLength, 0.06f, width), "ink");
+            }
+
+            // 行き止まりの広場
+            if (random.Next(10) < 3)
+            {
+                float endZ = north ? length : -length;
+                Box(visual, "Cul-de-sac", new Vector3(x, -0.02f, endZ),
+                    new Vector3(width * 2.6f, 0.06f, width * 2.6f), "ink");
+            }
+        }
+
+        // 斜めに走る旧道を2本（碁盤の目をくずす）
+        foreach ((Vector3 position, float angle, float length) in new[]
+        {
+            (new Vector3(-210f, -0.02f, 150f), 34f, 420f),
+            (new Vector3(250f, -0.02f, -190f), -27f, 380f),
+        })
+        {
+            Transform road = Group(visual, "Diagonal road");
+            road.localPosition = position;
+            road.localRotation = Quaternion.Euler(0f, angle, 0f);
+            Box(road, "Surface", Vector3.zero, new Vector3(length, 0.06f, 6.6f), "ink");
+        }
+
+        // 川（道ばかりだと単調なので）
+        Transform river = Group(visual, "River");
+        river.localPosition = new Vector3(-120f, -0.05f, -300f);
+        river.localRotation = Quaternion.Euler(0f, 18f, 0f);
+        Box(river, "Water", Vector3.zero, new Vector3(620f, 0.06f, 26f), "blue");
+        Box(river, "Bank", new Vector3(0f, 0.02f, 14.5f), new Vector3(620f, 0.1f, 3f), "cream");
+        Box(river, "Bank", new Vector3(0f, 0.02f, -14.5f), new Vector3(620f, 0.1f, 3f), "cream");
+        Box(river, "Bridge", new Vector3(90f, 0.6f, 0f), new Vector3(9f, 1.2f, 34f), "cream");
     }
 
     // ================================================================
@@ -129,64 +186,303 @@ internal static class RoomiesBackdropBuilder
         Transform group = Group(parent, "Outer town");
         Transform visual = Group(group, "Visual");
 
-        string[] wallMaterials = { "cream", "paper", "coral", "teal", "pink", "mustard" };
-
-        // 遊べる範囲のすぐ外から、遠くへ向かって建物を散らす
-        for (int i = 0; i < 90; i++)
+        // 街は「かたまり」で置く。密なところと、畑や林だけのところを作る
+        (Vector3 center, float spread, int count, int kind)[] clusters =
         {
-            float x = Range(-420f, 420f);
-            float z = Range(-420f, 420f);
+            (new Vector3(-150f, 0f,  -90f), 90f, 16, 0),   // 住宅
+            (new Vector3( 140f, 0f,   80f), 85f, 15, 0),
+            (new Vector3(-250f, 0f,  170f), 70f, 10, 1),   // 商店・ビル
+            (new Vector3( 230f, 0f, -210f), 95f, 14, 1),
+            (new Vector3(  60f, 0f,  260f), 80f, 10, 2),   // 倉庫
+            (new Vector3(-330f, 0f, -250f), 90f,  9, 3),   // 工場
+            (new Vector3( 340f, 0f,  230f), 70f,  8, 1),
+        };
 
-            // マップの中（と道路の上）には置かない
-            if (Mathf.Abs(x) < 52f && Mathf.Abs(z) < 40f) continue;
-            if (Mathf.Abs(z) < 6f || Mathf.Abs(Mathf.Abs(z) - 120f) < 6f) continue;
-
-            float distance = Mathf.Max(Mathf.Abs(x), Mathf.Abs(z));
-            float height = Range(6f, 10f) + distance * 0.035f;   // 遠いほど高いビルにして層を作る
-            float width = Range(10f, 22f);
-            float depth = Range(10f, 22f);
-
-            string wall = wallMaterials[random.Next(wallMaterials.Length)];
-            var building = Group(visual, "Outer building");
-            building.position = new Vector3(x, 0f, z);
-            building.localRotation = Quaternion.Euler(0f, random.Next(4) * 90f, 0f);
-
-            Box(building, "Body", new Vector3(0f, height / 2f, 0f),
-                new Vector3(width, height, depth), wall);
-            Box(building, "Roof", new Vector3(0f, height + 0.2f, 0f),
-                new Vector3(width + 0.8f, 0.5f, depth + 0.8f), "ink");
-
-            // 窓の帯（近いものだけ。遠いものは省いて軽くする）
-            if (distance < 150f)
+        foreach ((Vector3 center, float spread, int count, int kind) in clusters)
+        {
+            for (int i = 0; i < count; i++)
             {
-                int floors = Mathf.Clamp(Mathf.FloorToInt(height / 3.2f), 1, 4);
-                for (int f = 0; f < floors; f++)
+                Vector3 position = center + new Vector3(Range(-spread, spread), 0f, Range(-spread, spread));
+                if (Mathf.Abs(position.x) < 52f && Mathf.Abs(position.z) < 44f) continue;
+                if (Mathf.Abs(position.z) < 7f) continue;   // 本道の上には置かない
+
+                switch (kind)
                 {
-                    float y = 2.2f + f * 3.2f;
-                    if (y > height - 1f) break;
-                    Box(building, "Window band", new Vector3(0f, y, depth / 2f + 0.05f),
-                        new Vector3(width * 0.78f, 1.3f, 0.1f), "blue");
-                    Box(building, "Window band", new Vector3(0f, y, -depth / 2f - 0.05f),
-                        new Vector3(width * 0.78f, 1.3f, 0.1f), "blue");
+                    case 0: House(visual, position); break;
+                    case 1: Block(visual, position); break;
+                    case 2: Warehouse(visual, position); break;
+                    default: Factory(visual, position); break;
                 }
             }
         }
 
-        // 街路樹（道沿いに点々と）
-        for (int i = 0; i < 60; i++)
+        BuildLandmarks(visual);
+        BuildFieldsAndWoods(visual);
+    }
+
+    // ---- 建物の種類 ----
+
+    private static void House(Transform parent, Vector3 position)
+    {
+        Transform house = Group(parent, "House");
+        house.position = position;
+        house.localRotation = Quaternion.Euler(0f, Range(0f, 360f), 0f);
+
+        float width = Range(8f, 13f);
+        float depth = Range(8f, 12f);
+        float height = Range(4.5f, 7f);
+        string wall = Pick("cream", "paper", "pink", "mustard");
+
+        Box(house, "Body", new Vector3(0f, height / 2f, 0f), new Vector3(width, height, depth), wall);
+
+        // 切妻屋根（板を2枚傾けて合わせる）
+        float slope = Range(26f, 36f);
+        foreach (float side in new[] { -1f, 1f })
+        {
+            Transform roof = Group(house, "Roof");
+            roof.localPosition = new Vector3(0f, height + depth * 0.13f, side * depth * 0.25f);
+            roof.localRotation = Quaternion.Euler(side * slope, 0f, 0f);
+            Box(roof, "Panel", Vector3.zero, new Vector3(width + 1f, 0.35f, depth * 0.62f),
+                Pick("coral", "teal", "ink"));
+        }
+
+        Box(house, "Chimney", new Vector3(width * 0.28f, height + 1.6f, depth * 0.2f),
+            new Vector3(0.9f, 2.4f, 0.9f), "ink");
+        Box(house, "Door", new Vector3(0f, 1.1f, depth / 2f + 0.06f), new Vector3(1.2f, 2.2f, 0.12f), "wood");
+        Box(house, "Window", new Vector3(width * 0.28f, 2.4f, depth / 2f + 0.06f),
+            new Vector3(1.6f, 1.2f, 0.12f), "blue");
+    }
+
+    private static void Block(Transform parent, Vector3 position)
+    {
+        Transform building = Group(parent, "Block");
+        building.position = position;
+        building.localRotation = Quaternion.Euler(0f, random.Next(8) * 45f, 0f);
+
+        float width = Range(12f, 20f);
+        float depth = Range(10f, 18f);
+        float height = Range(12f, 34f);
+        string wall = Pick("cream", "paper", "teal", "coral");
+
+        Box(building, "Body", new Vector3(0f, height / 2f, 0f), new Vector3(width, height, depth), wall);
+        Box(building, "Roof", new Vector3(0f, height + 0.3f, 0f),
+            new Vector3(width + 0.9f, 0.6f, depth + 0.9f), "ink");
+
+        // 階数ぶんの窓。全部同じ高さに並べない
+        int floors = Mathf.Clamp(Mathf.FloorToInt(height / 3.4f), 2, 8);
+        for (int f = 1; f <= floors; f++)
+        {
+            float y = f * 3.4f;
+            if (y > height - 1.6f) break;
+            Box(building, "Window band", new Vector3(0f, y, depth / 2f + 0.06f),
+                new Vector3(width * 0.76f, 1.4f, 0.12f), "blue");
+            if (random.Next(10) < 6)
+                Box(building, "Window band", new Vector3(width / 2f + 0.06f, y, 0f),
+                    new Vector3(0.12f, 1.4f, depth * 0.76f), "blue");
+        }
+
+        // 屋上の設備（同じ形が並ばないように）
+        if (random.Next(10) < 6)
+            Box(building, "Rooftop unit", new Vector3(Range(-3f, 3f), height + 1.2f, Range(-3f, 3f)),
+                new Vector3(Range(2f, 4f), 1.8f, Range(2f, 4f)), "silver");
+        if (random.Next(10) < 4)
+            Box(building, "Antenna", new Vector3(Range(-4f, 4f), height + 3.5f, Range(-4f, 4f)),
+                new Vector3(0.2f, 5f, 0.2f), "ink");
+    }
+
+    private static void Warehouse(Transform parent, Vector3 position)
+    {
+        Transform shed = Group(parent, "Warehouse");
+        shed.position = position;
+        shed.localRotation = Quaternion.Euler(0f, Range(0f, 360f), 0f);
+
+        float width = Range(22f, 38f);
+        float depth = Range(14f, 22f);
+        float height = Range(6f, 9f);
+
+        Box(shed, "Body", new Vector3(0f, height / 2f, 0f), new Vector3(width, height, depth), "silver");
+        Box(shed, "Roof", new Vector3(0f, height + 0.25f, 0f),
+            new Vector3(width + 1.2f, 0.5f, depth + 1.2f), "teal");
+
+        // シャッター（規則的に並ぶが、ここは倉庫らしさなのでよい）
+        int doors = Mathf.Clamp(Mathf.FloorToInt(width / 9f), 2, 4);
+        for (int i = 0; i < doors; i++)
+        {
+            float x = -width / 2f + width / (doors + 1f) * (i + 1);
+            Box(shed, "Shutter", new Vector3(x, 2.2f, depth / 2f + 0.08f),
+                new Vector3(5f, 4.2f, 0.16f), "mustard");
+        }
+
+        if (random.Next(10) < 5)
+            Box(shed, "Yard crate", new Vector3(Range(-width / 2f, width / 2f), 1.2f, depth / 2f + Range(4f, 9f)),
+                new Vector3(Range(2f, 4f), 2.4f, Range(2f, 4f)), "wood");
+    }
+
+    private static void Factory(Transform parent, Vector3 position)
+    {
+        Transform factory = Group(parent, "Factory");
+        factory.position = position;
+        factory.localRotation = Quaternion.Euler(0f, Range(0f, 360f), 0f);
+
+        float width = Range(20f, 32f);
+        float depth = Range(16f, 26f);
+        float height = Range(8f, 13f);
+
+        Box(factory, "Body", new Vector3(0f, height / 2f, 0f), new Vector3(width, height, depth), "ink");
+        Box(factory, "Roof", new Vector3(0f, height + 0.3f, 0f),
+            new Vector3(width + 1f, 0.6f, depth + 1f), "silver");
+
+        // 煙突（高さを変える）
+        int stacks = random.Next(2, 4);
+        for (int i = 0; i < stacks; i++)
+        {
+            float stackHeight = Range(14f, 26f);
+            Cylinder(factory, "Chimney",
+                new Vector3(Range(-width / 3f, width / 3f), stackHeight / 2f + height, Range(-depth / 3f, depth / 3f)),
+                Range(2f, 3.2f), stackHeight, "cream", upright: true);
+        }
+
+        // タンク
+        for (int i = 0; i < random.Next(1, 4); i++)
+            Cylinder(factory, "Tank",
+                new Vector3(width / 2f + Range(5f, 12f), 4f, Range(-depth / 2f, depth / 2f)),
+                Range(6f, 9f), 8f, "paper", upright: true);
+    }
+
+    // ---- 目印になる大きな物 ----
+
+    private static void BuildLandmarks(Transform parent)
+    {
+        // 電波塔
+        Transform tower = Group(parent, "Radio tower");
+        tower.position = new Vector3(-196f, 0f, 256f);
+        for (int i = 0; i < 4; i++)
+        {
+            float angle = 90f * i;
+            Transform leg = Group(tower, "Leg");
+            leg.localRotation = Quaternion.Euler(0f, angle, 0f);
+            Box(leg, "Steel", new Vector3(2.4f, 28f, 0f), new Vector3(0.7f, 58f, 0.7f), "coral");
+        }
+        for (int i = 1; i <= 5; i++)
+            Box(tower, "Brace", new Vector3(0f, i * 9.5f, 0f), new Vector3(6.4f, 0.4f, 6.4f), "coral");
+        Box(tower, "Mast", new Vector3(0f, 68f, 0f), new Vector3(0.5f, 24f, 0.5f), "silver");
+        Box(tower, "Beacon", new Vector3(0f, 80f, 0f), new Vector3(1.2f, 1.2f, 1.2f), "coral");
+
+        // 観覧車
+        Transform wheel = Group(parent, "Ferris wheel");
+        wheel.position = new Vector3(188f, 0f, 188f);
+        wheel.localRotation = Quaternion.Euler(0f, -28f, 0f);
+        const float radius = 26f;
+        Box(wheel, "Base", new Vector3(0f, 1.2f, 0f), new Vector3(14f, 2.4f, 10f), "cream");
+        foreach (float side in new[] { -3.2f, 3.2f })
+        {
+            Box(wheel, "Support", new Vector3(-6f, radius / 2f + 2f, side),
+                new Vector3(1.2f, radius + 4f, 1.2f), "silver");
+            Box(wheel, "Support", new Vector3(6f, radius / 2f + 2f, side),
+                new Vector3(1.2f, radius + 4f, 1.2f), "silver");
+        }
+        for (int i = 0; i < 16; i++)
+        {
+            float angle = 360f / 16f * i;
+            Vector3 offset = Quaternion.Euler(angle, 0f, 0f) * new Vector3(0f, radius, 0f);
+
+            Transform spoke = Group(wheel, "Spoke");
+            spoke.localPosition = new Vector3(0f, radius + 4f, 0f);
+            spoke.localRotation = Quaternion.Euler(angle, 0f, 0f);
+            Box(spoke, "Arm", new Vector3(0f, radius / 2f, 0f), new Vector3(0.35f, radius, 0.35f), "silver");
+
+            Box(wheel, "Cabin", new Vector3(0f, radius + 4f + offset.y, offset.z),
+                new Vector3(2.6f, 2.6f, 2.6f), Pick("coral", "mustard", "teal", "pink"));
+        }
+
+        // 球形のガスタンク（丸い物が1つあると目を引く）
+        Transform gas = Group(parent, "Gas holder");
+        gas.position = new Vector3(-300f, 0f, -120f);
+        Sphere(gas, "Sphere", new Vector3(0f, 16f, 0f), 28f, "paper");
+        for (int i = 0; i < 6; i++)
+        {
+            float angle = 60f * i;
+            Transform leg = Group(gas, "Leg");
+            leg.localRotation = Quaternion.Euler(0f, angle, 0f);
+            Box(leg, "Steel", new Vector3(11f, 6f, 0f), new Vector3(0.8f, 12f, 0.8f), "silver");
+        }
+
+        // 丘の上の時計塔
+        Transform clock = Group(parent, "Clock tower");
+        clock.position = new Vector3(96f, 0f, -300f);
+        Box(clock, "Base", new Vector3(0f, 4f, 0f), new Vector3(12f, 8f, 12f), "cream");
+        Box(clock, "Shaft", new Vector3(0f, 18f, 0f), new Vector3(7f, 20f, 7f), "paper");
+        Box(clock, "Face", new Vector3(0f, 25f, 3.6f), new Vector3(4f, 4f, 0.3f), "ink");
+        Box(clock, "Roof", new Vector3(0f, 29f, 0f), new Vector3(9f, 2f, 9f), "coral");
+        Box(clock, "Spire", new Vector3(0f, 33f, 0f), new Vector3(0.6f, 6f, 0.6f), "mustard");
+    }
+
+    // ---- 畑と林 ----
+
+    private static void BuildFieldsAndWoods(Transform parent)
+    {
+        // 畑（道の向こうが全部街だと単調なので）
+        (Vector3 center, int rows)[] farms =
+        {
+            (new Vector3(-80f, 0f, 300f), 6),
+            (new Vector3(300f, 0f, -80f), 5),
+            (new Vector3(-360f, 0f, 90f), 4),
+        };
+
+        foreach ((Vector3 center, int rows) in farms)
+        {
+            Transform farm = Group(parent, "Farm");
+            farm.position = center;
+            farm.localRotation = Quaternion.Euler(0f, Range(0f, 360f), 0f);
+
+            for (int i = 0; i < rows; i++)
+            {
+                Box(farm, "Plot", new Vector3(0f, 0.02f, -rows * 7f / 2f + i * 7f),
+                    new Vector3(Range(50f, 80f), 0.08f, 5.6f), i % 2 == 0 ? "wood" : "green");
+            }
+        }
+
+        // 林（かたまりで生やす）
+        (Vector3 center, float spread, int count)[] woods =
+        {
+            (new Vector3(-40f, 0f, -320f), 60f, 26),
+            (new Vector3(330f, 0f, 60f), 50f, 20),
+            (new Vector3(-280f, 0f, 320f), 70f, 24),
+        };
+
+        foreach ((Vector3 center, float spread, int count) in woods)
+        {
+            Transform wood = Group(parent, "Woods");
+            wood.position = center;
+
+            for (int i = 0; i < count; i++)
+            {
+                Transform tree = Group(wood, "Tree");
+                tree.localPosition = new Vector3(Range(-spread, spread), 0f, Range(-spread, spread));
+
+                float trunk = Range(3f, 6f);
+                Box(tree, "Trunk", new Vector3(0f, trunk / 2f, 0f), new Vector3(0.7f, trunk, 0.7f), "wood");
+                Sphere(tree, "Canopy", new Vector3(0f, trunk + 2f, 0f), Range(4f, 7f), "green");
+            }
+        }
+
+        // 道沿いの街路樹（まばらに）
+        for (int i = 0; i < 34; i++)
         {
             float x = Range(-400f, 400f);
-            float z = random.Next(2) == 0 ? Range(-400f, -46f) : Range(46f, 400f);
-            if (Mathf.Abs(x) < 46f && Mathf.Abs(z) < 46f) continue;
+            if (Mathf.Abs(x) < 50f) continue;
+            float z = (random.Next(2) == 0 ? 1f : -1f) * Range(8f, 14f);
 
-            var tree = Group(visual, "Outer tree");
+            Transform tree = Group(parent, "Street tree");
             tree.position = new Vector3(x, 0f, z);
 
-            float trunk = Range(2.4f, 4.2f);
-            Box(tree, "Trunk", new Vector3(0f, trunk / 2f, 0f), new Vector3(0.6f, trunk, 0.6f), "wood");
-            Sphere(tree, "Canopy", new Vector3(0f, trunk + 1.6f, 0f), Range(3.4f, 5.2f), "green");
+            float trunk = Range(2.6f, 4f);
+            Box(tree, "Trunk", new Vector3(0f, trunk / 2f, 0f), new Vector3(0.5f, trunk, 0.5f), "wood");
+            Sphere(tree, "Canopy", new Vector3(0f, trunk + 1.6f, 0f), Range(3.2f, 4.6f), "green");
         }
     }
+
+    private static string Pick(params string[] options) => options[random.Next(options.Length)];
 
     // ================================================================
     // 山なみ
@@ -219,8 +515,10 @@ internal static class RoomiesBackdropBuilder
 
             for (int i = 0; i < count; i++)
             {
-                float angle = (360f / count) * i + Range(-9f, 9f);
-                float distance = radius + Range(-45f, 45f);
+                // 等間隔に置くと輪っかに見えるので角度はばらす。
+                // 距離は外側にだけばらす（内側へ寄せると街の中に山が生えてしまう）
+                float angle = (360f / count) * i + Range(-22f, 22f);
+                float distance = Mathf.Max(300f, radius + Range(-30f, 150f));
                 float height = Range(minHeight, maxHeight);
                 float width = height * Range(1.25f, 2.0f);
 
@@ -515,14 +813,18 @@ internal static class RoomiesBackdropBuilder
     }
 
     private static void Cylinder(Transform parent, string name, Vector3 localPosition,
-                                 float diameter, float thickness, string material)
+                                 float diameter, float thickness, string material,
+                                 bool upright = false)
     {
         var cylinder = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         cylinder.name = name;
         cylinder.transform.SetParent(parent, false);
         cylinder.transform.localPosition = localPosition;
-        cylinder.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);  // 車輪として立てる
-        cylinder.transform.localScale = new Vector3(diameter, thickness, diameter);
+        // 立てる＝煙突やタンク、寝かせる＝車輪
+        cylinder.transform.localRotation = upright ? Quaternion.identity : Quaternion.Euler(90f, 0f, 0f);
+        cylinder.transform.localScale = upright
+            ? new Vector3(diameter, thickness / 2f, diameter)
+            : new Vector3(diameter, thickness, diameter);
         Object.DestroyImmediate(cylinder.GetComponent<Collider>());
         Paint(cylinder.GetComponent<MeshRenderer>(), LoadMaterial(material));
     }
