@@ -23,6 +23,7 @@ internal static class SfxLevelsBuilder
         ("player/footstep", 0.55f),
         ("player/jump", 0.70f),
         ("player/land", 0.70f),
+        ("player/drop", 0.70f),
 
         ("ui/confirm", 0.50f),
         ("ui/cancel", 0.50f),
@@ -43,6 +44,7 @@ internal static class SfxLevelsBuilder
         ("slot/spin", 0.50f),
         ("slot/stop", 0.45f),
         ("slot/win", 0.60f),
+        ("slot/reel", 0.45f),
 
         ("blackjack/deal", 0.60f),
         ("blackjack/win", 0.70f),

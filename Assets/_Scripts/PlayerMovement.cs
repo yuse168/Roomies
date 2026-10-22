@@ -54,6 +54,9 @@ public class PlayerMovement : NetworkBehaviour
     [Header("足音")]
     [Tooltip("この距離だけ水平移動するごとに足音を1回鳴らす")]
     public float footstepDistance = 1.55f;
+
+    [Tooltip("足音の最短間隔（秒）。走っていてもこれより短い間隔では鳴らさない")]
+    public float footstepMinInterval = 0.26f;
     public float cameraMotionSmoothness = 14f;
 
     [Header("ダッシュ演出")]
@@ -100,6 +103,7 @@ public class PlayerMovement : NetworkBehaviour
     private float lastJumpPressedTime = float.NegativeInfinity;
     private bool wasGrounded;
     private float footstepTravel;
+    private float nextFootstepTime;
 
     void Awake()
     {
@@ -388,8 +392,14 @@ public class PlayerMovement : NetworkBehaviour
         float stride = isCrouching ? footstepDistance * 1.4f : footstepDistance;
         if (footstepTravel < stride) return;
 
+        // 走っていても詰まりすぎないよう、最短間隔を守る
+        if (Time.time < nextFootstepTime) return;
+
         footstepTravel = 0f;
-        GameAudio.Play("player/footstep", isCrouching ? 0.5f : 1f, 0.09f);
+        nextFootstepTime = Time.time + footstepMinInterval;
+
+        // 足元の材質でピッチと音量が少し変わる
+        FootstepAudio.PlayLocal(transform.position, isCrouching ? 0.5f : 1f);
     }
 
     void Look()

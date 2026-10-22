@@ -28,6 +28,13 @@ public class FurnitureEditController : MonoBehaviour
     // ---- UI ----
     private GameObject uiRoot;     // キャンバス（常時有効）
     private GameObject shopRoot;   // カタログバー（編集モード中だけ表示）
+    private const string ShopKeyHint = "[P] 家具ショップを開く";
+
+    [Header("家具ショップのキー案内")]
+    [Tooltip("この範囲に居るときだけ「Pで家具ショップ」を出す（共用スペースの内側）")]
+    [SerializeField]
+    private Bounds houseBounds = new Bounds(new Vector3(18f, 4.6f, 18.7f), new Vector3(10f, 4f, 10f));
+
     private TextMeshProUGUI hintText;
 
     // 効果ステータス（Oで表示／非表示）
@@ -78,6 +85,8 @@ public class FurnitureEditController : MonoBehaviour
     // =========================================================
     private void Update()
     {
+        UpdateShopKeyHint();
+
         if (EscMenuUI.IsOpen) return;
 
         var kb = Keyboard.current;
@@ -480,6 +489,38 @@ public class FurnitureEditController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 夜に家の中にいる間だけ「Pで家具ショップ」を出す。
+    /// キーが分からないという指摘への対応。範囲はインスペクターで調整できる。
+    /// </summary>
+    private void UpdateShopKeyHint()
+    {
+        if (hintText == null || editMode || EscMenuUI.IsOpen) return;
+        if (hintCoroutine != null) return;          // 一時的なメッセージ表示中は邪魔しない
+
+        bool show = IsNight() && IsLocalPlayerInsideHouse();
+
+        if (show)
+        {
+            if (hintText.text != ShopKeyHint) hintText.text = ShopKeyHint;
+        }
+        else if (hintText.text == ShopKeyHint)
+        {
+            hintText.text = "";
+        }
+    }
+
+    private bool IsLocalPlayerInsideHouse()
+    {
+        var manager = Unity.Netcode.NetworkManager.Singleton;
+        var player = manager != null && manager.LocalClient != null
+            ? manager.LocalClient.PlayerObject
+            : null;
+        if (player == null) return false;
+
+        return houseBounds.Contains(player.transform.position);
+    }
+
     private void ShowHint(string msg, float seconds)
     {
         if (hintText == null) return;
@@ -493,6 +534,7 @@ public class FurnitureEditController : MonoBehaviour
         yield return new WaitForSeconds(seconds);
         // 編集モード中はデフォルト案内に戻す。モード外は消す。
         hintText.text = editMode ? DefaultHint : "";
+        hintCoroutine = null;   // これを忘れるとキー案内が二度と出なくなる
     }
 
     private TextMeshProUGUI MakeText(Transform parent, string name, string text, float size,

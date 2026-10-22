@@ -174,6 +174,10 @@ public sealed class EscMenuUI : MonoBehaviour
         Select(settingsBackButton);
     }
 
+    [Header("レイアウト")]
+    [Tooltip("ポーズカードの位置。(0,0)で画面中央")]
+    [SerializeField] private Vector2 cardOffset = Vector2.zero;
+
     void BuildUI()
     {
         Canvas canvas = UITheme.CreateCanvas(transform, "EscMenuCanvas", 32000);
@@ -208,7 +212,9 @@ public sealed class EscMenuUI : MonoBehaviour
         var cardImage = UITheme.Surface(overlay.transform, "MenuCard", 40f, 6f);
         card = cardImage.rectTransform;
         card.anchorMin = card.anchorMax = card.pivot = new Vector2(0.5f, 0.5f);
-        card.anchoredPosition = new Vector2(-470f, 0f);
+        // 以前は -470 で左に寄せていたが、画面の中央に出ないと「ずれて見える」ため中央に戻した。
+        // 位置を変えたいときはインスペクターの Card Offset を使う。
+        card.anchoredPosition = cardOffset;
         card.sizeDelta = new Vector2(820f, 790f);
 
         TMP_Text title = UITheme.Label(

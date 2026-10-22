@@ -60,6 +60,9 @@ public class DayManager : NetworkBehaviour
     public bool IsGameOver => isGameOver.Value;
     public bool CanBuyFurniture => IsSpawned && IsNight && !isGameOver.Value && !isTransitioning.Value;
 
+    /// <summary>朝・夜の切り替え演出中か（BGMの開始待ちなどに使う）。</summary>
+    public bool IsTransitioning => isTransitioning != null && isTransitioning.Value;
+
     /// <summary>残り時間（秒）。HUDの進捗バーなどが参照する。</summary>
     public float RemainingSeconds => remainingTime != null ? remainingTime.Value : 0f;
 

@@ -24,6 +24,9 @@ public static class GameAudio
     private const int MaxVariations = 8;
 
     private static readonly Dictionary<string, AudioClip[]> clipCache = new();
+
+    // 「重ねて鳴らしたくない音」専用の口。キーごとに1本だけ使い回す。
+    private static readonly Dictionary<string, AudioSource> exclusiveSources = new();
     private static AudioSource[] pool;
     private static int nextSource;
     private static SfxLevels levels;
@@ -69,6 +72,51 @@ public static class GameAudio
         source.clip = clip;
         source.volume = Mathf.Clamp01(volume * Level(key)) * SfxVolume;
         source.pitch = Pitch(pitchJitter);
+        source.Play();
+    }
+
+    /// <summary>
+    /// 重ねずに鳴らす（足音など）。同じキーが鳴っている途中なら、鳴らし直す。
+    /// 2Dで鳴るので、自分の足音向け。
+    /// </summary>
+    public static void PlayExclusive(string key, float volume = 1f, float pitch = 1f)
+    {
+        AudioSource source = ExclusiveSource(key, key);
+        if (source == null) return;
+
+        AudioClip clip = Pick(key);
+        if (clip == null) return;
+
+        source.transform.localPosition = Vector3.zero;
+        source.spatialBlend = 0f;
+        source.clip = clip;
+        source.volume = Mathf.Clamp01(volume * Level(key)) * SfxVolume;
+        source.pitch = Mathf.Clamp(pitch, 0.1f, 3f);
+        source.Play();
+    }
+
+    /// <summary>
+    /// 重ねずに、ワールド座標から鳴らす（NPCの足音など）。
+    /// `channel` はNPCごとに別の文字列を渡す（別々のNPCの足音は重なってよい）。
+    /// </summary>
+    public static void PlayExclusiveAt(
+        string key, string channel, Vector3 position, float volume = 1f, float pitch = 1f,
+        float maxDistance = 18f)
+    {
+        AudioSource source = ExclusiveSource(key, channel);
+        if (source == null) return;
+
+        AudioClip clip = Pick(key);
+        if (clip == null) return;
+
+        source.transform.position = position;
+        source.spatialBlend = 1f;
+        source.rolloffMode = AudioRolloffMode.Linear;
+        source.minDistance = 1.5f;
+        source.maxDistance = maxDistance;
+        source.clip = clip;
+        source.volume = Mathf.Clamp01(volume * Level(key)) * SfxVolume;
+        source.pitch = Mathf.Clamp(pitch, 0.1f, 3f);
         source.Play();
     }
 
@@ -147,6 +195,7 @@ public static class GameAudio
     public static void ClearCache()
     {
         clipCache.Clear();
+        exclusiveSources.Clear();
         levels = null;
         levelsLoaded = false;
     }
@@ -154,6 +203,22 @@ public static class GameAudio
     // ================================================================
     // AudioSourceプール
     // ================================================================
+
+    /// <summary>重ねない音用の口を1本借りる（無ければ作る）。</summary>
+    private static AudioSource ExclusiveSource(string key, string channel)
+    {
+        if (string.IsNullOrEmpty(key) || !EnsurePool()) return null;
+
+        if (exclusiveSources.TryGetValue(channel, out AudioSource existing) && existing != null)
+            return existing;
+
+        // プールの口を1本、このチャンネル専用に取り分ける
+        AudioSource source = NextSource();
+        if (source == null) return null;
+
+        exclusiveSources[channel] = source;
+        return source;
+    }
 
     private static AudioSource NextSource()
     {

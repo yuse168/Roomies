@@ -51,6 +51,13 @@ public class CarryableObject : NetworkBehaviour
     public void ServerRelease() => ReleaseHolder();
 
     public bool IsHeld => isHeld.Value;
+
+    /// <summary>置いた・落とした音（全員に聞こえる。物の位置から鳴る）。</summary>
+    [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
+    private void DropSoundRpc(Vector3 position)
+    {
+        GameAudio.PlayAt("player/drop", position);
+    }
     public bool IsHeldBy(ulong clientId)
     {
         return isHeld.Value && holderClientId.Value == clientId;
@@ -157,6 +164,7 @@ public class CarryableObject : NetworkBehaviour
                            offset.normalized * serverMaxHeldDistance;
 
         isHeld.Value = false;
+        DropSoundRpc(transform.position);
         holderClientId.Value = NoHolder;
 
         transform.position = dropPosition;

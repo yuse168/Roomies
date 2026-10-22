@@ -1,5 +1,57 @@
 # PROGRESS.md
 
+## 2026/10/22｜指摘された10点の修正（足音・NPC・UI・音の被りなど）
+
+### 今回の変更
+1. **足音が重なってうるさい** → 足音専用の再生口を1本使い回す `GameAudio.PlayExclusive` を追加。
+   次の足音が鳴るとき前の音を鳴らし直すので重ならない。最短間隔 `footstepMinInterval`（既定0.26秒）も追加
+2. **足音の素材を差し替え** → 「ぽよぽよした子供の足音」から革靴の単発音2種へ。
+   `player/footstep_1` `_2` の連番でランダムに鳴り分ける（旧 `footstep.wav` は削除）
+3. **床の材質で足音を変える** → `Resources/Audio/FootstepSurfaces.asset`。
+   足音のたびに足元へレイを1本飛ばし、当たったマテリアル名でピッチと音量を引く（木・芝・金属など13種）
+4. **NPCの足音** → `NpcMotionFeedback` を警察・売人・運び屋のプレハブへ追加。位置から鳴る
+5. **NPCがAポーズ** → 同じコンポーネントがモデルのAnimatorへ `Speed` を入れて歩かせる。
+   プレハブのAnimatorにプレイヤーと同じ `Bob_animation.controller` を割り当てた
+6. **物を落としたときの音** → `CarryableObject` が手を離したときに `player/drop` を全員へ
+7. **スロット回転中の音** → 回っている間 `slot/reel` を鳴らす（重ならないよう同じ口を使い回す）
+8. **朝の演出とBGMの被り** → `GameMusic` が朝の切替演出（`DayManager.IsTransitioning`）の
+   終了を待ってから朝の曲を鳴らす。待ち時間はインスペクターで調整できる
+9. **家具ショップのキーが分からない** → 夜に家の中にいる間だけ「[P] 家具ショップを開く」を常時表示。
+   判定範囲 `houseBounds` はインスペクターで調整できる
+10. **ポーズ画面が中央からずれている** → ポーズカードの位置を中央へ戻した（以前は -470 で左寄せ）。
+    `Card Offset` で微調整できる
+
+### 変更ファイル
+- 新規：`Assets/_Scripts/Audio/FootstepAudio.cs`、`FootstepSurfaces.cs`、
+  `Assets/_Scripts/Smuggling/NpcMotionFeedback.cs`
+- 新規（ツール）：`FootstepSurfacesBuilder`、`NpcMotionSetup`
+- 新規（音源）：`player/footstep_1.wav`、`player/footstep_2.wav`、`player/drop.wav`、`slot/reel.wav`
+- 削除：`player/footstep.wav`（ぽよぽよした旧素材）
+- 変更：`GameAudio`、`GameMusic`、`PlayerMovement`、`CarryableObject`、`SlotMachine`、
+  `DayManager`（`IsTransitioning` 公開）、`FurnitureEditController`、`EscMenuUI`
+- 変更：NPCプレハブ3体、`Resources/Audio/SfxLevels.asset`、README、CREDITS
+
+### 重要な仕様
+- 足音は「素材1つ＋ピッチと音量」で床の違いを出す。音源を増やさずに済ませる方針
+- NPCのAnimatorは、コントローラーに**ある**パラメーターだけ触る（無い物を触ると警告が出るため）
+- `Bob_animation.controller` には Speed / Blend / Emote 系しか無い。
+  **ジャンプのアニメーションはコントローラー側に未実装**なので、NPCにも入っていない
+- 家具ショップのキー案内は一時メッセージ表示中は出さない（`hintCoroutine` が走っている間は譲る）
+
+### 確認状況
+- Unityでのコンパイル：**確認済み**（エラー0）
+- Console：**確認済み**（エラー0）
+- 音源の長さ：**確認済み**（足音0.63/0.69秒、落下1.31秒、リール3.0秒）
+- NPCプレハブ：**確認済み**（3体に `NpcMotionFeedback` とコントローラー割り当てが入った）
+- **Play Modeでの確認は未実施**：足音の重なり具合、材質ごとの違い、NPCの歩き、
+  スロットの回転音、朝のBGMの間、家具ショップの案内、ポーズ画面の位置はすべて未検証
+- **ポーズ画面のずれは原因を断定できていない**（中央に戻しただけ）。直っていなければ画面の写真が要る
+
+### 未完了・次の作業
+- 上記をPlay Modeで確認し、音量（`SfxLevels.asset`）と材質の値（`FootstepSurfaces.asset`）を詰める
+- NPCのジャンプ用アニメーションはコントローラーに追加が必要
+- テスト失敗15件の切り分け（前回からの持ち越し）
+
 ## 2026/10/22｜閉鎖中の看板に「CLOSED」の紙を貼った
 
 ### 今回の変更

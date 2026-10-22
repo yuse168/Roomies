@@ -47,6 +47,18 @@ BGMは `Assets/_Audio/Music/` に置き、`GameMusic` プレハブのインス�
 | `Audio/police/siren.wav` | 1294250 | パトカー サイレン フェイク02-01 | OtoLogic / Audiostock |
 | `Audio/police/arrest.wav` | 1054413 | 【生演奏】手錠を腕にかける音 | 佐藤元気 / Audiostock |
 
+### 2026/10/22 追加分（足音の差し替え・落下音・リール回転）
+
+足音は「ぽよぽよした子供の足音」から革靴の単発音2種へ差し替え（連番で鳴り分ける）。
+旧 `player/footstep.wav`（No.805951）は削除した。
+
+| 置き場所 | 作品番号 | タイトル | クレジット名 |
+|---|---|---|---|
+| `player/footstep_1.wav` | 122340 | コツコツ_革靴_足音_01_単発 | MATSU / Audiostock |
+| `player/footstep_2.wav` | 122346 | ゴッ_革靴_足音_02_単発 | MATSU / Audiostock |
+| `player/drop.wav` | 107318 | バン！（物を置く叩くシンプルな効果音） | Scene Effects / Audiostock |
+| `slot/reel.wav` | 258055 | カジノ、ゲームスロットマシン変動開始 | MOCHIXTONE / Audiostock |
+
 ## エンドクレジット用のまとめ表記
 
 ```
@@ -72,6 +84,8 @@ Sound Effects
 　WOW Sound / Audiostock
 　OtoLogic / Audiostock
 　佐藤元気 / Audiostock
+　Scene Effects / Audiostock
+　MOCHIXTONE / Audiostock
 ```
 
 ## 未確認・要対応

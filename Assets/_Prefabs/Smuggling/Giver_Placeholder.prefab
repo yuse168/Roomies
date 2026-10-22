@@ -381,6 +381,7 @@ GameObject:
   - component: {fileID: 8631931724951639762}
   - component: {fileID: 7431526688670294404}
   - component: {fileID: 6930250513700680846}
+  - component: {fileID: 7224257699811558682}
   m_Layer: 0
   m_Name: Giver_Placeholder
   m_TagString: Untagged
@@ -460,6 +461,24 @@ MonoBehaviour:
   role: 0
   interactionCollider: {fileID: 8631931724951639762}
   visibleRoot: {fileID: 4502571299558606327}
+--- !u!114 &7224257699811558682
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8977214493829048424}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 022384a5ebc630743a0dc613efe2acb3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NpcMotionFeedback
+  animator: {fileID: 362015460875175240}
+  moveThreshold: 0.15
+  maxSpeed: 8
+  footstepDistance: 1.7
+  footstepVolume: 0.7
+  footstepRange: 16
 --- !u!1001 &6083437914441300185
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -528,11 +547,20 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: 195568a7c01ef0949baac86262df899d, type: 2}
+    - target: {fileID: 5866666021909216657, guid: fe700ea8612ce864c8c5bc5359dd281d, type: 3}
+      propertyPath: m_Controller
+      value: 
+      objectReference: {fileID: 9100000, guid: f1a6d395550f1bf4d94bcbdfc6ba6d72, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: fe700ea8612ce864c8c5bc5359dd281d, type: 3}
+--- !u!95 &362015460875175240 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: 5866666021909216657, guid: fe700ea8612ce864c8c5bc5359dd281d, type: 3}
+  m_PrefabInstance: {fileID: 6083437914441300185}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &6045537074362703666 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: fe700ea8612ce864c8c5bc5359dd281d, type: 3}

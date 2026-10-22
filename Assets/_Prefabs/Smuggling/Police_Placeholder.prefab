@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 7900152214616888365}
   - component: {fileID: 5266549143476158227}
   - component: {fileID: 1406397370722801812}
+  - component: {fileID: 1207423715824295272}
   m_Layer: 0
   m_Name: Police_Placeholder
   m_TagString: Untagged
@@ -188,6 +189,24 @@ MonoBehaviour:
   maxChaseSeconds: 18
   visibleRoot: {fileID: 8306398148546955335}
   bodyCollider: {fileID: 7900152214616888365}
+--- !u!114 &1207423715824295272
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 904288814650492494}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 022384a5ebc630743a0dc613efe2acb3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NpcMotionFeedback
+  animator: {fileID: 8097657952578324913}
+  moveThreshold: 0.15
+  maxSpeed: 8
+  footstepDistance: 1.7
+  footstepVolume: 0.7
+  footstepRange: 16
 --- !u!1 &1502399824165730029
 GameObject:
   m_ObjectHideFlags: 0
@@ -876,6 +895,10 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: 10b88002fb6243146905edcbef1c6659, type: 2}
+    - target: {fileID: 5866666021909216657, guid: fe700ea8612ce864c8c5bc5359dd281d, type: 3}
+      propertyPath: m_Controller
+      value: 
+      objectReference: {fileID: 9100000, guid: f1a6d395550f1bf4d94bcbdfc6ba6d72, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -884,5 +907,10 @@ PrefabInstance:
 --- !u!4 &2774364523378873291 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: fe700ea8612ce864c8c5bc5359dd281d, type: 3}
+  m_PrefabInstance: {fileID: 2380782048690107424}
+  m_PrefabAsset: {fileID: 0}
+--- !u!95 &8097657952578324913 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: 5866666021909216657, guid: fe700ea8612ce864c8c5bc5359dd281d, type: 3}
   m_PrefabInstance: {fileID: 2380782048690107424}
   m_PrefabAsset: {fileID: 0}

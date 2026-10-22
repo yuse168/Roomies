@@ -41,9 +41,16 @@ public class GameMusic : MonoBehaviour
     [Tooltip("ゲームオーバーで曲を消すまでの秒数")]
     [SerializeField, Min(0f)] private float stopFadeSeconds = 1.0f;
 
+    [Tooltip("朝の演出（日付切替の効果音とカットイン）と重ならないよう、曲を遅らせる秒数")]
+    [SerializeField, Min(0f)] private float morningDelaySeconds = 1.0f;
+
+    [Tooltip("演出が終わるのを待つ最大時間（保険）")]
+    [SerializeField, Min(1f)] private float transitionWaitLimit = 12f;
+
     private AudioSource current;   // いま鳴っている方
     private AudioSource standby;   // 次に使う方
     private Coroutine fadeRoutine;
+    private Coroutine waitRoutine;
     private float targetVolume;
     private AudioClip targetClip;
 
@@ -112,8 +119,35 @@ public class GameMusic : MonoBehaviour
     // ---- 外から呼べる切り替え ----
 
     public void PlayMenu() => Switch(menuTrack, menuVolume);
-    public void PlayDay() => Switch(dayTrack, dayVolume);
+
+    /// <summary>朝の曲。切り替え演出が終わってから鳴らす（演出の音と被らせない）。</summary>
+    public void PlayDay()
+    {
+        if (!isActiveAndEnabled) return;
+        if (waitRoutine != null) StopCoroutine(waitRoutine);
+        waitRoutine = StartCoroutine(PlayAfterTransition(dayTrack, dayVolume));
+    }
+
     public void PlayNight() => Switch(nightTrack, nightVolume);
+
+    private IEnumerator PlayAfterTransition(AudioClip clip, float volume)
+    {
+        float waited = 0f;
+
+        // 演出中（DayTransitionUIが出ている間）は待つ
+        while (waited < transitionWaitLimit &&
+               DayManager.Instance != null && DayManager.Instance.IsTransitioning)
+        {
+            waited += Time.unscaledDeltaTime;
+            yield return null;
+        }
+
+        if (morningDelaySeconds > 0f)
+            yield return new WaitForSecondsRealtime(morningDelaySeconds);
+
+        waitRoutine = null;
+        Switch(clip, volume);
+    }
 
     /// <summary>ゲームオーバーなどで曲を消す。</summary>
     public void StopMusic()

@@ -63,6 +63,9 @@ public class SlotMachine : NetworkBehaviour
     [Header("演出")]
     [SerializeField] private float spinDuration = 0.8f;
     [SerializeField] private float spinInterval = 0.05f;
+
+    [Tooltip("回転音を鳴らし直す間隔（秒）。音源の長さに合わせる")]
+    [SerializeField, Min(0.1f)] private float reelLoopInterval = 2.5f;
     [SerializeField] private float reelStopDelay = 0.28f;
     [SerializeField] private float stopPulseScale = 1.2f;
     [SerializeField] private float stopPulseDuration = 0.15f;
@@ -100,6 +103,7 @@ public class SlotMachine : NetworkBehaviour
         );
 
     private Coroutine spinCoroutine;
+    private Coroutine reelLoopCoroutine;
     private readonly Dictionary<TextMeshProUGUI, ReelImages> reelImages = new();
 
     private sealed class ReelImages
@@ -385,6 +389,10 @@ public class SlotMachine : NetworkBehaviour
         // 筐体の位置から鳴らす（遠くの人には聞こえない）
         GameAudio.PlayAt("slot/spin", transform.position);
 
+        // 回っている間はリールの音を鳴らし続ける（重ならないよう同じ口を使い回す）
+        if (reelLoopCoroutine != null) StopCoroutine(reelLoopCoroutine);
+        reelLoopCoroutine = StartCoroutine(ReelLoopRoutine());
+
         float elapsed = 0f;
         float[] stopTimes =
         {
@@ -474,6 +482,21 @@ public class SlotMachine : NetworkBehaviour
         }
 
         spinCoroutine = null;
+    }
+
+    // リールが回っている間、短い回転音を繋いで鳴らす。
+    // `slot/reel` が未入荷なら何も鳴らない（音が無くても動く）。
+    private IEnumerator ReelLoopRoutine()
+    {
+        string channel = "slot/reel#" + GetInstanceID();
+
+        while (isSpinning.Value || spinCoroutine != null)
+        {
+            GameAudio.PlayExclusiveAt("slot/reel", channel, transform.position, 1f, 1f);
+            yield return new WaitForSeconds(reelLoopInterval);
+        }
+
+        reelLoopCoroutine = null;
     }
 
     private IEnumerator PulseReel(TextMeshProUGUI reel)
