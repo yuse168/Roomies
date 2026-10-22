@@ -1,5 +1,97 @@
 # PROGRESS.md
 
+## 2026/10/22｜「実行時に作らない」ルールを追加し、閉鎖シャッターを実体化
+
+### 今回の変更
+- `AGENTS.md` に **「実行時に作らない（エディタで全部触れる形にする）」** を追加した
+  - 見た目・当たり判定・配置をスクリプトから新規生成しない。シーンかプレハブに実体を置く
+  - 実行時のスクリプトは、置いてある物の表示切り替え・値の反映・アニメだけ行う
+  - 数が実行時に決まる物（プレイヤー・鉱石・家具・配達物）だけ例外。その場合もプレハブを `Instantiate` する
+  - 並べるのが大変な物はエディタ拡張（`Roomies/〜` メニュー）で生成してシーンに保存する
+  - 数値は `[SerializeField]` にしてインスペクターから調整できるようにする
+- 直前に入れた閉鎖シャッターが「Play Modeでしか出ない」作りだったので、ルールに合わせて作り直した
+  - `MiningSite` の実行時生成（`BuildClosedGate` / `GatePart`）を削除
+  - 代わりに `[SerializeField] closedGate` を追加し、`serviceClosed` に合わせて `SetActive` するだけにした
+  - シーンへ置くツール `MiningClosedGateBuilder`（メニュー `Roomies/Mining/Build Closed Gate`）を追加
+  - Unityでツールを実行し、`Mine entrance beside house/Closed gate` として実体を配置済み（シャッター1＋横板6＋警告帯2）
+
+### 変更ファイル
+- 変更：`AGENTS.md`
+- 変更：`Assets/_Scripts/Mining/MiningSite.cs`
+- 新規：`Assets/_Scripts/Editor/MiningClosedGateBuilder.cs`
+- 変更：`PROGRESS.md`
+- **未保存**：`Assets/_Scenes/GameRoom.unity`（`Closed gate` の実体と看板2枚の文言。Unityで Ctrl+S が必要）
+
+### 重要な仕様
+- シャッターはシーン上の実体なので、Play Modeに入らずに位置・大きさ・マテリアルを直せる
+- `MiningSite.closedGate` に実体を割り当て済み。スクリプトは名前で探さない
+- ツールは何度実行しても同じ結果（既にあれば作り直す）。アップデートで開放するときは
+  `Closed gate` を消して `serviceClosed` をOFFにする
+- 既定値はツール内の定数（幅3.4／高さ3.3／奥行0.16／z=-0.7）。シーン側で動かした分はツール再実行で戻る
+
+### 確認状況
+- C#コンパイル：確認済み（`dotnet build` の `Assembly-CSharp` / `Assembly-CSharp-Editor` ともエラー0、
+  Unity側の再コンパイルもエラー0）
+- ツールの実行：確認済み（`Closed gate` がシーンに生成され、`MiningSite.closedGate` へ参照が入った）
+- **見た目：確認済み**（Play Modeに入らず、シーンビューのキャプチャでシャッター・横板・警告帯・
+  「CLOSED FOR RENOVATION」「E / CLOSED」の表示を目視。確認用画像は削除済み）
+- **シーンは未保存**。Ctrl+Sを押すまでディスクには反映されていない
+- Play Mode・音の試聴・5人接続：未実施（変わらず）
+
+### 未完了・次の作業：実行時生成が残っている箇所
+新ルールの対象外（当面そのまま）だが、見つけたら実体化していく。
+- **ワールドの見た目（優先度：高）**
+  `BlackjackTable`（カード・チップ）、`CharacterCloset`（見た目プレビュー）、
+  `SmugglingContact` / `SmugglingPlayer`（NPC周り）、`FurnitureEditController`（設置プレビュー）、
+  `MiningFeedback`（破片・ガス）、`NetworkFurniture`（`Visual` 子）、`MiningPlayer`（ツルハシ）
+- **UI（優先度：中・まとめて作業する前提）**
+  `UITheme` / `HudThemer` / `MenuThemer` / `UIThemeBootstrap` / `EscMenuUI` /
+  `MainMenuSettingsUI` / `EmoteWheelUI` / `LobbyUIManager` / `PlayerEarningListUI` /
+  `DayResultUI` / `DayTransitionUI` / `RentPaymentUI` / `NightEventUI` / `LNStudioSplash` ほか
+- **実体不要（見た目ではないので対象外）**
+  `GameAudio` のAudioSourceプール、`SteamManager` の常駐オブジェクト、`NetworkDebugOverlay`
+
+## 2026/10/22｜Unityで確認：コンパイル・採掘入口・音源の取り込み（Play Modeは未実施）
+
+### 今回やったこと
+- 起動済みのUnity（UnitySkills REST、port 8091）で、前の作業分を実機確認した
+- `GameRoom.unity` を外部から書き換えたせいで「シーンが外部で変更された」ダイアログが出てエディタが停止していた。
+  ユーザーが **Reload** を選択して解消（＝エディタ側の未保存のシーン編集は破棄された）
+- シャッターが入口の看板（y=3.54）を隠す位置だったので、高さを 3.8→3.3、中心を 1.9→1.65 に下げた
+- 入口の看板の文言を実機で変更（メモリ上のみ・**未保存**）
+  - `MINING CO.  /  OPEN UNTIL SUNSET` → `CLOSED FOR RENOVATION`
+  - `E  /  DOWN` → `E  /  CLOSED`
+
+### 変更ファイル
+- 変更：`Assets/_Scripts/Mining/MiningSite.cs`（シャッターの高さと警告帯の位置）
+- 変更：`PROGRESS.md`
+- 新規：`Assets/Resources/Audio/**/*.wav.meta` ほか（Unityが取り込み時に生成）
+- **未保存**：`Assets/_Scenes/GameRoom.unity`（看板2枚の文言。エディタでCtrl+Sが必要）
+
+### 確認状況
+- Unityでのコンパイル：**確認済み**（2回とも `errorCount: 0`。警告1件は `EmoteWheelUI.cs` の既存の非推奨APIのみ）
+- Unity Console：**確認済み**（リロード後のエラー0件）
+- 採掘の閉鎖：**確認済み**（`MiningSite` の `IsServiceClosed=True` / `IsOpen=False` をエディタ上で読み出した）
+- シャッターの座標：**確認済み（計算と実測の突き合わせ）**
+  - 入口の実座標 (29,0,14)、`Roomies_Mining` ルートは原点、呼び出しボタンは (27.8,1.1,12.9)
+  - シャッター面は z=13.22〜13.38 なので、ボタン（z=12.75〜13.05）は手前に残り押せる
+  - 幅3.4は左右の支柱(x=27.35/30.65)の間に収まり、高さ3.3で開口部（y≈0〜3.3）をふさぐ
+  - **ただしシャッター自体の見た目は未確認**（実行時生成なのでPlay Modeでしか出ない）
+- 音源の取り込み：**確認済み**（9本すべて `AudioClip` として認識。`Resources/Audio/...` のパスも一致）
+- 音の長さ・音量：**実測済み**（長さ1.2〜6.3秒。ただし新しい9本は既存の `money/*` よりRMSで約10dB大きい。
+  `delivery/complete`・`night/lucky`・`slot/spin` はピークがほぼ0dBFS）
+- **実際に音を聴いての確認：未実施**
+- **Play Mode・5人接続・夜イベントの体感：未実施**（Play ModeはUnitySkillsのautoモードでは実行不可）
+- スポーン地点：5か所あり、最小間隔1.4mで重なりなしを**確認済み**（出現の見た目は未確認）
+
+### 未完了・次の作業
+- Unityで **Ctrl+S** を押して看板2枚の文言を保存する（保存しないと元の「OPEN UNTIL SUNSET」に戻る）
+- Play Modeでシャッターの見た目と、押したときの案内文を確認する
+- 効果音9本を実際に鳴らして音量バランスを取る。大きすぎる場合は再生側の音量
+  （`GameAudio.Play(key, volume)` の第2引数）を下げる
+- 3D再生する音（`slot/*`）はステレオのままなので、必要なら Force To Mono を検討する
+- 5人接続・夜イベントの体感調整は引き続き未着手
+
 ## 2026/10/22｜採掘を一旦閉鎖・5人対応・夜イベント拡充・効果音9本を追加
 
 ### 今回の変更
