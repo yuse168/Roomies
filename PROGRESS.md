@@ -1,5 +1,26 @@
 # PROGRESS.md
 
+## 2026/10/24｜NPCとメニューのBobの目を黒にした
+
+### 今回の変更
+- 警察・売人・依頼人（`*_Placeholder.prefab`）の目（`Bobeye1` / `Bobeye2`）が、FBX付属の白い材質 `standardSurface2` を直接使っていたので、`BobEye.mat`（黒）に差し替えた
+- `Bobs.fbx` の取り込み設定で、付属の目の材質 `standardSurface1` を `BobEye.mat` へリマップした
+  - メニュー背景のキャラ（`MenuRoomShowcase/MenuRoomie_1〜3`）と、GameRoom に置いてある `Bobs` の目が黒になる
+- プレイヤー（`Player.prefab`）はもともと目を `BobEye` に上書きしていたので変わらない
+
+### 変更ファイル
+- 変更：`Assets/_Prefabs/Smuggling/Police_Placeholder.prefab` / `Dealer_Placeholder.prefab` / `Giver_Placeholder.prefab`（目の材質の参照だけ）
+- 変更：`Assets/_Models/Bob/Bobs.fbx.meta`（`externalObjects` に1件）
+
+### 重要な仕様
+- `bob_rig_mG.fbx` にはリマップを入れていない。NPCプレハブが付属材質を直接参照しているため、リマップすると参照が切れる（試して null になるのを確認した）
+- 体の材質は変えていない（目だけ）
+
+### 確認状況
+- Unity上で材質の参照：**確認済み**（GameRoom の警察2体・売人・依頼人・`Bobs`、MainMenuSteam の3体の目がすべて `BobEye`）
+- 撮影用の描画で目が黒く写ること：確認済み
+- **Play Modeでの見た目は未確認**（NPCの実行時の見た目・メニュー背景）
+
 ## 2026/10/23｜UIの実体化（その2：HUD・メニュー/ロビー・ポーズ/設定）
 
 残っていた大きい3つを実体化した。これでコードから実行時に組み立てるUIはほぼ無くなった。
