@@ -1,5 +1,43 @@
 # PROGRESS.md
 
+## 2026/10/25｜夜バナーの見出し・□の記号・「続きから」ボタン・EditModeテストを直した（コードのみ）
+
+ブランチ `fix/ui-banner-continue-tests`（`fix/bob-eye-black` 6f72747 から切ったので、Bobの目の修正も含む）。
+
+### 今回の変更
+1. **夜バナーの見出しが消える**（`NightEventUI`）
+   - 原因：見出しの枠が高さ40pxで、M PLUS の日本語1行（30px＋行間）が収まらず、
+     `Ellipsis`（はみ出すと行ごと消す）で見出しが丸ごと消えていた
+   - 枠を50pxにし、自動サイズ（20〜30）＋ `Overflow`（消さない）に変更。本文の下端を22pxへ
+   - すでにシーンに置いてあるバナーを作り直さずに直すメニュー `Roomies/UI/Fix Night Banner Title` を追加
+2. **☆が□になる**
+   - 既定の `MPLUSU-Bold SDF` は静的アトラス（5770字）。元の ttf にも ☆★ が無く、予備の LiberationSans にも無い
+   - UIの文字列（.cs の文字列と .unity/.prefab の m_text）を全部調べ、□になるのは ☆（夜バナー）と ★（ブラックジャックの SPECIAL WIN）だけだった
+   - ☆→♥、★→♠ に置き換えた（どちらも予備の LiberationSans にある。♪ も同じく予備フォントで出ている）
+3. **「続きから」ボタン**（`MenuThemer` / `MainMenuManager`）
+   - 原因：ボタンがメニューを作り直す前の古い `HostButton` の複製のまま（青い四角・中央）だった
+   - `Roomies/UI/Build Menu` で「あそぶ」の右（同じ高さ・ピル型・ぶどう色）に置き直すようにした。
+     あそぶ を押して部屋の選択に移る間は隠す
+   - 2行目（セーブの内容）は `<size>` で小さく出す。大きさは `MainMenuManager.continueSummaryScale`
+4. **EditModeテストの失敗**（`D:\Bonchan\Roomies_save_reports\editmode-failures-20261023.md` の案どおり）
+   - `RoomiesRegressionTests`（13件）：EditMode では NGO のメッセージ型が登録されず `StartHost` が失敗していた。
+     `OneTimeSetUp` で登録し、`OneTimeTearDown` で空に戻す
+   - `MiningSceneConfigurationPassesExistingValidation`（1件）：閉鎖で非表示にした買取機に `CanReach` が「届く」と
+     判定していた。非表示の対象は届かない判定にした
+   - UnitySkills パッケージ自身のテスト（1件）は Roomies のコードと関係ないので直していない
+
+### 確認状況
+- `dotnet build`（Assembly-CSharp / Assembly-CSharp-Editor / Roomies.RegressionTests）… エラー0
+- **未確認**：Unity エディターに接続できなかった（unity-mcp は「Connection revoked」、UnitySkills のサーバーは
+  8090〜8093 のどれも応答なし）。エディターは閉じないよう指示があったので、以下はまだやっていない
+  - `Roomies/UI/Fix Night Banner Title`（GameRoom）と `Roomies/UI/Build Menu`（MainMenuSteam）の実行とシーン保存。
+    **これをやるまでシーンの見た目は直っていない**
+  - Play Mode でのスクショ、EditMode テストの実行（直したつもりの14件が通るかは未確認）
+- 気になった点（未確認）：`MenuThemer` の「あそぶ」「もどる」の反応は `AddListener` で付けていて、シーンに保存されない。
+  実行中に「あそぶ」を押しても反応しない可能性がある。Play Mode で確かめる必要がある
+- 作業ツリーに自分の変更ではない差分が残っている（`Player.prefab`、`LogoSerif SDF.asset`、
+  `LiberationSans SDF - Fallback.asset`）。コミットには混ぜていない
+
 ## 2026/10/24｜NPCとメニューのBobの目を黒にした
 
 ### 今回の変更
