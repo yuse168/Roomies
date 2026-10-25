@@ -88,6 +88,31 @@ internal static class RoomiesDayScreenBuilder
     /// </summary>
     // ---------------- 夜イベントのバナー ----------------
 
+    /// <summary>
+    /// 置いてある夜バナーの見出しを「消えない」設定へ直す。作り直さないので、
+    /// シーンで変えた位置や色は残る。何度実行しても同じ結果。
+    /// </summary>
+    [MenuItem("Roomies/UI/Fix Night Banner Title")]
+    private static void FixNightBannerTitle()
+    {
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            Debug.LogError("[UI] Play Modeを抜けてから実行してください。");
+            return;
+        }
+
+        var banner = Object.FindAnyObjectByType<NightEventUI>(FindObjectsInactive.Include);
+        if (banner == null || !banner.EditorFixTitle())
+        {
+            Debug.LogError("[UI] 夜バナーが見つかりません。GameRoom シーンを開き、先に『Roomies/UI/Build Night Banner』を実行してください。");
+            return;
+        }
+
+        EditorSceneManager.MarkSceneDirty(banner.gameObject.scene);
+        Selection.activeGameObject = banner.gameObject;
+        Debug.Log("[UI] 夜バナーの見出しを直しました（シーンを保存してください）");
+    }
+
     [MenuItem("Roomies/UI/Build Night Banner")]
     private static void BuildNightBanner()
     {

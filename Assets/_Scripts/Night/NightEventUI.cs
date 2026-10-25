@@ -121,10 +121,9 @@ public class NightEventUI : MonoBehaviour
         titleRt.anchorMin = new Vector2(0f, 1f);
         titleRt.anchorMax = new Vector2(1f, 1f);
         titleRt.pivot     = new Vector2(0.5f, 1f);
-        titleRt.anchoredPosition = new Vector2(48, -18);
-        titleRt.sizeDelta = new Vector2(-186, 40);
-        titleLabel.textWrappingMode = TextWrappingModes.NoWrap;
-        titleLabel.overflowMode = TextOverflowModes.Ellipsis;
+        titleRt.anchoredPosition = new Vector2(48, -10);
+        titleRt.sizeDelta = new Vector2(-186, TitleHeight);
+        ApplyTitleFit(titleLabel);
 
         // ---- 本文 ----
         bodyLabel = UITheme.Label(panelRt, "Body", "",
@@ -133,11 +132,56 @@ public class NightEventUI : MonoBehaviour
         bodyRt.anchorMin = new Vector2(0f, 0f);
         bodyRt.anchorMax = new Vector2(1f, 0f);
         bodyRt.pivot     = new Vector2(0.5f, 0f);
-        bodyRt.anchoredPosition = new Vector2(48, 30);
+        bodyRt.anchoredPosition = new Vector2(48, BodyBottom);
         bodyRt.sizeDelta = new Vector2(-186, 46);
     }
 
+    // 本文の下端。見出し（上から10px＋高さ50px）と重ならない位置
+    private const float BodyBottom = 22f;
+
+    /// <summary>
+    /// シーンに置いてあるバナーの見出しを、消えない設定へ直す（エディタ専用）。
+    /// 作り直さずに直すだけなので、シーンで動かした位置や色はそのまま。
+    /// </summary>
+    public bool EditorFixTitle()
+    {
+        if (titleLabel == null) return false;
+        UnityEditor.Undo.RecordObject(titleLabel, "Fix night banner title");
+        UnityEditor.Undo.RecordObject(titleLabel.rectTransform, "Fix night banner title");
+        ApplyTitleFit(titleLabel);
+        var titleRt = titleLabel.rectTransform;
+        titleRt.anchoredPosition = new Vector2(titleRt.anchoredPosition.x, -10f);
+        titleRt.sizeDelta = new Vector2(titleRt.sizeDelta.x, TitleHeight);
+        if (bodyLabel != null)
+        {
+            UnityEditor.Undo.RecordObject(bodyLabel.rectTransform, "Fix night banner title");
+            var bodyRt = bodyLabel.rectTransform;
+            bodyRt.anchoredPosition = new Vector2(bodyRt.anchoredPosition.x, BodyBottom);
+        }
+        return true;
+    }
+
 #endif
+
+    // 見出しの枠の高さ。日本語の1行（30px＋行間）が必ず収まる高さにする。
+    // 40px だと M PLUS の行の高さが枠を超え、はみ出し扱いで見出しごと消えていた。
+    public const float TitleHeight = 50f;
+
+    /// <summary>
+    /// 見出しが「消えない」設定。長い見出しは縮めて収め、それでも溢れたら
+    /// 消さずにそのまま描く（Ellipsis/Truncate は行が枠に収まらないと全部消える）。
+    /// 配置ツールとシーンの直し（Roomies/UI/Fix Night Banner Title）の両方から使う。
+    /// </summary>
+    public static void ApplyTitleFit(TMP_Text title)
+    {
+        if (title == null) return;
+        title.textWrappingMode = TextWrappingModes.NoWrap;
+        title.overflowMode     = TextOverflowModes.Overflow;
+        title.enableAutoSizing = true;
+        title.fontSizeMax      = 30f;
+        title.fontSizeMin      = 20f;
+        title.alignment        = TextAlignmentOptions.Left;
+    }
 
     private static void StretchFull(RectTransform rt)
     {
@@ -174,7 +218,9 @@ public class NightEventUI : MonoBehaviour
         switch (style)
         {
             case NightEventManager.StyleDanger: return "！";
-            case NightEventManager.StyleFun:    return "☆";
+            // ☆★ は M PLUS U にも予備の LiberationSans にも無く □ になる。
+            // ♥ は LiberationSans（予備フォント）にあるのでこれを使う。
+            case NightEventManager.StyleFun:    return "♥";
             case NightEventManager.StylePeace:  return "♪";
             default:                            return "？";
         }

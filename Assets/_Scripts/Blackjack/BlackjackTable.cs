@@ -930,7 +930,7 @@ public class BlackjackTable : NetworkBehaviour
                 break;
             case ResultKind.Blackjack:
                 headline = "BLACKJACK!";
-                outcome = "★  SPECIAL WIN  ★";
+                outcome = "♠  SPECIAL WIN  ♠"; // ★ はフォントに無く □ になる
                 background = new Color(0.22f, 0.08f, 0.28f, 0.99f);
                 accent = new Color(1f, 0.82f, 0.18f, 1f);
                 break;
