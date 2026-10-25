@@ -146,7 +146,8 @@ public class MiningSite : NetworkBehaviour
     public static bool CanReach(Vector3 playerPosition, MiningInteractable target)
     {
         if (!float.IsFinite(playerPosition.x) || !float.IsFinite(playerPosition.y) || !float.IsFinite(playerPosition.z) ||
-            target == null || target.targetCollider == null || !target.targetCollider.enabled) return false;
+            target == null || target.targetCollider == null || !target.targetCollider.enabled ||
+            !target.targetCollider.gameObject.activeInHierarchy) return false; // 非表示の物（閉鎖中の買取機など）には届かない
         Vector3 point = target.targetCollider.ClosestPoint(playerPosition);
         if ((point - playerPosition).sqrMagnitude > 16f) return false;
         Vector3 eye = playerPosition + Vector3.up * .65f;

@@ -42,6 +42,34 @@ public class RoomiesRegressionTests
         return behaviour;
     }
 
+    // NGO はメッセージ型の一覧を Play Mode に入るときにしか作らず、抜けるときに空にする。
+    // そのため EditMode では一覧が空で StartHost が例外になる。ここで1回だけ登録する。
+    private static System.Collections.IList NetcodeMessageTypes =>
+        (System.Collections.IList)typeof(NetworkManager).Assembly
+            .GetType("Unity.Netcode.ILPPMessageProvider", true)
+            .GetField("__network_message_types", BindingFlags.Static | BindingFlags.NonPublic)
+            .GetValue(null);
+    private bool registeredMessagesHere;
+
+    [OneTimeSetUp]
+    public void RegisterNetcodeMessages()
+    {
+        if (NetcodeMessageTypes.Count > 0) return;
+        typeof(NetworkManager).Assembly
+            .GetType("__GEN.INetworkMessageHelper", true)
+            .GetMethod("InitializeMessages", BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public)
+            .Invoke(null, null);
+        registeredMessagesHere = true;
+    }
+
+    [OneTimeTearDown]
+    public void UnregisterNetcodeMessages()
+    {
+        // 残すとドメインリロード無しで Play Mode に入ったとき二重登録になり、ゲームの StartHost が壊れる
+        if (registeredMessagesHere) NetcodeMessageTypes.Clear();
+        registeredMessagesHere = false;
+    }
+
     [SetUp]
     public void SetUp()
     {
