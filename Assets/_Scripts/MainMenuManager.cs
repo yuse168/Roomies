@@ -33,6 +33,9 @@ public class MainMenuManager : MonoBehaviour
     [Tooltip("ボタンの中の説明文（「Day 2 夜 ／ 共同口座 ¥1,200」が入る）。")]
     [SerializeField] private TMP_Text continueSummaryText;
 
+    [Tooltip("2行目（セーブの内容）の文字の大きさ。1行目に対する％。")]
+    [SerializeField, Range(30, 100)] private int continueSummaryScale = 52;
+
     // 「続きから」で始めるときに読み込んだセーブ。ホスト作成が成功したら引き渡す
     private RoomiesSaveData loadedSave;
 
@@ -150,7 +153,8 @@ public class MainMenuManager : MonoBehaviour
 
         // ボタンの文字そのものに続きの内容を出す（別のラベルを足すと位置合わせが要るため）
         if (continueSummaryText != null)
-            continueSummaryText.text = "続きから" + System.Environment.NewLine + data.Summary;
+            continueSummaryText.text = "続きから" + System.Environment.NewLine +
+                                       "<size=" + continueSummaryScale + "%>" + data.Summary + "</size>";
     }
 
     /// <summary>

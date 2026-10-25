@@ -34,6 +34,10 @@ public class MenuThemer : MonoBehaviour
     [SerializeField] private Button playBackButton;
     [SerializeField] private Button hostButton;
     [SerializeField] private Button joinButton;
+    [Tooltip("「続きから」。あそぶを押して部屋の選択に移る間は隠す。")]
+    [SerializeField] private Button continueButton;
+
+    private const float ContinueW = 400f;
 
     private float pulseTime;
 
@@ -143,6 +147,26 @@ public class MenuThemer : MonoBehaviour
             UITheme.Pink, Color.white, 48f, 12f);
         playButton.onClick.AddListener(ShowPlayOptions);
         PopIn(playButton.gameObject, 0.12f);
+
+        // --- 続きから（あそぶの右。セーブがあるときだけ MainMenuManager が表示する） ---
+        // 置くのは `Roomies/Save/Build Continue Button`。ここでは見た目と位置をそろえるだけ。
+        var continueObject = FindIn(root, "ContinueButton");
+        continueButton = continueObject != null ? continueObject.GetComponent<Button>() : null;
+        if (continueButton != null)
+        {
+            SetBottomLeft((RectTransform)continueButton.transform,
+                new Vector2(Margin + 496f, ActionY), new Vector2(ContinueW, ActionH));
+            UITheme.StylePill(continueButton, UITheme.Grape, Color.white, 36f, 10f);
+            // 2行（「続きから」＋セーブの内容）を枠の中に収める
+            foreach (var label in continueButton.GetComponentsInChildren<TMP_Text>(true))
+            {
+                label.fontSizeMin = 14f;
+                label.lineSpacing = -12f;
+                label.overflowMode = TextOverflowModes.Overflow;
+                label.margin = new Vector4(10f, 0f, 10f, 0f);
+            }
+            PopIn(continueObject, 0.14f);
+        }
 
         // --- フッター（設定・やめる） ---
         Button settingsButton = CreatePill(root, "SettingsButton", "設定",
@@ -512,6 +536,7 @@ public class MenuThemer : MonoBehaviour
     private void ShowPlayOptions()
     {
         SetButtonVisible(playButton, false);
+        SetButtonVisible(continueButton, false);
         SetButtonVisible(hostButton, true);
         SetButtonVisible(joinButton, true);
         SetButtonVisible(playBackButton, true);
@@ -525,6 +550,7 @@ public class MenuThemer : MonoBehaviour
     private void HidePlayOptions()
     {
         SetButtonVisible(playButton, true);
+        SetButtonVisible(continueButton, true);
         SetButtonVisible(hostButton, false);
         SetButtonVisible(joinButton, false);
         SetButtonVisible(playBackButton, false);
