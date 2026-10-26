@@ -31,12 +31,12 @@ public class DayManager : NetworkBehaviour
     [Tooltip("Hostでのみ、Nキーによるターン送りを許可します。製品版前に無効化してください。")]
     [SerializeField] private bool enableDebugDaySkip = true;
 
-    [Header("UI")]
-    [SerializeField] private TextMeshProUGUI dayText;
-    [SerializeField] private TextMeshProUGUI timerText;
-    [SerializeField] private DayTransitionUI transitionUI;
-    [SerializeField] private DayResultUI resultUI;
-    [SerializeField] private RentPaymentUI rentPaymentUI;
+    // UIは別シーン（GameRoomUI）にあるので、読み込まれたら GameUIRefs から受け取る
+    private TextMeshProUGUI dayText;
+    private TextMeshProUGUI timerText;
+    private DayTransitionUI transitionUI;
+    private DayResultUI resultUI;
+    private RentPaymentUI rentPaymentUI;
 
     [Header("家具のマルチ同期")]
     [Tooltip("NetworkObject + NetworkFurniture を付けた家具プレハブ。NetworkManagerのNetworkPrefabにも登録すること。")]
@@ -188,14 +188,9 @@ public class DayManager : NetworkBehaviour
     {
         if (!enabled) return;
 
-        // 朝の演出・今日の収支・家賃の支払いはシーンに実体で置いてある。
-        // 無いときは作らず知らせる（メニュー『Roomies/UI/Build Day Screens』で置き直す）
-        if (transitionUI == null || resultUI == null || rentPaymentUI == null)
-        {
-            Debug.LogError(
-                "[UI] 朝・収支・家賃の画面がシーンにありません。" +
-                "メニュー『Roomies/UI/Build Day Screens』で置いてください。", this);
-        }
+        // 朝の演出・今日の収支・家賃の支払い・HUDの文字はUIシーン（GameRoomUI）にある。
+        // UIシーンが読み込まれたら受け取る（足りないときは GameUIRefs が知らせる）
+        GameUIRefs.WhenReady(OnGameUIReady);
 
         // 家具編集と夜イベント管理もシーンに実体で置いてある
         // （メニュー『Roomies/UI/Build Night Banner』が夜イベント管理も一緒に置く）
@@ -246,7 +241,19 @@ public class DayManager : NetworkBehaviour
     {
         base.OnDestroy();
 
+        GameUIRefs.Unsubscribe(OnGameUIReady);
         if (Instance == this) Instance = null;
+    }
+
+    private void OnGameUIReady(GameUIRefs ui)
+    {
+        dayText = ui.DayText;
+        timerText = ui.TimerText;
+        transitionUI = ui.TransitionUI;
+        resultUI = ui.ResultUI;
+        rentPaymentUI = ui.RentPaymentUI;
+        UpdateDayUI();
+        UpdateTimerUI();
     }
 
     private void Update()

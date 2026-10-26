@@ -2,6 +2,7 @@
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// 朝の演出・今日の収支・家賃の支払いの3画面を、シーンへ実体として置くツール。
@@ -71,15 +72,39 @@ internal static class RoomiesDayScreenBuilder
         var rent = Ensure<RentPaymentUI>(root.transform, "RentPaymentUI", rebuild,
             ui => ui.EditorBuildUI());
 
-        var so = new SerializedObject(dayManager);
-        so.FindProperty("transitionUI").objectReferenceValue = transition;
-        so.FindProperty("resultUI").objectReferenceValue = result;
-        so.FindProperty("rentPaymentUI").objectReferenceValue = rent;
-        so.ApplyModifiedProperties();
+        // UIは GameRoomUI シーンにある。受け渡し口（GameUIRefs）へ割り当てる
+        if (!AssignGameUIRefs(root, ("transitionUI", transition), ("resultUI", result), ("rentPaymentUI", rent)))
+            return;
 
         EditorSceneManager.MarkSceneDirty(root.scene);
         Selection.activeGameObject = root;
-        Debug.Log("[UI] 朝・収支・家賃の3画面を置き、DayManager へ割り当てました（シーンを保存してください）");
+        Debug.Log("[UI] 朝・収支・家賃の3画面を置き、GameUIRefs へ割り当てました（シーンを保存してください）");
+    }
+
+    /// <summary>
+    /// ゲーム中のUIを GameRoomUI の受け渡し口（GameUIRefs）へ割り当てる。
+    /// UIのルートが GameRoom 側にできていたら GameRoomUI へ移す（シーンをまたぐ参照は保存できないため）。
+    /// GameRoom と GameRoomUI を両方開いて実行する。
+    /// </summary>
+    private static bool AssignGameUIRefs(GameObject uiRoot, params (string field, Object value)[] refs)
+    {
+        var hub = Object.FindAnyObjectByType<GameUIRefs>(FindObjectsInactive.Include);
+        if (hub == null)
+        {
+            Debug.LogError("[UI] GameUIRefs が見つかりません。GameRoomUI シーンも開いてから実行してください" +
+                           "（まだ分けていないなら『Roomies/UI/Split GameRoom UI』）。");
+            return false;
+        }
+
+        if (uiRoot.scene != hub.gameObject.scene)
+            SceneManager.MoveGameObjectToScene(uiRoot, hub.gameObject.scene);
+
+        var so = new SerializedObject(hub);
+        foreach (var (field, value) in refs)
+            so.FindProperty(field).objectReferenceValue = value;
+        so.ApplyModifiedProperties();
+        EditorSceneManager.MarkSceneDirty(hub.gameObject.scene);
+        return true;
     }
 
     /// <summary>
@@ -155,10 +180,11 @@ internal static class RoomiesDayScreenBuilder
             Undo.AddComponent<FurnitureEditController>(editObject);
         }
 
-        var so = new SerializedObject(manager);
-        so.FindProperty("eventUI").objectReferenceValue = banner;
-        so.ApplyModifiedProperties();
+        // バナーは GameRoomUI シーンにある。受け渡し口（GameUIRefs）へ割り当てる
+        if (!AssignGameUIRefs(root, ("nightEventUI", banner)))
+            return;
 
+        EditorSceneManager.MarkSceneDirty(manager.gameObject.scene);
         EditorSceneManager.MarkSceneDirty(root.scene);
         Selection.activeGameObject = banner.gameObject;
         Debug.Log("[UI] 夜イベントのバナー・NightEventManager・FurnitureEditController を置きました（シーンを保存してください）");

@@ -1,5 +1,46 @@
 # PROGRESS.md
 
+## 2026/10/26｜ゲーム中のUIを別シーン（GameRoomUI）に分けた
+
+ブランチ `fix/gameroom-ui-scene`（`fix/menu-title-play` 0520835 から切った）。ゆせさんの依頼「UIがマップの中にいて邪魔」→「ゲーム中を分ける」。
+
+### 今回の変更
+- 新しいシーン `GameRoomUI.unity` に、GameRoom から次のルートを移した（見た目・中身はそのまま）
+  - `EventSystem`、`Canvas`（みんなの稼ぎ・共同口座の文字）、`HudThemer`（HUD）、`UI_DayScreens`（朝・収支・家賃・夜バナー）、
+    `EscMenuUI`（ポーズ・設定・キー設定）、`GameOverScreen`、`ArrestCinematic`（逮捕演出）
+  - シーンに埋め込まれていた角丸などの画像（Sprite 16・Texture 16・Material 2）も一緒に移った
+  - `Canvas/SharedMoneyText` に付いていた NetworkObject（ネットワークの処理は付いていない）を外した。UIシーンはネットワークで同期しない
+- 読み込み：GameRoom に `GameUISceneLoader` を置いた。ホストが NGO の `SceneManager.LoadScene(Additive)` で読み込む
+  （NGO はあとから入った人にも読み込み済みのシーンを同期するので、各自で読むと2つになる。だからホストだけが読む）。
+  ネットワークが無いときはその場で読む
+- 参照：マップ→UI の参照（`DayManager` の5つ、`SharedMoneyManager.sharedMoneyText`、`NightEventManager.eventUI`）を、
+  UIシーンの受け渡し口 `GameUIRefs`（ルート「GameUI」）から `WhenReady` で受け取る形にした。UI→マップは元からシングルトンなので変更なし
+- `EscMenuUI` と `UIThemeBootstrap` の「シーンにありません」の確認を、UIシーンが読み込まれたときに行うようにした（GameRoom の読み込み時はまだ無いため）
+- 配置ツール `Build Day Screens` / `Build Night Banner` の割り当て先を `GameUIRefs` にした。分割ツール `Roomies/UI/Split GameRoom UI` を追加
+- Build Settings に GameRoomUI を追加（GameRoom の次）。AGENTS.md に決まりを追記
+
+### 確認状況
+- コンパイル：エラー0
+- **Play Mode（BootScene→あそぶ→部屋をつくる→ゲーム開始）で確認した**（ホスト1人。ボタンは onClick の呼び出し、ポーズと日付送りは一時的な確認用メニューで呼んだ）
+  - GameRoom と GameRoomUI が1つずつ読み込まれる。EventSystem は1つ。NGO のシーンイベント（Load→LoadComplete→LoadEventCompleted）で届いた
+  - マップ側の参照7つがすべてつながった
+  - HUD（日付・残り時間・共同口座・今日の目標）、ポーズ画面、夜バナー、今日の収支、朝の演出（4日目）、家賃の支払い（890→390）が出た
+  - ポーズ →「メインメニューへ」でタイトルに戻り、GameRoomUI も外れた
+  - Console：今回の変更によるエラーは0
+- **未確認**
+  - 2人目（クライアント）：Steam P2P は同じアカウント同士でつなげず、ビルド（7/30）も古いのでできなかった
+  - ゲームオーバー画面・逮捕演出・みんなの稼ぎの一覧は出していない（参照は移しただけ）
+  - 実際のキー入力（Esc・N など）
+- 前からある不具合（今回は直していない）
+  - 家賃の画面 `RentPaymentUI` が出るときに NullReferenceException（RentPaymentUI.cs:149）。文字の参照4つ（rentLabel など）が
+    `[SerializeField]` でなく、10/23 にシーンの実体にしてから実行時は空のまま。家賃の処理自体は進む
+  - ゲームオーバー画面の「メインメニューへ」はネットワークを切るだけで、タイトルへ移らない（ホストで確認）
+  - 夜バナーの見出しが出ない（10/25 の `Fix Night Banner Title` が未実行のまま）
+  - タイトルに2回目に戻ったとき「references runtime script in scene file」の警告が3つ（タイトルの UIPopIn など。今回の変更とは無関係）
+- EditModeテスト：245件中 231成功・13失敗・1スキップ。失敗は前からの13件と同じで、増えていない
+- 後始末：テストでできたセーブ（14:14 作成、Day 1・¥1,000）は `roomies_save.json.bak-20261026-1414` に名前を変えて残した。
+  確認用スクショ（`Assets/Screenshots/_split_*`）と一時スクリプト `TempUISplitCheck.cs` は消した
+
 ## 2026/10/26｜タイトルの「あそぶ」が押せない・背景が古い箱の部屋のままだったのを直した
 
 ブランチ `fix/menu-title-play`（`fix/ui-banner-continue-tests` f98c868 から切った）。

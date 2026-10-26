@@ -30,8 +30,10 @@ public static class UIThemeBootstrap
             Debug.LogError("[UI] メニューの見た目がシーンにありません。メニュー『Roomies/UI/Build Menu』で置いてください。");
         }
 
-        // HUDはシーンに実体で置いてある（`Roomies/UI/Build HUD`）。ここでは作らない
-        if (Object.FindAnyObjectByType<DayManager>() != null &&
+        // HUDはゲーム中のUIシーン（GameRoomUI）に実体で置いてある（`Roomies/UI/Build HUD`）。ここでは作らない。
+        // UIシーンはマップより後に読み込まれるので、UIシーンが読み込まれてから確かめる
+        if (SceneManager.GetSceneByName("GameRoomUI").isLoaded &&
+            Object.FindAnyObjectByType<DayManager>() != null &&
             Object.FindAnyObjectByType<HudThemer>() == null)
         {
             Debug.LogError("[UI] HUDがシーンにありません。メニュー『Roomies/UI/Build HUD』で置いてください。");

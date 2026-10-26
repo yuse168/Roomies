@@ -37,8 +37,8 @@ public class SharedMoneyManager : NetworkBehaviour
     [Tooltip("Editor/Development Buildでのみ、Kキーによる+100Rを許可します。")]
     [SerializeField] private bool enableDebugGrant;
 
-    [Header("UI")]
-    [SerializeField] private TextMeshProUGUI sharedMoneyText;
+    // 金額の文字はUIシーン（GameRoomUI）にあるので、読み込まれたら GameUIRefs から受け取る
+    private TextMeshProUGUI sharedMoneyText;
 
     private NetworkVariable<int> sharedMoney = new NetworkVariable<int>(
         0,
@@ -58,6 +58,19 @@ public class SharedMoneyManager : NetworkBehaviour
         }
 
         Instance = this;
+        GameUIRefs.WhenReady(OnGameUIReady);
+    }
+
+    public override void OnDestroy()
+    {
+        GameUIRefs.Unsubscribe(OnGameUIReady);
+        base.OnDestroy();
+    }
+
+    private void OnGameUIReady(GameUIRefs ui)
+    {
+        sharedMoneyText = ui.SharedMoneyText;
+        UpdateSharedMoneyUI(sharedMoney.Value);
     }
 
     public override void OnNetworkSpawn()

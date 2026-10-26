@@ -101,6 +101,19 @@
 - `UITheme` は部品を作る道具なので、**エディタの配置ツールから呼ぶぶんには問題ない**
   （実行時に呼ばないこと）
 
+## ゲーム中のUIは別シーン（GameRoomUI）
+
+- ゲーム中のUI（HUD、ポーズ、朝・収支・家賃・夜バナー、みんなの稼ぎ、ゲームオーバー、逮捕演出、EventSystem）は
+  `Assets/_Scenes/GameRoomUI.unity` に置く。マップ（GameRoom）には置かない。タイトルのメニューは MainMenuSteam のまま。
+- GameRoom の `GameUISceneLoader` が読み込む。ネットワーク中はホストが NGO の SceneManager で Additive に読み込み、
+  全員に1回ずつ届く（クライアントは自分で読まない）。ほかのシーンへ Single で移ると一緒に外れる。
+- UIシーンには NetworkObject・ネットワークの処理を置かない。
+- マップ側がUIを使うときは `GameUIRefs`（UIシーンの「GameUI」）から受け取る：`GameUIRefs.WhenReady(...)`。
+  UI側からマップへは今までどおりシングルトン（`DayManager.Instance` など）を使う。シーンをまたぐインスペクター参照は保存できない。
+- 新しいゲーム中UIを足したら、GameRoomUI に置き、マップから使うものは `GameUIRefs` に参照を足す。
+  GameRoom 側にUIのルートができてしまったら、メニュー「Roomies/UI/Split GameRoom UI」で移せる（何度実行しても同じ結果）。
+- 配置ツール（Build HUD / Build Day Screens など）は GameRoom と GameRoomUI を両方開いて実行する。
+
 ## コミットメッセージ
 
 ### 形

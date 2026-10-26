@@ -17,6 +17,7 @@ using UnityEngine.UI;
 public sealed class EscMenuUI : MonoBehaviour
 {
     const string GameSceneName = "GameRoom";
+    const string GameUISceneName = "GameRoomUI";
     const string MenuSceneName = "MainMenuSteam";
 
     // 濃色パネルの上に置く文字色（白いカード前提のTextMain／TextSubは使わない）
@@ -78,7 +79,8 @@ public sealed class EscMenuUI : MonoBehaviour
     static void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         IsOpen = false;
-        if (scene.name != GameSceneName || FindAnyObjectByType<EscMenuUI>() != null) return;
+        // ポーズ画面はゲーム中のUIシーン（GameRoomUI）にある。そのシーンが読み込まれたときに確かめる
+        if (scene.name != GameUISceneName || FindAnyObjectByType<EscMenuUI>() != null) return;
 
         // ポーズ画面はシーンに実体で置いてある（`Roomies/UI/Build Pause Menu`）
         Debug.LogError("[UI] ポーズ画面がシーンにありません。メニュー『Roomies/UI/Build Pause Menu』で置いてください。");

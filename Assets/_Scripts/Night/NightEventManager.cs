@@ -60,8 +60,8 @@ public class NightEventManager : MonoBehaviour
     public const byte StyleFun    = 2;
     public const byte StylePeace  = 3;
 
-    [Header("UI")]
-    [SerializeField] private NightEventUI eventUI;
+    // 告知バナーはUIシーン（GameRoomUI）にあるので、読み込まれたら GameUIRefs から受け取る
+    private NightEventUI eventUI;
 
     [Header("金額設定")]
     [SerializeField] private int utilityBillMin = 100;
@@ -113,20 +113,21 @@ public class NightEventManager : MonoBehaviour
 
     private void Start()
     {
-        // 告知バナーはシーンに実体で置いてある。無いときは作らず知らせる
-        if (eventUI == null)
-        {
-            Debug.LogError(
-                "[UI] 夜イベントのバナーがシーンにありません。" +
-                "メニュー『Roomies/UI/Build Night Banner』で置いてください。", this);
-        }
+        // 告知バナーはUIシーンにある（足りないときは GameUIRefs が知らせる）
+        GameUIRefs.WhenReady(OnGameUIReady);
 
         DayManager.OnNightArrived += OnNight;
         DayManager.OnMorningArrived += OnMorning;
     }
 
+    private void OnGameUIReady(GameUIRefs ui)
+    {
+        eventUI = ui.NightEventUI;
+    }
+
     private void OnDestroy()
     {
+        GameUIRefs.Unsubscribe(OnGameUIReady);
         DayManager.OnNightArrived -= OnNight;
         DayManager.OnMorningArrived -= OnMorning;
         if (Instance == this) Instance = null;
