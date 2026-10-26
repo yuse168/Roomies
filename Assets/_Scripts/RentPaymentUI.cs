@@ -18,10 +18,10 @@ public sealed class RentPaymentUI : MonoBehaviour
     [SerializeField] private Image card;         // パネルの白フチ
     [SerializeField] private Image cardFill;     // パネルの内側の面（成功／失敗で色を変える）
     [SerializeField] private Image progressFill;
-    private TMP_Text rentLabel;
-    private TMP_Text balanceLabel;
-    private TMP_Text statusLabel;
-    private TMP_Text resultLabel;
+    [SerializeField] private TMP_Text rentLabel;
+    [SerializeField] private TMP_Text balanceLabel;
+    [SerializeField] private TMP_Text statusLabel;
+    [SerializeField] private TMP_Text resultLabel;
     private Vector2 cardBasePosition;
 
     private static readonly Color Clear = new Color(0.62f, 0f, 0.04f, 0f);
@@ -33,11 +33,13 @@ public sealed class RentPaymentUI : MonoBehaviour
 
     private void Awake()
     {
-        if (group == null)
+        if (group == null || rentLabel == null || balanceLabel == null ||
+            statusLabel == null || resultLabel == null)
         {
             Debug.LogError(
                 "[UI] RentPaymentUI の中身が空です。" +
-                "メニュー『Roomies/UI/Build Day Screens』でシーンに置き直してください。", this);
+                "メニュー『Roomies/UI/Fix Rent Payment Labels』を実行するか、" +
+                "『Roomies/UI/Build Day Screens』でシーンに置き直してください。", this);
         }
     }
 
@@ -55,6 +57,30 @@ public sealed class RentPaymentUI : MonoBehaviour
     }
 
 #if UNITY_EDITOR
+    /// <summary>
+    /// すでに置いてある画面の文字（請求額・残高・状態・結果）を、組み立てで付けた名前で探して参照に入れる。
+    /// 以前は参照がシーンに保存されない作りだったので、置き直さずに直すための道具。
+    /// 配置ツール `Roomies/UI/Fix Rent Payment Labels` から呼ぶ。見つかれば true。
+    /// </summary>
+    public bool EditorBindLabels()
+    {
+        Transform cardTransform = card != null ? card.transform : null;
+        Transform canvasTransform = transform.Find("RentPaymentCanvas");
+        if (cardTransform == null || canvasTransform == null) return false;
+
+        rentLabel = FindLabel(cardTransform, "Rent");
+        balanceLabel = FindLabel(cardTransform, "Balance");
+        statusLabel = FindLabel(cardTransform, "Status");
+        resultLabel = FindLabel(canvasTransform, "Result");
+        return rentLabel != null && balanceLabel != null && statusLabel != null && resultLabel != null;
+    }
+
+    private static TMP_Text FindLabel(Transform parent, string name)
+    {
+        Transform child = parent.Find(name);
+        return child != null ? child.GetComponent<TMP_Text>() : null;
+    }
+
     /// <summary>
     /// シーンへ実体を置くための組み立て（エディタ専用）。
     /// 配置ツール `Roomies/UI/Build Day Screens` から呼ぶ。実行中は動かない。

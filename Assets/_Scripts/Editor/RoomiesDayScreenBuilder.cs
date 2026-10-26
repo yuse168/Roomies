@@ -129,13 +129,47 @@ internal static class RoomiesDayScreenBuilder
         var banner = Object.FindAnyObjectByType<NightEventUI>(FindObjectsInactive.Include);
         if (banner == null || !banner.EditorFixTitle())
         {
-            Debug.LogError("[UI] 夜バナーが見つかりません。GameRoom シーンを開き、先に『Roomies/UI/Build Night Banner』を実行してください。");
+            Debug.LogError("[UI] 夜バナーが見つかりません。GameRoomUI シーンを開き、先に『Roomies/UI/Build Night Banner』を実行してください。");
             return;
         }
 
         EditorSceneManager.MarkSceneDirty(banner.gameObject.scene);
         Selection.activeGameObject = banner.gameObject;
         Debug.Log("[UI] 夜バナーの見出しを直しました（シーンを保存してください）");
+    }
+
+    /// <summary>
+    /// 置いてある家賃の画面の文字（請求額・残高・状態・結果）を参照に入れ直す。作り直さないので、
+    /// シーンで変えた位置や色は残る。何度実行しても同じ結果。GameRoomUI を開いて実行する。
+    /// </summary>
+    [MenuItem("Roomies/UI/Fix Rent Payment Labels")]
+    private static void FixRentPaymentLabels()
+    {
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            Debug.LogError("[UI] Play Modeを抜けてから実行してください。");
+            return;
+        }
+
+        var rent = Object.FindAnyObjectByType<RentPaymentUI>(FindObjectsInactive.Include);
+        if (rent == null)
+        {
+            Debug.LogError("[UI] 家賃の画面が見つかりません。GameRoomUI シーンを開いてから実行してください。");
+            return;
+        }
+
+        Undo.RecordObject(rent, "Fix rent payment labels");
+        if (!rent.EditorBindLabels())
+        {
+            Debug.LogError("[UI] 家賃の画面の文字（Rent / Balance / Status / Result）が見つかりません。" +
+                           "『Roomies/UI/Rebuild Day Screens』で置き直してください。", rent);
+            return;
+        }
+
+        EditorUtility.SetDirty(rent);
+        EditorSceneManager.MarkSceneDirty(rent.gameObject.scene);
+        Selection.activeGameObject = rent.gameObject;
+        Debug.Log("[UI] 家賃の画面の文字を参照に入れました（シーンを保存してください）");
     }
 
     [MenuItem("Roomies/UI/Build Night Banner")]

@@ -1,6 +1,8 @@
+using System.Collections;
 using TMPro;
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
@@ -28,6 +30,12 @@ public class GameOverScreen : MonoBehaviour
     [Header("文言")]
     [SerializeField] private string title = "GAME OVER";
     [SerializeField] private string reasonFormat = "家賃 ¥{0:N0} を払えなかった。\n大家さんに追い出されました……";
+
+    [Header("メインメニューへ")]
+    [Tooltip("「メインメニューへ」で戻るシーン。")]
+    [SerializeField] private string menuSceneName = "MainMenuSteam";
+
+    private bool isLeaving;
 
     private void Awake()
     {
@@ -81,11 +89,29 @@ public class GameOverScreen : MonoBehaviour
         Hide();
     }
 
+    /// <summary>
+    /// ネットワークを切ってからタイトルへ戻る。ポーズの「メインメニューへ」（EscMenuUI）と同じ手順。
+    /// セーブはここでは触らない（負けたときの削除は RunSaveManager が行う）。
+    /// </summary>
     private void OnReturnToMenu()
     {
+        if (isLeaving) return;
+        isLeaving = true;
         Hide();
+        StartCoroutine(ReturnToMenuRoutine());
+    }
 
-        var lobby = SteamLobby.Instance;
-        if (lobby != null) lobby.LeaveLobby();
+    private IEnumerator ReturnToMenuRoutine()
+    {
+        if (SteamLobby.Instance != null)
+            SteamLobby.Instance.LeaveLobby();
+        else if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
+            NetworkManager.Singleton.Shutdown();
+
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+        var network = NetworkManager.Singleton;
+        while (network != null && network.ShutdownInProgress) yield return null;
+        SceneManager.LoadScene(menuSceneName);
     }
 }

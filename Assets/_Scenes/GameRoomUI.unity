@@ -1636,9 +1636,9 @@ MonoBehaviour:
   m_fontSize: 30
   m_fontSizeBase: 30
   m_fontWeight: 400
-  m_enableAutoSizing: 0
-  m_fontSizeMin: 18
-  m_fontSizeMax: 72
+  m_enableAutoSizing: 1
+  m_fontSizeMin: 20
+  m_fontSizeMax: 30
   m_fontStyle: 1
   m_HorizontalAlignment: 1
   m_VerticalAlignment: 512
@@ -1652,7 +1652,7 @@ MonoBehaviour:
   m_charWidthMaxAdj: 0
   m_TextWrappingMode: 0
   m_wordWrappingRatios: 0.4
-  m_overflowMode: 3
+  m_overflowMode: 0
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
@@ -1702,8 +1702,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 48, y: -18}
-  m_SizeDelta: {x: -186, y: 40}
+  m_AnchoredPosition: {x: 48, y: -10}
+  m_SizeDelta: {x: -186, y: 50}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!1 &112009352
 GameObject:
@@ -2969,7 +2969,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 0}
-  m_AnchoredPosition: {x: 48, y: 30}
+  m_AnchoredPosition: {x: 48, y: 22}
   m_SizeDelta: {x: -186, y: 46}
   m_Pivot: {x: 0.5, y: 0}
 --- !u!1 &235906703
@@ -8446,6 +8446,10 @@ MonoBehaviour:
   card: {fileID: 621408227}
   cardFill: {fileID: 532962616}
   progressFill: {fileID: 418716090}
+  rentLabel: {fileID: 735180438}
+  balanceLabel: {fileID: 152472129}
+  statusLabel: {fileID: 1863008307}
+  resultLabel: {fileID: 620950669}
 --- !u!1 &689711502
 GameObject:
   m_ObjectHideFlags: 0
