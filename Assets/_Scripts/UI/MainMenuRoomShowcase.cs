@@ -14,14 +14,22 @@ using UnityEngine.Rendering.Universal;
 [DisallowMultipleComponent]
 public sealed class MainMenuRoomShowcase : MonoBehaviour
 {
-    public const int CurrentBuildVersion = 3;
+    // 4: ゲーム本編と同じ街並み（RoomiesNeighborhood）も背景に置くようにした
+    // 5-6: キャラとカメラをリビングの床の高さへ移した
+    // 7: コピーした部屋の当たり判定を外した（巨大MeshColliderの警告対策）
+    public const int CurrentBuildVersion = 7;
 
-    // 構図（1920x1080想定）
-    private static readonly Vector3 CameraPosition = new Vector3(21.4f, 7.15f, 19.7f);
-    private static readonly Vector3 FallbackSubject = new Vector3(17.3f, 5.72f, 16.73f);
-    private const float SubjectEyeHeight = 0.45f;   // 足元基準からの見上げ補正
-    private const float FrameBias        = 1.15f;   // 被写体を画面右へ寄せる量
-    private const float FieldOfView      = 40f;
+    // 構図（1920x1080想定）。シェアハウスのリビング（床の高さ 約3.3）の中から写す
+    [Header("構図")]
+    [Tooltip("カメラの位置（ワールド座標）。")]
+    [SerializeField] private Vector3 cameraAnchor = new Vector3(21.4f, 5.3f, 19.7f);
+    [Tooltip("キャラがいないときに見る位置。")]
+    [SerializeField] private Vector3 fallbackSubject = new Vector3(17.3f, 4.18f, 16.73f);
+    [Tooltip("足元基準からの見上げ補正。")]
+    [SerializeField] private float subjectEyeHeight = 0.45f;
+    [Tooltip("被写体を画面右へ寄せる量。")]
+    [SerializeField] private float frameBias = 1.15f;
+    [SerializeField] private float fieldOfView = 40f;
 
     [SerializeField] private Transform roomRoot;
     [SerializeField] private Transform[] characters;
@@ -60,11 +68,9 @@ public sealed class MainMenuRoomShowcase : MonoBehaviour
         ConfigurePostProcessing();
         ConfigureLighting();
 
-        if (roomRoot != null)
-        {
-            foreach (Collider collider in roomRoot.GetComponentsInChildren<Collider>(true))
-                collider.enabled = false;
-        }
+        // 背景は見せるだけ。部屋・街並みの当たり判定は使わない
+        foreach (Collider collider in GetComponentsInChildren<Collider>(true))
+            collider.enabled = false;
     }
 
     private void PrepareCharacters()
@@ -103,9 +109,9 @@ public sealed class MainMenuRoomShowcase : MonoBehaviour
     /// </summary>
     private void FrameSubject()
     {
-        cameraPosition = CameraPosition;
+        cameraPosition = cameraAnchor;
 
-        Vector3 subject = FallbackSubject;
+        Vector3 subject = fallbackSubject;
         int counted = 0;
         Vector3 sum = Vector3.zero;
         for (int i = 0; i < characters.Length; i++)
@@ -118,7 +124,7 @@ public sealed class MainMenuRoomShowcase : MonoBehaviour
 
         Vector3 forward = (subject - cameraPosition).normalized;
         Vector3 right = Vector3.Cross(Vector3.up, forward).normalized;
-        cameraFocus = subject + Vector3.up * SubjectEyeHeight - right * FrameBias;
+        cameraFocus = subject + Vector3.up * subjectEyeHeight - right * frameBias;
     }
 
     private void ApplyCamera()
@@ -129,7 +135,7 @@ public sealed class MainMenuRoomShowcase : MonoBehaviour
         showcaseCamera.transform.position = cameraPosition;
         showcaseCamera.transform.rotation =
             Quaternion.LookRotation(cameraFocus - cameraPosition, Vector3.up);
-        showcaseCamera.fieldOfView = FieldOfView;
+        showcaseCamera.fieldOfView = fieldOfView;
         showcaseCamera.clearFlags = CameraClearFlags.Skybox;
 
         if (skyboxMaterial != null)
@@ -183,7 +189,14 @@ public sealed class MainMenuRoomShowcase : MonoBehaviour
 
     private void ConfigureLighting()
     {
-        Light directional = FindAnyObjectByType<Light>();
+        // 街並みにも街灯のライトがあるので、太陽（Directional）だけを選ぶ
+        Light directional = null;
+        foreach (Light candidate in FindObjectsByType<Light>(FindObjectsSortMode.None))
+        {
+            if (candidate.type != LightType.Directional) continue;
+            directional = candidate;
+            break;
+        }
         if (directional != null)
         {
             directional.color = new Color(1f, 0.91f, 0.80f);

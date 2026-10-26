@@ -1,5 +1,56 @@
 # PROGRESS.md
 
+## 2026/10/26｜タイトルの「あそぶ」が押せない・背景が古い箱の部屋のままだったのを直した
+
+ブランチ `fix/menu-title-play`（`fix/ui-banner-continue-tests` f98c868 から切った）。
+
+### 原因
+1. **「あそぶ」が押せない**（`MenuThemer`）
+   - 10/23 にメニューをシーンの実体にしたとき、組み立て（`EditorBuildUI`）をエディタ専用にした。
+     ボタンの反応は組み立ての中で `AddListener` していたが、これはシーンに保存されない。
+     そのため、実行中は「あそぶ」「もどる」「設定」が何もしなかった（10/25 の記録の「気になった点」のとおり）
+   - 設定画面（`MainMenuSettingsUI`）も同じで、スライダーとボタンの参照・反応が実行時に空だった
+2. **背景が箱の部屋**（`MainMenuRoomShowcase` / `MainMenuShowcaseBuilder`）
+   - タイトルの背景は 8/3 に GameRoom の `Demo`（箱の部屋）をコピーしたもので、そのあと一度も作り直していなかった。
+     9/5 に本編へ入れた街並み（`RoomiesNeighborhood`＝シェアハウスのリビング）は入っていなかった
+   - 本編のプレイヤーの床は 約3.3（シェアハウス）。タイトルのキャラは古い箱の部屋の 5.72 に立っていて、
+     街並みを入れると屋根に埋まる位置だった
+3. **ボタンの位置ずれ**：組み立て中に登場アニメ（`UIPopIn`）を動かしていたため、
+   飛び込み前の 46px 下にずれた位置がシーンに保存されていた。「部屋をつくる」がキャッチコピーに重なっていた
+
+### 今回の変更
+- `MenuThemer`：`Awake` の `WireUI` で、あそぶ／もどる／設定 の反応を結ぶ。`Start` で最初の表示（あそぶだけ）にする。
+  設定ボタンと設定画面も `[SerializeField]` で持つ。参照が空のときだけ、組み立てで付けた名前で探す。
+  登場アニメはエディタでは動かさない
+- `MainMenuSettingsUI`：部品の参照を `[SerializeField]` にし、`Bind` で実行時に反応を結ぶ。
+  `Initialize`（組み立て）はすでに置いてあれば作り直さない
+- `MainMenuRoomShowcase`：カメラ位置などの数値を `[SerializeField]` に出した（リビングの中から写す構図）。
+  当たり判定を背景全体で止める。太陽は Directional のライトだけを選ぶ（街灯のライトを拾わない）
+- `MainMenuShowcaseBuilder`：GameRoom の `Roomies_EnvironmentArt`（`RoomiesNeighborhood` プレハブ）を、プレハブのまま上書きもそろえて置く。
+  キャラはリビングの床（本編の Player と同じ Bob の高さ 4.18）に置く。コピーした部屋の当たり判定は外す
+  （8/3 に消した pCube4 の巨大 MeshCollider 警告が戻らないように）
+- `MainMenuSteam.unity`：上の組み立て（版 7）と `Roomies/UI/Build Menu` を実行して保存。
+  「続きから」ボタンの位置（10/25 の変更）もこれで反映された
+
+### 確認状況
+- コンパイル：エラー0（警告は既存と同じ種類。`FindObjectsSortMode` の非推奨が `MainMenuRoomShowcase` にも1つ増えた）
+- **Play Mode（BootScene から）で確認した**（UnitySkills の REST 経由。クリックは `Button.onClick` を呼び出して代用）
+  - タイトルの背景がシェアハウスのリビング（本編と同じ家）になった
+  - 「あそぶ」→ 部屋をつくる／部屋にはいる／もどる が出る。「もどる」で戻る
+  - 「設定」→ 設定画面が開く
+  - 「部屋をつくる」→ ロビー（ルームコード表示）→「ゲーム開始」→ GameRoom が読み込まれ DAY 1 が始まる。Console エラー0
+- **未確認**
+  - 実際のマウスでのクリック（onClick を直接呼んだだけ）
+  - 設定画面のスライダーを動かしたときの保存（開くところまで）。
+    エディターの PlayerPrefs は 感度0.05・マスター音量0 になっていた（今回は触っていない。前からの値）
+  - ビルドした exe での表示
+  - タイトルのキャラ3人は背中を向けている（8/3 からの向きのまま。今回は変えていない）
+- EditModeテスト：245件中 231成功・13失敗・1スキップ。失敗は `RoomiesRegressionTests` のネットワーク系13件で、
+  10/23 の報告ファイルの13件と同じ（10/25 の修正は Unity で実行されておらず、直っていなかった）。今回の変更とは無関係なので触っていない
+- 後始末：動作確認でできたセーブ（9:49 作成、Day 1・¥1,000）は `roomies_save.json.bak-20261026` に名前を変えて残した。
+  診断用のスクショ（`Assets/Screenshots/_diag_*`）は消した
+- 作業ツリーの自分以外の差分（`Player.prefab`、`LiberationSans SDF - Fallback.asset`）はコミットに混ぜていない
+
 ## 2026/10/25｜夜バナーの見出し・□の記号・「続きから」ボタン・EditModeテストを直した（コードのみ）
 
 ブランチ `fix/ui-banner-continue-tests`（`fix/bob-eye-black` 6f72747 から切ったので、Bobの目の修正も含む）。

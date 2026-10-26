@@ -9,17 +9,87 @@ public sealed class MainMenuSettingsUI : MonoBehaviour
     private const float PanelWidth  = 760f;
     private const float PanelHeight = 560f;
 
-    private CanvasGroup group;
-    private Slider sensitivity;
-    private Slider volume;
-    private TMP_Text sensitivityValue;
-    private TMP_Text volumeValue;
-    private TMP_Text fullscreenValue;
-    private Button closeButton;
+    // シーンに置いた設定画面の部品（組み立てで入る。空なら Bind が名前で探す）
+    [SerializeField] private CanvasGroup group;
+    [SerializeField] private Slider sensitivity;
+    [SerializeField] private Slider volume;
+    [SerializeField] private TMP_Text sensitivityValue;
+    [SerializeField] private TMP_Text volumeValue;
+    [SerializeField] private TMP_Text fullscreenValue;
+    [SerializeField] private Button fullscreenButton;
+    [SerializeField] private Button closeButton;
 
+    private bool wired;
+
+    /// <summary>
+    /// 実行時に、シーンに置いてある設定画面へ参照とボタンの反応を結ぶ。
+    /// エディタで組み立てたときの AddListener はシーンに保存されないため、ここでつなぎ直す。
+    /// 部品の名前は Initialize が付ける名前と同じ（変えるときは両方そろえる）。
+    /// </summary>
+    public bool Bind(Transform parent)
+    {
+        if (wired) return true;
+
+        if (group == null && parent != null)
+        {
+            Transform overlay = parent.Find("MainMenuSettings");
+            if (overlay != null)
+            {
+                group = overlay.GetComponent<CanvasGroup>();
+                sensitivity = FindComponent<Slider>(overlay, "マウス感度Slider");
+                volume = FindComponent<Slider>(overlay, "マスター音量Slider");
+                sensitivityValue = FindComponent<TMP_Text>(overlay, "マウス感度Value");
+                volumeValue = FindComponent<TMP_Text>(overlay, "マスター音量Value");
+                fullscreenButton = FindComponent<Button>(overlay, "FullscreenButton");
+                closeButton = FindComponent<Button>(overlay, "CloseButton");
+                if (fullscreenButton != null)
+                    fullscreenValue = fullscreenButton.GetComponentInChildren<TMP_Text>(true);
+            }
+        }
+
+        if (group == null || sensitivity == null || volume == null || sensitivityValue == null ||
+            volumeValue == null || fullscreenButton == null || fullscreenValue == null || closeButton == null)
+            return false;
+
+        GameSettings.EnsureInitialized();
+        WireListeners();
+        SetVisible(false);
+        wired = true;
+        return true;
+    }
+
+    private void WireListeners()
+    {
+        sensitivity.onValueChanged.AddListener(value =>
+        {
+            GameSettings.SetMouseSensitivity(value);
+            sensitivityValue.text = value.ToString("0.00");
+        });
+        volume.onValueChanged.AddListener(value =>
+        {
+            GameSettings.SetMasterVolume(value);
+            volumeValue.text = $"{Mathf.RoundToInt(value * 100f)}%";
+        });
+        fullscreenButton.onClick.AddListener(() =>
+        {
+            GameSettings.SetFullscreen(!GameSettings.Fullscreen);
+            RefreshValues();
+        });
+        closeButton.onClick.AddListener(Close);
+    }
+
+    private static T FindComponent<T>(Transform root, string name) where T : Component
+    {
+        foreach (T component in root.GetComponentsInChildren<T>(true))
+            if (component.name == name) return component;
+        return null;
+    }
+
+    /// <summary>設定画面を組み立てる（エディタの配置ツールから呼ぶ。すでにあれば作らない）。</summary>
     public void Initialize(Transform parent)
     {
-        if (group != null || parent == null) return;
+        if (parent == null) return;
+        if (group != null || parent.Find("MainMenuSettings") != null) return;
         GameSettings.EnsureInitialized();
 
         var overlay = new GameObject("MainMenuSettings", typeof(RectTransform), typeof(Image));
@@ -45,35 +115,20 @@ public sealed class MainMenuSettingsUI : MonoBehaviour
 
         sensitivity = CreateSlider(
             panelGo.transform, "マウス感度", 158f, 0.05f, 1.5f, out sensitivityValue);
-        sensitivity.onValueChanged.AddListener(value =>
-        {
-            GameSettings.SetMouseSensitivity(value);
-            sensitivityValue.text = value.ToString("0.00");
-        });
 
         volume = CreateSlider(
             panelGo.transform, "マスター音量", 256f, 0f, 1f, out volumeValue);
-        volume.onValueChanged.AddListener(value =>
-        {
-            GameSettings.SetMasterVolume(value);
-            volumeValue.text = $"{Mathf.RoundToInt(value * 100f)}%";
-        });
 
-        Button fullscreenButton = CreateButton(
+        fullscreenButton = CreateButton(
             panelGo.transform, "FullscreenButton", "", 350f,
             UITheme.Cyan, Color.white, 420f, 76f);
         fullscreenValue = fullscreenButton.GetComponentInChildren<TMP_Text>();
-        fullscreenButton.onClick.AddListener(() =>
-        {
-            GameSettings.SetFullscreen(!GameSettings.Fullscreen);
-            RefreshValues();
-        });
 
         closeButton = CreateButton(
             panelGo.transform, "CloseButton", "もどる", 446f,
             UITheme.Pink, Color.white, 300f, 76f);
-        closeButton.onClick.AddListener(Close);
 
+        // 押したときの処理は実行時に Bind で結ぶ（ここで AddListener してもシーンに残らない）
         SetVisible(false);
     }
 

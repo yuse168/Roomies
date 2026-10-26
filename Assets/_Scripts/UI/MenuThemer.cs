@@ -36,6 +36,9 @@ public class MenuThemer : MonoBehaviour
     [SerializeField] private Button joinButton;
     [Tooltip("「続きから」。あそぶを押して部屋の選択に移る間は隠す。")]
     [SerializeField] private Button continueButton;
+    [Tooltip("左下の「設定」。押すと settings を開く。")]
+    [SerializeField] private Button settingsButton;
+    [SerializeField] private MainMenuSettingsUI settings;
 
     private const float ContinueW = 400f;
 
@@ -48,7 +51,40 @@ public class MenuThemer : MonoBehaviour
             Debug.LogError(
                 "[UI] メニューの中身が空です。" +
                 "メニュー『Roomies/UI/Build Menu』でシーンに置き直してください。", this);
+            return;
         }
+        WireUI();
+    }
+
+    private void Start()
+    {
+        // 最初は「あそぶ」だけ。つくる/はいる/もどる は隠しておく
+        HidePlayOptions();
+    }
+
+    /// <summary>
+    /// ボタンの反応を結ぶ（実行時）。
+    /// エディタの組み立て（EditorBuildUI）で AddListener しても、その反応はシーンに保存されない。
+    /// そのため、押したときの処理はここで毎回つなぐ。
+    /// 参照が空のときだけ、組み立てで付けた名前（PlayBackButton など）で探す。
+    /// </summary>
+    private void WireUI()
+    {
+        Transform root = playButton.transform.parent;
+        if (playBackButton == null) playBackButton = FindIn(root, "PlayBackButton")?.GetComponent<Button>();
+        if (hostButton == null) hostButton = FindIn(root, "HostButton")?.GetComponent<Button>();
+        if (joinButton == null) joinButton = FindIn(root, "JoinButton")?.GetComponent<Button>();
+        if (continueButton == null) continueButton = FindIn(root, "ContinueButton")?.GetComponent<Button>();
+        if (settingsButton == null) settingsButton = FindIn(root, "SettingsButton")?.GetComponent<Button>();
+        if (settings == null) settings = GetComponent<MainMenuSettingsUI>();
+
+        playButton.onClick.AddListener(ShowPlayOptions);
+        if (playBackButton != null) playBackButton.onClick.AddListener(HidePlayOptions);
+
+        if (settings != null && settings.Bind(root) && settingsButton != null)
+            settingsButton.onClick.AddListener(settings.Open);
+        else
+            Debug.LogWarning("[UI] メニューの設定画面が見つかりません。『Roomies/UI/Build Menu』で置き直してください。", this);
     }
 
 #if UNITY_EDITOR
@@ -137,15 +173,14 @@ public class MenuThemer : MonoBehaviour
         if (hostButton != null) UITheme.StylePill(hostButton, UITheme.Pink, Color.white, 32f, 10f);
         if (joinButton != null) UITheme.StylePill(joinButton, UITheme.Cyan, Color.white, 32f, 10f);
 
+        // 押したときの処理は実行時に WireUI で結ぶ（ここで AddListener してもシーンに残らない）
         playBackButton = CreatePill(root, "PlayBackButton", "もどる",
             new Vector2(Margin + 596f, ActionY), new Vector2(132f, ActionH),
             UITheme.Grape, Color.white, 24f);
-        playBackButton.onClick.AddListener(HidePlayOptions);
 
         playButton = CreatePill(root, "PlayButton", "あそぶ",
             new Vector2(Margin, ActionY), new Vector2(480f, ActionH),
             UITheme.Pink, Color.white, 48f, 12f);
-        playButton.onClick.AddListener(ShowPlayOptions);
         PopIn(playButton.gameObject, 0.12f);
 
         // --- 続きから（あそぶの右。セーブがあるときだけ MainMenuManager が表示する） ---
@@ -169,14 +204,13 @@ public class MenuThemer : MonoBehaviour
         }
 
         // --- フッター（設定・やめる） ---
-        Button settingsButton = CreatePill(root, "SettingsButton", "設定",
+        settingsButton = CreatePill(root, "SettingsButton", "設定",
             new Vector2(Margin, FooterY), new Vector2(190f, FooterH),
             UITheme.Grape, Color.white, 24f, 6f);
 
-        var settings = GetComponent<MainMenuSettingsUI>();
+        settings = GetComponent<MainMenuSettingsUI>();
         if (settings == null) settings = gameObject.AddComponent<MainMenuSettingsUI>();
         settings.Initialize(root);
-        settingsButton.onClick.AddListener(settings.Open);
         PopIn(settingsButton.gameObject, 0.16f);
 
         var quit = FindIn(root, "QuitButton");
@@ -754,6 +788,8 @@ public class MenuThemer : MonoBehaviour
     private static void PopIn(GameObject go, float delay)
     {
         if (go == null) return;
+        // エディタの組み立て中に動かすと、飛び込み前のずれ（46px下）がそのままシーンに保存されてしまう
+        if (!Application.isPlaying) return;
         var pop = go.GetComponent<UIPopIn>();
         if (pop == null) pop = go.AddComponent<UIPopIn>();
         pop.Play(delay);
