@@ -171,7 +171,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 0, y: -70}
+  m_AnchoredPosition: {x: 0, y: -50}
   m_SizeDelta: {x: 820, y: 110}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!222 &3449913612146887661
@@ -559,7 +559,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0}
   m_AnchorMax: {x: 0.5, y: 0}
-  m_AnchoredPosition: {x: 180, y: 110}
+  m_AnchoredPosition: {x: 180, y: 50}
   m_SizeDelta: {x: 320, y: 84}
   m_Pivot: {x: 0.5, y: 0}
 --- !u!222 &8410256916208739834
@@ -703,6 +703,7 @@ MonoBehaviour:
   menuButton: {fileID: 2992540617314392105}
   title: GAME OVER
   reasonFormat: "\u5BB6\u8CC3 \xA5{0:N0} \u3092\u6255\u3048\u306A\u304B\u3063\u305F\u3002\n\u5927\u5BB6\u3055\u3093\u306B\u8FFD\u3044\u51FA\u3055\u308C\u307E\u3057\u305F\u2026\u2026"
+  menuSceneName: MainMenuSteam
 --- !u!223 &537865430885610850
 Canvas:
   m_ObjectHideFlags: 0
@@ -801,8 +802,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 0, y: -200}
-  m_SizeDelta: {x: 760, y: 140}
+  m_AnchoredPosition: {x: 0, y: -176}
+  m_SizeDelta: {x: 760, y: 170}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!222 &1515158298248671003
 CanvasRenderer:
@@ -943,7 +944,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 880, y: 460}
+  m_SizeDelta: {x: 880, y: 560}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &7710058647841867850
 CanvasRenderer:
@@ -1019,7 +1020,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0}
   m_AnchorMax: {x: 0.5, y: 0}
-  m_AnchoredPosition: {x: -180, y: 110}
+  m_AnchoredPosition: {x: -180, y: 50}
   m_SizeDelta: {x: 320, y: 84}
   m_Pivot: {x: 0.5, y: 0}
 --- !u!222 &425902569846947620

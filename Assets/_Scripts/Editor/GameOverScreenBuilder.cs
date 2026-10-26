@@ -61,19 +61,21 @@ internal static class GameOverScreenBuilder
             cardRect.anchorMin = new Vector2(0.5f, 0.5f);
             cardRect.anchorMax = new Vector2(0.5f, 0.5f);
             cardRect.pivot = new Vector2(0.5f, 0.5f);
-            cardRect.sizeDelta = new Vector2(880f, 460f);
+            cardRect.sizeDelta = new Vector2(880f, GameOverScreen.CardHeight);
 
+            // 並びは GameOverScreen の定数（理由の文が3行でもボタンに重ならない）
             TextMeshProUGUI title = Label(cardRect, "Title", "GAME OVER", 86f, Red,
-                new Vector2(0f, -70f), new Vector2(820f, 110f));
+                new Vector2(0f, GameOverScreen.TitleTop), new Vector2(820f, GameOverScreen.TitleHeight));
             TextMeshProUGUI reason = Label(cardRect, "Reason",
                 "家賃 ¥0 を払えなかった。\n大家さんに追い出されました……",
-                34f, Paper, new Vector2(0f, -200f), new Vector2(760f, 140f));
+                34f, Paper, new Vector2(0f, GameOverScreen.ReasonTop),
+                new Vector2(760f, GameOverScreen.ReasonHeight));
             reason.fontStyle = FontStyles.Normal;
 
             Button retry = CreateButton(cardRect, "RetryButton", "もう一度", Lime,
-                new Vector2(-180f, 110f));
+                new Vector2(-180f, GameOverScreen.ButtonBottom));
             Button menu = CreateButton(cardRect, "MenuButton", "メインメニューへ", Paper,
-                new Vector2(180f, 110f));
+                new Vector2(180f, GameOverScreen.ButtonBottom));
 
             var serialized = new SerializedObject(screen);
             Assign(serialized, "root", content);

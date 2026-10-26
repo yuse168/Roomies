@@ -56,7 +56,29 @@ public sealed class RentPaymentUI : MonoBehaviour
         if (resultLabel != null) resultLabel.gameObject.SetActive(false);
     }
 
+    // カード（高さ560）の中の並び。請求額（上から208〜308）の下に残高、その下に進み具合のバー。
+    // 残高の行とバーが重ならない位置にしてある（配置ツールと EditorFixLayout の両方で使う）。
+    public const float BalanceTop   = -316f;  // 上端から（316〜362）
+    public const float ProgressBarY = -112f;  // カードの中心から（上から 381〜403）
+
 #if UNITY_EDITOR
+    /// <summary>
+    /// 置いてある画面の残高の行と進み具合のバーを、重ならない位置へ動かす。色・文言・フォントは変えない。
+    /// 配置ツール `Roomies/UI/Fix Overlapping Layouts` から呼ぶ。直せたら true。
+    /// </summary>
+    public bool EditorFixLayout()
+    {
+        if (balanceLabel == null || card == null) return false;
+        var bar = card.transform.Find("ProgressBar") as RectTransform;
+        if (bar == null) return false;
+
+        UnityEditor.Undo.RecordObjects(new Object[] { balanceLabel.rectTransform, bar }, "Fix rent payment layout");
+        var balanceRt = balanceLabel.rectTransform;
+        balanceRt.anchoredPosition = new Vector2(balanceRt.anchoredPosition.x, BalanceTop);
+        bar.anchoredPosition = new Vector2(bar.anchoredPosition.x, ProgressBarY);
+        return true;
+    }
+
     /// <summary>
     /// すでに置いてある画面の文字（請求額・残高・状態・結果）を、組み立てで付けた名前で探して参照に入れる。
     /// 以前は参照がシーンに保存されない作りだったので、置き直さずに直すための道具。
@@ -138,12 +160,12 @@ public sealed class RentPaymentUI : MonoBehaviour
         balanceLabel = CreateLabel(card.transform, "Balance", "", 30f,
             new Color(1f, 1f, 1f, 0.72f), true);
         SetRect(balanceLabel.rectTransform, new Vector2(0.5f, 1f),
-            new Vector2(840f, 46f), new Vector2(0f, -292f));
+            new Vector2(840f, 46f), new Vector2(0f, BalanceTop));
 
         var barBg = CreateChip(card.transform, "ProgressBar",
             new Color(0f, 0f, 0f, 0.42f), 11f);
         SetRect(barBg.rectTransform, new Vector2(0.5f, 0.5f),
-            new Vector2(760f, 22f), new Vector2(0f, -48f));
+            new Vector2(760f, 22f), new Vector2(0f, ProgressBarY));
 
         progressFill = CreateChip(barBg.transform, "Fill", Orange, 11f);
         var fillRt = progressFill.rectTransform;

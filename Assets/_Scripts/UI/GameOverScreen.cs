@@ -37,6 +37,52 @@ public class GameOverScreen : MonoBehaviour
 
     private bool isLeaving;
 
+    // カードの中の並び（上から）。理由の文が3行（34pt）になってもボタンに重ならない高さにしてある。
+    // 配置ツール（GameOverScreenBuilder）と、置いてある画面の直し（EditorFixLayout）の両方で使う。
+    public const float CardHeight   = 560f;
+    public const float TitleTop     = -50f;
+    public const float TitleHeight  = 110f;
+    public const float ReasonTop    = -176f;
+    public const float ReasonHeight = 170f;
+    public const float ButtonBottom = 50f;
+
+#if UNITY_EDITOR
+    /// <summary>
+    /// 置いてある画面の並びを直す（見出し・理由・ボタンを重ならない位置へ）。色・文言・フォントは変えない。
+    /// 配置ツール `Roomies/UI/Fix Overlapping Layouts` から呼ぶ。直せたら true。
+    /// </summary>
+    public bool EditorFixLayout()
+    {
+        if (titleLabel == null || reasonLabel == null || retryButton == null || menuButton == null) return false;
+        if (!(titleLabel.transform.parent is RectTransform card)) return false;
+
+        var rects = new Object[]
+        {
+            card, titleLabel.rectTransform, reasonLabel.rectTransform,
+            retryButton.transform, menuButton.transform,
+        };
+        UnityEditor.Undo.RecordObjects(rects, "Fix game over layout");
+
+        card.sizeDelta = new Vector2(card.sizeDelta.x, CardHeight);
+        SetTop(titleLabel.rectTransform, TitleTop, TitleHeight);
+        SetTop(reasonLabel.rectTransform, ReasonTop, ReasonHeight);
+        SetBottom((RectTransform)retryButton.transform, ButtonBottom);
+        SetBottom((RectTransform)menuButton.transform, ButtonBottom);
+        return true;
+    }
+
+    private static void SetTop(RectTransform rect, float top, float height)
+    {
+        rect.anchoredPosition = new Vector2(rect.anchoredPosition.x, top);
+        rect.sizeDelta = new Vector2(rect.sizeDelta.x, height);
+    }
+
+    private static void SetBottom(RectTransform rect, float bottom)
+    {
+        rect.anchoredPosition = new Vector2(rect.anchoredPosition.x, bottom);
+    }
+#endif
+
     private void Awake()
     {
         if (Instance != null && Instance != this)

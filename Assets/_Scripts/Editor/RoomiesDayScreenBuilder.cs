@@ -172,6 +172,38 @@ internal static class RoomiesDayScreenBuilder
         Debug.Log("[UI] 家賃の画面の文字を参照に入れました（シーンを保存してください）");
     }
 
+    /// <summary>
+    /// 置いてあるゲームオーバー画面と家賃の画面の重なりを直す（位置と余白だけ。色・文言・フォントは変えない）。
+    /// 何度実行しても同じ結果。GameRoomUI を開いて実行する。
+    /// </summary>
+    [MenuItem("Roomies/UI/Fix Overlapping Layouts")]
+    private static void FixOverlappingLayouts()
+    {
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            Debug.LogError("[UI] Play Modeを抜けてから実行してください。");
+            return;
+        }
+
+        var gameOver = Object.FindAnyObjectByType<GameOverScreen>(FindObjectsInactive.Include);
+        var rent = Object.FindAnyObjectByType<RentPaymentUI>(FindObjectsInactive.Include);
+        if (gameOver == null || rent == null)
+        {
+            Debug.LogError("[UI] ゲームオーバー画面か家賃の画面が見つかりません。GameRoomUI シーンを開いてから実行してください。");
+            return;
+        }
+
+        bool gameOverFixed = gameOver.EditorFixLayout();
+        bool rentFixed = rent.EditorFixLayout();
+        if (!gameOverFixed) Debug.LogError("[UI] ゲームオーバー画面の部品が足りないので直せません。", gameOver);
+        if (!rentFixed) Debug.LogError("[UI] 家賃の画面の部品が足りないので直せません。", rent);
+        if (!gameOverFixed || !rentFixed) return;
+
+        EditorSceneManager.MarkSceneDirty(gameOver.gameObject.scene);
+        EditorSceneManager.MarkSceneDirty(rent.gameObject.scene);
+        Debug.Log("[UI] ゲームオーバー画面と家賃の画面の重なりを直しました（シーンを保存してください）");
+    }
+
     [MenuItem("Roomies/UI/Build Night Banner")]
     private static void BuildNightBanner()
     {
