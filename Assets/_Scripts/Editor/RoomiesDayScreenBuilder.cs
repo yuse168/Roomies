@@ -204,6 +204,47 @@ internal static class RoomiesDayScreenBuilder
         Debug.Log("[UI] ゲームオーバー画面と家賃の画面の重なりを直しました（シーンを保存してください）");
     }
 
+    /// <summary>
+    /// 置いてあるポーズ画面（GameRoomUI）とロビー（MainMenuSteam）の並びを直す。開いているシーンにある方だけ直す。
+    /// 位置と大きさだけで、色・文言・ボタンの反応は変えない。何度実行しても同じ結果。
+    /// </summary>
+    [MenuItem("Roomies/UI/Fix Pause And Lobby Layouts")]
+    private static void FixPauseAndLobbyLayouts()
+    {
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            Debug.LogError("[UI] Play Modeを抜けてから実行してください。");
+            return;
+        }
+
+        bool any = false;
+        var esc = Object.FindAnyObjectByType<EscMenuUI>(FindObjectsInactive.Include);
+        if (esc != null)
+        {
+            any = true;
+            if (esc.EditorFixLayout())
+            {
+                EditorSceneManager.MarkSceneDirty(esc.gameObject.scene);
+                Debug.Log("[UI] ポーズ画面の並びを直しました（シーンを保存してください）");
+            }
+            else Debug.LogError("[UI] ポーズ画面の部品が足りないので一部直せませんでした。", esc);
+        }
+
+        var menu = Object.FindAnyObjectByType<MenuThemer>(FindObjectsInactive.Include);
+        if (menu != null)
+        {
+            any = true;
+            if (MenuThemer.EditorFixLobbyLayout())
+            {
+                EditorSceneManager.MarkSceneDirty(menu.gameObject.scene);
+                Debug.Log("[UI] ロビーの名札の列を直しました（シーンを保存してください）");
+            }
+            else Debug.LogError("[UI] ロビーの部品（PlayersLabel / PlayerListParent）が見つかりません。", menu);
+        }
+
+        if (!any) Debug.LogError("[UI] GameRoomUI か MainMenuSteam を開いてから実行してください。");
+    }
+
     [MenuItem("Roomies/UI/Build Night Banner")]
     private static void BuildNightBanner()
     {

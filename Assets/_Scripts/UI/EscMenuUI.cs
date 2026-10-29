@@ -33,6 +33,34 @@ public sealed class EscMenuUI : MonoBehaviour
 
     public static bool IsOpen { get; private set; }
 
+    // ---- 並べ方（カードの幅 820。左右の余白をそろえ、中身がカードからはみ出さないようにする） ----
+    // 組み立て（EditorBuildUI）と、置いてある画面を直す EditorFixLayout が同じ値を使う。
+    const float CardWidth = 820f;
+    const float RowLeft = 62f;                                  // 行の見出しの左端
+    const float RowRight = CardWidth - RowLeft;                 // 行の右端（758）
+    const float SliderLeft = 330f, SliderWidth = 300f;
+    const float SliderValueLeft = 640f, SliderValueWidth = RowRight - SliderValueLeft;
+    const float ToggleWidth = 300f, ToggleLeft = RowRight - ToggleWidth;
+    const float ArrowWidth = 62f, CycleValueWidth = 226f, CycleGap = 8f;
+    const float CycleNextLeft = RowRight - ArrowWidth;
+    const float CycleValueLeft = CycleNextLeft - CycleGap - CycleValueWidth;
+    const float CyclePreviousLeft = CycleValueLeft - CycleGap - ArrowWidth;
+    const float BottomButtonWidth = 330f, BottomButtonTop = 695f, BottomButtonHeight = 56f;
+    const float NoticeWidth = 760f, NoticeLeft = (CardWidth - NoticeWidth) * 0.5f;
+    const float TopSensitivity = 164f, TopVolume = 242f, TopScreenMode = 320f;
+    const float TopResolution = 398f, TopQuality = 476f, TopCameraMotion = 554f;
+    // キー設定：2列。行数は項目数の半分（切り上げ）。以前は5行で折り返していて、11個目が2列目の1行目に重なっていた
+    const float KeyRowTop = 166f, KeyRowStep = 72f;
+    const float KeyLabelWidth = 180f, KeyButtonOffset = 185f, KeyButtonWidth = 135f, KeyRowHeight = 54f;
+    static readonly float[] KeyColumnLefts = { RowLeft, RowRight - (KeyButtonOffset + KeyButtonWidth) };
+
+    static void KeyCell(int index, int count, out float left, out float top)
+    {
+        int rowsPerColumn = Mathf.Max(1, Mathf.CeilToInt(count / 2f));
+        left = KeyColumnLefts[Mathf.Min(index / rowsPerColumn, KeyColumnLefts.Length - 1)];
+        top = KeyRowTop + (index % rowsPerColumn) * KeyRowStep;
+    }
+
     [Header("シーンに置いた中身（配置ツールが入れる）")]
     [SerializeField] GameObject overlay;
     [SerializeField] CanvasGroup overlayGroup;
@@ -208,6 +236,68 @@ public sealed class EscMenuUI : MonoBehaviour
         WireUI();
     }
 
+#if UNITY_EDITOR
+    /// <summary>
+    /// 置いてあるポーズ画面の並びだけを直す（色・文言・フォント・ボタンの反応は変えない）。
+    /// 設定の行がカードの右端からはみ出す・文字が右に寄る・キー設定の11個目が重なる、を直す。
+    /// 配置ツール `Roomies/UI/Fix Pause And Lobby Layouts` から呼ぶ。何度実行しても同じ結果。直せたら true。
+    /// </summary>
+    public bool EditorFixLayout()
+    {
+        if (card == null || mainGroup == null || settingsGroup == null || keybindGroup == null) return false;
+        UnityEditor.Undo.RecordObjects(card.GetComponentsInChildren<RectTransform>(true), "Fix pause menu layout");
+
+        card.sizeDelta = new Vector2(CardWidth, card.sizeDelta.y);
+        Transform main = mainGroup.transform, settings = settingsGroup.transform, keys = keybindGroup.transform;
+        bool ok = true;
+        ok &= Place(main, "OnlineNotice", NoticeLeft, 622f, NoticeWidth, 40f);
+        ok &= Place(main, "Hint", NoticeLeft, 716f, NoticeWidth, 42f);
+
+        ok &= Place(settings, "Heading", 0f, 98f, CardWidth, 48f);
+        foreach (var (name, top) in new[] { ("マウス感度", TopSensitivity), ("マスター音量", TopVolume) })
+        {
+            ok &= Place(settings, name + "Label", RowLeft, top, 250f, 58f);
+            ok &= Place(settings, name + "Slider", SliderLeft, top + 8f, SliderWidth, 42f);
+            ok &= Place(settings, name + "Value", SliderValueLeft, top, SliderValueWidth, 58f);
+        }
+        foreach (var (name, top) in new[] { ("画面モード", TopScreenMode), ("カメラの揺れ", TopCameraMotion) })
+        {
+            ok &= Place(settings, name + "Label", RowLeft, top, 300f, 58f);
+            ok &= Place(settings, name + "Button", ToggleLeft, top, ToggleWidth, 58f);
+        }
+        foreach (var (name, top) in new[] { ("解像度", TopResolution), ("グラフィック品質", TopQuality) })
+        {
+            ok &= Place(settings, name + "Label", RowLeft, top, 300f, 58f);
+            ok &= Place(settings, name + "Previous", CyclePreviousLeft, top, ArrowWidth, 58f);
+            ok &= Place(settings, name + "ValueBackground", CycleValueLeft, top, CycleValueWidth, 58f);
+            ok &= Place(settings, name + "Next", CycleNextLeft, top, ArrowWidth, 58f);
+        }
+        ok &= Place(settings, "ResetButton", RowLeft, BottomButtonTop, BottomButtonWidth, BottomButtonHeight);
+        ok &= Place(settings, "BackButton", RowRight - BottomButtonWidth, BottomButtonTop, BottomButtonWidth, BottomButtonHeight);
+        ok &= Place(settings, "KeybindButton", (CardWidth - BottomButtonWidth) * 0.5f, 625f, BottomButtonWidth, 52f);
+
+        GameAction[] actions = (GameAction[])System.Enum.GetValues(typeof(GameAction));
+        for (int i = 0; i < actions.Length; i++)
+        {
+            KeyCell(i, actions.Length, out float left, out float top);
+            ok &= Place(keys, actions[i] + "Label", left, top, KeyLabelWidth, KeyRowHeight);
+            ok &= Place(keys, actions[i] + "Button", left + KeyButtonOffset, top, KeyButtonWidth, KeyRowHeight);
+        }
+        return ok;
+    }
+
+    static bool Place(Transform group, string childName, float left, float top, float width, float height)
+    {
+        if (!(group.Find(childName) is RectTransform rect))
+        {
+            Debug.LogWarning($"[UI] ポーズ画面の部品 {group.name}/{childName} が見つかりません");
+            return false;
+        }
+        SetBox(rect, left, top, width, height);
+        return true;
+    }
+#endif
+
     void BuildUI()
     {
         Canvas canvas = UITheme.CreateCanvas(transform, "EscMenuCanvas", 32000);
@@ -245,7 +335,7 @@ public sealed class EscMenuUI : MonoBehaviour
         // 以前は -470 で左に寄せていたが、画面の中央に出ないと「ずれて見える」ため中央に戻した。
         // 位置を変えたいときはインスペクターの Card Offset を使う。
         card.anchoredPosition = cardOffset;
-        card.sizeDelta = new Vector2(820f, 790f);
+        card.sizeDelta = new Vector2(CardWidth, 790f);
 
         TMP_Text title = UITheme.Label(
             card, "Title", "PAUSE", 46f, Ink,
@@ -293,12 +383,12 @@ public sealed class EscMenuUI : MonoBehaviour
             parent, "OnlineNotice",
             "オンライン中は、メニューを開いてもゲームは進み続けます",
             19f, InkSoft, TextAlignmentOptions.Center);
-        SetBox(notice.rectTransform, 70f, 622f, 760f, 40f);
+        SetBox(notice.rectTransform, NoticeLeft, 622f, NoticeWidth, 40f);
 
         TMP_Text hint = UITheme.Label(
             parent, "Hint", "ESCでもゲームにもどれます", 19f, InkSoft,
             TextAlignmentOptions.Center);
-        SetBox(hint.rectTransform, 70f, 716f, 760f, 42f);
+        SetBox(hint.rectTransform, NoticeLeft, 716f, NoticeWidth, 42f);
     }
 
     void BuildSettingsPanel(Transform parent)
@@ -306,10 +396,10 @@ public sealed class EscMenuUI : MonoBehaviour
         TMP_Text heading = UITheme.Label(
             parent, "Heading", "ゲーム設定", 34f, Ink,
             TextAlignmentOptions.Center, true);
-        SetBox(heading.rectTransform, 40f, 98f, 820f, 48f);
+        SetBox(heading.rectTransform, 0f, 98f, CardWidth, 48f);
 
         sensitivitySlider = CreateSliderRow(
-            parent, "マウス感度", 164f, 0.05f, 1.5f, out sensitivityValue);
+            parent, "マウス感度", TopSensitivity, 0.05f, 1.5f, out sensitivityValue);
         sensitivitySlider.SetValueWithoutNotify(GameSettings.MouseSensitivity);
         sensitivitySlider.onValueChanged.AddListener(value =>
         {
@@ -318,7 +408,7 @@ public sealed class EscMenuUI : MonoBehaviour
         });
 
         volumeSlider = CreateSliderRow(
-            parent, "マスター音量", 242f, 0f, 1f, out volumeValue);
+            parent, "マスター音量", TopVolume, 0f, 1f, out volumeValue);
         volumeSlider.SetValueWithoutNotify(GameSettings.MasterVolume);
         volumeSlider.onValueChanged.AddListener(value =>
         {
@@ -327,7 +417,7 @@ public sealed class EscMenuUI : MonoBehaviour
         });
 
         CreateToggleRow(
-            parent, "画面モード", 320f, out fullscreenValue,
+            parent, "画面モード", TopScreenMode, out fullscreenValue,
             () =>
             {
                 GameSettings.SetFullscreen(!GameSettings.Fullscreen);
@@ -335,7 +425,7 @@ public sealed class EscMenuUI : MonoBehaviour
             });
 
         CreateCycleRow(
-            parent, "解像度", 398f, out resolutionValue,
+            parent, "解像度", TopResolution, out resolutionValue,
             () =>
             {
                 GameSettings.SetResolutionIndex(GameSettings.ResolutionIndex - 1);
@@ -348,7 +438,7 @@ public sealed class EscMenuUI : MonoBehaviour
             });
 
         CreateCycleRow(
-            parent, "グラフィック品質", 476f, out qualityValue,
+            parent, "グラフィック品質", TopQuality, out qualityValue,
             () =>
             {
                 GameSettings.SetQualityLevel(GameSettings.QualityLevel - 1);
@@ -361,7 +451,7 @@ public sealed class EscMenuUI : MonoBehaviour
             });
 
         CreateToggleRow(
-            parent, "カメラの揺れ", 554f, out cameraMotionValue,
+            parent, "カメラの揺れ", TopCameraMotion, out cameraMotionValue,
             () =>
             {
                 GameSettings.SetCameraMotion(!GameSettings.CameraMotion);
@@ -382,12 +472,12 @@ public sealed class EscMenuUI : MonoBehaviour
             UITheme.Cyan, 490f, 330f, 64f, 24f);
         settingsBackButton.onClick.AddListener(ShowMain);
 
-        SetBox(resetButton.GetComponent<RectTransform>(), 80f, 695f, 330f, 56f);
-        SetBox(settingsBackButton.GetComponent<RectTransform>(), 490f, 695f, 330f, 56f);
+        SetBox(resetButton.GetComponent<RectTransform>(), RowLeft, BottomButtonTop, BottomButtonWidth, BottomButtonHeight);
+        SetBox(settingsBackButton.GetComponent<RectTransform>(), RowRight - BottomButtonWidth, BottomButtonTop, BottomButtonWidth, BottomButtonHeight);
 
         Button keybindButton = CreateButton(
             parent, "KeybindButton", "キー設定", 625f,
-            UITheme.Grape, 285f, 330f, 52f, 22f);
+            UITheme.Grape, (CardWidth - BottomButtonWidth) * 0.5f, BottomButtonWidth, 52f, 22f);
         keybindButton.onClick.AddListener(OpenKeyBindings);
 
         RefreshSettings();
@@ -405,19 +495,16 @@ public sealed class EscMenuUI : MonoBehaviour
         for (int i = 0; i < actions.Length; i++)
         {
             GameAction action = actions[i];
-            int column = i / 5;
-            int row = i % 5;
-            float left = column == 0 ? 42f : 412f;
-            float top = 170f + row * 88f;
+            KeyCell(i, actions.Length, out float left, out float top);
 
             TMP_Text label = UITheme.Label(
                 parent, action + "Label", GameSettings.GetActionLabel(action),
                 20f, InkSoft, TextAlignmentOptions.Left, true);
-            SetBox(label.rectTransform, left, top, 180f, 54f);
+            SetBox(label.rectTransform, left, top, KeyLabelWidth, KeyRowHeight);
 
             Button button = CreateButton(
                 parent, action + "Button", GameSettings.GetKeyLabel(action),
-                top, UITheme.Grape, left + 185f, 135f, 54f, 20f);
+                top, UITheme.Grape, left + KeyButtonOffset, KeyButtonWidth, KeyRowHeight, 20f);
             GameAction capturedAction = action;
             button.onClick.AddListener(() => BeginKeyCapture(capturedAction));
             keybindValues[action] = button.GetComponentInChildren<TMP_Text>();
@@ -679,9 +766,17 @@ public sealed class EscMenuUI : MonoBehaviour
         string[] qualityNames = QualitySettings.names;
         qualityValue.text = qualityNames.Length == 0
             ? "-"
-            : qualityNames[Mathf.Clamp(GameSettings.QualityLevel, 0, qualityNames.Length - 1)];
+            : QualityLabel(qualityNames[Mathf.Clamp(GameSettings.QualityLevel, 0, qualityNames.Length - 1)]);
         cameraMotionValue.text = GameSettings.CameraMotion ? "ON" : "OFF";
     }
+
+    // 品質の名前（Project Settings > Quality）は英語なので、画面には日本語で出す。知らない名前はそのまま
+    static string QualityLabel(string unityName) => unityName switch
+    {
+        "Mobile" => "かるい",
+        "PC" => "きれい",
+        _ => unityName,
+    };
 
     void ShowMain()
     {
@@ -855,12 +950,12 @@ public sealed class EscMenuUI : MonoBehaviour
         TMP_Text label = UITheme.Label(
             parent, labelText + "Label", labelText, 23f, Ink,
             TextAlignmentOptions.MidlineLeft, true);
-        SetBox(label.rectTransform, 82f, top, 250f, 58f);
+        SetBox(label.rectTransform, RowLeft, top, 250f, 58f);
 
         var sliderGo = new GameObject(labelText + "Slider", typeof(RectTransform));
         sliderGo.transform.SetParent(parent, false);
         RectTransform sliderRt = sliderGo.GetComponent<RectTransform>();
-        SetBox(sliderRt, 360f, top + 8f, 330f, 42f);
+        SetBox(sliderRt, SliderLeft, top + 8f, SliderWidth, 42f);
         var slider = sliderGo.AddComponent<Slider>();
         slider.minValue = min;
         slider.maxValue = max;
@@ -917,7 +1012,7 @@ public sealed class EscMenuUI : MonoBehaviour
         valueText = UITheme.Label(
             parent, labelText + "Value", "", 22f, UITheme.Sun,
             TextAlignmentOptions.Center, true);
-        SetBox(valueText.rectTransform, 710f, top, 110f, 58f);
+        SetBox(valueText.rectTransform, SliderValueLeft, top, SliderValueWidth, 58f);
         return slider;
     }
 
@@ -931,11 +1026,11 @@ public sealed class EscMenuUI : MonoBehaviour
         TMP_Text label = UITheme.Label(
             parent, labelText + "Label", labelText, 23f, Ink,
             TextAlignmentOptions.MidlineLeft, true);
-        SetBox(label.rectTransform, 82f, top, 300f, 58f);
+        SetBox(label.rectTransform, RowLeft, top, 300f, 58f);
 
         Button button = CreateButton(
             parent, labelText + "Button", "", top,
-            UITheme.Cyan, 520f, 300f, 58f, 21f);
+            UITheme.Cyan, ToggleLeft, ToggleWidth, 58f, 21f);
         valueText = button.GetComponentInChildren<TMP_Text>();
         button.onClick.AddListener(action);
     }
@@ -951,16 +1046,16 @@ public sealed class EscMenuUI : MonoBehaviour
         TMP_Text label = UITheme.Label(
             parent, labelText + "Label", labelText, 23f, Ink,
             TextAlignmentOptions.MidlineLeft, true);
-        SetBox(label.rectTransform, 82f, top, 300f, 58f);
+        SetBox(label.rectTransform, RowLeft, top, 300f, 58f);
 
         Button previousButton = CreateButton(
             parent, labelText + "Previous", "<", top,
-            UITheme.Cyan, 450f, 62f, 58f, 20f);
+            UITheme.Cyan, CyclePreviousLeft, ArrowWidth, 58f, 20f);
         previousButton.onClick.AddListener(previous);
 
         var valueBackground = UITheme.Chip(parent, labelText + "ValueBackground",
             UITheme.MenuInkSoft, 20f);
-        SetBox(valueBackground.rectTransform, 522f, top, 226f, 58f);
+        SetBox(valueBackground.rectTransform, CycleValueLeft, top, CycleValueWidth, 58f);
         valueText = UITheme.Label(
             valueBackground.transform, "Value", "", 20f, Ink,
             TextAlignmentOptions.Center, true);
@@ -968,7 +1063,7 @@ public sealed class EscMenuUI : MonoBehaviour
 
         Button nextButton = CreateButton(
             parent, labelText + "Next", ">", top,
-            UITheme.Cyan, 758f, 62f, 58f, 20f);
+            UITheme.Cyan, CycleNextLeft, ArrowWidth, 58f, 20f);
         nextButton.onClick.AddListener(next);
     }
 

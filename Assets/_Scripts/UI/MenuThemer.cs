@@ -27,6 +27,11 @@ public class MenuThemer : MonoBehaviour
     private const float ActionH     = 112f;
     private const float TaglineY    = 274f;
     private const float TitleY      = 322f;
+    // ロビーの名札の列（下からの位置）。「ゲーム開始」（下から58〜166）と重ならない高さにする。
+    // 以前は 148 で、5人のときに右端の名札が「ゲーム開始」に重なっていた
+    private const float LobbyListBottom   = 176f;
+    private const float LobbyListHeight   = 100f;
+    private const float LobbyLabelBottom  = 286f;
 
     [Header("シーンに置いた中身（配置ツールが入れる）")]
     [SerializeField] private TMP_Text waitingText;
@@ -400,6 +405,25 @@ public class MenuThemer : MonoBehaviour
     // ロビー = 「部屋の内見」画面
     // ================================================================
 
+#if UNITY_EDITOR
+    /// <summary>
+    /// 置いてあるロビーの、名札の列と見出しの高さだけを直す（ほかは変えない）。何度実行しても同じ結果。
+    /// 配置ツール `Roomies/UI/Fix Pause And Lobby Layouts` から呼ぶ。直せたら true。
+    /// </summary>
+    public static bool EditorFixLobbyLayout()
+    {
+        var label = UITheme.FindDeep("PlayersLabel");
+        var list = UITheme.FindDeep("PlayerListParent");
+        if (label == null || list == null) return false;
+        var labelRt = (RectTransform)label.transform;
+        var listRt = (RectTransform)list.transform;
+        UnityEditor.Undo.RecordObjects(new UnityEngine.Object[] { labelRt, listRt }, "Fix lobby layout");
+        SetBottomCenter(labelRt, new Vector2(0f, LobbyLabelBottom), labelRt.sizeDelta);
+        SetBottomCenter(listRt, new Vector2(0f, LobbyListBottom), new Vector2(listRt.sizeDelta.x, LobbyListHeight));
+        return true;
+    }
+#endif
+
     private void BuildLobbyPanel()
     {
         var lobbyPanel = UITheme.FindDeep("LobbyPanel");
@@ -498,7 +522,7 @@ public class MenuThemer : MonoBehaviour
             players.fontSize = 24f;
             players.enableAutoSizing = false;
             players.alignment = TextAlignmentOptions.Center;
-            SetBottomCenter(players.rectTransform, new Vector2(0f, 258f), new Vector2(760f, 36f));
+            SetBottomCenter(players.rectTransform, new Vector2(0f, LobbyLabelBottom), new Vector2(760f, 36f));
             Outline(players, 0.2f);
         }
 
@@ -507,7 +531,7 @@ public class MenuThemer : MonoBehaviour
         {
             Reparent(listParent, root);
             SetBottomCenter((RectTransform)listParent.transform,
-                new Vector2(0f, 148f), new Vector2(1560f, 100f));
+                new Vector2(0f, LobbyListBottom), new Vector2(1560f, LobbyListHeight));
         }
 
         // --- 操作 ---

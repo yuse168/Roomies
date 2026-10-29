@@ -393,6 +393,7 @@ public class LobbyUIManager : MonoBehaviour
         var plate = row.GetComponent<UnityEngine.UI.Image>();
         plate.sprite = UITheme.PillSprite;
         plate.color  = accent;
+        plate.raycastTarget = false; // 名札は押す物ではない。近くのボタン（ゲーム開始など）のクリックを横取りしない
         UITheme.SetCornerRadius(plate, plateHeight * 0.5f);
         UITheme.AddShadow(row, 0.42f, 8f);
 
@@ -474,7 +475,8 @@ public class LobbyUIManager : MonoBehaviour
         frameRt.anchorMin = new Vector2(0f, 0.5f);
         frameRt.anchorMax = new Vector2(0f, 0.5f);
         frameRt.pivot     = new Vector2(0f, 0.5f);
-        frameRt.anchoredPosition = new Vector2(avatarLeft + avatarSize * 0.5f, 0f);
+        // pivot が左端なので、位置も左端で入れる（以前は中心の値を入れていて、アイコンが名前の頭の文字に重なっていた）
+        frameRt.anchoredPosition = new Vector2(avatarLeft, 0f);
         frameRt.sizeDelta = new Vector2(avatarSize, avatarSize);
 
         var frameImg = frameGo.GetComponent<UnityEngine.UI.Image>();
