@@ -1,0 +1,5 @@
+{
+  "name": "Roomies.PlayModeTests",
+  "references": ["Unity.Netcode.Runtime"],
+  "optionalUnityReferences": ["TestAssemblies"]
+}
