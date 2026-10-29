@@ -1,5 +1,34 @@
 # PROGRESS.md
 
+## 2026/10/29｜EditModeテストのNGO 13件を直した（テスト側のみ）
+
+ブランチ `leica/roomies-20261029`（`fix/gameroom-ui-scene` 9dd3ae8 から worktree `D:\Bonchan\Roomies_leica_wt` で作業）。
+
+### 原因（3段になっていた。どれもテストの作りの問題で、ゲームのコードの不具合ではない）
+1. 10/25 の修正（NGO のメッセージ型を `OneTimeSetUp` で登録）で `StartHost` は通るようになっていた。
+   10/26 の失敗は**その次の段**で、`NetworkObject.Spawn` の中の NullReferenceException だった
+   - EditMode では `NetworkManager.OnEnable` が呼ばれず `NetworkManager.Singleton` が空。`Spawn` は Singleton を見る
+2. EditMode では `AddComponent` / `Instantiate` しても **Awake が呼ばれない**
+   - `SharedMoneyManager.Instance` が空 → 家賃・家具購入が「残高不足」になる（家賃成功・家具購入の2件）
+   - `NetworkTransform` の補間器が Awake で作られない → 鉱石・配達の箱・家具の Spawn で NRE（6件）
+3. 売る・没収で `Despawn` すると NGO が `Object.Destroy` を呼ぶが、EditMode では使えずエラーログで失敗（3件）
+
+### 今回の変更（`Assets/Tests/Editor/RoomiesRegressionTests.cs` だけ）
+- SetUp で `network.SetSingleton()`、TearDown で `ResetSingleton` を呼んで空に戻す
+- `Awaken()`：テストで作ったオブジェクトの Awake を Play Mode と同じように呼ぶ（`Spawn` / `SpawnOre` / 採掘の閉鎖テスト）
+- ゲームのコードの中で Instantiate されるプレハブ（`Nomal_Box`・`NetworkFurniture`）は、テストのあいだだけ
+  `NetworkTransform.Interpolate` を切る（メモリ上だけ。保存しない。TearDown で元に戻す）
+- 鉱石のプレハブに `EditModeDestroyHandler`（`INetworkPrefabInstanceHandler`）を登録し、Despawn で `DestroyImmediate` を使う
+
+### 確認状況
+- **EditMode 全件をバッチモードで実行した**（worktree、Unity 6000.4.7f1）
+  - 前：245件中 231成功・13失敗・1スキップ（10/26 と同じ13件）
+  - 後：**245件中 244成功・0失敗・1スキップ**（スキップは UnitySkills の Cinemachine の有無のテストで、前からのもの）
+  - 10/23 の報告にあった UnitySkills の1件（`Migration_RepeatLoad…`）は今回は成功した（環境しだいのテスト）
+- テストの期待値（金額・日数など）は1つも変えていない。13件の中身は今のゲームのコードで通った
+- 注意：Unity をバッチモードで実行すると、結果が `%USERPROFILE%\AppData\LocalLow\DefaultCompany\Roomies\TestResults.xml` にも書かれる（元のフォルダと共通の場所）
+- 未確認：エディター（GUI）の Test Runner からの実行。Play Mode に入ったあとの EditMode 実行（`OneTimeTearDown` で登録を空に戻すので問題ないはず）
+
 ## 2026/10/26｜ゲームオーバー画面と家賃の画面の重なりを直した
 
 ブランチ `fix/gameroom-ui-scene` の続き。色・文言・フォントは変えていない（位置と余白だけ）。

@@ -38,8 +38,40 @@ public class RoomiesRegressionTests
         var no = go.AddComponent<NetworkObject>();
         var behaviour = (NetworkBehaviour)go.AddComponent(GameType(type));
         behaviour.enabled = false; // No runtime UI / random events in these focused tests.
+        Awaken(go);
         no.Spawn();
         return behaviour;
+    }
+
+    // EditMode では AddComponent / Instantiate しても Awake が呼ばれない（Play Mode とちがう）。
+    // Instance の登録（SharedMoneyManager など）や NetworkTransform の補間の準備が Awake にあるので、ここで呼ぶ。
+    private static void Awaken(GameObject go)
+    {
+        foreach (var mb in go.GetComponentsInChildren<MonoBehaviour>(true))
+        {
+            if (mb == null || mb is NetworkManager) continue;
+            for (var t = mb.GetType(); t != null && t != typeof(MonoBehaviour); t = t.BaseType)
+            {
+                var awake = t.GetMethod("Awake", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly,
+                    null, Type.EmptyTypes, null);
+                if (awake == null) continue;
+                awake.Invoke(mb, null); // virtual なら一番下の型の Awake が呼ばれる
+                break;
+            }
+        }
+    }
+
+    // ゲームのコードが中で Instantiate するプレハブ（配達の箱・家具）は Awake を呼べないので、
+    // テストのあいだだけ NetworkTransform の補間を切る（EditMode では補間器が作られず NRE になるため）。
+    // プレハブはメモリ上で変えるだけで保存しない。TearDown で元に戻す。
+    private readonly List<(Unity.Netcode.Components.NetworkTransform nt, bool interpolate)> interpolationRestore = new();
+    private void WithoutInterpolation(GameObject prefab)
+    {
+        foreach (var nt in prefab.GetComponentsInChildren<Unity.Netcode.Components.NetworkTransform>(true))
+        {
+            interpolationRestore.Add((nt, nt.Interpolate));
+            nt.Interpolate = false;
+        }
     }
 
     // NGO はメッセージ型の一覧を Play Mode に入るときにしか作らず、抜けるときに空にする。
@@ -82,12 +114,20 @@ public class RoomiesRegressionTests
             EnableSceneManagement = false,
             ForceSamePrefabs = false
         };
+        // EditMode では OnEnable が呼ばれず Singleton が入らない。NetworkObject.Spawn は Singleton を見るので自分で入れる
+        network.SetSingleton();
         Assert.That(network.StartHost(), Is.True);
     }
+
+    private static void ResetNetworkSingleton() =>
+        typeof(NetworkManager).GetMethod("ResetSingleton", BindingFlags.Static | BindingFlags.NonPublic).Invoke(null, null);
 
     [UnityTearDown]
     public IEnumerator TearDown()
     {
+        foreach (var (nt, interpolate) in interpolationRestore)
+            if (nt != null) nt.Interpolate = interpolate;
+        interpolationRestore.Clear();
         if (network != null) network.Shutdown();
         double deadline = EditorApplication.timeSinceStartup + 5;
         while (network != null && network.ShutdownInProgress && EditorApplication.timeSinceStartup < deadline)
@@ -97,13 +137,19 @@ public class RoomiesRegressionTests
         var effects = GameType("FurnitureEffectManager").GetProperty("InstanceOrNull").GetValue(null) as Component;
         if (effects != null) Object.DestroyImmediate(effects.gameObject);
         objects.Clear();
+        // EditMode の DestroyImmediate では OnDestroy が呼ばれず Singleton が残るので、次のテストのために空に戻す
+        if (NetworkManager.Singleton == null || NetworkManager.Singleton == network) ResetNetworkSingleton();
+        network = null;
     }
 
     private NetworkBehaviour SpawnOre(int index)
     {
         var prefab = AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/_Prefabs/Mining/MiningOre_{index}.prefab");
         network.AddNetworkPrefab(prefab);
+        // 売ったときの Despawn で NGO は Object.Destroy を呼ぶが、EditMode では使えずエラーになる。ハンドラーで DestroyImmediate にする
+        network.PrefabHandler.AddHandler(prefab, new EditModeDestroyHandler(prefab)); // 登録済みなら false が返るだけ
         var go = Object.Instantiate(prefab); objects.Add(go);
+        Awaken(go);
         go.GetComponent<NetworkObject>().Spawn();
         return (NetworkBehaviour)go.GetComponent(GameType("MiningOre"));
     }
@@ -174,6 +220,7 @@ public class RoomiesRegressionTests
         var miner = (NetworkBehaviour)player.AddComponent(GameType("MiningPlayer")); miner.enabled = false;
         var spawn = (NetworkBehaviour)player.AddComponent(GameType("PlayerSpawnSync")); spawn.enabled = false;
         // Keep the test independent of scene spawning and presentation coroutines.
+        Awaken(player);
         playerNo.SpawnAsPlayerObject(network.LocalClientId);
         Call(miner, "ServerSetLevel", 2);
         var held = SpawnOre(5); var carry = held.GetComponent(GameType("CarryableObject"));
@@ -185,6 +232,7 @@ public class RoomiesRegressionTests
         site.GetType().GetField("mineLights").SetValue(site, Array.Empty<Light>());
         var exit = NewObject("Exit").transform; exit.position = new Vector3(5,1,5);
         site.GetType().GetField("surfaceReturn").SetValue(site, exit);
+        Awaken(siteGo);
         no.Spawn();
         Call(site, "CloseMine");
         Assert.That(held.IsSpawned, Is.False);
@@ -262,6 +310,7 @@ public class RoomiesRegressionTests
         var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Prefabs/NetworkFurniture.prefab");
         Assert.That(prefab, Is.Not.Null);
         network.AddNetworkPrefab(prefab);
+        WithoutInterpolation(prefab);
         SetField(day, "networkFurniturePrefab", prefab);
         var player = NewObject("Player").AddComponent<NetworkObject>();
         player.SpawnAsPlayerObject(network.LocalClientId);
@@ -305,6 +354,7 @@ public class RoomiesRegressionTests
         var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Prefabs/Nomal_Box.prefab");
         Assert.That(prefab, Is.Not.Null);
         network.AddNetworkPrefab(prefab);
+        WithoutInterpolation(prefab);
         var go = NewObject("Zone");
         var no = go.AddComponent<NetworkObject>();
         var zone = (NetworkBehaviour)go.AddComponent(GameType("DeliveryZone"));
@@ -343,6 +393,16 @@ public class RoomiesRegressionTests
         Call(zone, "OnTriggerExit", b);
         Assert.That(Call(zone, "HasBox"), Is.False);
     }
+}
+
+// EditMode では Object.Destroy が使えないので、Despawn で消すときに DestroyImmediate を使う
+public class EditModeDestroyHandler : INetworkPrefabInstanceHandler
+{
+    private readonly GameObject prefab;
+    public EditModeDestroyHandler(GameObject prefab) => this.prefab = prefab;
+    public NetworkObject Instantiate(ulong ownerClientId, Vector3 position, Quaternion rotation) =>
+        Object.Instantiate(prefab, position, rotation).GetComponent<NetworkObject>();
+    public void Destroy(NetworkObject networkObject) => Object.DestroyImmediate(networkObject.gameObject);
 }
 
 // Host-only test transport: no sockets, Steam API, or external traffic.
