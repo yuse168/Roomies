@@ -45,9 +45,22 @@
 
 ### 既存プレハブの扱い
 - 2026/10/21 に既存のギミック付きプレハブを `Visual` の形へそろえた。手順はメニュー「Roomies/Prefabs/Apply Visual Convention」（`RoomiesPrefabConventionFixer`、何度実行しても同じ結果）。
+  対象は `CharacterCloset`・`Slot`・`BlackjackTable`・`DeliveryBox`・`MiningOre_*`・Smuggling の `*_Placeholder` だけで、
+  やったのは見た目の子の名前を `Visual` にする／見た目の子を `Visual` の下へ移すことだけ（スクリプトの場所やアンカーは変えていない）。
 - NPC（Smuggling）の `Visual/ModelRoot` は本物のモデルを入れる場所として残している（`SmugglingAppearance` が参照）。
 - `Player.prefab` と見た目だけのアセット（`Resources/RoomiesArt/` のライブラリ、`Nomal_Box` などの箱モデル）は対象外。
 - 家具（`NetworkFurniture`）は実行時に見た目を `Visual` という名前の子として作るので、もともとこの形になっている。
+- 夜の家電（`Night/NightFridge`・`HouseBreaker`・`Bed`）は最初からこの決まりで作ってある（`Pivot_Door/Visual`、`Pivot_Lever`、`Anchor_Sleep`）。
+
+#### まだ決まりどおりでない物（2026/10/29 時点の実際の形。触るついでに直す）
+新しく作る物はこれをまねせず、上の決まりで作る。直すときはシーン・プレハブの参照が切れないよう、名前を変える前に参照元を調べる。
+- **Slot**（`Assets/_Prefabs/Slot.prefab`）：ルート `Slot` には何も付いていない。スクリプト（`SlotMachine`）・NetworkObject・操作用の
+  コライダーは子の `SlotMachine (2)` にある。`Visual` はその下にあり、`Visual` 自体にもメッシュと BoxCollider が付いている。
+  画面（`Canvas`）は `Visual` の外にあるが `Anchor_Screen` は無い
+- **配達の台（`DeliveryZone`）・ボタン（`DeliveryButton`）**：プレハブではなく GameRoom に直接置いた物。ルートにスクリプト・
+  NetworkObject・コライダーと見た目（MeshRenderer）が一緒に付いていて、`Visual` の子は無い
+- **玄関のドア**：プレハブではなく GameRoom に直接置いた物。軸は `DoorPivot`（`Pivot_Door` ではない）で、`DoorInteract` と
+  NetworkObject が付いている。見た目と当たり判定は子の `Door`（`DoorPivot/Visual` ではなく、メッシュと BoxCollider が直接付く）
 
 ## 実行時に作らない（エディタで全部触れる形にする）
 
@@ -107,6 +120,9 @@
   `Assets/_Scenes/GameRoomUI.unity` に置く。マップ（GameRoom）には置かない。タイトルのメニューは MainMenuSteam のまま。
 - GameRoom の `GameUISceneLoader` が読み込む。ネットワーク中はホストが NGO の SceneManager で Additive に読み込み、
   全員に1回ずつ届く（クライアントは自分で読まない）。ほかのシーンへ Single で移ると一緒に外れる。
+  NetworkManager が無い、または3秒待っても通信が始まらないときは、その場で普通に読み込む（`offlineFallbackSeconds`）。
+- この決まりとコード（`GameRoomUI.unity`・`GameUISceneLoader`・`GameUIRefs`）は 10/26 のブランチ `fix/gameroom-ui-scene` で入った。
+  main（bf1a66c）にはまだ無いので、main で作業するときはこの節は当てはまらない（ブランチを main に入れたときに一緒に入る）。
 - UIシーンには NetworkObject・ネットワークの処理を置かない。
 - マップ側がUIを使うときは `GameUIRefs`（UIシーンの「GameUI」）から受け取る：`GameUIRefs.WhenReady(...)`。
   UI側からマップへは今までどおりシングルトン（`DayManager.Instance` など）を使う。シーンをまたぐインスペクター参照は保存できない。
