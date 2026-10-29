@@ -1,5 +1,35 @@
 # PROGRESS.md
 
+## 2026/10/29｜遠景 V2b を GameRoom に取り込んだ（旧遠景は非表示で残す）
+
+ブランチ `leica/roomies-20261029`。`D:\Bonchan\Roomies_export\farbg_20261029\README.md` の手順どおり。
+
+### 今回の変更
+- `Roomies_FarBackdrop_V2b_20261029.unitypackage` を取り込み（入ったのは `Assets/_Art/FarBackdrop_20261029_V2b/` だけ：
+  プレハブ・シェーダー `Roomies/FarBackdropToonV2b`・マテリアル19・メッシュ4・エディタ拡張1。既存のファイルは上書きなし）
+- GameRoom を開いてメニュー `Roomies/Environment/Far Backdrop V2b/Swap In Open Scene` を実行し保存
+  - `Roomies_Backdrop_V2b`（プレハブ）を置いた。旧 `Roomies_Backdrop` は**非表示**（消していない。戻すときは表示に戻して V2b を消す）
+  - 家のすぐ横の高架（`Railway near (west)`）は V2b の中でも元の形・元のマテリアルのまま（前後の画像で同じ見た目）
+  - 保存のとき Unity が、もう使っていない空の参照（`DayManager` の dayText など5つ、`NightEventManager.eventUI`。10/26 に `GameUIRefs` へ移したもの）をシーンから消した。値はもともと空
+- 撮影・計測用の PlayMode テスト `RoomiesBackdropCaptureTests`（`Explicit`。名前を指定したときだけ動く）
+
+README が書いてほしいと言っていた内容（V2 と同じ中身で、霞だけ弱めた版）：
+- 山を 48面×14段のなめらかなメッシュ4種・3段の山なみ（400/590/790m）に作り直し
+- 遠景用トゥーンシェーダー（2段の陰影・高さのグラデーション・雪・霞・昼夜）。V2b は霞をマップの中心からの距離で測り、柵の外の地面はほぼ霞なし
+- 外の街・地面・遠い高架を霞つきマテリアル FarBg_* に（形は同じ）。近い高架は変えていない
+- 三角形 113,760 → 163,776、描画物 1,381 → 1,379（README の数字）
+
+### 確認状況（Play Mode・ホスト1人・バッチモード）
+- **Play Mode で動いた**：エラーログ0。V2b が表示・旧遠景は非表示。電車（`BackdropTrain`）2本とも V2b の中で動いている（3秒で1本が移動。もう1本は待ち時間と思われる。前も同じ）
+- だいたいの重さ（家の屋根の高さから西向き・1600x900・描画して GPU の終わりまで待つ時間の 60回平均。**このPCで元のエディターも動いている中での目安**）
+  - 昼：前 5.9 ms（≒169fps）→ 後 8.1 ms / 7.5 ms（≒123〜134fps）。1〜2 ms ほど増えた
+  - 夜：前 8.0 ms → 後 8.3 ms / 3.4 ms。夜はイベント（停電など）で明かりが変わり、ばらつきが大きく比べられない
+  - バッチモードは画面に出さないので、ふつうの fps（ゲームの1フレーム）は測れていない。**実機・ビルドの fps は未確認**
+- スクショ（同じ位置・画角で前と後）：`D:\Bonchan\Roomies_save_reports\leica_20261029\screens\farbg\`
+  - 昼 `before_day_*` / `after_day_*`（A 屋根から西・B 東・C 北・D 地面から南・E 上空）
+  - 夜 `before_night_*` / `after_night_*`（A・B・E）、計測 `before_report.txt` / `after_report.txt`（2回目は `rerun\`）
+- 未確認：ビルド、停電の夜とふつうの夜の見比べ（今回撮った夜はどちらも停電だった可能性あり）、SSAO
+
 ## 2026/10/29｜PlayModeテスト（ホスト1人）でゲームの流れを自動で確認した
 
 ブランチ `leica/roomies-20261029`。ゲームのコードは変えていない（テストと手順書だけ）。
