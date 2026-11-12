@@ -132,12 +132,13 @@ internal static partial class RoomiesMaterialFinishBuilder
     }
 
     /// <summary>テンプレの子（マテリアルバリアント）。色だけ上書きする。extra でほかの上書き（床の板など）を足せる。</summary>
-    internal static Material Variant(Tpl t, string name, Color color, Action<Material> extra = null)
+    internal static Material Variant(Tpl t, string name, Color color, Action<Material> extra = null, string sub = null)
     {
         var parent = AssetDatabase.LoadAssetAtPath<Material>(TemplatePath(t)) ?? Template(t);
         // 名前は元のマテリアルと同じにする（足音 FootstepAudio がマテリアル名の言葉で床を判定しているため）
-        Directory.CreateDirectory(VariantDir + t);
-        string path = $"{VariantDir}{t}/{name}.mat";
+        string folder = VariantDir + t + (sub != null ? "/" + sub : "");
+        Directory.CreateDirectory(folder);
+        string path = $"{folder}/{name}.mat";
         var v = AssetDatabase.LoadAssetAtPath<Material>(path);
         if (v == null) { v = new Material(parent); AssetDatabase.CreateAsset(v, path); }
         v.parent = parent;
@@ -289,9 +290,9 @@ internal static partial class RoomiesMaterialFinishBuilder
         float crackLine = Mathf.Abs(N(u, v, 3, 33) - .5f);
         float crack = 1 - S(0, .008f, crackLine);
         float stain = S(.6f, .85f, N(u, v, 2, 55));
-        float t = .82f + .1f * coarse + .06f * fine - .2f * pits - .25f * crack - .1f * stain;
+        float t = .86f + .08f * coarse + .05f * fine - .06f * pits - .05f * crack - .06f * stain;   // ひび・くぼみは控えめ（目立つと模様に見える）
         c = new Color(t, t, t, 1);
-        h = coarse * .3f + fine * .25f - pits * .5f - crack * .6f;
+        h = coarse * .3f + fine * .25f - pits * .2f - crack * .12f;
     }
 
     static void AsphaltPixel(float u, float v, out Color c, out float h)
@@ -439,6 +440,7 @@ internal static partial class RoomiesMaterialFinishBuilder
             }
             return ev;
         }
+        if (oldPath.StartsWith(VariantDir) && oldPath.Contains("/Town/")) return null;   // 町の子は町の表で扱う
         if (oldPath.StartsWith(VariantDir))
         {
             // すでに子：Restyle の元があれば作り直し、なければそのまま
@@ -477,6 +479,123 @@ internal static partial class RoomiesMaterialFinishBuilder
                 Debug.Log($"[Material Templates] {path}: {n} renderers");
             }
             finally { PrefabUtility.UnloadPrefabContents(root); }
+        }
+        AssetDatabase.SaveAssets();
+    }
+
+    // ================================================================ 町（2026/11/13）
+    // 町と共通の色の素材（Resources/RoomiesArt/Materials）を、部品の名前で素材の型に振り分ける。鉱山（Roomies_Mining）は触らない。
+    // 子は Variants/型/Town/元の名前.mat（部屋の子と色が違うので分ける。名前は元のまま＝足音の判定は変わらない）
+    const string TownLibrary = "Assets/Resources/RoomiesArt/Materials/";
+    const string NeighborhoodPrefab = "Assets/_Prefabs/Environment/RoomiesNeighborhood.prefab";
+
+    static System.Text.RegularExpressions.Regex Rx(string p) => new System.Text.RegularExpressions.Regex(p, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    // 部品の名前で決める（上から順）
+    static readonly (System.Text.RegularExpressions.Regex name, Tpl tpl)[] TownNameRules =
+    {
+        (Rx(@"mullion|rail|frame|surround|sill|trim|lintel|jamb|fascia"), Tpl.PaintedMetal),
+        (Rx(@"window|glazing|windshield|glass|^water$"), Tpl.Glass),
+        (Rx(@"tire|tyre|wheel|cable|hose"), Tpl.Rubber),
+        (Rx(@"canopy|leaf|leaves|bush|hedge|shrub|crown|water plant"), Tpl.Foliage),
+        (Rx(@"soil|^plot|garden bed|ground|lawn|grass|field|^pplane"), Tpl.Ground),
+        (Rx(@"roof|chimney|parapet|eave|gutter"), Tpl.Roof),
+        (Rx(@"road|cul-de-sac|lane|crosswalk|painted route|asphalt|parking|bay edge|side road|main road"), Tpl.Asphalt),
+        (Rx(@"trunk|sleeper|fence|crate|plank|bench|deck|pallet|\blog\b|signpost|beam|basket"), Tpl.Wood),
+        (Rx(@"awning|curtain|rug|cushion|flag|banner|tarp|umbrella"), Tpl.Fabric),
+        (Rx(@"poster|label|notice|paper|book|magazine|menu|parcel"), Tpl.Paper),
+        (Rx(@"paving|kerb|curb|footing|foundation|column|capital|pier|rock|mountain|stone|tile|tread|stair|step|walk|plinth|pedestal|platform|sidewalk|cliff|boulder|snow|wall|floor|ceiling|ramp|bridge|viaduct|pillar|ledge"), Tpl.Concrete),
+        (Rx(@"cage|\bbar\b|bars|antenna|pipe|steel|bogie|pantograph|lamp|pole|ladder|vent|duct|grill|grate|bracket|wire|tower|arm|spoke|axle"), Tpl.Metal),
+        (Rx(@"shutter|locker|panel|cabin|siding|rack|sign|plate|button|kiosk|booth|hoop|backboard|door|box|bin|unit|terminal|machine|cab\b|nose|skirt|body"), Tpl.PaintedMetal),
+    };
+    // 名前で決まらないときの、元の素材ごとの型
+    static readonly Dictionary<string, Tpl> TownDefaults = new Dictionary<string, Tpl>
+    {
+        ["silver"] = Tpl.Metal, ["wood"] = Tpl.Wood, ["green"] = Tpl.Foliage, ["paper"] = Tpl.Paper,
+        ["blue"] = Tpl.Plaster, ["coral"] = Tpl.Plaster, ["cream"] = Tpl.Plaster, ["ink"] = Tpl.Concrete,
+        ["mustard"] = Tpl.Plaster, ["pink"] = Tpl.Plaster, ["teal"] = Tpl.Plaster,
+    };
+
+    static Tpl? TownTemplate(string partName, string oldName)
+    {
+        if (oldName == "screen" || oldName == "mining_particles") return null;   // 画面・粒子はそのまま
+        foreach (var rule in TownNameRules) if (rule.name.IsMatch(partName)) return rule.tpl;
+        return TownDefaults.TryGetValue(oldName, out var t) ? t : (Tpl?)null;
+    }
+
+    static Material TownVariant(Renderer r, Material old, Dictionary<string, Material> cache)
+    {
+        if (old == null) return null;
+        string path = AssetDatabase.GetAssetPath(old);
+        string oldName;
+        if (path.StartsWith(TownLibrary)) oldName = old.name;
+        else if (path.StartsWith(VariantDir) && path.Contains("/Town/")) oldName = old.name;   // もう町の子：作り直す
+        else return null;
+        var t = TownTemplate(r.name, oldName);
+        if (!t.HasValue) return null;
+        string key = t.Value + "|" + oldName;
+        if (cache.TryGetValue(key, out var v)) return v;
+        var src = AssetDatabase.LoadAssetAtPath<Material>(TownLibrary + oldName + ".mat");
+        if (src == null) return null;
+        Color c = src.HasProperty("_BaseColor") ? src.GetColor("_BaseColor") : src.color;
+        Action<Material> extra = null;
+        if (t.Value == Tpl.Metal && oldName == "silver") extra = m => { m.SetFloat("_Metallic", .6f); m.SetFloat("_Smoothness", .4f); };
+        else if (t.Value == Tpl.Glass) { c = Color.Lerp(c, new Color(.78f, .9f, 1f), .45f); extra = m => m.SetFloat("_Smoothness", .6f); }   // 窓：空を映した明るいガラスに
+        v = Variant(t.Value, oldName, c, extra, "Town");
+        cache[key] = v;
+        return v;
+    }
+
+    static int ApplyTownUnder(Transform root, Dictionary<string, Material> cache)
+    {
+        int n = 0;
+        foreach (var r in root.GetComponentsInChildren<Renderer>(true))
+        {
+            if (r is ParticleSystemRenderer) continue;
+            if (InMining(r.transform)) continue;
+            var mats = r.sharedMaterials; bool changed = false;
+            for (int i = 0; i < mats.Length; i++)
+            {
+                // 部屋の素材（Restyle）は部屋と同じ子へ、町の色の素材は町の子へ
+                var v = ResolveVariant(r, mats[i], cache) ?? TownVariant(r, mats[i], cache);
+                if (v != null && v != mats[i]) { mats[i] = v; changed = true; }
+            }
+            if (changed) { r.sharedMaterials = mats; EditorUtility.SetDirty(r); n++; }
+        }
+        return n;
+    }
+
+    internal static bool InMining(Transform t)
+    {
+        for (var x = t; x != null; x = x.parent) if (x.name.StartsWith("Roomies_Mining")) return true;
+        return false;
+    }
+
+    /// <summary>町：RoomiesNeighborhood プレハブ（道・家の外側・店・庭・階段・留置所・配達カウンター）と、シーンの遠景 Roomies_Backdrop。</summary>
+    [MenuItem("Roomies/Art/Restyle/Material Templates/4 Apply To Town")]
+    internal static void ApplyTemplatesToTown()
+    {
+        var cache = new Dictionary<string, Material>();
+        var root = PrefabUtility.LoadPrefabContents(NeighborhoodPrefab);
+        try
+        {
+            int n = ApplyTownUnder(root.transform, cache);
+            PrefabUtility.SaveAsPrefabAsset(root, NeighborhoodPrefab);
+            Debug.Log($"[Material Templates] town prefab: {n} renderers");
+        }
+        finally { PrefabUtility.UnloadPrefabContents(root); }
+        foreach (var scene in Enumerable.Range(0, UnityEngine.SceneManagement.SceneManager.sceneCount).Select(UnityEngine.SceneManagement.SceneManager.GetSceneAt).ToArray())
+        {
+            if (!scene.isLoaded) continue;
+            var backdrop = scene.GetRootGameObjects().FirstOrDefault(g => g.name == "Roomies_Backdrop");
+            if (backdrop == null) continue;
+            int n = ApplyTownUnder(backdrop.transform, cache);
+            // シーン側で素材を上書きしている町の部品（家の床・壁など。Build Room が上書きしている）もそろえる
+            var town = scene.GetRootGameObjects().FirstOrDefault(g => g.name == "Roomies_EnvironmentArt");
+            if (town != null) n += ApplyTownUnder(town.transform, cache);
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(scene);
+            UnityEditor.SceneManagement.EditorSceneManager.SaveScene(scene);
+            Debug.Log($"[Material Templates] {scene.name} backdrop: {n} renderers");
         }
         AssetDatabase.SaveAssets();
     }
