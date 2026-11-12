@@ -7,8 +7,9 @@ using UnityEngine;
 /// 「プラスチック感」を減らすための素材の仕上げ（2026/11/13）。何度実行しても同じ結果。
 /// 1 つや：素材ごとに Smoothness / Metallic とハイライト・映り込みを決める。
 /// 値はこの表だけで決まる。表にない素材は触らない。
+/// 2 質感：RoomiesMaterialFinishBuilder.Surface.cs（テクスチャ・ノーマルマップ・汚れのデカール）
 /// </summary>
-internal static class RoomiesMaterialFinishBuilder
+internal static partial class RoomiesMaterialFinishBuilder
 {
     const string Restyle = "Assets/_Materials/Restyle/";
     const string Library = "Assets/Resources/RoomiesArt/Materials/";

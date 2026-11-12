@@ -47,6 +47,9 @@ internal static class RoomiesRestyleKit
     internal static void End()
     {
         AssetDatabase.SaveAssets();
+        // 素材を作り直したあと、つやと質感の仕上げ（Material Finish）をかけ直す。作り直しで仕上げが消えないように
+        RoomiesMaterialFinishBuilder.ApplyMatte();
+        RoomiesMaterialFinishBuilder.ApplySurfaceTextures();
     }
 
     static Mesh Builtin(PrimitiveType type)
