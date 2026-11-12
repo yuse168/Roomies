@@ -35,6 +35,13 @@ internal static partial class RoomiesMaterialFinishBuilder
         ("Bounce - rug under pendant", new Color(1f, .8f, .68f)), ("Bounce - kitchen counter", new Color(1f, .86f, .72f)),
     };
     const float NightAmbient = .3f, NightReflection = .35f;
+    // 夜の月明かり（町が真っ暗にならないよう。部屋の中は窓から少し入るだけ）
+    const float NightSun = .25f;
+    // 町の街灯（町のプレハブ RoomiesNeighborhood の中の明かり）：名前（前方一致）, 強さ, 届く距離, 色
+    static readonly (string name, float intensity, float range, Color color)[] TownLights =
+    {
+        ("Street accent", 4f, 10f, new Color(1f, .82f, .6f)),
+    };
 
     [MenuItem("Roomies/Art/Restyle/Material Finish/5 Light Balance")]
     internal static void ApplyLightBalance()
@@ -56,15 +63,37 @@ internal static partial class RoomiesMaterialFinishBuilder
                     EditorUtility.SetDirty(light); n++;
                 }
             foreach (var day in roots.SelectMany(g => g.GetComponentsInChildren<DayManager>(true)))
-                SetFloats(day, ("nightAmbientIntensity", NightAmbient), ("nightReflectionIntensity", NightReflection));
+                SetFloats(day, ("nightAmbientIntensity", NightAmbient), ("nightReflectionIntensity", NightReflection), ("nightSunIntensity", NightSun));
             foreach (var menu in roots.SelectMany(g => g.GetComponentsInChildren<MainMenuRoomShowcase>(true)))
                 SetFloats(menu, ("ambientIntensity", NightAmbient), ("reflectionIntensity", NightReflection));
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene);
             Debug.Log($"[Material Finish] light balance: {n} lights in {scene.name}");
         }
+        ApplyTownLights();
         // 朝と夜の切り替えの「夜の強さ」を今の値にそろえる（GameRoom だけ）
         BuildTimeOfDay();
+    }
+
+    /// <summary>町のプレハブの街灯の強さ・色をそろえる（鉱山は触らない）。</summary>
+    internal static void ApplyTownLights()
+    {
+        const string prefab = "Assets/_Prefabs/Environment/RoomiesNeighborhood.prefab";
+        var root = PrefabUtility.LoadPrefabContents(prefab);
+        try
+        {
+            int n = 0;
+            foreach (var light in root.GetComponentsInChildren<Light>(true))
+            {
+                if (InMining(light.transform)) continue;
+                var row = TownLights.FirstOrDefault(t => light.name.StartsWith(t.name));
+                if (row.name == null) continue;
+                light.intensity = row.intensity; light.range = row.range; light.color = row.color; n++;
+            }
+            PrefabUtility.SaveAsPrefabAsset(root, prefab);
+            Debug.Log($"[Material Finish] town lights: {n}");
+        }
+        finally { PrefabUtility.UnloadPrefabContents(root); }
     }
 
     static void SetFloats(Object target, params (string name, float value)[] values)

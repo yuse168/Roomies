@@ -1,0 +1,28 @@
+{
+  "shots": [
+    {"file": "t1_street_morning.jpg", "label": "町・通り（朝）"},
+    {"file": "t1_street_night.jpg", "label": "町・通り（夜）"},
+    {"file": "t2_shops_morning.jpg", "label": "町・店（朝）"},
+    {"file": "t2_shops_night.jpg", "label": "町・店（夜）"},
+    {"file": "t3_overview_morning.jpg", "label": "町・見下ろし（朝）"},
+    {"file": "t3_overview_night.jpg", "label": "町・見下ろし（夜）"},
+    {"file": "t4_closeup_morning.jpg", "label": "町・階段のアップ（朝）"},
+    {"file": "t4_closeup_night.jpg", "label": "町・階段のアップ（夜）"}
+  ],
+  "stages": [
+    {"dir": "t0_before", "short": "前", "label": "部屋の改善まで", "note": "部屋・タイトルの改善（段階0〜4）を入れた状態。町は元の色の素材のまま"},
+    {"dir": "t1_material", "short": "1", "label": "素材の型", "note": "町の色の素材を部品の名前で型に振り分け（窓・柱・道・屋根・木・葉・地面など）。窓ガラスは明るい空色、コンクリートのひびは控えめ"},
+    {"dir": "t2_bevel", "short": "2", "label": "ベベル", "note": "町のプレハブ 310 部品。柱・梁・窓枠・階段・屋根は弱、看板・木箱・扉・カウンターは中、袋類は強。道・地面・ガラス・線・文字は丸めない"},
+    {"dir": "t3_light", "short": "3", "label": "明かりと朝・夜", "note": "街灯 1→4（暖色）、夜の月明かり 0.12→0.25、夜だけ月明かり色の補助の光3つ。朝は街灯と補助の光を消す（RoomTimeOfDayLighting）"}
+  ],
+  "perf": [
+    {"stage": "前（部屋の改善まで）", "frame": "約9.1ms（8.0〜10.2）", "tris": "約129万", "draws": "約2,270", "setpass": "168〜169"},
+    {"stage": "1 素材の型", "frame": "未計測（素材の付け替えだけ）", "tris": "—", "draws": "—", "setpass": "—"},
+    {"stage": "2 ベベル", "frame": "約9.9ms（7.8〜14.9）※ぶれ大", "tris": "約135万（+6万）", "draws": "約2,410", "setpass": "178"},
+    {"stage": "3 明かり", "frame": "約8.8ms（7.3〜10.3）", "tris": "約135万", "draws": "約2,410", "setpass": "178〜179"}
+  ],
+  "extra": [
+    {"file": "t2_bevel/t5_tiers_overview.jpg", "label": "町のベベルの強さ（見下ろし）", "caption": "赤＝強、黄＝中、青＝弱、灰＝丸めない。柱・屋根・階段・窓枠は弱、看板（DELIVERY BAY・ROOMIES）は中、歩道・道・地面は丸めない"},
+    {"file": "t2_bevel/t6_tiers_street.jpg", "label": "町のベベルの強さ（通り）", "caption": "同上"}
+  ]
+}

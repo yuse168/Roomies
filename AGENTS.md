@@ -96,7 +96,8 @@
 - 質感のテンプレマテリアル（2026/11/13） … `Roomies/Art/Restyle/Material Templates/1 Build Templates`・`2 Apply To Room And Title`
   （`RoomiesMaterialTemplates.cs`）。テンプレ（親）は `Assets/_Materials/Templates/T_*.mat`、色は子マテリアル（マテリアルバリアント）で上書きする。
   質感を直すときは親を直す。子の名前は元のマテリアルと同じにする（足音 `FootstepAudio` がマテリアル名の言葉で床を判定するため）
-  ギミック付きプレハブは `3 Apply To Gimmick Prefabs`（Visual の中だけ）
+  ギミック付きプレハブは `3 Apply To Gimmick Prefabs`（Visual の中だけ）。町は `4 Apply To Town`（部品の名前で型を決める。鉱山 `Roomies_Mining` は触らない）。
+  町のベベルは `Bevel/Apply To Town`
 - 角の丸み（ベベル、2026/11/13） … `Roomies/Art/Restyle/Bevel/Apply To Room And Title`・`Apply To Gimmick Prefabs`（`RoomiesBevelBuilder`）。
   部品ごとの強・中・弱は表で決める（同じ家具でも天板は中・脚は弱）。メッシュは `Assets/_Art/Restyle/BevelMeshes.asset`。
   `Preview Tiers` で強さを色で見られる（保存されない）。部屋の分は Build Room のあとに自動でかけ直す

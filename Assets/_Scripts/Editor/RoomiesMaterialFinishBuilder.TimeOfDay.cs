@@ -22,6 +22,7 @@ internal static partial class RoomiesMaterialFinishBuilder
     static readonly (string name, float morningScale)[] MorningScale =
     {
         ("Pendant light", 0), ("Lantern light", 0), ("Kitchen light", 0), ("Entry fill", 0), ("Fairy glow", .5f), ("Bounce - ", 0),
+        ("Street accent", 0),   // 町の街灯（朝は消す）
     };
     // 朝の窓の光：位置, 強さ（夜は消える）
     static readonly (string name, Vector3 pos, float intensity)[] MorningWindows =
@@ -30,6 +31,14 @@ internal static partial class RoomiesMaterialFinishBuilder
         ("Morning window light - north", new Vector3(17.6f, FloorY + 1.8f, 22.7f), 3.2f),
         ("Morning window light - east", new Vector3(21.8f, FloorY + 1.8f, 21.0f), 3.0f),
     };
+    // 夜の町の補助の光（月明かり色。店の正面が黒くつぶれないように。朝は消える）：名前, 位置, 強さ, 届く距離
+    static readonly (string name, Vector3 pos, float intensity, float range)[] NightTownFill =
+    {
+        ("Night town fill - store front", new Vector3(26.0f, 4.0f, -2.5f), 1.6f, 16f),
+        ("Night town fill - street west", new Vector3(4.0f, 4.0f, -2.5f), 1.3f, 16f),
+        ("Night town fill - street east", new Vector3(46.0f, 4.0f, -2.5f), 1.3f, 16f),
+    };
+    static readonly Color NightTownFillColor = new Color(.62f, .7f, 1f);
     static readonly Color MorningWindowColor = new Color(.96f, .97f, 1f);
 
     [MenuItem("Roomies/Art/Restyle/Material Finish/6 Time Of Day Lighting")]
@@ -50,7 +59,10 @@ internal static partial class RoomiesMaterialFinishBuilder
 
             var levels = new List<RoomTimeOfDayLighting.LampLevel>();
             var bounceRoot = roots.FirstOrDefault(g => g.name == BounceRootName);
-            var lights = room.GetComponentsInChildren<Light>(true).Concat(bounceRoot != null ? bounceRoot.GetComponentsInChildren<Light>(true) : new Light[0]);
+            var townRoot = roots.FirstOrDefault(g => g.name == "Roomies_EnvironmentArt");
+            var lights = room.GetComponentsInChildren<Light>(true)
+                .Concat(bounceRoot != null ? bounceRoot.GetComponentsInChildren<Light>(true) : new Light[0])
+                .Concat(townRoot != null ? townRoot.GetComponentsInChildren<Light>(true).Where(l => !InMining(l.transform)) : new Light[0]);
             foreach (var light in lights)
             {
                 var row = MorningScale.FirstOrDefault(m => light.name.StartsWith(m.name));
@@ -64,6 +76,14 @@ internal static partial class RoomiesMaterialFinishBuilder
                 light.type = LightType.Point; light.color = MorningWindowColor; light.range = 6.5f; light.intensity = 0; light.shadows = LightShadows.None;
                 light.enabled = false;
                 levels.Add(new RoomTimeOfDayLighting.LampLevel { light = light, night = 0, morning = w.intensity });
+            }
+
+            foreach (var f in NightTownFill)
+            {
+                var go = new GameObject(f.name); go.transform.SetParent(root.transform, false); go.transform.position = f.pos;
+                var light = go.AddComponent<Light>();
+                light.type = LightType.Point; light.color = NightTownFillColor; light.range = f.range; light.intensity = f.intensity; light.shadows = LightShadows.None;
+                levels.Add(new RoomTimeOfDayLighting.LampLevel { light = light, night = f.intensity, morning = 0 });
             }
 
             var volGo = new GameObject("Roomies_PostProcess_Morning"); volGo.transform.SetParent(root.transform, false);
