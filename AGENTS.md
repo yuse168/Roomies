@@ -89,7 +89,8 @@
   シーンの「Roomies_RoomRestyle」を作り直す。手で直した位置は作り直すと消えるので、
   直したら配置ツール（`RoomiesRoomRestyleBuilder`）の値もそろえること
 - HUD・タイトルの色とフォント … `Roomies/UI/Restyle Game UI` / `Restyle Title UI`（置いてある物を作り直さずに整える）
-- 素材のつや・質感・照り返し（2026/11/13） … `Roomies/Art/Restyle/Material Finish/1 Matte Surfaces`・`2 Surface Detail`・`3 Light Bounce`
+- 素材のつや・質感・照り返し・影・明暗（2026/11/13） … `Roomies/Art/Restyle/Material Finish/1 Matte Surfaces`・`2 Surface Detail`・`3 Light Bounce`・
+  `4 Contact Shadows`・`5 Light Balance`（4・5 も作り直しのあとに自動でかけ直す）
   （`RoomiesMaterialFinishBuilder`）。値は表で持つ。1と2の素材の部分は Build Room などの作り直しのあとに自動でかけ直す。
   デカール「Roomies_Decals」と照り返し・反射プローブ「Roomies_LightBounce」は、GameRoom とタイトルのそれぞれで 2・3 を実行して置く
 - 質感のテンプレマテリアル（2026/11/13） … `Roomies/Art/Restyle/Material Templates/1 Build Templates`・`2 Apply To Room And Title`

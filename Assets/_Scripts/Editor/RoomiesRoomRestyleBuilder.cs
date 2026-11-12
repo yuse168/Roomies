@@ -646,14 +646,14 @@ internal static partial class RoomiesRoomRestyleBuilder
             c = profile.Add<T>(true); c.hideFlags = HideFlags.HideInInspector | HideFlags.HideInHierarchy;
             AssetDatabase.AddObjectToAsset(c, profile); return c;
         }
-        var tone = Get<Tonemapping>(); tone.mode.Override(TonemappingMode.Neutral);
-        // 値は 2026/11/13 の「弱めたポストエフェクト」（Docs/restyle_20261113/material/step4_softpp）にそろえてある
-        var bloom = Get<Bloom>(); bloom.threshold.Override(.9f); bloom.intensity.Override(.7f); bloom.scatter.Override(.75f); bloom.tint.Override(new Color(1, .92f, .82f));
-        var color = Get<ColorAdjustments>(); color.postExposure.Override(.45f); color.contrast.Override(8); color.saturation.Override(0); color.colorFilter.Override(new Color(1, .98f, .95f));
-        var white = Get<WhiteBalance>(); white.temperature.Override(5); white.tint.Override(2);
+        var tone = Get<Tonemapping>(); tone.mode.Override(TonemappingMode.ACES);
+        // 値は 2026/11/13 の仕上げ（ACES。Docs/restyle_20261113/material/step10_final）にそろえてある
+        var bloom = Get<Bloom>(); bloom.threshold.Override(1f); bloom.intensity.Override(.45f); bloom.scatter.Override(.7f); bloom.tint.Override(new Color(1, .92f, .82f));
+        var color = Get<ColorAdjustments>(); color.postExposure.Override(.6f); color.contrast.Override(0); color.saturation.Override(10); color.colorFilter.Override(new Color(1, .98f, .95f));
+        var white = Get<WhiteBalance>(); white.temperature.Override(3); white.tint.Override(2);
         var split = Get<SplitToning>(); split.shadows.Override(new Color(.42f, .42f, .56f)); split.highlights.Override(new Color(.7f, .59f, .48f)); split.balance.Override(-10);
-        var smh = Get<ShadowsMidtonesHighlights>(); smh.shadows.Override(new Vector4(.97f, .965f, 1.06f, .02f)); smh.midtones.Override(new Vector4(1, 1, 1, 0)); smh.highlights.Override(new Vector4(1.03f, 1, .96f, 0));
-        var vignette = Get<Vignette>(); vignette.intensity.Override(.3f); vignette.smoothness.Override(.45f); vignette.color.Override(new Color(.04f, .03f, .08f));
+        var smh = Get<ShadowsMidtonesHighlights>(); smh.shadows.Override(new Vector4(.97f, .965f, 1.06f, .02f)); smh.midtones.Override(new Vector4(1, 1, 1, 0)); smh.highlights.Override(new Vector4(1.02f, 1, .97f, -.08f));
+        var vignette = Get<Vignette>(); vignette.intensity.Override(.22f); vignette.smoothness.Override(.4f); vignette.color.Override(new Color(.04f, .03f, .08f));
         EditorUtility.SetDirty(profile);
 
         var go = scene.GetRootGameObjects().FirstOrDefault(g => g.name == VolumeName);
