@@ -1,5 +1,26 @@
 # PROGRESS.md
 
+## 2026/11/13｜ポストエフェクトを弱め、質感のテンプレマテリアルを作って部屋とタイトルに付け替えた
+
+ブランチ `art/restyle-20261113`。ゆせさんの返事「ポストエフェクト強すぎかも」「15個で作って」。push はしていない。
+メッシュ・ゲームのロジックは変えていない。glow_water.mat・Player.prefab などの未コミットの変更には触っていない。
+
+1. **ポストエフェクトを約半分に**（518b5e7）：ビネット 0.42→0.30、コントラスト 14→8、Bloom 1.25→0.7、スプリットトーンと
+   Shadows/Midtones/Highlights を約半分。Build Room の値もそろえた
+2. **テンプレ15個**（fe84447）：`Assets/_Materials/Templates/T_*.mat`。シェーダーは新しく作った `Roomies/Triplanar Lit`
+   （物体の大きさに合わせて3方向から貼る。箱を伸ばしても模様が伸びない。動く物でも模様がずれない）。肌だけ URP Lit（Bobs.fbx に UV あり）。
+   テクスチャは手続き（`_Art/Restyle/Textures/tpl_*`）。色は子マテリアル（マテリアルバリアント）で上書き
+   （`Templates/Variants/テンプレ名/元の名前.mat`。名前を元と同じにしたのは、足音 FootstepAudio がマテリアル名で床を判定しているため）
+3. **部屋とタイトルに付け替え**：配置ツール `Roomies/Art/Restyle/Material Templates/2 Apply To Room And Title`。
+   Roomies_RoomRestyle と元の家の床・壁の部品だけ（GameRoom 684・タイトル 776）。プレハブのインスタンスは触っていない。
+   BobBody.mat を肌テンプレの子にした（プレイヤーと NPC にも効く。プレハブは触っていない）。
+   Build Room などで作り直したときも、`RoomiesRestyleKit.End()` から付け替え直す
+- 比較：`Docs/restyle_20261113/material/index.html`（step4_softpp・step5_template を追加）
+- 途中で unity-skills（8091）が止まった。Unity の再読み込みで 8090 に立ち直った（Unity は止めていない）
+
+確認：コンパイルエラー0、シェーダーエラー0。エディタの撮影で夜・朝とも白飛び・黒つぶれなし、HUD は崩れていない、ピンク（参照切れ）なし。
+未確認：Play Mode・ビルドでの見え方と負荷。町・鉱山・プレハブ（ベッド・冷蔵庫・家具・小物）はまだ元のマテリアル（段階3）。
+
 ## 2026/11/13｜プラスチック感を減らす（つや→質感→光）
 
 ブランチ `art/restyle-20261113`。ゆせさんの依頼「プラスチック感がすごい」。ポストエフェクト（5d3c55b）の上に重ねた。push はしていない。

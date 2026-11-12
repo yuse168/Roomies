@@ -92,6 +92,9 @@
 - 素材のつや・質感・照り返し（2026/11/13） … `Roomies/Art/Restyle/Material Finish/1 Matte Surfaces`・`2 Surface Detail`・`3 Light Bounce`
   （`RoomiesMaterialFinishBuilder`）。値は表で持つ。1と2の素材の部分は Build Room などの作り直しのあとに自動でかけ直す。
   デカール「Roomies_Decals」と照り返し・反射プローブ「Roomies_LightBounce」は、GameRoom とタイトルのそれぞれで 2・3 を実行して置く
+- 質感のテンプレマテリアル（2026/11/13） … `Roomies/Art/Restyle/Material Templates/1 Build Templates`・`2 Apply To Room And Title`
+  （`RoomiesMaterialTemplates.cs`）。テンプレ（親）は `Assets/_Materials/Templates/T_*.mat`、色は子マテリアル（マテリアルバリアント）で上書きする。
+  質感を直すときは親を直す。子の名前は元のマテリアルと同じにする（足音 `FootstepAudio` がマテリアル名の言葉で床を判定するため）
 
 組み立てのコードは各クラスの `EditorBuildUI()` に `#if UNITY_EDITOR` で残してある。
 実行中は動かないので、置き直したいときだけ配置ツールから呼ぶ。

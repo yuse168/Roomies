@@ -50,6 +50,8 @@ internal static class RoomiesRestyleKit
         // 素材を作り直したあと、つやと質感の仕上げ（Material Finish）をかけ直す。作り直しで仕上げが消えないように
         RoomiesMaterialFinishBuilder.ApplyMatte();
         RoomiesMaterialFinishBuilder.ApplySurfaceTextures();
+        // 部屋とタイトルの部品をテンプレの子マテリアルへ付け替え直す
+        RoomiesMaterialFinishBuilder.ApplyTemplatesToRoom();
     }
 
     static Mesh Builtin(PrimitiveType type)
