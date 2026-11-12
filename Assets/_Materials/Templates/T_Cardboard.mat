@@ -37,6 +37,7 @@ Material:
     m_Floats:
     - _BlendSharpness: 6
     - _BumpScale: 0.8
+    - _ColorVariation: 1
     - _Cull: 2
     - _DetailContrast: 1
     - _EnvironmentReflections: 0

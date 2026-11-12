@@ -1,21 +1,80 @@
 {
   "shots": [
-    {"file": "01_title.jpg", "label": "01 タイトル"},
-    {"file": "06_character.jpg", "label": "06 キャラのアップ"},
-    {"file": "03_room_night_hud.jpg", "label": "03 ゲーム中（夜・HUD付き）"},
-    {"file": "04_lounge_night.jpg", "label": "04 リビング（夜）"},
-    {"file": "05_lounge_morning.jpg", "label": "05 リビング（朝）"},
-    {"file": "07_furniture_closeup.jpg", "label": "07 家具のアップ（こたつ・ソファ）"},
-    {"file": "08_bed_closeup.jpg", "label": "08 ベッドのアップ"},
-    {"file": "09_shelf_desk.jpg", "label": "09 棚と机"}
+    {
+      "file": "01_title.jpg",
+      "label": "01 タイトル"
+    },
+    {
+      "file": "06_character.jpg",
+      "label": "06 キャラのアップ"
+    },
+    {
+      "file": "03_room_night_hud.jpg",
+      "label": "03 ゲーム中（夜・HUD付き）"
+    },
+    {
+      "file": "04_lounge_night.jpg",
+      "label": "04 リビング（夜）"
+    },
+    {
+      "file": "05_lounge_morning.jpg",
+      "label": "05 リビング（朝）"
+    },
+    {
+      "file": "07_furniture_closeup.jpg",
+      "label": "07 家具のアップ（こたつ・ソファ）"
+    },
+    {
+      "file": "08_bed_closeup.jpg",
+      "label": "08 ベッドのアップ"
+    },
+    {
+      "file": "09_shelf_desk.jpg",
+      "label": "09 棚と机"
+    }
   ],
   "stages": [
-    {"dir": "s0_before", "short": "前", "label": "今まで", "note": "ゲーム中のカメラは画面の仕上げなし・アンチエイリアスなし（タイトルは仕上げあり・アンチエイリアスなし）。それを再現して撮った"},
-    {"dir": "s0_after", "short": "0", "label": "カメラ", "note": "プレイヤーとタイトルのカメラで画面の仕上げを有効にし、SMAA（High）を付けた"}
+    {
+      "dir": "s0_before",
+      "short": "前",
+      "label": "今まで",
+      "note": "ゲーム中のカメラは画面の仕上げなし・アンチエイリアスなし（タイトルは仕上げあり・アンチエイリアスなし）。それを再現して撮った"
+    },
+    {
+      "dir": "s0_after",
+      "short": "0",
+      "label": "カメラ",
+      "note": "プレイヤーとタイトルのカメラで画面の仕上げを有効にし、SMAA（High）を付けた"
+    },
+    {
+      "dir": "s1_material",
+      "short": "1",
+      "label": "マテリアル",
+      "note": "テンプレを18個に（ゴム・陶器・発光を追加）。全テンプレに微細な色ムラ。ソファ・ぬいぐるみ・クッションは起毛の布に。コード・持ち手・靴底はゴム、植木鉢・お椀は陶器"
+    }
   ],
   "perf": [
-    {"stage": "前", "frame": "約6.9ms（5.2〜8.8）", "tris": "約105万", "draws": "約2,210", "setpass": "170"},
-    {"stage": "0 カメラ", "frame": "約7.8ms（7.0〜8.4）", "tris": "約105万", "draws": "約2,210", "setpass": "173"}
+    {
+      "stage": "前",
+      "frame": "約6.9ms（5.2〜8.8）",
+      "tris": "約105万",
+      "draws": "約2,210",
+      "setpass": "170"
+    },
+    {
+      "stage": "0 カメラ",
+      "frame": "約7.8ms（7.0〜8.4）",
+      "tris": "約105万",
+      "draws": "約2,210",
+      "setpass": "173"
+    },
+    {
+      "stage": "1 マテリアル",
+      "frame": "約8.3ms（7.3〜8.8）",
+      "tris": "約105万",
+      "draws": "約2,220",
+      "setpass": "166〜169"
+    }
   ],
   "extra": []
 }

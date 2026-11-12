@@ -12,6 +12,7 @@ Shader "Roomies/Triplanar Lit"
         _TileSize ("Tile Size (m)", Float) = 1
         _BlendSharpness ("Blend Sharpness", Range(1, 16)) = 6
         _DetailContrast ("Texture Contrast", Range(0, 2)) = 1
+        _ColorVariation ("Color Variation", Range(0, 2)) = 1
         _Smoothness ("Smoothness", Range(0, 1)) = 0.2
         _Metallic ("Metallic", Range(0, 1)) = 0
         [ToggleOff] _SpecularHighlights ("Specular Highlights", Float) = 1
@@ -33,6 +34,7 @@ Shader "Roomies/Triplanar Lit"
             float _TileSize;
             half _BlendSharpness;
             half _DetailContrast;
+            half _ColorVariation;
             half _Smoothness;
             half _Metallic;
         CBUFFER_END
@@ -130,10 +132,13 @@ Shader "Roomies/Triplanar Lit"
                 float3 p = input.posTex / max(_TileSize, 1e-3);
                 float2 uvX = p.zy, uvY = p.xz, uvZ = p.xy;
 
-                half gray = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uvX).r * w.x
-                          + SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uvY).r * w.y
-                          + SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uvZ).r * w.z;
-                gray = saturate(1 + (gray - 1) * _DetailContrast);
+                half3 tex = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uvX).rgb * w.x
+                          + SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uvY).rgb * w.y
+                          + SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uvZ).rgb * w.z;
+                tex = saturate(1 + (tex - 1) * _DetailContrast);
+                // 微細な色ムラ：テクスチャの色の揺れを _ColorVariation の分だけ使う（0 で灰色の濃淡だけ）
+                half lum = dot(tex, half3(0.3333, 0.3333, 0.3334));
+                half3 gray = max(lum + (tex - lum) * _ColorVariation, 0);
 
                 // ノーマル（whiteout 合成）
                 half3 tX = UnpackNormalScale(SAMPLE_TEXTURE2D(_BumpMap, sampler_BumpMap, uvX), _BumpScale);

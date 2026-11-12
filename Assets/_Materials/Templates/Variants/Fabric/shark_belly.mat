@@ -26,7 +26,10 @@ Material:
     serializedVersion: 3
     m_TexEnvs: []
     m_Ints: []
-    m_Floats: []
+    m_Floats:
+    - _BumpScale: 0.4
+    - _DetailContrast: 0.6
+    - _TileSize: 0.14
     m_Colors:
     - _BaseColor: {r: 0.84705883, g: 0.8666667, b: 0.8862745, a: 1}
   m_BuildTextureStacks: []

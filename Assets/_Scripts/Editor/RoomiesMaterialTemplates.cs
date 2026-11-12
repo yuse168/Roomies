@@ -20,7 +20,7 @@ internal static partial class RoomiesMaterialFinishBuilder
     const string VariantDir = TemplateDir + "Variants/";
     const string TriplanarShader = "Roomies/Triplanar Lit";
 
-    internal enum Tpl { Wood, Fabric, Plastic, PaintedMetal, Metal, Paper, Cardboard, Glass, Plaster, Concrete, Asphalt, Roof, Foliage, Ground, Skin }
+    internal enum Tpl { Wood, Fabric, Plastic, PaintedMetal, Metal, Paper, Cardboard, Glass, Plaster, Concrete, Asphalt, Roof, Foliage, Ground, Skin, Rubber, Ceramic, Emissive }
 
     // テンプレの設定：テクスチャ名, 作り方, ノーマルの強さ(作るとき), 模様1枚の大きさ(m), Smoothness, Metallic, ノーマル強さ, ハイライト, 映り込み
     readonly struct TplDef
@@ -46,6 +46,24 @@ internal static partial class RoomiesMaterialFinishBuilder
         [Tpl.Roof] = new TplDef("tpl_roof", RoofPixel, 5f, 1.2f, .08f, 0, 1f),
         [Tpl.Foliage] = new TplDef("tpl_foliage", FoliagePixel, 3f, .7f, .12f, 0, .8f),
         [Tpl.Ground] = new TplDef("tpl_ground", GroundPixel, 3f, 2.5f, .05f, 0, .7f, false, true),
+        [Tpl.Rubber] = new TplDef("tpl_rubber", RubberPixel, 2f, .3f, .22f, 0, .35f),
+        [Tpl.Ceramic] = new TplDef("tpl_ceramic", CeramicPixel, 1f, .3f, .55f, 0, .12f),
+    };
+
+    // 微細な色ムラの強さ（テンプレごと）。テクスチャの色をわずかに暖色・寒色へ揺らす
+    static readonly Dictionary<Tpl, float> TplTint = new Dictionary<Tpl, float>
+    {
+        [Tpl.Wood] = .12f, [Tpl.Fabric] = .08f, [Tpl.Plastic] = .04f, [Tpl.PaintedMetal] = .06f, [Tpl.Metal] = .03f,
+        [Tpl.Paper] = .06f, [Tpl.Cardboard] = .1f, [Tpl.Glass] = 0, [Tpl.Plaster] = .08f, [Tpl.Concrete] = .08f,
+        [Tpl.Asphalt] = .05f, [Tpl.Roof] = .1f, [Tpl.Foliage] = .15f, [Tpl.Ground] = .15f, [Tpl.Rubber] = .03f, [Tpl.Ceramic] = .04f,
+    };
+
+    static Pixel Tinted(Pixel pixel, float amount, int seed) => (float u, float v, out Color c, out float h) =>
+    {
+        pixel(u, v, out c, out h);
+        if (amount <= 0) return;
+        float warm = N(u, v, 3, 70 + seed) - .5f, green = N(u, v, 7, 90 + seed) - .5f;
+        c = new Color(c.r * (1 + amount * warm), c.g * (1 + amount * .5f * green), c.b * (1 - amount * warm), 1);
     };
 
     [MenuItem("Roomies/Art/Restyle/Material Templates/1 Build Templates")]
@@ -55,6 +73,7 @@ internal static partial class RoomiesMaterialFinishBuilder
         foreach (Tpl t in Enum.GetValues(typeof(Tpl))) Template(t);
         int n = 0;
         foreach (var pair in OldToTemplate) if (VariantFor(pair.Key) != null) n++;
+        foreach (var rule in NameRules) foreach (var old in RuleColors) if (VariantFor(old, rule.tpl) != null) n++;
         AssetDatabase.SaveAssets();
         Debug.Log($"[Material Templates] {Enum.GetValues(typeof(Tpl)).Length} templates, {n} variants");
     }
@@ -66,6 +85,18 @@ internal static partial class RoomiesMaterialFinishBuilder
     {
         string path = TemplatePath(t);
         var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (t == Tpl.Emissive)
+        {
+            // 光る物：URP Lit の発光。色と光の強さは子で上書きする
+            var lit = Shader.Find("Universal Render Pipeline/Lit");
+            if (mat == null) { mat = new Material(lit); AssetDatabase.CreateAsset(mat, path); }
+            mat.shader = lit;
+            mat.SetColor("_BaseColor", Color.white); mat.SetFloat("_Smoothness", .3f); mat.SetFloat("_Metallic", 0);
+            mat.EnableKeyword("_EMISSION"); mat.SetColor("_EmissionColor", Color.white);
+            mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+            EditorUtility.SetDirty(mat);
+            return mat;
+        }
         if (t == Tpl.Skin)
         {
             // キャラの肌：URP Lit（動くので UV で貼る。Bobs.fbx には UV がある）。少しマットに、ごく弱い粒感
@@ -87,12 +118,12 @@ internal static partial class RoomiesMaterialFinishBuilder
         if (shader == null) throw new InvalidOperationException("Shader not found: " + TriplanarShader);
         if (mat == null) { mat = new Material(shader); AssetDatabase.CreateAsset(mat, path); }
         mat.shader = shader;
-        var map = Make(d.Tex, 512, d.Make, out var normal, d.Bake);
+        var map = Make(d.Tex, 512, Tinted(d.Make, TplTint.TryGetValue(t, out var tint) ? tint : 0, (int)t), out var normal, d.Bake);
         mat.SetTexture("_BaseMap", map); mat.SetTexture("_BumpMap", normal);
         mat.SetColor("_BaseColor", Color.white);
         mat.SetFloat("_TileSize", d.Tile); mat.SetFloat("_BumpScale", d.Bump);
         mat.SetFloat("_Smoothness", d.Smooth); mat.SetFloat("_Metallic", d.Metal);
-        mat.SetFloat("_BlendSharpness", 6); mat.SetFloat("_DetailContrast", 1);
+        mat.SetFloat("_BlendSharpness", 6); mat.SetFloat("_DetailContrast", 1); mat.SetFloat("_ColorVariation", 1);
         mat.SetFloat("_SpecularHighlights", d.Spec ? 1 : 0); mat.SetFloat("_EnvironmentReflections", d.Env ? 1 : 0);
         SetKeyword(mat, "_SPECULARHIGHLIGHTS_OFF", !d.Spec); SetKeyword(mat, "_ENVIRONMENTREFLECTIONS_OFF", !d.Env);
         mat.enableInstancing = true;
@@ -129,7 +160,7 @@ internal static partial class RoomiesMaterialFinishBuilder
         ["plastic_black"] = Tpl.Plastic, ["plastic_white"] = Tpl.Plastic, ["red"] = Tpl.Plastic, ["orange"] = Tpl.Plastic, ["yellow"] = Tpl.Plastic,
         ["green"] = Tpl.Plastic, ["teal"] = Tpl.Plastic, ["blue"] = Tpl.Plastic, ["pink"] = Tpl.Plastic, ["purple"] = Tpl.Plastic, ["purple_dark"] = Tpl.Plastic,
         ["bag_blue"] = Tpl.Plastic, ["bin_blue"] = Tpl.Plastic, ["fan_blade"] = Tpl.Plastic, ["mw_panel"] = Tpl.Plastic, ["slot_panel"] = Tpl.Plastic,
-        ["dart_dark"] = Tpl.Plastic, ["tape"] = Tpl.Plastic, ["pot"] = Tpl.Plastic, ["cream"] = Tpl.Plastic,
+        ["dart_dark"] = Tpl.Plastic, ["tape"] = Tpl.Plastic, ["pot"] = Tpl.Ceramic, ["cream"] = Tpl.Plastic,
         ["fridge_green"] = Tpl.PaintedMetal, ["fridge_green_dark"] = Tpl.PaintedMetal, ["cabinet_green"] = Tpl.PaintedMetal,
         ["cabinet_green_light"] = Tpl.PaintedMetal, ["slot_body"] = Tpl.PaintedMetal, ["lamp_shade"] = Tpl.PaintedMetal,
         ["lamp_shade_green"] = Tpl.PaintedMetal, ["worktop"] = Tpl.PaintedMetal,
@@ -141,18 +172,46 @@ internal static partial class RoomiesMaterialFinishBuilder
         ["wall_plaster"] = Tpl.Plaster, ["ceiling"] = Tpl.Plaster,
         ["leaf"] = Tpl.Foliage, ["leaf_dark"] = Tpl.Foliage,
         ["soil"] = Tpl.Ground, ["gravel"] = Tpl.Ground,
+        // 光る物（glow_water は未コミットの変更があるので入れない）
+        ["glow_bar_lime"] = Tpl.Emissive, ["glow_bulb"] = Tpl.Emissive, ["glow_fairy"] = Tpl.Emissive, ["glow_lantern"] = Tpl.Emissive,
+        ["glow_led_green"] = Tpl.Emissive, ["glow_neon_pink"] = Tpl.Emissive, ["glow_neon_purple"] = Tpl.Emissive,
+        ["glow_screen_green"] = Tpl.Emissive, ["glow_screen_white"] = Tpl.Emissive, ["glow_slot_red"] = Tpl.Emissive,
+        ["glow_slot_yellow"] = Tpl.Emissive, ["glow_tank_light"] = Tpl.Emissive, ["glow_tv"] = Tpl.Emissive, ["glow_tv_ground"] = Tpl.Emissive,
+        ["glow_tv_sky"] = Tpl.Emissive, ["glow_window"] = Tpl.Emissive, ["lamp_inner"] = Tpl.Emissive,
     };
 
-    /// <summary>元の Restyle マテリアルに対応する子を作る（色は元の色を写す）。対応がなければ null。</summary>
-    internal static Material VariantFor(string oldName)
+    // 部品の名前で決めるもの（同じ色のマテリアルでも、コード・持ち手・靴底はゴム、マグ・お椀は陶器）
+    static readonly (System.Text.RegularExpressions.Regex pattern, Tpl tpl)[] NameRules =
     {
-        if (!OldToTemplate.TryGetValue(oldName, out var t)) return null;
+        (new System.Text.RegularExpressions.Regex(@"(?i)cord|wire|grip|sole|wheel|caster|cable|tire|tyre|hose|strap"), Tpl.Rubber),
+        (new System.Text.RegularExpressions.Regex(@"(?i)\bmug\b|bowl|saucer|plate"), Tpl.Ceramic),
+    };
+    static readonly HashSet<string> Plush = new HashSet<string> { "sofa_yellow", "sofa_yellow_dark", "pillow_teal", "plush_grey", "shark_blue", "shark_belly", "cloth_blue", "cloth_cream" };
+    // 名前で決めるときに子を作っておく元の色
+    static readonly string[] RuleColors = { "plastic_black", "plastic_white", "metal_dark", "cream", "red", "blue", "teal", "orange", "yellow", "green", "purple", "pink" };
+
+    static Tpl? RuleFor(string rendererName, string oldName)
+    {
+        if (OldToTemplate.TryGetValue(oldName, out var mapped) && (mapped == Tpl.Emissive || mapped == Tpl.Glass)) return null;
+        foreach (var rule in NameRules) if (rule.pattern.IsMatch(rendererName)) return rule.tpl;
+        return null;
+    }
+
+    /// <summary>元の Restyle マテリアルに対応する子を作る（色は元の色を写す）。対応がなければ null。</summary>
+    internal static Material VariantFor(string oldName, Tpl? forced = null)
+    {
+        Tpl t;
+        if (forced.HasValue) t = forced.Value;
+        else if (!OldToTemplate.TryGetValue(oldName, out t)) return null;
         var old = AssetDatabase.LoadAssetAtPath<Material>(Restyle + oldName + ".mat");
         if (old == null) return null;
         Color c = old.GetColor("_BaseColor");
         Action<Material> extra = null;
-        var def = TplDefs[t];
-        if (oldName == "floor_planks")
+        if (t == Tpl.Emissive)
+            extra = v => { v.SetColor("_EmissionColor", old.GetColor("_EmissionColor")); v.SetFloat("_Smoothness", old.GetFloat("_Smoothness")); };
+        else if (t == Tpl.Fabric && Plush.Contains(oldName))
+            extra = v => { v.SetFloat("_DetailContrast", .6f); v.SetFloat("_BumpScale", .4f); v.SetFloat("_TileSize", .14f); };   // 起毛（ソファ・ぬいぐるみ・クッション）
+        else if (oldName == "floor_planks")
             extra = v =>
             {
                 v.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(TexDir + "finish_floor.png"));
@@ -276,6 +335,24 @@ internal static partial class RoomiesMaterialFinishBuilder
         h = tufts * .4f + pebbles * .4f + patches * .2f;
     }
 
+    // ゴム：細かい粒と、ほんの少しのむら
+    static void RubberPixel(float u, float v, out Color c, out float h)
+    {
+        float grain = Mathf.PerlinNoise(u * 600, v * 600), mottle = N(u, v, 6, 31);
+        float t = .93f + .03f * mottle + .04f * grain;
+        c = new Color(t, t, t, 1);
+        h = grain * .5f + mottle * .1f;
+    }
+
+    // 陶器：釉薬のゆるいうねり
+    static void CeramicPixel(float u, float v, out Color c, out float h)
+    {
+        float wave = N(u, v, 4, 37), pin = S(.82f, .86f, Mathf.PerlinNoise(u * 300 + 3, v * 300 + 1));
+        float t = .96f + .03f * wave - .05f * pin;
+        c = new Color(t, t, t, 1);
+        h = wave * .3f - pin * .3f;
+    }
+
     // キャラの肌：ソフビ感を消すための、ごく弱い粒とむら
     static void SkinPixel(float u, float v, out Color c, out float h)
     {
@@ -292,7 +369,7 @@ internal static partial class RoomiesMaterialFinishBuilder
     [MenuItem("Roomies/Art/Restyle/Material Templates/2 Apply To Room And Title")]
     internal static void ApplyTemplatesToRoom()
     {
-        var cache = new Dictionary<Material, Material>();
+        var cache = new Dictionary<string, Material>();
         foreach (var scene in Enumerable.Range(0, UnityEngine.SceneManagement.SceneManager.sceneCount).Select(UnityEngine.SceneManagement.SceneManager.GetSceneAt).ToArray())
         {
             if (!scene.isLoaded) continue;
@@ -310,13 +387,14 @@ internal static partial class RoomiesMaterialFinishBuilder
                 for (int i = 0; i < mats.Length; i++)
                 {
                     var old = mats[i];
-                    if (old == null || old.parent != null) continue;   // もう子マテリアルなら何もしない
-                    if (!cache.TryGetValue(old, out var v))
-                    {
-                        v = AssetDatabase.GetAssetPath(old).StartsWith(Restyle) ? VariantFor(old.name) : null;
-                        cache[old] = v;
-                    }
-                    if (v != null) { mats[i] = v; changed = true; }
+                    if (old == null) continue;
+                    // 元の Restyle マテリアルか、すでにテンプレの子になっている物（名前は元と同じ）だけを扱う
+                    string oldPath = AssetDatabase.GetAssetPath(old);
+                    if (!oldPath.StartsWith(Restyle) && !oldPath.StartsWith(VariantDir)) continue;
+                    var rule = RuleFor(r.name, old.name);
+                    string key = old.name + "|" + (rule.HasValue ? rule.Value.ToString() : "");
+                    if (!cache.TryGetValue(key, out var v)) { v = VariantFor(old.name, rule); cache[key] = v; }
+                    if (v != null && v != old) { mats[i] = v; changed = true; }
                 }
                 if (changed) { r.sharedMaterials = mats; EditorUtility.SetDirty(r); swapped++; }
             }
