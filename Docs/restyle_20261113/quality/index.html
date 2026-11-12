@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roomies 画質の改善 2026/11/13</title>
+<style>
+  :root { --ground:#17131F; --panel:#221C2E; --line:#3A3149; --text:#F4F0E8; --sub:#C9C2D4; --accent:#FFD23F; }
+  @media (prefers-color-scheme: light) { :root { --ground:#F3EEE3; --panel:#FFFFFF; --line:#D9D0BF; --text:#221A2C; --sub:#4B4358; --accent:#8A6400; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--ground); color:var(--text); line-height:1.7; font-weight:500;
+    font-family:"Hiragino Sans","BIZ UDPGothic","Yu Gothic UI","Noto Sans JP",sans-serif; }
+  main { max-width:1800px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { margin:0 0 4px; font-size:28px; font-weight:900; line-height:1.3; }
+  h2 { margin:32px 0 10px; font-size:20px; font-weight:900; }
+  .lead, li { color:var(--sub); }
+  li b { color:var(--text); }
+  .scroll { overflow-x:auto; }
+  .row { display:grid; grid-template-columns:repeat(var(--cols), minmax(240px, 1fr)); gap:10px; }
+  figure { margin:0; background:var(--panel); border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  figure.none { display:flex; align-items:center; min-height:120px; }
+  figure.wide { max-width:1400px; }
+  a { display:block; }
+  img { display:block; width:100%; height:auto; }
+  figcaption { padding:6px 12px 8px; color:var(--sub); font-size:14px; }
+  figcaption b { color:var(--accent); margin-right:6px; }
+  table { border-collapse:collapse; margin-top:8px; }
+  td, th { border:1px solid var(--line); padding:6px 10px; text-align:left; }
+</style>
+</head>
+<body>
+<main>
+<h1>画質の改善（マテリアル・ベベル・ライティング・仕上げ）</h1>
+<p class="lead">左から段階の順。同じカメラ・時間帯・解像度（1920×1080）で撮っています。画像を押すと原寸で開きます。HUD とメニューには画面の仕上げをかけていません。</p>
+<ol><li><b>前 今まで</b>：ゲーム中のカメラは画面の仕上げなし・アンチエイリアスなし（タイトルは仕上げあり・アンチエイリアスなし）。それを再現して撮った</li><li><b>0 カメラ</b>：プレイヤーとタイトルのカメラで画面の仕上げを有効にし、SMAA（High）を付けた</li></ol>
+<h2>重さ（Play Mode・GameRoom・エディタ上）</h2>
+<div class="scroll"><table><tr><th>段階</th><th>フレーム時間</th><th>三角形</th><th>ドローコール</th><th>SetPass</th></tr><tr><td>前</td><td>約6.9ms（5.2〜8.8）</td><td>約105万</td><td>約2,210</td><td>170</td></tr><tr><td>0 カメラ</td><td>約7.8ms（7.0〜8.4）</td><td>約105万</td><td>約2,210</td><td>173</td></tr></table></div>
+<h2>01 タイトル</h2>
+<div class="scroll"><div class="row" style="--cols:2">
+<figure><a href="s0_before/01_title.jpg"><img src="s0_before/01_title.jpg" alt="01 タイトル 今まで" width="1920" height="1080" loading="lazy"></a><figcaption><b>前</b>今まで</figcaption></figure>
+<figure><a href="s0_after/01_title.jpg"><img src="s0_after/01_title.jpg" alt="01 タイトル カメラ" width="1920" height="1080" loading="lazy"></a><figcaption><b>0</b>カメラ</figcaption></figure>
+</div></div>
+<h2>06 キャラのアップ</h2>
+<div class="scroll"><div class="row" style="--cols:2">
+<figure><a href="s0_before/06_character.jpg"><img src="s0_before/06_character.jpg" alt="06 キャラのアップ 今まで" width="1920" height="1080" loading="lazy"></a><figcaption><b>前</b>今まで</figcaption></figure>
+<figure><a href="s0_after/06_character.jpg"><img src="s0_after/06_character.jpg" alt="06 キャラのアップ カメラ" width="1920" height="1080" loading="lazy"></a><figcaption><b>0</b>カメラ</figcaption></figure>
+</div></div>
+<h2>03 ゲーム中（夜・HUD付き）</h2>
+<div class="scroll"><div class="row" style="--cols:2">
+<figure><a href="s0_before/03_room_night_hud.jpg"><img src="s0_before/03_room_night_hud.jpg" alt="03 ゲーム中（夜・HUD付き） 今まで" width="1920" height="1080" loading="lazy"></a><figcaption><b>前</b>今まで</figcaption></figure>
+<figure><a href="s0_after/03_room_night_hud.jpg"><img src="s0_after/03_room_night_hud.jpg" alt="03 ゲーム中（夜・HUD付き） カメラ" width="1920" height="1080" loading="lazy"></a><figcaption><b>0</b>カメラ</figcaption></figure>
+</div></div>
+<h2>04 リビング（夜）</h2>
+<div class="scroll"><div class="row" style="--cols:2">
+<figure><a href="s0_before/04_lounge_night.jpg"><img src="s0_before/04_lounge_night.jpg" alt="04 リビング（夜） 今まで" width="1920" height="1080" loading="lazy"></a><figcaption><b>前</b>今まで</figcaption></figure>
+<figure><a href="s0_after/04_lounge_night.jpg"><img src="s0_after/04_lounge_night.jpg" alt="04 リビング（夜） カメラ" width="1920" height="1080" loading="lazy"></a><figcaption><b>0</b>カメラ</figcaption></figure>
+</div></div>
+<h2>05 リビング（朝）</h2>
+<div class="scroll"><div class="row" style="--cols:2">
+<figure><a href="s0_before/05_lounge_morning.jpg"><img src="s0_before/05_lounge_morning.jpg" alt="05 リビング（朝） 今まで" width="1920" height="1080" loading="lazy"></a><figcaption><b>前</b>今まで</figcaption></figure>
+<figure><a href="s0_after/05_lounge_morning.jpg"><img src="s0_after/05_lounge_morning.jpg" alt="05 リビング（朝） カメラ" width="1920" height="1080" loading="lazy"></a><figcaption><b>0</b>カメラ</figcaption></figure>
+</div></div>
+<h2>07 家具のアップ（こたつ・ソファ）</h2>
+<div class="scroll"><div class="row" style="--cols:2">
+<figure><a href="s0_before/07_furniture_closeup.jpg"><img src="s0_before/07_furniture_closeup.jpg" alt="07 家具のアップ（こたつ・ソファ） 今まで" width="1920" height="1080" loading="lazy"></a><figcaption><b>前</b>今まで</figcaption></figure>
+<figure><a href="s0_after/07_furniture_closeup.jpg"><img src="s0_after/07_furniture_closeup.jpg" alt="07 家具のアップ（こたつ・ソファ） カメラ" width="1920" height="1080" loading="lazy"></a><figcaption><b>0</b>カメラ</figcaption></figure>
+</div></div>
+<h2>08 ベッドのアップ</h2>
+<div class="scroll"><div class="row" style="--cols:2">
+<figure><a href="s0_before/08_bed_closeup.jpg"><img src="s0_before/08_bed_closeup.jpg" alt="08 ベッドのアップ 今まで" width="1920" height="1080" loading="lazy"></a><figcaption><b>前</b>今まで</figcaption></figure>
+<figure><a href="s0_after/08_bed_closeup.jpg"><img src="s0_after/08_bed_closeup.jpg" alt="08 ベッドのアップ カメラ" width="1920" height="1080" loading="lazy"></a><figcaption><b>0</b>カメラ</figcaption></figure>
+</div></div>
+<h2>09 棚と机</h2>
+<div class="scroll"><div class="row" style="--cols:2">
+<figure><a href="s0_before/09_shelf_desk.jpg"><img src="s0_before/09_shelf_desk.jpg" alt="09 棚と机 今まで" width="1920" height="1080" loading="lazy"></a><figcaption><b>前</b>今まで</figcaption></figure>
+<figure><a href="s0_after/09_shelf_desk.jpg"><img src="s0_after/09_shelf_desk.jpg" alt="09 棚と机 カメラ" width="1920" height="1080" loading="lazy"></a><figcaption><b>0</b>カメラ</figcaption></figure>
+</div></div>
+
+</main>
+</body>
+</html>

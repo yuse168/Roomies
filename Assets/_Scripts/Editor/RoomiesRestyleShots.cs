@@ -78,7 +78,8 @@ internal static class RoomiesRestyleShots
             string uiSpec = p.Length > 5 ? p[5].Trim() : "noui";
             bool ui = uiSpec.StartsWith("ui");
             string[] only = uiSpec.Contains(":") ? uiSpec.Substring(uiSpec.IndexOf(':') + 1).Split(',') : null;
-            Shot(p[0].Trim(), pos, target, fov, night, ui, only, p.Length > 6 && p[6].Trim() == "nopp");
+            // 7つ目 nopp：画面の仕上げなし、8つ目 noaa：アンチエイリアスなし（ゲームのカメラの設定を再現するとき）
+            Shot(p[0].Trim(), pos, target, fov, night, ui, only, p.Length > 6 && p[6].Trim() == "nopp", p.Length > 7 && p[7].Trim() == "noaa");
         }
     }
 
@@ -89,7 +90,7 @@ internal static class RoomiesRestyleShots
         return new Vector3(float.Parse(v[0], inv), float.Parse(v[1], inv), float.Parse(v[2], inv));
     }
 
-    static void Shot(string name, Vector3 position, Vector3 target, float fov, bool night, bool ui, string[] only, bool noPost)
+    static void Shot(string name, Vector3 position, Vector3 target, float fov, bool night, bool ui, string[] only, bool noPost, bool noAA = false)
     {
         // 空・太陽は DayManager が実行時に切り替える。撮るあいだだけ同じ値を当てて、あとで戻す。
         var day = Object.FindAnyObjectByType<DayManager>();
@@ -121,7 +122,8 @@ internal static class RoomiesRestyleShots
         var camera = go.AddComponent<Camera>();
         var data = go.AddComponent<UniversalAdditionalCameraData>();
         data.renderPostProcessing = !noPost;
-        data.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
+        data.antialiasing = noAA ? AntialiasingMode.None : AntialiasingMode.SubpixelMorphologicalAntiAliasing;
+        data.antialiasingQuality = AntialiasingQuality.High;
         camera.transform.position = position;
         camera.transform.LookAt(target);
         camera.fieldOfView = fov;
