@@ -31,7 +31,7 @@ internal static partial class RoomiesTownRebuild
     class Facade
     {
         public string name, wall, frame; public Vector3 origin; public float yaw, width, height, thick = .24f;
-        public bool plinth = true, band; public List<Opening> openings = new List<Opening>();
+        public bool plinth = true, band, collider = true; public List<Opening> openings = new List<Opening>();
     }
 
     [MenuItem("Roomies/Art/Town/1 Windows And Walls")]
@@ -112,11 +112,11 @@ internal static partial class RoomiesTownRebuild
     }
 
     // ================================================================ 組み立て
-    static void Build(Transform parent, Facade f)
+    static GameObject Build(Transform parent, Facade f)
     {
         var go = new GameObject(f.name) { isStatic = true };
         go.transform.SetParent(parent, false);
-        go.transform.SetPositionAndRotation(f.origin, Quaternion.Euler(0, f.yaw, 0));
+        go.transform.localPosition = f.origin; go.transform.localRotation = Quaternion.Euler(0, f.yaw, 0);
         var t = go.transform;
         float W = f.width, H = f.height, T = f.thick;
         var wall = Mat(f.wall); var frame = Mat(f.frame); var sill = Mat("sill"); var plinth = Mat("plinth");
@@ -149,9 +149,11 @@ internal static partial class RoomiesTownRebuild
 
         foreach (var o in f.openings) BuildOpening(t, o, T, frame, sill);
 
-        // 外壁の分の当たり判定（見た目と同じ板1枚）
+        // 外壁の分の当たり判定（見た目と同じ板1枚）。境界の外の家には付けない
+        if (!f.collider) return go;
         var col = go.AddComponent<BoxCollider>();
         col.center = new Vector3(W / 2, H / 2, T / 2 + .01f); col.size = new Vector3(W, H, T + .02f);
+        return go;
     }
 
     static void BuildOpening(Transform t, Opening o, float T, Material frame, Material sill)

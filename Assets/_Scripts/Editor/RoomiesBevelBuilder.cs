@@ -146,33 +146,41 @@ internal static class RoomiesBevelBuilder
     [MenuItem("Roomies/Art/Restyle/Bevel/Apply To Town")]
     internal static void ApplyToTown()
     {
-        var meshes = LoadMeshAsset();
         var root = PrefabUtility.LoadPrefabContents(NeighborhoodPrefab);
         int n = 0;
         try
         {
-            foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true))
-            {
-                if (mf.sharedMesh == null || PrefabUtility.IsPartOfPrefabInstance(mf) || RoomiesMaterialFinishBuilder.InMining(mf.transform)) continue;
-                var shape = ShapeOf(mf.sharedMesh); if (shape == Shape.Other) continue;
-                if (mf.sharedMesh.name.StartsWith("rbox_")) continue;   // 角丸の箱（部屋の物）はそのまま
-                var tier = TownTierFor(mf.name);
-                if (tier == Tier.None) continue;
-                Vector3 b = mf.sharedMesh.bounds.size, s = mf.transform.lossyScale;
-                s = new Vector3(Mathf.Abs(s.x), Mathf.Abs(s.y), Mathf.Abs(s.z));
-                Vector3 world = Vector3.Scale(b, s);
-                if (world.x < 1e-4f || world.y < 1e-4f || world.z < 1e-4f) continue;
-                var (ratio, max) = TierSize[tier];
-                float minSide = shape == Shape.Box ? Mathf.Min(world.x, Mathf.Min(world.y, world.z)) : Mathf.Min(world.x, world.y);
-                float r = Mathf.Min(Mathf.Clamp(minSide * ratio, .002f, max), minSide * .49f);
-                var mesh = shape == Shape.Box ? BoxMesh(meshes, b, s, r, Segments[tier]) : CylinderMesh(meshes, b, s, r, Segments[tier], minSide);
-                if (mf.sharedMesh != mesh) { mf.sharedMesh = mesh; n++; }
-            }
+            n = ApplyTownUnder(root.transform);
             PrefabUtility.SaveAsPrefabAsset(root, NeighborhoodPrefab);
         }
         finally { PrefabUtility.UnloadPrefabContents(root); }
         AssetDatabase.SaveAssets();
         Debug.Log($"[Bevel] town prefab: {n} parts");
+    }
+
+    /// <summary>町の表（部品の名前で強・中・弱）で、root の下の箱・円柱を角丸にする。町の作り直しの配置ツールからも呼ぶ。</summary>
+    internal static int ApplyTownUnder(Transform root)
+    {
+        var meshes = LoadMeshAsset();
+        int n = 0;
+        foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true))
+        {
+            if (mf.sharedMesh == null || PrefabUtility.IsPartOfPrefabInstance(mf) || RoomiesMaterialFinishBuilder.InMining(mf.transform)) continue;
+            var shape = ShapeOf(mf.sharedMesh); if (shape == Shape.Other) continue;
+            if (mf.sharedMesh.name.StartsWith("rbox_")) continue;   // 角丸の箱（部屋の物）はそのまま
+            var tier = TownTierFor(mf.name);
+            if (tier == Tier.None) continue;
+            Vector3 b = mf.sharedMesh.bounds.size, s = mf.transform.lossyScale;
+            s = new Vector3(Mathf.Abs(s.x), Mathf.Abs(s.y), Mathf.Abs(s.z));
+            Vector3 world = Vector3.Scale(b, s);
+            if (world.x < 1e-4f || world.y < 1e-4f || world.z < 1e-4f) continue;
+            var (ratio, max) = TierSize[tier];
+            float minSide = shape == Shape.Box ? Mathf.Min(world.x, Mathf.Min(world.y, world.z)) : Mathf.Min(world.x, world.y);
+            float r = Mathf.Min(Mathf.Clamp(minSide * ratio, .002f, max), minSide * .49f);
+            var mesh = shape == Shape.Box ? BoxMesh(meshes, b, s, r, Segments[tier]) : CylinderMesh(meshes, b, s, r, Segments[tier], minSide);
+            if (mf.sharedMesh != mesh) { mf.sharedMesh = mesh; n++; }
+        }
+        return n;
     }
 
     [MenuItem("Roomies/Art/Restyle/Bevel/Preview Town Tiers")]

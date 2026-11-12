@@ -233,24 +233,14 @@ internal static class RoomiesBackdropBuilder
         float height = Range(4.5f, 7f);
         string wall = Pick("cream", "paper", "pink", "mustard");
 
-        Box(house, "Body", new Vector3(0f, height / 2f, 0f), new Vector3(width, height, depth), wall);
+        // 乱数の使い方は前と同じにする（ほかの建物の位置が変わらないように）
+        Range(26f, 36f);
+        string roof = Pick("coral", "teal", "ink");
+        Pick("coral", "teal", "ink");
 
-        // 切妻屋根（板を2枚傾けて合わせる）
-        float slope = Range(26f, 36f);
-        foreach (float side in new[] { -1f, 1f })
-        {
-            Transform roof = Group(house, "Roof");
-            roof.localPosition = new Vector3(0f, height + depth * 0.13f, side * depth * 0.25f);
-            roof.localRotation = Quaternion.Euler(side * slope, 0f, 0f);
-            Box(roof, "Panel", Vector3.zero, new Vector3(width + 1f, 0.35f, depth * 0.62f),
-                Pick("coral", "teal", "ink"));
-        }
-
-        Box(house, "Chimney", new Vector3(width * 0.28f, height + 1.6f, depth * 0.2f),
-            new Vector3(0.9f, 2.4f, 0.9f), "ink");
-        Box(house, "Door", new Vector3(0f, 1.1f, depth / 2f + 0.06f), new Vector3(1.2f, 2.2f, 0.12f), "wood");
-        Box(house, "Window", new Vector3(width * 0.28f, 2.4f, depth / 2f + 0.06f),
-            new Vector3(1.6f, 1.2f, 0.12f), "blue");
+        // 形は町の家と同じ（切妻屋根・軒・煙突・枠のある窓。2026/11/13 の町の作り直し）
+        var spec = RoomiesTownRebuild.FarSpec(width, depth, height, wall, roof, house.GetSiblingIndex());
+        RoomiesTownRebuild.BuildFarHouse(house, spec);
     }
 
     private static void Block(Transform parent, Vector3 position)

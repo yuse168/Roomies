@@ -41,6 +41,28 @@ internal static partial class RoomiesMaterialFinishBuilder
             case "frame_house": return V(Tpl.PaintedMetal, C(.12f, .46f, .47f));
             case "shutter": return V(Tpl.Metal, C(.66f, .69f, .72f), v => { v.SetFloat("_Metallic", .45f); v.SetFloat("_Smoothness", .32f); });
             case "handle": return V(Tpl.Metal, C(.78f, .78f, .76f));
+            // 家（段階2）
+            case "wall_h1": return V(Tpl.Plaster, C(.92f, .87f, .76f));
+            case "wall_h2": return V(Tpl.Plaster, C(.63f, .72f, .6f));
+            case "wall_h3": return V(Tpl.Plaster, C(.66f, .77f, .84f));
+            case "wall_h4": return V(Tpl.Plaster, C(.93f, .72f, .6f));
+            case "wall_h5": return V(Tpl.Plaster, C(.91f, .78f, .46f));
+            case "wall_b1": return V(Tpl.Brick, C(.6f, .33f, .26f));
+            case "wall_b2": return V(Tpl.Brick, C(.78f, .64f, .5f));
+            case "roof_slate": return V(Tpl.Roof, C(.27f, .3f, .35f));
+            case "roof_terra": return V(Tpl.Roof, C(.68f, .35f, .25f));
+            case "roof_teal": return V(Tpl.Roof, C(.2f, .43f, .45f));
+            case "roof_moss": return V(Tpl.Roof, C(.36f, .42f, .32f));
+            case "roof_flat": return V(Tpl.Concrete, C(.5f, .5f, .5f));
+            case "frame_h_white": return V(Tpl.PaintedMetal, C(.93f, .92f, .88f));
+            case "frame_h_navy": return V(Tpl.PaintedMetal, C(.18f, .25f, .4f));
+            case "frame_h_green": return V(Tpl.PaintedMetal, C(.2f, .38f, .28f));
+            case "metal_dark": return V(Tpl.PaintedMetal, C(.26f, .28f, .3f));
+            case "ac_unit": return V(Tpl.PaintedMetal, C(.84f, .84f, .81f));
+            case "planter_wood": return V(Tpl.Wood, C(.5f, .34f, .22f));
+            case "planter_leaf": return V(Tpl.Foliage, C(.3f, .5f, .28f));
+            case "paving": return V(Tpl.Concrete, C(.72f, .7f, .66f));
+            case "door_wood": return V(Tpl.Wood, C(.45f, .3f, .2f));
             case "glass_shop": return WindowGlass("town_shop_interior", ShopInteriorPixel, C(1f, .86f, .66f), 1.1f);
             case "glass_home_lit": return WindowGlass("town_home_window", HomeWindowPixel, C(1f, .8f, .55f), .8f);
             case "glass_home_dark": return WindowGlass("town_home_window", HomeWindowPixel, C(.55f, .65f, 1f), .05f);
