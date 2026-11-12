@@ -15,6 +15,7 @@ using Object = UnityEngine.Object;
 /// 見た目の確認用スクリーンショット（Play しない）。
 /// Temp/RoomiesRestyle/shots.txt の各行を1枚として Docs/restyle_20261113/ に書き出す。
 /// 行の形: 名前|カメラ位置 x y z|見る先 x y z|画角|night か day|ui か noui（ui:名前,名前 でその Canvas だけ）
+/// 7つ目に nopp と書くと画面の仕上げ（ポストプロセス）なしで撮る。
 /// ui のときは、HUD の数字に見本の値を入れて撮り、撮り終わったら元へ戻す。
 /// シーンには何も残さない（撮影用カメラと一時的な空の設定は撮り終わったら戻す）。
 /// </summary>
@@ -36,13 +37,35 @@ internal static class RoomiesRestyleShots
             string line = raw.Trim();
             if (line.Length == 0 || line.StartsWith("#")) continue;
             string[] p = line.Split('|');
-            Vector3 pos = Parse(p[1]), target = Parse(p[2]);
-            float fov = float.Parse(p[3], inv);
+            Vector3 pos, target; float fov;
+            if (p[1].Trim() == "menu")
+            {
+                // タイトルの構図（MainMenuRoomShowcase が実行時に決めるのと同じ計算）
+                var so = new SerializedObject(Object.FindAnyObjectByType<MainMenuRoomShowcase>());
+                pos = so.FindProperty("cameraAnchor").vector3Value;
+                var roomies = so.FindProperty("characters"); Vector3 sum = Vector3.zero;
+                for (int i = 0; i < roomies.arraySize; i++) sum += ((Transform)roomies.GetArrayElementAtIndex(i).objectReferenceValue).position;
+                Vector3 subject = sum / roomies.arraySize;
+                Vector3 right = Vector3.Cross(Vector3.up, (subject - pos).normalized).normalized;
+                target = subject + Vector3.up * so.FindProperty("subjectEyeHeight").floatValue - right * so.FindProperty("frameBias").floatValue;
+                fov = so.FindProperty("fieldOfView").floatValue;
+                // キャラの色は実行時に付く。撮るあいだだけ同じ色を当てる（保存されない）
+                Color[] tints = { new Color(0.98f, 0.31f, 0.58f), new Color(0.20f, 0.70f, 0.96f), new Color(0.35f, 0.82f, 0.42f) };
+                for (int i = 0; i < roomies.arraySize; i++)
+                    foreach (var r in ((Transform)roomies.GetArrayElementAtIndex(i).objectReferenceValue).GetComponentsInChildren<Renderer>())
+                    {
+                        if (!r.name.Contains("BobBody")) continue;
+                        var block = new MaterialPropertyBlock();
+                        block.SetColor("_BaseColor", tints[i % tints.Length]);
+                        r.SetPropertyBlock(block);
+                    }
+            }
+            else { pos = Parse(p[1]); target = Parse(p[2]); fov = float.Parse(p[3], inv); }
             bool night = p.Length > 4 && p[4].Trim() == "night";
             string uiSpec = p.Length > 5 ? p[5].Trim() : "noui";
             bool ui = uiSpec.StartsWith("ui");
             string[] only = uiSpec.Contains(":") ? uiSpec.Substring(uiSpec.IndexOf(':') + 1).Split(',') : null;
-            Shot(p[0].Trim(), pos, target, fov, night, ui, only);
+            Shot(p[0].Trim(), pos, target, fov, night, ui, only, p.Length > 6 && p[6].Trim() == "nopp");
         }
         Debug.Log("[Roomies Restyle] Shots written to " + OutDir);
     }
@@ -54,7 +77,7 @@ internal static class RoomiesRestyleShots
         return new Vector3(float.Parse(v[0], inv), float.Parse(v[1], inv), float.Parse(v[2], inv));
     }
 
-    static void Shot(string name, Vector3 position, Vector3 target, float fov, bool night, bool ui, string[] only)
+    static void Shot(string name, Vector3 position, Vector3 target, float fov, bool night, bool ui, string[] only, bool noPost)
     {
         // 空・太陽は DayManager が実行時に切り替える。撮るあいだだけ同じ値を当てて、あとで戻す。
         var day = Object.FindAnyObjectByType<DayManager>();
@@ -68,6 +91,16 @@ internal static class RoomiesRestyleShots
             nightReflection = so.FindProperty("nightReflectionIntensity").floatValue;
             nightSun = so.FindProperty("nightSunIntensity").floatValue;
         }
+        var menu = day == null ? Object.FindAnyObjectByType<MainMenuRoomShowcase>() : null;
+        if (menu != null)
+        {
+            var so = new SerializedObject(menu);
+            nightSky = so.FindProperty("skyboxMaterial").objectReferenceValue as Material;
+            nightAmbient = so.FindProperty("ambientIntensity").floatValue;
+            nightReflection = so.FindProperty("reflectionIntensity").floatValue;
+            nightSun = so.FindProperty("sunIntensity").floatValue;
+            foreach (var l in Object.FindObjectsByType<Light>(FindObjectsInactive.Exclude)) if (l.type == LightType.Directional) sun = l;
+        }
         var oldSky = RenderSettings.skybox; var oldMode = RenderSettings.ambientMode;
         float oldAmbient = RenderSettings.ambientIntensity, oldReflection = RenderSettings.reflectionIntensity;
         float oldSunIntensity = sun ? sun.intensity : 0; Color oldSunColor = sun ? sun.color : Color.white;
@@ -75,7 +108,7 @@ internal static class RoomiesRestyleShots
         var go = new GameObject("Restyle Shot Camera") { hideFlags = HideFlags.HideAndDontSave };
         var camera = go.AddComponent<Camera>();
         var data = go.AddComponent<UniversalAdditionalCameraData>();
-        data.renderPostProcessing = true;
+        data.renderPostProcessing = !noPost;
         data.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
         camera.transform.position = position;
         camera.transform.LookAt(target);

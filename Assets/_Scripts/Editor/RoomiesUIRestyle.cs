@@ -8,7 +8,8 @@ using UnityEngine.UI;
 
 /// <summary>
 /// 置いてあるUIの見た目を、夜の部屋に合わせた「半透明の黒い面＋細い白フチ」へそろえる。
-/// メニュー「Roomies/UI/Restyle Game UI」（GameRoomUI を開いて実行）。何度実行しても同じ結果。
+/// メニュー「Roomies/UI/Restyle Game UI」（GameRoomUI を開いて実行）と
+/// 「Roomies/UI/Restyle Title UI」（MainMenuSteam を開いて実行）。何度実行しても同じ結果。
 /// 作り直しはしない。色・位置・フォントだけを変えるので、参照と部品の名前はそのまま残る。
 /// </summary>
 internal static class RoomiesUIRestyle
@@ -30,6 +31,20 @@ internal static class RoomiesUIRestyle
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
         Debug.Log($"[Roomies Restyle] Game UI restyled ({recolored} surfaces recolored). GameRoomUI saved.");
+    }
+
+    [MenuItem("Roomies/UI/Restyle Title UI")]
+    internal static void RestyleTitleUI()
+    {
+        if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode first.");
+        var scene = SceneManager.GetSceneByPath("Assets/_Scenes/MainMenuSteam.unity");
+        if (!scene.IsValid() || !scene.isLoaded) throw new InvalidOperationException("Open MainMenuSteam first.");
+        int recolored = Recolor(scene);
+        foreach (var root in scene.GetRootGameObjects())
+            foreach (var menu in root.GetComponentsInChildren<MenuThemer>(true)) menu.EditorApplyRestyle();
+        EditorSceneManager.MarkSceneDirty(scene);
+        EditorSceneManager.SaveScene(scene);
+        Debug.Log($"[Roomies Restyle] Title UI restyled ({recolored} surfaces recolored). MainMenuSteam saved.");
     }
 
     /// <summary>前の色のまま置いてある面とフチを、いまの UITheme の色へ塗り替える。</summary>

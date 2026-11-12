@@ -46,9 +46,10 @@ internal static partial class RoomiesRoomRestyleBuilder
         return Group(visual, "Restyle");
     }
 
-    static void BedVisual(Transform bed)
+    static void BedVisual(Transform bed) => BedParts(FreshVisual(bed.Find("Visual")));
+
+    static void BedParts(Transform v)
     {
-        var v = FreshVisual(bed.Find("Visual"));
         var sheet = Mat("bed_sheet", "E4DCCB", .06f, 0, null, 1, AssetDatabase.LoadAssetAtPath<Texture2D>(ArtDir + "/Textures/fabric.png"), new Vector2(2, 3));
         var duvet = Mat("bed_duvet", "5F6FA0", .06f, 0, null, 1, AssetDatabase.LoadAssetAtPath<Texture2D>(ArtDir + "/Textures/fabric.png"), new Vector2(2, 3));
         var duvetLight = Mat("bed_duvet_light", "8A97BF", .06f, 0, null, 1, AssetDatabase.LoadAssetAtPath<Texture2D>(ArtDir + "/Textures/fabric.png"), new Vector2(2, 1));
@@ -66,17 +67,25 @@ internal static partial class RoomiesRoomRestyleBuilder
 
     static void FridgeVisual(Transform fridge)
     {
-        // 冷蔵庫は扉が -Z 側（プレハブの作りのまま）
+        FridgeBodyParts(FreshVisual(fridge.Find("Visual")));
+        FridgeDoorParts(FreshVisual(fridge.Find("Pivot_Door/Visual")));
+    }
+
+    // 冷蔵庫は扉が -Z 側（プレハブの作りのまま）
+    static void FridgeBodyParts(Transform v)
+    {
         var bodyGreen = Mat("fridge_green", "6C9558", .45f);
-        var bodyGreenDark = Mat("fridge_green_dark", "587C48", .45f);
-        var v = FreshVisual(fridge.Find("Visual"));
         RBox(v, "Body", V(0, .91f, .06f), V(.78f, 1.78f, .62f), .03f, bodyGreen);
         Box(v, "Base", V(0, .04f, .06f), V(.74f, .08f, .58f), black);
         RBox(v, "Box on top", V(-.12f, 1.9f, .1f), V(.36f, .2f, .3f), .01f, cardboard, V(0, 12, 0));
         RBox(v, "Tin on top", V(.22f, 1.86f, .05f), V(.2f, .12f, .2f), .02f, red, V(0, -8, 0));
+    }
 
-        var d = FreshVisual(fridge.Find("Pivot_Door/Visual"));
-        // 軸（蝶番）からの位置。扉の中心は x +0.38
+    /// <summary>扉。親は蝶番（Pivot_Door）の位置。扉の中心は x +0.38。</summary>
+    static void FridgeDoorParts(Transform d)
+    {
+        var bodyGreen = Mat("fridge_green", "6C9558", .45f);
+        var bodyGreenDark = Mat("fridge_green_dark", "587C48", .45f);
         RBox(d, "Freezer door", V(.38f, .57f, 0), V(.77f, .6f, .09f), .025f, bodyGreen);
         RBox(d, "Fridge door", V(.38f, -.31f, 0), V(.77f, 1.12f, .09f), .025f, bodyGreen);
         Box(d, "Door seam", V(.38f, .26f, .0f), V(.75f, .02f, .07f), bodyGreenDark);

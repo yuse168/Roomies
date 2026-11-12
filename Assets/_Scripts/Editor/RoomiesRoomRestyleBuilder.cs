@@ -21,6 +21,8 @@ using Object = UnityEngine.Object;
 internal static partial class RoomiesRoomRestyleBuilder
 {
     const string ScenePath = "Assets/_Scenes/GameRoom.unity";
+    const string MenuScenePath = "Assets/_Scenes/MainMenuSteam.unity";
+    internal const string TitleSkyPath = "Assets/AllSkyFree/Cold Night/Cold Night.mat";
     const string RootName = "Roomies_RoomRestyle";
     const string VolumeName = "Roomies_PostProcess";
     const string ProfilePath = "Assets/Settings/RoomiesRestyleVolume.asset";
@@ -37,22 +39,30 @@ internal static partial class RoomiesRoomRestyleBuilder
     static System.Random rng;
 
     [MenuItem("Roomies/Art/Restyle/Build Room")]
-    internal static void Build()
+    internal static void Build() => BuildInto(ScenePath, false);
+
+    /// <summary>タイトル（MainMenuSteam）の背景の部屋にも同じ見た目を置く。ギミックのプレハブは置かず、見た目だけ。</summary>
+    [MenuItem("Roomies/Art/Restyle/Build Title Room")]
+    internal static void BuildTitle() => BuildInto(MenuScenePath, true);
+
+    static void BuildInto(string scenePath, bool menu)
     {
         if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode first.");
-        var scene = SceneManager.GetSceneByPath(ScenePath);
-        if (!scene.IsValid() || !scene.isLoaded) throw new InvalidOperationException("Open GameRoom first.");
+        var scene = SceneManager.GetSceneByPath(scenePath);
+        if (!scene.IsValid() || !scene.isLoaded) throw new InvalidOperationException("Open the scene first: " + scenePath);
 
         Begin();
         Palette();
-        foreach (var old in scene.GetRootGameObjects().Where(g => g.name == RootName).ToArray()) Object.DestroyImmediate(old);
+        var all = scene.GetRootGameObjects().SelectMany(g => g.GetComponentsInChildren<Transform>(true)).ToArray();
+        foreach (var old in all.Where(t => t != null && t.name == RootName).Select(t => t.gameObject).ToArray()) Object.DestroyImmediate(old);
         var rootGo = new GameObject(RootName);
         SceneManager.MoveGameObjectToScene(rootGo, scene);
         rootGo.isStatic = true;
         var root = rootGo.transform;
         rng = new System.Random(20261113);
 
-        RestyleExistingHouse(scene, root);
+        var house = all.FirstOrDefault(t => t != null && t.name == "Shared house - lounge and terrace");
+        RestyleExistingHouse(house, root);
         Shell(root);
         Lounge(root);
         TvCorner(root);
@@ -63,19 +73,59 @@ internal static partial class RoomiesRoomRestyleBuilder
         Corners(root);
         Clutter(root);
         Lights(root);
+        if (menu) TitleExtras(scene, root);
         PostProcess(scene);
         End();
 
         Physics.SyncTransforms();
-        foreach (var point in scene.GetRootGameObjects().Where(g => g.GetComponent<SpawnPoint>() != null))
-        {
-            var hits = Physics.OverlapCapsule(point.transform.position + Vector3.up * .5f, point.transform.position - Vector3.up * .4f, .5f, ~0, QueryTriggerInteraction.Ignore)
-                .Where(c => c.transform.IsChildOf(root)).Select(c => c.name).ToArray();
-            if (hits.Length > 0) Debug.LogError($"[Roomies Restyle] {point.name} is blocked by {string.Join(",", hits)}");
-        }
+        if (!menu)
+            foreach (var point in scene.GetRootGameObjects().Where(g => g.GetComponent<SpawnPoint>() != null))
+            {
+                var hits = Physics.OverlapCapsule(point.transform.position + Vector3.up * .5f, point.transform.position - Vector3.up * .4f, .5f, ~0, QueryTriggerInteraction.Ignore)
+                    .Where(c => c.transform.IsChildOf(root)).Select(c => c.name).ToArray();
+                if (hits.Length > 0) Debug.LogError($"[Roomies Restyle] {point.name} is blocked by {string.Join(",", hits)}");
+            }
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
-        Debug.Log($"[Roomies Restyle] Room built: {root.GetComponentsInChildren<Renderer>().Length} renderers, {root.GetComponentsInChildren<Light>().Length} lights. GameRoom saved.");
+        Debug.Log($"[Roomies Restyle] Room built in {scene.name}: {root.GetComponentsInChildren<Renderer>().Length} renderers, {root.GetComponentsInChildren<Light>().Length} lights. Scene saved.");
+    }
+
+    /// <summary>タイトルの部屋だけに置く物。ベッドと冷蔵庫は見た目だけ（スクリプトなし）、キャラの顔を照らす明かり。</summary>
+    static void TitleExtras(Scene scene, Transform root)
+    {
+        var g = Group(root, "Title extras");
+        for (int i = 0; i < 5; i++) BedParts(Group(g, "Bed look " + (i + 1), V(14.3f, F + .03f, 15.2f + i * 1.55f), 90));
+        var fridge = Group(g, "Fridge look", V(21.8f, F + .03f, 22.9f));
+        FridgeBodyParts(fridge);
+        FridgeDoorParts(Group(fridge, "Door", V(-.38f, .9f, -.3f)));
+        Lamp(g, "Title key light", V(19.9f, F + 1.9f, 18.7f), new Color(1f, .82f, .62f), 5.5f, 7f);
+        Lamp(g, "Title rim light", V(15.0f, F + 2.0f, 14.6f), new Color(.7f, .45f, 1f), 3.2f, 5f);
+        var camera = scene.GetRootGameObjects().Select(o => o.GetComponent<UniversalAdditionalCameraData>()).FirstOrDefault(c => c != null);
+        if (camera != null) { camera.renderPostProcessing = true; EditorUtility.SetDirty(camera); }
+        // 空を本編の夜と同じものにする（値は MainMenuRoomShowcase のインスペクターで直せる）
+        var showcase = scene.GetRootGameObjects().Select(o => o.GetComponent<MainMenuRoomShowcase>()).FirstOrDefault(c => c != null);
+        var nightSky = AssetDatabase.LoadAssetAtPath<Material>(TitleSkyPath);
+        if (showcase != null && nightSky != null)
+        {
+            var so = new SerializedObject(showcase);
+            so.FindProperty("skyboxMaterial").objectReferenceValue = nightSky;
+            // 構図：入口側から、こたつとソファのまわりのキャラを写す（右寄せ。左はタイトルとボタンの場所）
+            so.FindProperty("cameraAnchor").vector3Value = V(20.6f, 5.0f, 15.6f);
+            so.FindProperty("fieldOfView").floatValue = 52f;
+            so.FindProperty("subjectEyeHeight").floatValue = -.35f;
+            so.FindProperty("frameBias").floatValue = 1.6f;
+            var roomies = so.FindProperty("characters");
+            Vector3[] spots = { V(18.75f, 4.18f, 19.1f), V(15.35f, 4.18f, 19.0f), V(18.5f, 4.18f, 21.5f) };
+            float[] yaws = { 150f, 118f, 158f };
+            for (int i = 0; i < roomies.arraySize && i < spots.Length; i++)
+            {
+                var t = roomies.GetArrayElementAtIndex(i).objectReferenceValue as Transform;
+                if (t == null) continue;
+                Undo.RecordObject(t, "Place title roomies");
+                t.position = spots[i]; t.rotation = Quaternion.Euler(0, yaws[i], 0);
+            }
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
     }
 
     // ================================================================ 色と素材
@@ -159,10 +209,8 @@ internal static partial class RoomiesRoomRestyleBuilder
     }
 
     // ================================================================ 元の部屋を整える（消さない）
-    static void RestyleExistingHouse(Scene scene, Transform root)
+    static void RestyleExistingHouse(Transform house, Transform root)
     {
-        var env = scene.GetRootGameObjects().FirstOrDefault(g => g.name == "Roomies_EnvironmentArt");
-        var house = env != null ? env.transform.Find("Shared house - lounge and terrace") : null;
         if (house == null) { Debug.LogWarning("[Roomies Restyle] House group not found; existing props left as they are."); return; }
         var hide = new HashSet<string> { "sofa", "coffee_table", "magazine_stack", "tissue_box", "mug", "drink_can", "Woven rug", "Rug border",
             "Ceiling diffuser", "Warm ceiling light", "Floorboard seam", "Curtain", "comfy_bed" };

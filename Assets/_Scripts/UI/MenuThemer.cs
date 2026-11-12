@@ -99,6 +99,97 @@ public class MenuThemer : MonoBehaviour
         BuildJoinPanel();
         BuildLobbyPanel();
         ApplyStatusTexts();
+        EditorApplyRestyle();
+    }
+
+    /// <summary>
+    /// 置いてあるタイトルの見た目（見出しの位置・色・フォント、主ボタンの色）を整える（エディタ専用）。
+    /// 配置ツール `Roomies/UI/Restyle Title UI` と `EditorBuildUI` から呼ぶ。何度呼んでも同じ結果。
+    /// 参照・部品の名前は変えない（見出しの下の帯 TaglineBand だけ足す）。
+    /// </summary>
+    public void EditorApplyRestyle()
+    {
+        var panel = UITheme.FindDeep("MainMenuPanel");
+        if (panel == null) return;
+        var root = (RectTransform)panel.transform;
+        var font = UnityEditor.AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(
+            "Assets/TextMesh Pro/Resources/Fonts & Materials/MPLUSU-Black SDF.asset");
+        const float tilt = -1.6f;
+
+        // --- 見出し：左上に1行。キーワードだけ黄色
+        var title = FindIn(root, "Title");
+        if (title != null && title.TryGetComponent(out TMP_Text titleText))
+        {
+            UnityEditor.Undo.RecordObject(titleText, "Restyle Title");
+            UnityEditor.Undo.RecordObject(titleText.rectTransform, "Restyle Title");
+            titleText.text = "3日後の<color=#FFD23F>家賃</color>、払える？";
+            if (font != null) titleText.font = font;
+            titleText.fontStyle = FontStyles.Normal;
+            titleText.fontSizeMin = 48f;
+            titleText.fontSizeMax = 82f;
+            titleText.alignment = TextAlignmentOptions.Left;
+            titleText.characterSpacing = 0f;
+            titleText.lineSpacing = 0f;
+            SetTopLeft(titleText.rectTransform, new Vector2(Margin - 4f, -112f), new Vector2(1040f, 112f));
+            UnityEditor.EditorUtility.SetDirty(titleText);
+        }
+
+        // --- タグライン：紫の帯に白い文字
+        var subtitle = FindIn(root, "Subtitle");
+        if (subtitle != null && subtitle.TryGetComponent(out TMP_Text subtitleText))
+        {
+            var bandObject = FindIn(root, "TaglineBand");
+            Image band = bandObject != null ? bandObject.GetComponent<Image>() : null;
+            if (band == null)
+            {
+                band = NewImage(root, "TaglineBand");
+                UnityEditor.Undo.RegisterCreatedObjectUndo(band.gameObject, "Restyle Title");
+            }
+            band.sprite = null;
+            band.color = new Color(0.37f, 0.23f, 0.65f, 0.96f);
+            band.raycastTarget = false;
+            band.transform.SetSiblingIndex(subtitle.transform.GetSiblingIndex());
+            SetTopLeft(band.rectTransform, new Vector2(Margin - 10f, -232f), new Vector2(604f, 58f));
+            band.rectTransform.localEulerAngles = new Vector3(0f, 0f, tilt);
+
+            UnityEditor.Undo.RecordObject(subtitleText, "Restyle Title");
+            UnityEditor.Undo.RecordObject(subtitleText.rectTransform, "Restyle Title");
+            if (font != null) subtitleText.font = font;
+            subtitleText.fontStyle = FontStyles.Normal;
+            subtitleText.fontSize = 27f;
+            subtitleText.color = Color.white;
+            SetTopLeft(subtitleText.rectTransform, new Vector2(Margin + 12f, -241f), new Vector2(580f, 40f));
+            subtitleText.rectTransform.localEulerAngles = new Vector3(0f, 0f, tilt);
+            UnityEditor.EditorUtility.SetDirty(subtitleText);
+        }
+
+        // --- 主ボタンは黄色に濃い文字（紫のボタンはそのまま）
+        var ink = new Color(0.15f, 0.09f, 0.03f);
+        Repaint(playButton, UITheme.Sun, ink);
+        Repaint(hostButton, UITheme.Sun, ink);
+        UnityEditor.EditorUtility.SetDirty(this);
+    }
+
+    /// <summary>厚みのあるボタンの色だけを塗り替える（形・ラベルの配置は StylePill のまま）。</summary>
+    private static void Repaint(Button button, Color bg, Color fg)
+    {
+        if (button == null) return;
+        UnityEditor.Undo.RecordObject(button, "Restyle Title");
+        var baseImage = button.GetComponent<Image>();
+        if (baseImage != null) { UnityEditor.Undo.RecordObject(baseImage, "Restyle Title"); baseImage.color = UITheme.Shade(bg, 0.46f); }
+        var colors = button.colors;
+        colors.normalColor = bg;
+        colors.highlightedColor = UITheme.Tint(bg, 0.16f);
+        colors.pressedColor = UITheme.Shade(bg, 0.08f);
+        colors.selectedColor = UITheme.Tint(bg, 0.10f);
+        colors.disabledColor = new Color(bg.r * 0.55f, bg.g * 0.55f, bg.b * 0.60f, 0.75f);
+        button.colors = colors;
+        foreach (var label in button.GetComponentsInChildren<TMP_Text>(true))
+        {
+            UnityEditor.Undo.RecordObject(label, "Restyle Title");
+            label.color = fg;
+        }
+        UnityEditor.EditorUtility.SetDirty(button);
     }
 #endif
 

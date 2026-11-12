@@ -36,6 +36,13 @@ public sealed class MainMenuRoomShowcase : MonoBehaviour
     [SerializeField] private Material skyboxMaterial;
     [SerializeField, HideInInspector] private int buildVersion;
 
+    // 夜の部屋に合わせた空と外の光（本編の夜と同じ値）。部屋の中の明かりはシーンに置く
+    [Header("空と外の光")]
+    [SerializeField, Range(0f, 2f)] private float ambientIntensity = 0.5f;
+    [SerializeField, Range(0f, 2f)] private float reflectionIntensity = 0.45f;
+    [SerializeField, Range(0f, 3f)] private float sunIntensity = 0.12f;
+    [SerializeField] private Color sunColor = new Color(0.6f, 0.72f, 1f);
+
     private Camera showcaseCamera;
     private Vector3 cameraPosition;
     private Vector3 cameraFocus;
@@ -142,8 +149,8 @@ public sealed class MainMenuRoomShowcase : MonoBehaviour
         {
             RenderSettings.skybox = skyboxMaterial;
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Skybox;
-            RenderSettings.ambientIntensity = 0.85f;
-            RenderSettings.reflectionIntensity = 0.65f;
+            RenderSettings.ambientIntensity = ambientIntensity;
+            RenderSettings.reflectionIntensity = reflectionIntensity;
             DynamicGI.UpdateEnvironment();
         }
     }
@@ -199,51 +206,13 @@ public sealed class MainMenuRoomShowcase : MonoBehaviour
         }
         if (directional != null)
         {
-            directional.color = new Color(1f, 0.91f, 0.80f);
-            directional.intensity = 1.45f;
+            directional.color = sunColor;
+            directional.intensity = sunIntensity;
             directional.shadows = LightShadows.Soft;
         }
 
-        // パーティーゲームらしい明るさ。影の中も沈まないよう環境光を上げる。
-        RenderSettings.ambientLight = new Color(0.48f, 0.50f, 0.64f);
-
-        CreateFillLight(
-            "Menu Warm Fill",
-            new Vector3(17.4f, 8.4f, 14.6f),
-            new Color(1f, 0.52f, 0.42f),
-            5.0f,
-            13f);
-        CreateFillLight(
-            "Menu Cool Fill",
-            new Vector3(13.8f, 7.2f, 19.2f),
-            new Color(0.28f, 0.66f, 1f),
-            3.8f,
-            11f);
-        // キャラの輪郭を背景から浮かせるリムライト
-        CreateFillLight(
-            "Menu Rim",
-            new Vector3(15.2f, 7.9f, 13.6f),
-            new Color(1f, 0.86f, 0.72f),
-            4.4f,
-            10f);
-    }
-
-    private void CreateFillLight(
-        string lightName,
-        Vector3 position,
-        Color color,
-        float intensity,
-        float range)
-    {
-        var lightObject = new GameObject(lightName);
-        lightObject.transform.SetParent(transform, false);
-        lightObject.transform.position = position;
-        Light fill = lightObject.AddComponent<Light>();
-        fill.type = LightType.Point;
-        fill.color = color;
-        fill.intensity = intensity;
-        fill.range = range;
-        fill.shadows = LightShadows.None;
+        // 部屋の明かり（吊りランプ・ネオン・キャラを照らす明かり）はシーンに置いてある
+        // （配置ツール「Roomies/Art/Restyle/Build Title Room」）。ここでは作らない。
     }
 
     private void Update()

@@ -15,8 +15,9 @@ internal static class MainMenuShowcaseBuilder
     private const string ScenePath = "Assets/_Scenes/MainMenuSteam.unity";
     private const string GameRoomScenePath = "Assets/_Scenes/GameRoom.unity";
     private const string CharacterPath = "Assets/_Models/Bob/Bobs.fbx";
-    private const string SkyboxPath =
-        "Assets/AllSkyFree/Epic_GloriousPink/Epic_GloriousPink.mat";
+    // 2026/11/13：夜の部屋に合わせて、本編の夜と同じ空にした（前は Epic_GloriousPink）。
+    // ここで背景を作り直したら、続けて「Roomies/Art/Restyle/Build Title Room」を実行して部屋の小物と明かりを置き直すこと。
+    private const string SkyboxPath = RoomiesRoomRestyleBuilder.TitleSkyPath;
     private const string RootName = "MenuRoomShowcase";
     private const string TownName = "Roomies_EnvironmentArt";
     // 床（約3.28）＋本編の Player と同じ Bob の高さ（約0.9）
