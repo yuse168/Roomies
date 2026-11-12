@@ -20,7 +20,7 @@ internal static partial class RoomiesMaterialFinishBuilder
     const string VariantDir = TemplateDir + "Variants/";
     const string TriplanarShader = "Roomies/Triplanar Lit";
 
-    internal enum Tpl { Wood, Fabric, Plastic, PaintedMetal, Metal, Paper, Cardboard, Glass, Plaster, Concrete, Asphalt, Roof, Foliage, Ground, Skin, Rubber, Ceramic, Emissive }
+    internal enum Tpl { Wood, Fabric, Plastic, PaintedMetal, Metal, Paper, Cardboard, Glass, Plaster, Concrete, Asphalt, Roof, Foliage, Ground, Skin, Rubber, Ceramic, Emissive, Brick }
 
     // テンプレの設定：テクスチャ名, 作り方, ノーマルの強さ(作るとき), 模様1枚の大きさ(m), Smoothness, Metallic, ノーマル強さ, ハイライト, 映り込み
     readonly struct TplDef
@@ -48,6 +48,7 @@ internal static partial class RoomiesMaterialFinishBuilder
         [Tpl.Ground] = new TplDef("tpl_ground", GroundPixel, 3f, 2.5f, .05f, 0, .7f, false, true),
         [Tpl.Rubber] = new TplDef("tpl_rubber", RubberPixel, 2f, .3f, .22f, 0, .35f),
         [Tpl.Ceramic] = new TplDef("tpl_ceramic", CeramicPixel, 1f, .3f, .55f, 0, .12f),
+        [Tpl.Brick] = new TplDef("tpl_brick", BrickPixel, 4f, 1.2f, .08f, 0, .9f),
     };
 
     // 微細な色ムラの強さ（テンプレごと）。テクスチャの色をわずかに暖色・寒色へ揺らす
@@ -55,7 +56,7 @@ internal static partial class RoomiesMaterialFinishBuilder
     {
         [Tpl.Wood] = .12f, [Tpl.Fabric] = .08f, [Tpl.Plastic] = .04f, [Tpl.PaintedMetal] = .06f, [Tpl.Metal] = .03f,
         [Tpl.Paper] = .06f, [Tpl.Cardboard] = .1f, [Tpl.Glass] = 0, [Tpl.Plaster] = .08f, [Tpl.Concrete] = .08f,
-        [Tpl.Asphalt] = .05f, [Tpl.Roof] = .1f, [Tpl.Foliage] = .15f, [Tpl.Ground] = .15f, [Tpl.Rubber] = .03f, [Tpl.Ceramic] = .04f,
+        [Tpl.Asphalt] = .05f, [Tpl.Roof] = .1f, [Tpl.Foliage] = .15f, [Tpl.Ground] = .15f, [Tpl.Rubber] = .03f, [Tpl.Ceramic] = .04f, [Tpl.Brick] = .14f,
     };
 
     static Pixel Tinted(Pixel pixel, float amount, int seed) => (float u, float v, out Color c, out float h) =>
