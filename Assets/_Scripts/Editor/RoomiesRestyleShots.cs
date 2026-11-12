@@ -32,6 +32,16 @@ internal static class RoomiesRestyleShots
         if (!File.Exists(SpecPath)) throw new FileNotFoundException(SpecPath);
         Directory.CreateDirectory(OutDir);
         var inv = CultureInfo.InvariantCulture;
+        // 素材の設定を変えた直後は、シェーダーが裏で準備中のまま透明に写ることがある。撮るあいだは待つ
+        bool asyncShaders = ShaderUtil.allowAsyncCompilation;
+        ShaderUtil.allowAsyncCompilation = false;
+        try { CaptureAll(inv); }
+        finally { ShaderUtil.allowAsyncCompilation = asyncShaders; }
+        Debug.Log("[Roomies Restyle] Shots written to " + OutDir);
+    }
+
+    static void CaptureAll(CultureInfo inv)
+    {
         foreach (string raw in File.ReadAllLines(SpecPath))
         {
             string line = raw.Trim();
@@ -49,6 +59,9 @@ internal static class RoomiesRestyleShots
                 Vector3 right = Vector3.Cross(Vector3.up, (subject - pos).normalized).normalized;
                 target = subject + Vector3.up * so.FindProperty("subjectEyeHeight").floatValue - right * so.FindProperty("frameBias").floatValue;
                 fov = so.FindProperty("fieldOfView").floatValue;
+                // menu|x y z|z y z|画角 と書くと、タイトルの照明のまま好きな位置から撮れる（キャラのアップ用）
+                if (p.Length > 3 && p[2].Trim().Length > 0) { pos = Parse(p[2].Split('>')[0]); target = Parse(p[2].Split('>')[1]); }
+                if (p.Length > 3 && float.TryParse(p[3], NumberStyles.Float, inv, out float f) && f > 0) fov = f;
                 // キャラの色は実行時に付く。撮るあいだだけ同じ色を当てる（保存されない）
                 Color[] tints = { new Color(0.98f, 0.31f, 0.58f), new Color(0.20f, 0.70f, 0.96f), new Color(0.35f, 0.82f, 0.42f) };
                 for (int i = 0; i < roomies.arraySize; i++)
@@ -67,7 +80,6 @@ internal static class RoomiesRestyleShots
             string[] only = uiSpec.Contains(":") ? uiSpec.Substring(uiSpec.IndexOf(':') + 1).Split(',') : null;
             Shot(p[0].Trim(), pos, target, fov, night, ui, only, p.Length > 6 && p[6].Trim() == "nopp");
         }
-        Debug.Log("[Roomies Restyle] Shots written to " + OutDir);
     }
 
     static Vector3 Parse(string s)
