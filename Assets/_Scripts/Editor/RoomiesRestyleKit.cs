@@ -55,6 +55,8 @@ internal static class RoomiesRestyleKit
         // 作り直した明かりに、影（接地感）の設定をかけ直す
         RoomiesMaterialFinishBuilder.ApplyContactShadows();
         RoomiesMaterialFinishBuilder.ApplyLightBalance();
+        // 作り直した部品に、角の丸み（強・中・弱）をかけ直す（ギミックのプレハブは Bevel/Apply To Gimmick Prefabs を別に実行）
+        RoomiesBevelBuilder.ApplyToRoom();
     }
 
     static Mesh Builtin(PrimitiveType type)
