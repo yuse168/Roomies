@@ -74,8 +74,7 @@ internal static partial class RoomiesMaterialFinishBuilder
         [Library + "pink"] = Painted, [Library + "teal"] = Painted, [Library + "wood"] = Wood,
         [Library + "silver"] = new Finish(.45f, .6f),
 
-        // ---- キャラ：少しマットに（ふわっとした粘土・ソフビの間くらい）
-        ["Assets/_Materials/BobBody"] = new Finish(.24f),
+        // ---- キャラ（BobBody）は肌のテンプレ（RoomiesMaterialTemplates の T_Skin）で決める
         // 光る物・ガラス・画面・金・glow_water（未コミットの変更があるので触らない）は表に入れない
     };
 

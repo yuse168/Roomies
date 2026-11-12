@@ -19,7 +19,7 @@
   .steps { margin:0 0 8px; padding-left:20px; color:var(--sub); }
   .steps b { color:var(--text); }
   .scroll { overflow-x:auto; }
-  .row { --cols:7; display:grid; grid-template-columns:repeat(var(--cols), minmax(240px, 1fr)); gap:10px; }
+  .row { --cols:8; display:grid; grid-template-columns:repeat(var(--cols), minmax(240px, 1fr)); gap:10px; }
   figure { margin:0; background:var(--panel); border:1px solid var(--line); border-radius:8px; overflow:hidden; }
   a { display:block; }
   img { display:block; width:100%; height:auto; }
@@ -39,6 +39,7 @@
     <li><b>4 仕上げを弱める</b>：ビネット 0.42→0.30、コントラスト 14→8、スプリットトーン・Bloom（1.25→0.7）を約半分に</li>
     <li><b>5 テンプレ</b>：部屋とタイトルを質感のテンプレマテリアル（15種）の子マテリアルに付け替え。キャラの肌もテンプレに</li>
     <li><b>6 接地感</b>：SSAO 強さ 0.8→1.1・半径 0.45→0.35・直接光にも 0.45。吊りランプとちょうちん（タイトルは顔の明かり）の影のずれを小さく（Contact Shadows の代わり）</li>
+    <li><b>7 つや</b>：テンプレの親の Smoothness を下げた（木 0.16→0.10、プラスチック 0.30→0.18、塗装金属 0.30→0.20、金属 0.45→0.35、コンクリート 0.10→0.05、床 0.18→0.13、肌 0.22→0.16 ほか）</li>
   </ol>
 
   <h2>01 タイトル</h2>
@@ -50,6 +51,7 @@
     <figure><a href="step4_softpp/01_title.jpg"><img src="step4_softpp/01_title.jpg" alt="仕上げを弱めた" width="1920" height="1080" loading="lazy"></a><figcaption><b>4</b>仕上げを弱める</figcaption></figure>
     <figure><a href="step5_template/01_title.jpg"><img src="step5_template/01_title.jpg" alt="テンプレに付け替え" width="1920" height="1080" loading="lazy"></a><figcaption><b>5</b>テンプレ</figcaption></figure>
     <figure><a href="step6_ao/01_title.jpg"><img src="step6_ao/01_title.jpg" alt="接地感" width="1920" height="1080" loading="lazy"></a><figcaption><b>6</b>接地感</figcaption></figure>
+    <figure><a href="step7_rough/01_title.jpg"><img src="step7_rough/01_title.jpg" alt="つや" width="1920" height="1080" loading="lazy"></a><figcaption><b>7</b>つや</figcaption></figure>
   </div></div>
 
   <h2>06 キャラのアップ（タイトルの部屋）</h2>
@@ -61,6 +63,7 @@
     <figure><figcaption><b>4</b>このステップはキャラのアップを撮っていません</figcaption></figure>
     <figure><a href="step5_template/06_character.jpg"><img src="step5_template/06_character.jpg" alt="テンプレに付け替え" width="1920" height="1080" loading="lazy"></a><figcaption><b>5</b>テンプレ</figcaption></figure>
     <figure><a href="step6_ao/06_character.jpg"><img src="step6_ao/06_character.jpg" alt="接地感" width="1920" height="1080" loading="lazy"></a><figcaption><b>6</b>接地感</figcaption></figure>
+    <figure><a href="step7_rough/06_character.jpg"><img src="step7_rough/06_character.jpg" alt="つや" width="1920" height="1080" loading="lazy"></a><figcaption><b>7</b>つや</figcaption></figure>
   </div></div>
 
   <h2>03 ゲーム中（夜・HUD付き）</h2>
@@ -72,6 +75,7 @@
     <figure><a href="step4_softpp/03_room_night_hud.jpg"><img src="step4_softpp/03_room_night_hud.jpg" alt="仕上げを弱めた" width="1920" height="1080" loading="lazy"></a><figcaption><b>4</b>仕上げを弱める</figcaption></figure>
     <figure><a href="step5_template/03_room_night_hud.jpg"><img src="step5_template/03_room_night_hud.jpg" alt="テンプレに付け替え" width="1920" height="1080" loading="lazy"></a><figcaption><b>5</b>テンプレ</figcaption></figure>
     <figure><a href="step6_ao/03_room_night_hud.jpg"><img src="step6_ao/03_room_night_hud.jpg" alt="接地感" width="1920" height="1080" loading="lazy"></a><figcaption><b>6</b>接地感</figcaption></figure>
+    <figure><a href="step7_rough/03_room_night_hud.jpg"><img src="step7_rough/03_room_night_hud.jpg" alt="つや" width="1920" height="1080" loading="lazy"></a><figcaption><b>7</b>つや</figcaption></figure>
   </div></div>
 
   <h2>04 リビング（夜）</h2>
@@ -83,6 +87,7 @@
     <figure><a href="step4_softpp/04_lounge.jpg"><img src="step4_softpp/04_lounge.jpg" alt="仕上げを弱めた" width="1920" height="1080" loading="lazy"></a><figcaption><b>4</b>仕上げを弱める</figcaption></figure>
     <figure><a href="step5_template/04_lounge.jpg"><img src="step5_template/04_lounge.jpg" alt="テンプレに付け替え" width="1920" height="1080" loading="lazy"></a><figcaption><b>5</b>テンプレ</figcaption></figure>
     <figure><a href="step6_ao/04_lounge.jpg"><img src="step6_ao/04_lounge.jpg" alt="接地感" width="1920" height="1080" loading="lazy"></a><figcaption><b>6</b>接地感</figcaption></figure>
+    <figure><a href="step7_rough/04_lounge.jpg"><img src="step7_rough/04_lounge.jpg" alt="つや" width="1920" height="1080" loading="lazy"></a><figcaption><b>7</b>つや</figcaption></figure>
   </div></div>
 
   <h2>05 部屋（朝）</h2>
@@ -94,6 +99,7 @@
     <figure><a href="step4_softpp/05_room_morning.jpg"><img src="step4_softpp/05_room_morning.jpg" alt="仕上げを弱めた" width="1920" height="1080" loading="lazy"></a><figcaption><b>4</b>仕上げを弱める</figcaption></figure>
     <figure><a href="step5_template/05_room_morning.jpg"><img src="step5_template/05_room_morning.jpg" alt="テンプレに付け替え" width="1920" height="1080" loading="lazy"></a><figcaption><b>5</b>テンプレ</figcaption></figure>
     <figure><a href="step6_ao/05_room_morning.jpg"><img src="step6_ao/05_room_morning.jpg" alt="接地感" width="1920" height="1080" loading="lazy"></a><figcaption><b>6</b>接地感</figcaption></figure>
+    <figure><a href="step7_rough/05_room_morning.jpg"><img src="step7_rough/05_room_morning.jpg" alt="つや" width="1920" height="1080" loading="lazy"></a><figcaption><b>7</b>つや</figcaption></figure>
   </div></div>
 </main>
 </body>

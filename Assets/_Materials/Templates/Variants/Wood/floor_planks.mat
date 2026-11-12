@@ -34,7 +34,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _BumpScale: 0.9
-    - _Smoothness: 0.18
+    - _Smoothness: 0.13
     - _TileSize: 1.4
     m_Colors:
     - _BaseColor: {r: 0.5411765, g: 0.35294116, b: 0.23529407, a: 1}

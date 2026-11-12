@@ -32,19 +32,19 @@ internal static partial class RoomiesMaterialFinishBuilder
 
     static readonly Dictionary<Tpl, TplDef> TplDefs = new Dictionary<Tpl, TplDef>
     {
-        [Tpl.Wood] = new TplDef("tpl_wood", WoodPixel, 4f, .9f, .16f, 0, .8f),
+        [Tpl.Wood] = new TplDef("tpl_wood", WoodPixel, 4f, .9f, .1f, 0, .8f),
         [Tpl.Fabric] = new TplDef("finish_weave", WeavePixel, 3.5f, .18f, .03f, 0, .6f, false, false),
-        [Tpl.Plastic] = new TplDef("tpl_plastic", PlasticPixel, 1.5f, .5f, .3f, 0, .3f),
-        [Tpl.PaintedMetal] = new TplDef("tpl_paint", PaintPixel, 2.5f, 1.2f, .3f, .1f, .5f),
-        [Tpl.Metal] = new TplDef("tpl_metal", BrushedPixel, 2f, .5f, .45f, .7f, .35f),
+        [Tpl.Plastic] = new TplDef("tpl_plastic", PlasticPixel, 1.5f, .5f, .18f, 0, .3f),
+        [Tpl.PaintedMetal] = new TplDef("tpl_paint", PaintPixel, 2.5f, 1.2f, .2f, .1f, .5f),
+        [Tpl.Metal] = new TplDef("tpl_metal", BrushedPixel, 2f, .5f, .35f, .7f, .35f),
         [Tpl.Paper] = new TplDef("tpl_paper", PaperPixel, 2f, .35f, .03f, 0, .35f, false, false),
         [Tpl.Cardboard] = new TplDef("finish_cardboard", CardboardPixel, 3f, .5f, .03f, 0, .8f, false, false),
-        [Tpl.Glass] = new TplDef("tpl_glass", GlassPixel, .6f, 1.2f, .82f, 0, .15f),
+        [Tpl.Glass] = new TplDef("tpl_glass", GlassPixel, .6f, 1.2f, .75f, 0, .15f),
         [Tpl.Plaster] = new TplDef("finish_plaster", PlasterPixel, 2.2f, 1.6f, .03f, 0, .7f, false, false),
-        [Tpl.Concrete] = new TplDef("tpl_concrete", ConcretePixel, 3f, 1.6f, .1f, 0, .9f),
-        [Tpl.Asphalt] = new TplDef("tpl_asphalt", AsphaltPixel, 3f, 2f, .12f, 0, .8f),
-        [Tpl.Roof] = new TplDef("tpl_roof", RoofPixel, 5f, 1.2f, .15f, 0, 1f),
-        [Tpl.Foliage] = new TplDef("tpl_foliage", FoliagePixel, 3f, .7f, .2f, 0, .8f),
+        [Tpl.Concrete] = new TplDef("tpl_concrete", ConcretePixel, 3f, 1.6f, .05f, 0, .9f),
+        [Tpl.Asphalt] = new TplDef("tpl_asphalt", AsphaltPixel, 3f, 2f, .06f, 0, .8f),
+        [Tpl.Roof] = new TplDef("tpl_roof", RoofPixel, 5f, 1.2f, .08f, 0, 1f),
+        [Tpl.Foliage] = new TplDef("tpl_foliage", FoliagePixel, 3f, .7f, .12f, 0, .8f),
         [Tpl.Ground] = new TplDef("tpl_ground", GroundPixel, 3f, 2.5f, .05f, 0, .7f, false, true),
     };
 
@@ -76,7 +76,7 @@ internal static partial class RoomiesMaterialFinishBuilder
             mat.SetTexture("_BaseMap", skin); mat.SetTextureScale("_BaseMap", new Vector2(3, 3));
             mat.SetTexture("_BumpMap", skinN); mat.SetFloat("_BumpScale", .35f); mat.EnableKeyword("_NORMALMAP");
             mat.SetColor("_BaseColor", new Color(.98f, .55f, .62f));
-            mat.SetFloat("_Smoothness", .22f); mat.SetFloat("_Metallic", 0);
+            mat.SetFloat("_Smoothness", .16f); mat.SetFloat("_Metallic", 0);
             mat.SetFloat("_SpecularHighlights", 1); mat.SetFloat("_EnvironmentReflections", 1);
             mat.DisableKeyword("_SPECULARHIGHLIGHTS_OFF"); mat.DisableKeyword("_ENVIRONMENTREFLECTIONS_OFF");
             EditorUtility.SetDirty(mat);
@@ -157,7 +157,7 @@ internal static partial class RoomiesMaterialFinishBuilder
             {
                 v.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(TexDir + "finish_floor.png"));
                 v.SetTexture("_BumpMap", AssetDatabase.LoadAssetAtPath<Texture2D>(TexDir + "finish_floor_n.png"));
-                v.SetFloat("_TileSize", 1.4f); v.SetFloat("_Smoothness", .18f); v.SetFloat("_BumpScale", .9f);
+                v.SetFloat("_TileSize", 1.4f); v.SetFloat("_Smoothness", .13f); v.SetFloat("_BumpScale", .9f);
             };
         else if (oldName == "ceiling") extra = v => v.SetFloat("_TileSize", 1.2f);
         else if (oldName == "gold") extra = v => { v.SetFloat("_Metallic", .9f); v.SetFloat("_Smoothness", .6f); };
