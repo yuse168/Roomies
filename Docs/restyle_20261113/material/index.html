@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roomies 素材と光 2026/11/13</title>
+<style>
+  :root { --ground:#17131F; --panel:#221C2E; --line:#3A3149; --text:#F4F0E8; --sub:#C9C2D4; --accent:#FFD23F; }
+  @media (prefers-color-scheme: light) {
+    :root { --ground:#F3EEE3; --panel:#FFFFFF; --line:#D9D0BF; --text:#221A2C; --sub:#4B4358; --accent:#8A6400; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--ground); color:var(--text); line-height:1.7; font-weight:500;
+    font-family:"Hiragino Sans","BIZ UDPGothic","Yu Gothic UI","Noto Sans JP",sans-serif; }
+  main { max-width:1800px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { margin:0 0 4px; font-size:28px; font-weight:900; line-height:1.3; }
+  h2 { margin:32px 0 10px; font-size:20px; font-weight:900; }
+  .lead { margin:0 0 16px; color:var(--sub); }
+  .steps { margin:0 0 8px; padding-left:20px; color:var(--sub); }
+  .steps b { color:var(--text); }
+  .scroll { overflow-x:auto; }
+  .row { display:grid; grid-template-columns:repeat(4, minmax(260px, 1fr)); gap:10px; }
+  figure { margin:0; background:var(--panel); border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  a { display:block; }
+  img { display:block; width:100%; height:auto; }
+  figcaption { padding:6px 12px 8px; color:var(--sub); font-size:14px; }
+  figcaption b { color:var(--accent); margin-right:6px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>プラスチック感を減らす（素材と光）</h1>
+  <p class="lead">左から順に重ねています。どの段も同じカメラ位置です。画像を押すと原寸で開きます。HUD・メニューには画面の仕上げをかけていません（ゲームと同じ）。</p>
+  <ol class="steps">
+    <li><b>0 いま</b>：ポストエフェクト調整（5d3c55b）のあと</li>
+    <li><b>1 つや</b>：布・紙・段ボール・壁はつやとハイライトを切る。木・塗装・プラスチックのつやを下げる。キャラ 0.52→0.24</li>
+    <li><b>2 質感</b>：床の木目・壁のしっくい・布の織り目・段ボールの波板（色＋ノーマルマップ）。床のしみ・すり跡と壁の下の黒ずみ（デカール）</li>
+    <li><b>3 光</b>：床・ソファ・台所からの照り返しを上向きの柔らかい光で追加。部屋を写す反射プローブ。吊りランプの影を柔らかく</li>
+  </ol>
+
+  <h2>01 タイトル</h2>
+  <div class="scroll"><div class="row">
+    <figure><a href="step0_now/01_title.jpg"><img src="step0_now/01_title.jpg" alt="タイトル いま" width="1920" height="1080" loading="lazy"></a><figcaption><b>0</b>いま</figcaption></figure>
+    <figure><a href="step1_gloss/01_title.jpg"><img src="step1_gloss/01_title.jpg" alt="タイトル つや" width="1920" height="1080" loading="lazy"></a><figcaption><b>1</b>つや</figcaption></figure>
+    <figure><a href="step2_texture/01_title.jpg"><img src="step2_texture/01_title.jpg" alt="タイトル 質感" width="1920" height="1080" loading="lazy"></a><figcaption><b>2</b>質感</figcaption></figure>
+    <figure><a href="step3_light/01_title.jpg"><img src="step3_light/01_title.jpg" alt="タイトル 光" width="1920" height="1080" loading="lazy"></a><figcaption><b>3</b>光</figcaption></figure>
+  </div></div>
+
+  <h2>06 キャラのアップ（タイトルの部屋）</h2>
+  <div class="scroll"><div class="row">
+    <figure><a href="step0_now/06_character.jpg"><img src="step0_now/06_character.jpg" alt="キャラ いま" width="1920" height="1080" loading="lazy"></a><figcaption><b>0</b>いま</figcaption></figure>
+    <figure><a href="step1_gloss/06_character.jpg"><img src="step1_gloss/06_character.jpg" alt="キャラ つや" width="1920" height="1080" loading="lazy"></a><figcaption><b>1</b>つや</figcaption></figure>
+    <figure><a href="step2_texture/06_character.jpg"><img src="step2_texture/06_character.jpg" alt="キャラ 質感" width="1920" height="1080" loading="lazy"></a><figcaption><b>2</b>質感</figcaption></figure>
+    <figure><a href="step3_light/06_character.jpg"><img src="step3_light/06_character.jpg" alt="キャラ 光" width="1920" height="1080" loading="lazy"></a><figcaption><b>3</b>光</figcaption></figure>
+  </div></div>
+
+  <h2>03 ゲーム中（夜・HUD付き）</h2>
+  <div class="scroll"><div class="row">
+    <figure><a href="step0_now/03_room_night_hud.jpg"><img src="step0_now/03_room_night_hud.jpg" alt="夜の部屋 いま" width="1920" height="1080" loading="lazy"></a><figcaption><b>0</b>いま</figcaption></figure>
+    <figure><a href="step1_gloss/03_room_night_hud.jpg"><img src="step1_gloss/03_room_night_hud.jpg" alt="夜の部屋 つや" width="1920" height="1080" loading="lazy"></a><figcaption><b>1</b>つや</figcaption></figure>
+    <figure><a href="step2_texture/03_room_night_hud.jpg"><img src="step2_texture/03_room_night_hud.jpg" alt="夜の部屋 質感" width="1920" height="1080" loading="lazy"></a><figcaption><b>2</b>質感</figcaption></figure>
+    <figure><a href="step3_light/03_room_night_hud.jpg"><img src="step3_light/03_room_night_hud.jpg" alt="夜の部屋 光" width="1920" height="1080" loading="lazy"></a><figcaption><b>3</b>光</figcaption></figure>
+  </div></div>
+
+  <h2>04 リビング（夜）</h2>
+  <div class="scroll"><div class="row">
+    <figure><a href="step0_now/04_lounge.jpg"><img src="step0_now/04_lounge.jpg" alt="リビング いま" width="1920" height="1080" loading="lazy"></a><figcaption><b>0</b>いま</figcaption></figure>
+    <figure><a href="step1_gloss/04_lounge.jpg"><img src="step1_gloss/04_lounge.jpg" alt="リビング つや" width="1920" height="1080" loading="lazy"></a><figcaption><b>1</b>つや</figcaption></figure>
+    <figure><a href="step2_texture/04_lounge.jpg"><img src="step2_texture/04_lounge.jpg" alt="リビング 質感" width="1920" height="1080" loading="lazy"></a><figcaption><b>2</b>質感</figcaption></figure>
+    <figure><a href="step3_light/04_lounge.jpg"><img src="step3_light/04_lounge.jpg" alt="リビング 光" width="1920" height="1080" loading="lazy"></a><figcaption><b>3</b>光</figcaption></figure>
+  </div></div>
+
+  <h2>05 部屋（朝）</h2>
+  <div class="scroll"><div class="row">
+    <figure><a href="step0_now/05_room_morning.jpg"><img src="step0_now/05_room_morning.jpg" alt="朝の部屋 いま" width="1920" height="1080" loading="lazy"></a><figcaption><b>0</b>いま</figcaption></figure>
+    <figure><a href="step1_gloss/05_room_morning.jpg"><img src="step1_gloss/05_room_morning.jpg" alt="朝の部屋 つや" width="1920" height="1080" loading="lazy"></a><figcaption><b>1</b>つや</figcaption></figure>
+    <figure><a href="step2_texture/05_room_morning.jpg"><img src="step2_texture/05_room_morning.jpg" alt="朝の部屋 質感" width="1920" height="1080" loading="lazy"></a><figcaption><b>2</b>質感</figcaption></figure>
+    <figure><a href="step3_light/05_room_morning.jpg"><img src="step3_light/05_room_morning.jpg" alt="朝の部屋 光" width="1920" height="1080" loading="lazy"></a><figcaption><b>3</b>光</figcaption></figure>
+  </div></div>
+</main>
+</body>
+</html>

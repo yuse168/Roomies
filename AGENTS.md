@@ -89,6 +89,9 @@
   シーンの「Roomies_RoomRestyle」を作り直す。手で直した位置は作り直すと消えるので、
   直したら配置ツール（`RoomiesRoomRestyleBuilder`）の値もそろえること
 - HUD・タイトルの色とフォント … `Roomies/UI/Restyle Game UI` / `Restyle Title UI`（置いてある物を作り直さずに整える）
+- 素材のつや・質感・照り返し（2026/11/13） … `Roomies/Art/Restyle/Material Finish/1 Matte Surfaces`・`2 Surface Detail`・`3 Light Bounce`
+  （`RoomiesMaterialFinishBuilder`）。値は表で持つ。1と2の素材の部分は Build Room などの作り直しのあとに自動でかけ直す。
+  デカール「Roomies_Decals」と照り返し・反射プローブ「Roomies_LightBounce」は、GameRoom とタイトルのそれぞれで 2・3 を実行して置く
 
 組み立てのコードは各クラスの `EditorBuildUI()` に `#if UNITY_EDITOR` で残してある。
 実行中は動かないので、置き直したいときだけ配置ツールから呼ぶ。
