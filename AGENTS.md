@@ -84,6 +84,11 @@
 - ポーズ・設定・キー設定 … `Roomies/UI/Build Pause Menu`
 - ゲームオーバー画面 / 逮捕演出 / セーブの「続きから」ボタン
 - ベッド・睡眠の管理・今日のおねがい … `Roomies/Night/Place Beds In Open Scene`
+- 部屋の小物・明かり・画面の仕上げ（2026/11/13） … `Roomies/Art/Restyle/Build Room`
+  （タイトルの背景は `Build Title Room`、ベッドと冷蔵庫の見た目は `Restyle Night Prefabs`）。
+  シーンの「Roomies_RoomRestyle」を作り直す。手で直した位置は作り直すと消えるので、
+  直したら配置ツール（`RoomiesRoomRestyleBuilder`）の値もそろえること
+- HUD・タイトルの色とフォント … `Roomies/UI/Restyle Game UI` / `Restyle Title UI`（置いてある物を作り直さずに整える）
 
 組み立てのコードは各クラスの `EditorBuildUI()` に `#if UNITY_EDITOR` で残してある。
 実行中は動かないので、置き直したいときだけ配置ツールから呼ぶ。
