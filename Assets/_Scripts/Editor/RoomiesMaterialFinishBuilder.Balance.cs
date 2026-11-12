@@ -20,7 +20,7 @@ internal static partial class RoomiesMaterialFinishBuilder
         ("Kitchen light", 4f),
         ("Entry fill", .8f),
         ("Fairy glow", 1.5f),
-        ("Title key light", 4.5f),       // タイトル：顔の明かり（強すぎると青いキャラが白く飛ぶ）
+        ("Title key light", 3.5f),       // タイトル：顔の明かり（強すぎると青いキャラが白く飛ぶ）
         ("Bounce - rug under pendant", 3f),
         ("Bounce - sofa", 1f),
         ("Bounce - kitchen counter", 1f),
