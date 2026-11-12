@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roomies 画面の仕上げ 2026/11/13</title>
+<style>
+  :root { --ground:#17131F; --panel:#221C2E; --line:#3A3149; --text:#F4F0E8; --sub:#C9C2D4; --accent:#FFD23F; }
+  @media (prefers-color-scheme: light) {
+    :root { --ground:#F3EEE3; --panel:#FFFFFF; --line:#D9D0BF; --text:#221A2C; --sub:#4B4358; --accent:#8A6400; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--ground); color:var(--text); line-height:1.7; font-weight:500;
+    font-family:"Hiragino Sans","BIZ UDPGothic","Yu Gothic UI","Noto Sans JP",sans-serif; }
+  main { max-width:1480px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { margin:0 0 4px; font-size:28px; font-weight:900; line-height:1.3; }
+  h2 { margin:32px 0 10px; font-size:20px; font-weight:900; }
+  .lead { margin:0 0 20px; color:var(--sub); }
+  .pair { display:grid; grid-template-columns:1fr; gap:12px; }
+  @media (min-width:900px) { .pair { grid-template-columns:1fr 1fr; } }
+  figure { margin:0; background:var(--panel); border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  img { display:block; width:100%; height:auto; }
+  figcaption { padding:8px 14px 10px; color:var(--sub); font-size:14px; }
+  figcaption b { color:var(--accent); margin-right:8px; }
+  .ref { max-width:720px; }
+  ul { margin:0; padding-left:20px; color:var(--sub); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Roomies 画面の仕上げ（ポストエフェクト）</h1>
+  <p class="lead">左が前、右が後。同じカメラ位置で撮っています。HUD・メニューは仕上げをかけずに重ねています（ゲームと同じ）。</p>
+
+  <h2>参考</h2>
+  <figure class="ref"><img src="reference.jpg" alt="目指す見た目の参考画像" width="1536" height="1024"><figcaption><b>参考</b>電球色の光、青紫の影、画面の端を落とす、灯りのにじみ。</figcaption></figure>
+
+  <h2>01 タイトル</h2>
+  <div class="pair">
+    <figure><img src="before_01_title.jpg" alt="タイトル 前" width="1920" height="1080"><figcaption><b>前</b></figcaption></figure>
+    <figure><img src="after_01_title.jpg" alt="タイトル 後" width="1920" height="1080"><figcaption><b>後</b></figcaption></figure>
+  </div>
+
+  <h2>03 ゲーム中（夜・HUD付き）</h2>
+  <div class="pair">
+    <figure><img src="before_03_room_night_hud.jpg" alt="夜の部屋 前" width="1920" height="1080"><figcaption><b>前</b></figcaption></figure>
+    <figure><img src="after_03_room_night_hud.jpg" alt="夜の部屋 後" width="1920" height="1080"><figcaption><b>後</b>数字は見本です。</figcaption></figure>
+  </div>
+
+  <h2>04 リビング（夜）</h2>
+  <div class="pair">
+    <figure><img src="before_04_lounge.jpg" alt="リビング 前" width="1920" height="1080"><figcaption><b>前</b></figcaption></figure>
+    <figure><img src="after_04_lounge.jpg" alt="リビング 後" width="1920" height="1080"><figcaption><b>後</b></figcaption></figure>
+  </div>
+
+  <h2>05 部屋（朝）</h2>
+  <div class="pair">
+    <figure><img src="before_05_room_morning.jpg" alt="朝の部屋 前" width="1920" height="1080"><figcaption><b>前</b></figcaption></figure>
+    <figure><img src="after_05_room_morning.jpg" alt="朝の部屋 後" width="1920" height="1080"><figcaption><b>後</b></figcaption></figure>
+  </div>
+
+  <h2>変えたところ</h2>
+  <ul>
+    <li>トーンマッピング Neutral、露出 +0.5、コントラスト 14、彩度 −2、色フィルター 少し暖色</li>
+    <li>Bloom しきい値 0.8、強さ 1.25、広がり 0.8、色 暖色</li>
+    <li>ハイライトは暖色・シャドウは青紫（スプリットトーン、シャドウ・中間・ハイライト）</li>
+    <li>ビネット 0.42（濃い紫）</li>
+    <li>AO（SSAO）強さ 0.4 → 0.8、半径 0.3 → 0.45</li>
+  </ul>
+</main>
+</body>
+</html>

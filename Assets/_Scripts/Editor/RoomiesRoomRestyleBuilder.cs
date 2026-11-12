@@ -647,11 +647,13 @@ internal static partial class RoomiesRoomRestyleBuilder
             AssetDatabase.AddObjectToAsset(c, profile); return c;
         }
         var tone = Get<Tonemapping>(); tone.mode.Override(TonemappingMode.Neutral);
-        var bloom = Get<Bloom>(); bloom.threshold.Override(.95f); bloom.intensity.Override(.55f); bloom.scatter.Override(.72f); bloom.tint.Override(new Color(1, .95f, .9f));
-        var color = Get<ColorAdjustments>(); color.postExposure.Override(.15f); color.contrast.Override(10); color.saturation.Override(4);
-        var white = Get<WhiteBalance>(); white.temperature.Override(6); white.tint.Override(2);
-        var split = Get<SplitToning>(); split.shadows.Override(new Color(.45f, .43f, .58f)); split.highlights.Override(new Color(.62f, .55f, .45f)); split.balance.Override(-10);
-        var vignette = Get<Vignette>(); vignette.intensity.Override(.26f); vignette.smoothness.Override(.45f); vignette.color.Override(new Color(.05f, .03f, .1f));
+        // 値は 2026/11/13 の「ポストエフェクト」調整（Docs/restyle_20261113/posteffect）にそろえてある
+        var bloom = Get<Bloom>(); bloom.threshold.Override(.8f); bloom.intensity.Override(1.25f); bloom.scatter.Override(.8f); bloom.tint.Override(new Color(1, .88f, .74f));
+        var color = Get<ColorAdjustments>(); color.postExposure.Override(.5f); color.contrast.Override(14); color.saturation.Override(-2); color.colorFilter.Override(new Color(1, .96f, .9f));
+        var white = Get<WhiteBalance>(); white.temperature.Override(8); white.tint.Override(4);
+        var split = Get<SplitToning>(); split.shadows.Override(new Color(.34f, .34f, .62f)); split.highlights.Override(new Color(.9f, .68f, .45f)); split.balance.Override(-10);
+        var smh = Get<ShadowsMidtonesHighlights>(); smh.shadows.Override(new Vector4(.94f, .93f, 1.12f, .04f)); smh.midtones.Override(new Vector4(1, .99f, 1, 0)); smh.highlights.Override(new Vector4(1.06f, 1, .92f, 0));
+        var vignette = Get<Vignette>(); vignette.intensity.Override(.42f); vignette.smoothness.Override(.5f); vignette.color.Override(new Color(.03f, .02f, .07f));
         EditorUtility.SetDirty(profile);
 
         var go = scene.GetRootGameObjects().FirstOrDefault(g => g.name == VolumeName);

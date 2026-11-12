@@ -117,15 +117,36 @@ internal static class RoomiesRestyleShots
         camera.allowHDR = true;
         camera.clearFlags = CameraClearFlags.Skybox;
 
+        // ゲームの UI は Overlay なので画面の仕上げがかからない。撮るときも UI だけ別のカメラ（仕上げなし）で上に重ねる
+        const int uiLayer = 5;
+        camera.cullingMask = ~(1 << uiLayer);
+        var uiGo = new GameObject("Restyle Shot UI Camera") { hideFlags = HideFlags.HideAndDontSave };
+        var uiCamera = uiGo.AddComponent<Camera>();
+        uiGo.AddComponent<UniversalAdditionalCameraData>().renderPostProcessing = false;
+        uiCamera.transform.SetPositionAndRotation(position, camera.transform.rotation);
+        uiCamera.fieldOfView = fov; uiCamera.nearClipPlane = .05f; uiCamera.farClipPlane = 10;
+        uiCamera.clearFlags = CameraClearFlags.SolidColor; uiCamera.backgroundColor = Color.black;
+        uiCamera.cullingMask = 1 << uiLayer; uiCamera.allowHDR = false;
+        // 仕上げ済みの画面を UI カメラのいちばん奥に貼る（撮り終わったら消す）
+        var backGo = new GameObject("Restyle Shot Backdrop", typeof(RectTransform), typeof(Canvas), typeof(UnityEngine.UI.RawImage)) { hideFlags = HideFlags.HideAndDontSave, layer = uiLayer };
+        var backCanvas = backGo.GetComponent<Canvas>();
+        backCanvas.renderMode = RenderMode.ScreenSpaceCamera; backCanvas.worldCamera = uiCamera; backCanvas.planeDistance = 1; backCanvas.sortingOrder = -32000;
+        var backdrop = backGo.GetComponent<UnityEngine.UI.RawImage>();
+        backdrop.rectTransform.anchorMin = Vector2.zero; backdrop.rectTransform.anchorMax = Vector2.one;
+        backdrop.rectTransform.offsetMin = backdrop.rectTransform.offsetMax = Vector2.zero;
+        backGo.SetActive(false);
+
         var canvases = new List<(Canvas canvas, RenderMode mode, Camera cam, float dist)>();
         var hidden = new List<Canvas>();
+        var layers = new List<(GameObject go, int layer)>();
         if (ui)
             foreach (var canvas in Object.FindObjectsByType<Canvas>(FindObjectsInactive.Exclude))
             {
                 if (!canvas.isRootCanvas || canvas.renderMode != RenderMode.ScreenSpaceOverlay) continue;
                 if (only != null && Array.IndexOf(only, canvas.name) < 0) { hidden.Add(canvas); canvas.enabled = false; continue; }
                 canvases.Add((canvas, canvas.renderMode, canvas.worldCamera, canvas.planeDistance));
-                canvas.renderMode = RenderMode.ScreenSpaceCamera; canvas.worldCamera = camera; canvas.planeDistance = .3f;
+                canvas.renderMode = RenderMode.ScreenSpaceCamera; canvas.worldCamera = uiCamera; canvas.planeDistance = .3f;
+                foreach (var t in canvas.GetComponentsInChildren<Transform>(true)) { layers.Add((t.gameObject, t.gameObject.layer)); t.gameObject.layer = uiLayer; }
             }
 
         // 見本の値（実行時はゲームが入れる）。撮ったら戻す
@@ -142,6 +163,7 @@ internal static class RoomiesRestyleShots
             }
 
         var rt = new RenderTexture(Width, Height, 24, RenderTextureFormat.ARGB32);
+        RenderTexture uiRt = null;
         var previous = RenderTexture.active;
         var tex = new Texture2D(Width, Height, TextureFormat.RGB24, false);
         try
@@ -157,7 +179,18 @@ internal static class RoomiesRestyleShots
             Canvas.ForceUpdateCanvases();
             camera.Render();
             camera.Render();
-            RenderTexture.active = rt;
+            var result = rt;
+            if (ui)
+            {
+                uiRt = new RenderTexture(Width, Height, 24, RenderTextureFormat.ARGB32);
+                backdrop.texture = rt; backGo.SetActive(true);
+                uiCamera.targetTexture = uiRt;
+                Canvas.ForceUpdateCanvases();
+                uiCamera.Render(); uiCamera.Render();
+                uiCamera.targetTexture = null;
+                result = uiRt;
+            }
+            RenderTexture.active = result;
             tex.ReadPixels(new Rect(0, 0, Width, Height), 0, 0);
             tex.Apply();
             File.WriteAllBytes($"{OutDir}/{name}.png", tex.EncodeToPNG());
@@ -168,6 +201,7 @@ internal static class RoomiesRestyleShots
             camera.targetTexture = null;
             foreach (var s in samples) { s.text.text = s.old; s.text.color = s.color; }
             foreach (var c in hidden) c.enabled = true;
+            foreach (var l in layers) l.go.layer = l.layer;
             foreach (var c in canvases) { c.canvas.renderMode = c.mode; c.canvas.worldCamera = c.cam; c.canvas.planeDistance = c.dist; }
             RenderSettings.skybox = oldSky; RenderSettings.ambientMode = oldMode;
             RenderSettings.ambientIntensity = oldAmbient; RenderSettings.reflectionIntensity = oldReflection;
@@ -176,6 +210,9 @@ internal static class RoomiesRestyleShots
             Object.DestroyImmediate(tex);
             Object.DestroyImmediate(rt);
             Object.DestroyImmediate(go);
+            Object.DestroyImmediate(uiGo);
+            Object.DestroyImmediate(backGo);
+            if (uiRt != null) Object.DestroyImmediate(uiRt);
         }
     }
 }
