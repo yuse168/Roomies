@@ -139,6 +139,7 @@ public class SteamLobby : MonoBehaviour
     /// <summary>Steam Lobbyを作成する（ホスト用）。完了後 OnLobbyReady が発火。</summary>
     public void CreateLobby()
     {
+        Debug.Log($"[SteamLobby] CreateLobby diagnostics: Initialized={SteamManager.Initialized}, AppId={(SteamManager.Initialized ? SteamUtils.GetAppID().m_AppId.ToString() : "unavailable")}, steam_appid.txt={(System.IO.File.Exists("steam_appid.txt") ? System.IO.File.ReadAllText("steam_appid.txt").Trim() : "missing")}, type={ELobbyType.k_ELobbyTypePublic}, maxMembers={maxMembers}, LobbyID={LobbyID}, IsBusy={IsBusy}");
         if (IsBusy)
         {
             Debug.LogWarning("[SteamLobby] 操作中のため作成を無視");
@@ -369,7 +370,7 @@ public class SteamLobby : MonoBehaviour
     {
         if (ioFailure || cb.m_eResult != EResult.k_EResultOK)
         {
-            Debug.LogError("[SteamLobby] ロビー作成失敗");
+            Debug.LogError($"[SteamLobby] ロビー作成失敗: EResult={cb.m_eResult} ({(int)cb.m_eResult}), bIOFailure={ioFailure}");
             IsHost = false;
             SetBusy(false);
             OnJoinFailed?.Invoke("ロビーの作成に失敗しました");

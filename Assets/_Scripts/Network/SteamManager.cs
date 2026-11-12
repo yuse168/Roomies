@@ -134,6 +134,7 @@ public class SteamManager : MonoBehaviour {
 			// Initializes the Steamworks API.
 			// falseはSteam未起動などの通常のオフライン状態として扱う。
 			m_bInitialized = SteamAPI.Init();
+			Debug.Log($"[SteamManager] SteamAPI.Init={m_bInitialized}");
 		}
 		catch (System.Exception e) {
 			m_bInitialized = false;
