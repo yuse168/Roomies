@@ -80,6 +80,8 @@ internal static partial class RoomiesMaterialFinishBuilder
             EditorSceneManager.SaveScene(scene);
             Debug.Log($"[Material Finish] light bounce placed in {scene.name}");
         }
+        // 照り返しの強さは「5 Light Balance」の表でそろえる
+        ApplyLightBalance();
     }
 }
 #endif

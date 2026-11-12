@@ -54,6 +54,7 @@ internal static class RoomiesRestyleKit
         RoomiesMaterialFinishBuilder.ApplyTemplatesToRoom();
         // 作り直した明かりに、影（接地感）の設定をかけ直す
         RoomiesMaterialFinishBuilder.ApplyContactShadows();
+        RoomiesMaterialFinishBuilder.ApplyLightBalance();
     }
 
     static Mesh Builtin(PrimitiveType type)
