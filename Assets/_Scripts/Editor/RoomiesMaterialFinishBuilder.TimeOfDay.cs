@@ -23,6 +23,8 @@ internal static partial class RoomiesMaterialFinishBuilder
     {
         ("Pendant light", 0), ("Lantern light", 0), ("Kitchen light", 0), ("Entry fill", 0), ("Fairy glow", .5f), ("Bounce - ", 0),
         ("Street accent", 0),   // 町の街灯（朝は消す）
+        ("Shop light", 0),      // 町の店の看板・軒下の灯り（朝は消す）
+        ("Porch light", 0),     // 町の裏の家並みの玄関灯（朝は消す）
     };
     // 朝の窓の光：位置, 強さ（夜は消える）
     static readonly (string name, Vector3 pos, float intensity)[] MorningWindows =

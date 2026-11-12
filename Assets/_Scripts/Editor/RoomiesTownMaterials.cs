@@ -63,6 +63,11 @@ internal static partial class RoomiesMaterialFinishBuilder
             case "planter_leaf": return V(Tpl.Foliage, C(.3f, .5f, .28f));
             case "paving": return V(Tpl.Concrete, C(.72f, .7f, .66f));
             case "door_wood": return V(Tpl.Wood, C(.45f, .3f, .2f));
+            // 通りと夜（段階3）
+            case "hydrant": return V(Tpl.PaintedMetal, C(.74f, .17f, .12f));
+            case "bulb": return V(Tpl.Emissive, C(1f, .92f, .78f), v => v.SetColor("_EmissionColor", new Color(1f, .8f, .55f) * 4f));
+            case "block_windows_a": return WindowGlass("town_block_windows_a", (float u, float v, out Color c, out float h) => BlockWindowPixel(u, v, out c, out h, 3), C(1f, .85f, .62f), .7f);
+            case "block_windows_b": return WindowGlass("town_block_windows_b", (float u, float v, out Color c, out float h) => BlockWindowPixel(u, v, out c, out h, 11), C(1f, .85f, .62f), .7f);
             case "glass_shop": return WindowGlass("town_shop_interior", ShopInteriorPixel, C(1f, .86f, .66f), 1.1f);
             case "glass_home_lit": return WindowGlass("town_home_window", HomeWindowPixel, C(1f, .8f, .55f), .8f);
             case "glass_home_dark": return WindowGlass("town_home_window", HomeWindowPixel, C(.55f, .65f, 1f), .05f);
@@ -73,7 +78,7 @@ internal static partial class RoomiesMaterialFinishBuilder
     static Material WindowGlass(string tex, Pixel pixel, Color glow, float power)
     {
         var map = Make(tex, 512, pixel, out _, 0);
-        return Variant(Tpl.Emissive, tex + (power > .3f ? "_lit" : "_dark"), Color.white, v =>
+        return Variant(Tpl.Emissive, tex + (tex.StartsWith("town_block") ? "" : power > .3f ? "_lit" : "_dark"), Color.white, v =>
         {
             v.SetTexture("_BaseMap", map); v.SetTexture("_EmissionMap", map);
             v.SetColor("_EmissionColor", glow * power);
@@ -131,6 +136,23 @@ internal static partial class RoomiesMaterialFinishBuilder
         if (v > .88f) c = new Color(.8f, .72f, .58f) * (.85f + .15f * Mathf.Sin(u * 60f));
         float streak = Mathf.Exp(-Mathf.Pow((u + v * .5f - .62f) / .05f, 2)) * .18f;
         c = new Color(Mathf.Min(1, c.r + streak), Mathf.Min(1, c.g + streak), Mathf.Min(1, c.b + streak * 1.15f), 1);
+    }
+
+    // ビルの窓の帯：横に10枚。明かりの点いた部屋（暖色・ブラインド）と、空を映す暗いガラスを混ぜる
+    static void BlockWindowPixel(float u, float v, out Color c, out float h, int seed)
+    {
+        h = 0;
+        float gu = u * 10; float col = Mathf.Floor(gu); float fu = gu - col;
+        bool frame = fu < .08f || fu > .92f || v < .1f || v > .9f;
+        if (frame) { c = new Color(.78f, .78f, .76f); return; }
+        bool lit = Hash(col, seed) > .55f;
+        if (lit)
+        {
+            float blind = .85f + .15f * Mathf.Sin(v * 120f);
+            c = Color.Lerp(new Color(1f, .82f, .55f), new Color(.85f, .6f, .38f), S(.2f, .9f, v)) * blind;
+        }
+        else c = Color.Lerp(new Color(.1f, .14f, .22f), new Color(.32f, .42f, .55f), S(.1f, .9f, v)) * (.9f + .1f * Hash(col, seed + 5));
+        if (Mathf.Abs(fu - .5f) < .025f) c *= .55f;   // 真ん中の桟
     }
 
     // レンガ：互い違いの積み方、目地は少し明るく凹む
