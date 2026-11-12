@@ -61,6 +61,7 @@ public class HudThemer : MonoBehaviour
         BuildStatusCard(canvas.transform);
         BuildMoneyCard(canvas.transform);
         BuildObjective(canvas.transform);
+        EditorApplyRestyle();
     }
 #endif
 
@@ -420,28 +421,147 @@ public class HudThemer : MonoBehaviour
         if (dm == null || dm.DebugDay <= 0) return;
 
         int days = dm.DaysUntilRent;
-        rentChipLabel.text = days <= 0
-            ? "今夜が家賃の支払い日"
-            : $"家賃まで あと{days}日";
 
-        // 残り1日を切ったら赤くして鼓動させる
+        // ふだんは帯を出さず、白い文字に残り日数だけ赤で大きく見せる。
+        // 残り1日を切ったら帯を赤くして鼓動させる（文字は白一色）
         bool urgent = days <= 1;
         if (urgent)
         {
             rentPulse += Time.unscaledDeltaTime * 3.4f;
             float pulse = 0.5f + 0.5f * Mathf.Sin(rentPulse);
-            rentChip.color = Color.Lerp(UITheme.Red, UITheme.Sun, pulse * 0.45f);
+            rentChip.color = Color.Lerp(UITheme.Red, UITheme.Shade(UITheme.Red, 0.35f), pulse);
+            rentChipLabel.text = days <= 0
+                ? "今夜が家賃の支払い日"
+                : $"家賃支払いまであと {days}日";
         }
         else
         {
             rentPulse = 0f;
-            rentChip.color = days <= 2 ? UITheme.Sun : UITheme.Grape;
+            rentChip.color = Color.clear;
+            rentChipLabel.text = $"家賃支払いまであと <size=135%><color=#{RentDaysHex}>{days}日</color></size>";
         }
 
-        rentChipLabel.color = urgent || days <= 2
-            ? new Color(0.16f, 0.08f, 0.02f)
-            : Color.white;
+        rentChipLabel.color = Color.white;
     }
+
+    // 残り日数の色（UITheme.Red を少し明るくした赤。黒い面の上で読める濃さ）
+    private const string RentDaysHex = "FF5A4F";
+
+    // HUDの面は後ろの部屋が少し透ける濃さにする（メニューの面より薄い）
+    private static readonly Color HudInk =
+        new Color(UITheme.MenuInk.r, UITheme.MenuInk.g, UITheme.MenuInk.b, 0.82f);
+
+#if UNITY_EDITOR
+    /// <summary>
+    /// 置いてあるHUDの見た目（位置・色・フォント）を整える（エディタ専用）。
+    /// 配置ツール `Roomies/UI/Restyle Game UI` と `EditorBuildUI` から呼ぶ。何度呼んでも同じ結果。
+    /// 参照・部品の名前・親子は変えない（「いまの目標」の紙に付ける Tape だけ足す）。
+    /// </summary>
+    public void EditorApplyRestyle()
+    {
+        var canvas = transform.Find("HudCanvas");
+        if (canvas == null) return;
+        var font = UnityEditor.AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(
+            "Assets/TextMesh Pro/Resources/Fonts & Materials/MPLUSU-Black SDF.asset");
+
+        void Font(TMP_Text text)
+        {
+            if (text == null) return;
+            UnityEditor.Undo.RecordObject(text, "Restyle HUD");
+            if (font != null) text.font = font;
+            text.fontStyle = FontStyles.Normal;   // Black は元から太い
+            UnityEditor.EditorUtility.SetDirty(text);
+        }
+        void Rect(RectTransform rt, Vector2 anchor, Vector2 position, Vector2 size)
+        {
+            UnityEditor.Undo.RecordObject(rt, "Restyle HUD");
+            rt.anchorMin = rt.anchorMax = rt.pivot = anchor;
+            rt.anchoredPosition = position; rt.sizeDelta = size;
+        }
+        void Paint(Transform card, Color edge, Color fill)
+        {
+            if (card == null) return;
+            var border = card.GetComponent<Image>();
+            var inner = card.Find("Fill") != null ? card.Find("Fill").GetComponent<Image>() : null;
+            if (border != null) { UnityEditor.Undo.RecordObject(border, "Restyle HUD"); border.color = edge; }
+            if (inner != null) { UnityEditor.Undo.RecordObject(inner, "Restyle HUD"); inner.color = fill; }
+        }
+
+        // ---- 左上：日数と残り時間
+        var status = canvas.Find("StatusCard");
+        if (status != null)
+        {
+            Paint(status, UITheme.MenuEdge, HudInk);
+            foreach (var text in status.GetComponentsInChildren<TMP_Text>(true)) Font(text);
+        }
+
+        // ---- 右上：共同口座
+        var money = canvas.Find("MoneyCard") as RectTransform;
+        if (money != null)
+        {
+            Paint(money, UITheme.MenuEdge, HudInk);
+            Rect(money, new Vector2(1f, 1f), new Vector2(-Margin, -Margin), new Vector2(MoneyWidth + 44f, 232f));
+            foreach (var text in money.GetComponentsInChildren<TMP_Text>(true)) Font(text);
+
+            var caption = money.Find("Caption") as RectTransform;
+            if (caption != null)
+            {
+                Rect(caption, new Vector2(0f, 1f), new Vector2(26f, -18f), new Vector2(200f, 32f));
+                var t = caption.GetComponent<TMP_Text>(); t.fontSize = 24f; t.color = new Color(1f, 1f, 1f, 0.92f);
+            }
+            if (moneyValueLabel != null)
+            {
+                Rect(moneyValueLabel.rectTransform, new Vector2(0f, 1f), new Vector2(26f, -50f), new Vector2(328f, 70f));
+                moneyValueLabel.fontSizeMax = 58f; moneyValueLabel.fontSizeMin = 30f; moneyValueLabel.fontSize = 58f;
+            }
+            var track = money.Find("RentProgressTrack") as RectTransform;
+            if (track != null) Rect(track, new Vector2(0f, 1f), new Vector2(26f, -124f), new Vector2(328f, 6f));
+            if (moneyRequiredLabel != null)
+            {
+                Rect(moneyRequiredLabel.rectTransform, new Vector2(0f, 1f), new Vector2(26f, -138f), new Vector2(328f, 32f));
+                moneyRequiredLabel.fontSize = 23f; moneyRequiredLabel.alignment = TextAlignmentOptions.Left;
+            }
+            if (rentChip != null)
+            {
+                Rect(rentChip.rectTransform, new Vector2(0f, 0f), new Vector2(18f, 14f), new Vector2(344f, 44f));
+                UnityEditor.Undo.RecordObject(rentChip, "Restyle HUD");
+                rentChip.color = Color.clear;
+            }
+            if (rentChipLabel != null)
+            {
+                rentChipLabel.alignment = TextAlignmentOptions.Left;
+                rentChipLabel.fontSizeMin = 16f; rentChipLabel.fontSizeMax = 23f; rentChipLabel.color = Color.white;
+                rentChipLabel.rectTransform.offsetMin = new Vector2(8f, 0f);
+                rentChipLabel.rectTransform.offsetMax = new Vector2(-8f, 0f);
+                rentChipLabel.text = $"家賃支払いまであと <size=135%><color=#{RentDaysHex}>3日</color></size>";
+            }
+        }
+
+        // ---- 左下：いまの目標（貼り紙）
+        var objective = canvas.Find("ObjectiveCard") as RectTransform;
+        if (objective != null)
+        {
+            Paint(objective, new Color(0.80f, 0.75f, 0.62f, 1f), new Color(0.95f, 0.92f, 0.84f, 1f));
+            Rect(objective, new Vector2(0f, 0f), new Vector2(Margin + 6f, Margin + 10f), new Vector2(430f, 112f));
+            objective.localEulerAngles = new Vector3(0f, 0f, -2f);
+            foreach (var text in objective.GetComponentsInChildren<TMP_Text>(true)) Font(text);
+            var caption = objective.Find("Caption") != null ? objective.Find("Caption").GetComponent<TMP_Text>() : null;
+            if (caption != null) { caption.color = new Color(0.23f, 0.37f, 0.71f); caption.fontSize = 17f; }
+            if (objectiveLabel != null) { objectiveLabel.color = new Color(0.16f, 0.17f, 0.2f); objectiveLabel.fontSizeMax = 24f; }
+
+            var tape = objective.Find("Tape") as RectTransform;
+            if (tape == null)
+            {
+                var image = UITheme.Chip(objective, "Tape", new Color(0.86f, 0.80f, 0.60f, 0.92f), 3f);
+                UnityEditor.Undo.RegisterCreatedObjectUndo(image.gameObject, "Restyle HUD");
+                tape = image.rectTransform;
+            }
+            Rect(tape, new Vector2(0.5f, 1f), new Vector2(0f, 12f), new Vector2(96f, 26f));
+            tape.localEulerAngles = new Vector3(0f, 0f, 4f);
+        }
+        UnityEditor.EditorUtility.SetDirty(this);
+    }
+#endif
 
     private void UpdateTimerBar(DayManager dm)
     {

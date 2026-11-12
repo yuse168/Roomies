@@ -31,9 +31,11 @@ public static class UITheme
 
     // ---- メニュー用パレット ------------------------------------------
     // 3Dの部屋の上に直接乗る前提。白いカードではなく「濃い面＋太い白フチ」。
-    public static readonly Color MenuInk     = new Color(0.055f, 0.105f, 0.14f, 0.96f);
-    public static readonly Color MenuInkSoft = new Color(0.12f, 0.22f, 0.25f, 0.96f);
-    public static readonly Color MenuEdge    = new Color(0.72f, 0.86f, 0.83f, 0.72f);
+    // 2026/11/13：夜の部屋に合わせて「半透明の黒い面＋細い白フチ」に変えた
+    // （前は濃い青緑 0.055,0.105,0.14 / 0.12,0.22,0.25 と、青白いフチ 0.72,0.86,0.83）。
+    public static readonly Color MenuInk     = new Color(0.045f, 0.04f, 0.065f, 0.93f);
+    public static readonly Color MenuInkSoft = new Color(0.14f, 0.125f, 0.19f, 0.92f);
+    public static readonly Color MenuEdge    = new Color(1f, 1f, 1f, 0.30f);
     public static readonly Color MenuShade   = new Color(0.025f, 0.045f, 0.065f);
     public static readonly Color Pink        = new Color(1.00f, 0.31f, 0.58f);
     public static readonly Color Cyan        = new Color(0.16f, 0.76f, 1.00f);
