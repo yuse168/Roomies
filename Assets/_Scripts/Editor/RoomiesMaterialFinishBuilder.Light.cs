@@ -57,17 +57,7 @@ internal static partial class RoomiesMaterialFinishBuilder
                 light.renderMode = LightRenderMode.Auto; light.lightmapBakeType = LightmapBakeType.Realtime;
             }
 
-            // 吊りランプの影を柔らかく（影の解像度を中にする。PCF のぼかしが広く見える）
-            foreach (var light in room.GetComponentsInChildren<Light>(true).Where(l => l.name == "Pendant light"))
-            {
-                var data = light.GetComponent<UniversalAdditionalLightData>() ?? light.gameObject.AddComponent<UniversalAdditionalLightData>();
-                var so = new SerializedObject(data);
-                so.FindProperty("m_AdditionalLightsShadowResolutionTier").intValue = UniversalAdditionalLightData.AdditionalLightsShadowResolutionTierMedium;
-                so.ApplyModifiedPropertiesWithoutUndo();
-                light.shadowStrength = .85f;
-                light.shadowNearPlane = .08f;
-                EditorUtility.SetDirty(light); EditorUtility.SetDirty(data);
-            }
+            // 影の柔らかさ・ずれは「4 Contact Shadows」の表で決める（ここでは触らない）
 
             // 部屋の反射プローブ（箱に合わせて映す）
             var probeGo = new GameObject("Room reflection probe");
