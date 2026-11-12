@@ -126,6 +126,82 @@ internal static class RoomiesBevelBuilder
         Debug.Log($"[Bevel] pruned {n} meshes");
     }
 
+    // ================================================================ 町（2026/11/13）
+    // 町のプレハブ（RoomiesNeighborhood）の部品。遠景（Roomies_Backdrop）は遠くて見えないので丸めない。鉱山は触らない
+    const string NeighborhoodPrefab = "Assets/_Prefabs/Environment/RoomiesNeighborhood.prefab";
+    static Regex Ri(string p) => new Regex(p, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    static readonly (Regex name, Tier tier)[] TownRules =
+    {
+        // 大きな平面・ガラス・線・文字・薄い物は丸めない
+        (Ri(@"joint|seam|stripe|dash|crosswalk|route|lane|road|ground|grass|lawn|sidewalk|plane|highlight|text|label|plate|decal|line|mark|snow|band|floor|ceiling|liner|plot|soil|glazing|^window$|lower window|water|paper|poster"), Tier.None),
+        // 柔らかい物（強）
+        (Ri(@"cushion|pillow|bag|sack|mattress"), Tier.Strong),
+        // 木の家具・看板・箱・扉（中）
+        (Ri(@"bench|sign|board|crate|vending|counter|table|planter|\bbin\b|box|door|kiosk|pedestal|seat|machine|mailbox|fascia|locker|cabinet|shutter|button"), Tier.Medium),
+        // 柱・梁・窓枠・手すり・階段・屋根・壁などは既定の「弱」
+    };
+
+    static Tier TownTierFor(string name) { foreach (var r in TownRules) if (r.name.IsMatch(name)) return r.tier; return Tier.Weak; }
+
+    [MenuItem("Roomies/Art/Restyle/Bevel/Apply To Town")]
+    internal static void ApplyToTown()
+    {
+        var meshes = LoadMeshAsset();
+        var root = PrefabUtility.LoadPrefabContents(NeighborhoodPrefab);
+        int n = 0;
+        try
+        {
+            foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (mf.sharedMesh == null || PrefabUtility.IsPartOfPrefabInstance(mf) || RoomiesMaterialFinishBuilder.InMining(mf.transform)) continue;
+                var shape = ShapeOf(mf.sharedMesh); if (shape == Shape.Other) continue;
+                if (mf.sharedMesh.name.StartsWith("rbox_")) continue;   // 角丸の箱（部屋の物）はそのまま
+                var tier = TownTierFor(mf.name);
+                if (tier == Tier.None) continue;
+                Vector3 b = mf.sharedMesh.bounds.size, s = mf.transform.lossyScale;
+                s = new Vector3(Mathf.Abs(s.x), Mathf.Abs(s.y), Mathf.Abs(s.z));
+                Vector3 world = Vector3.Scale(b, s);
+                if (world.x < 1e-4f || world.y < 1e-4f || world.z < 1e-4f) continue;
+                var (ratio, max) = TierSize[tier];
+                float minSide = shape == Shape.Box ? Mathf.Min(world.x, Mathf.Min(world.y, world.z)) : Mathf.Min(world.x, world.y);
+                float r = Mathf.Min(Mathf.Clamp(minSide * ratio, .002f, max), minSide * .49f);
+                var mesh = shape == Shape.Box ? BoxMesh(meshes, b, s, r, Segments[tier]) : CylinderMesh(meshes, b, s, r, Segments[tier], minSide);
+                if (mf.sharedMesh != mesh) { mf.sharedMesh = mesh; n++; }
+            }
+            PrefabUtility.SaveAsPrefabAsset(root, NeighborhoodPrefab);
+        }
+        finally { PrefabUtility.UnloadPrefabContents(root); }
+        AssetDatabase.SaveAssets();
+        Debug.Log($"[Bevel] town prefab: {n} parts");
+    }
+
+    [MenuItem("Roomies/Art/Restyle/Bevel/Preview Town Tiers")]
+    internal static void PreviewTownTiers()
+    {
+        foreach (var scene in Enumerable.Range(0, SceneManager.sceneCount).Select(SceneManager.GetSceneAt).Where(s => s.isLoaded))
+        {
+            var town = scene.GetRootGameObjects().FirstOrDefault(g => g.name == "Roomies_EnvironmentArt");
+            if (town == null) continue;
+            foreach (var r in town.GetComponentsInChildren<MeshRenderer>(true))
+            {
+                var mf = r.GetComponent<MeshFilter>(); if (mf == null || mf.sharedMesh == null || ShapeOf(mf.sharedMesh) == Shape.Other) continue;
+                var tier = mf.sharedMesh.name.StartsWith("bev") ? TownTierFor(r.name) : Tier.None;
+                var c = tier == Tier.Strong ? new Color(1f, .25f, .3f) : tier == Tier.Medium ? new Color(1f, .8f, .2f) : tier == Tier.Weak ? new Color(.3f, .55f, 1f) : new Color(.55f, .55f, .55f);
+                var block = new MaterialPropertyBlock(); block.SetColor("_BaseColor", c); r.SetPropertyBlock(block);
+            }
+        }
+    }
+
+    [MenuItem("Roomies/Art/Restyle/Bevel/Clear Town Preview")]
+    internal static void ClearTownPreview()
+    {
+        foreach (var scene in Enumerable.Range(0, SceneManager.sceneCount).Select(SceneManager.GetSceneAt).Where(s => s.isLoaded))
+        {
+            var town = scene.GetRootGameObjects().FirstOrDefault(g => g.name == "Roomies_EnvironmentArt");
+            if (town != null) foreach (var r in town.GetComponentsInChildren<MeshRenderer>(true)) r.SetPropertyBlock(null);
+        }
+    }
+
     // 強さを色で見る（保存されない。撮影用）
     [MenuItem("Roomies/Art/Restyle/Bevel/Preview Tiers")]
     internal static void PreviewTiers()
