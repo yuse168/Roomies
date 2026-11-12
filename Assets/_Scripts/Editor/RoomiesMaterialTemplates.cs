@@ -414,6 +414,72 @@ internal static partial class RoomiesMaterialFinishBuilder
         AssetDatabase.SaveAssets();
     }
 
+    // ギミック付きプレハブで使っている、Restyle 以外のマテリアル → テンプレ（色は元の色を写す）
+    static readonly Dictionary<string, Tpl> ExtraMaterials = new Dictionary<string, Tpl>
+    {
+        ["Assets/_Materials/Facilities/ClosetBody.mat"] = Tpl.Wood, ["Assets/_Materials/Facilities/ClosetDoor.mat"] = Tpl.Wood,
+        ["Assets/_Materials/Facilities/ClosetHandle.mat"] = Tpl.Metal,
+        ["Assets/_Materials/Blackjack/BlackjackWood.mat"] = Tpl.Wood, ["Assets/_Materials/Blackjack/BlackjackGold.mat"] = Tpl.Metal,
+        ["Assets/_Materials/Blackjack/BlackjackFelt.mat"] = Tpl.Fabric,
+    };
+
+    static Material ResolveVariant(Renderer r, Material old, Dictionary<string, Material> cache)
+    {
+        if (old == null) return null;
+        string oldPath = AssetDatabase.GetAssetPath(old);
+        if (ExtraMaterials.TryGetValue(oldPath, out var et))
+        {
+            string ek = oldPath;
+            if (!cache.TryGetValue(ek, out var ev))
+            {
+                Color c = old.HasProperty("_BaseColor") ? old.GetColor("_BaseColor") : old.color;
+                ev = Variant(et, old.name, c, et == Tpl.Metal && old.name.Contains("Gold") ? (Action<Material>)(v => { v.SetFloat("_Metallic", .9f); v.SetFloat("_Smoothness", .6f); }) : null);
+                cache[ek] = ev;
+            }
+            return ev;
+        }
+        if (oldPath.StartsWith(VariantDir))
+        {
+            // すでに子：Restyle の元があれば作り直し、なければそのまま
+            if (AssetDatabase.LoadAssetAtPath<Material>(Restyle + old.name + ".mat") == null) return null;
+        }
+        else if (!oldPath.StartsWith(Restyle)) return null;
+        var rule = RuleFor(r.name, old.name);
+        string key = old.name + "|" + (rule.HasValue ? rule.Value.ToString() : "");
+        if (!cache.TryGetValue(key, out var v2)) { v2 = VariantFor(old.name, rule); cache[key] = v2; }
+        return v2;
+    }
+
+    /// <summary>ギミック付きプレハブの Visual の中だけをテンプレの子へ付け替える（ルート・当たり判定・スクリプト・通信は触らない）。</summary>
+    [MenuItem("Roomies/Art/Restyle/Material Templates/3 Apply To Gimmick Prefabs")]
+    internal static void ApplyTemplatesToPrefabs()
+    {
+        var cache = new Dictionary<string, Material>();
+        foreach (var path in RoomiesBevelBuilder.GimmickPrefabs)
+        {
+            var root = PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                int n = 0;
+                foreach (var visual in root.GetComponentsInChildren<Transform>(true).Where(t => t.name == "Visual"))
+                    foreach (var r in visual.GetComponentsInChildren<Renderer>(true))
+                    {
+                        var mats = r.sharedMaterials; bool changed = false;
+                        for (int i = 0; i < mats.Length; i++)
+                        {
+                            var v = ResolveVariant(r, mats[i], cache);
+                            if (v != null && v != mats[i]) { mats[i] = v; changed = true; }
+                        }
+                        if (changed) { r.sharedMaterials = mats; n++; }
+                    }
+                PrefabUtility.SaveAsPrefabAsset(root, path);
+                Debug.Log($"[Material Templates] {path}: {n} renderers");
+            }
+            finally { PrefabUtility.UnloadPrefabContents(root); }
+        }
+        AssetDatabase.SaveAssets();
+    }
+
     /// <summary>キャラの体：BobBody.mat を肌テンプレの子にする（プレイヤー・NPC もこれを使う。プレハブは触らない）。</summary>
     internal static Material SkinBody()
     {

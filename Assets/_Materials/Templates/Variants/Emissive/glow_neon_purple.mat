@@ -44,6 +44,7 @@ Material:
     - _Smoothness: 0.2
     m_Colors:
     - _BaseColor: {r: 0.8509804, g: 0.65882355, b: 1, a: 1}
+    - _Color: {r: 0.8509804, g: 0.65882355, b: 1, a: 1}
     - _EmissionColor: {r: 2.4948018, g: 0.51949507, b: 7, a: 7}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

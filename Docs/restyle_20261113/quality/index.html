@@ -32,71 +32,80 @@
 <main>
 <h1>画質の改善（マテリアル・ベベル・ライティング・仕上げ）</h1>
 <p class="lead">左から段階の順。同じカメラ・時間帯・解像度（1920×1080）で撮っています。画像を押すと原寸で開きます。HUD とメニューには画面の仕上げをかけていません。</p>
-<ol><li><b>前 今まで</b>：ゲーム中のカメラは画面の仕上げなし・アンチエイリアスなし（タイトルは仕上げあり・アンチエイリアスなし）。それを再現して撮った</li><li><b>0 カメラ</b>：プレイヤーとタイトルのカメラで画面の仕上げを有効にし、SMAA（High）を付けた</li><li><b>1 マテリアル</b>：テンプレを18個に（ゴム・陶器・発光を追加）。全テンプレに微細な色ムラ。ソファ・ぬいぐるみ・クッションは起毛の布に。コード・持ち手・靴底はゴム、植木鉢・お椀は陶器</li><li><b>2 ベベル</b>：部屋とタイトルの部品に、部品ごとの強・中・弱で角の丸みを付けた（部屋327・タイトル403）。強＝実寸の短い辺の32%（上限9cm）、中＝9%（3.5cm）、弱＝2.5%（8mm）。ソファの座面・クッション、布団・枕は強、天板・棚板・家電は中、脚・支柱・レールは弱。薄い紙・印刷は丸めない</li></ol>
+<ol><li><b>前 今まで</b>：ゲーム中のカメラは画面の仕上げなし・アンチエイリアスなし（タイトルは仕上げあり・アンチエイリアスなし）。それを再現して撮った</li><li><b>0 カメラ</b>：プレイヤーとタイトルのカメラで画面の仕上げを有効にし、SMAA（High）を付けた</li><li><b>1 マテリアル</b>：テンプレを18個に（ゴム・陶器・発光を追加）。全テンプレに微細な色ムラ。ソファ・ぬいぐるみ・クッションは起毛の布に。コード・持ち手・靴底はゴム、植木鉢・お椀は陶器</li><li><b>2 ベベル</b>：部屋とタイトルの部品に、部品ごとの強・中・弱で角の丸みを付けた（部屋327・タイトル403）。強＝実寸の短い辺の32%（上限9cm）、中＝9%（3.5cm）、弱＝2.5%（8mm）。ソファの座面・クッション、布団・枕は強、天板・棚板・家電は中、脚・支柱・レールは弱。薄い紙・印刷は丸めない</li><li><b>3 ギミックのプレハブ</b>：ベッド・冷蔵庫・クローゼット・ブラックジャック台・スロットの Visual の中だけを、テンプレの子マテリアルと部品ごとのベベルにした（ルート・当たり判定・スクリプト・通信は触っていない）</li></ol>
 <h2>重さ（Play Mode・GameRoom・エディタ上）</h2>
-<div class="scroll"><table><tr><th>段階</th><th>フレーム時間</th><th>三角形</th><th>ドローコール</th><th>SetPass</th></tr><tr><td>前</td><td>約6.9ms（5.2〜8.8）</td><td>約105万</td><td>約2,210</td><td>170</td></tr><tr><td>0 カメラ</td><td>約7.8ms（7.0〜8.4）</td><td>約105万</td><td>約2,210</td><td>173</td></tr><tr><td>1 マテリアル</td><td>約8.3ms（7.3〜8.8）</td><td>約105万</td><td>約2,220</td><td>166〜169</td></tr><tr><td>2 ベベル</td><td>約8.9ms（8.3〜10.1）</td><td>約129万（+24万）</td><td>約2,280</td><td>168〜169</td></tr></table></div>
+<div class="scroll"><table><tr><th>段階</th><th>フレーム時間</th><th>三角形</th><th>ドローコール</th><th>SetPass</th></tr><tr><td>前</td><td>約6.9ms（5.2〜8.8）</td><td>約105万</td><td>約2,210</td><td>170</td></tr><tr><td>0 カメラ</td><td>約7.8ms（7.0〜8.4）</td><td>約105万</td><td>約2,210</td><td>173</td></tr><tr><td>1 マテリアル</td><td>約8.3ms（7.3〜8.8）</td><td>約105万</td><td>約2,220</td><td>166〜169</td></tr><tr><td>2 ベベル</td><td>約8.9ms（8.3〜10.1）</td><td>約129万（+24万）</td><td>約2,280</td><td>168〜169</td></tr><tr><td>3 プレハブ</td><td>約10.2ms（9.1〜10.6）※計測のぶれを含む</td><td>約129万</td><td>約2,280</td><td>168〜169</td></tr></table></div>
 <h2>01 タイトル</h2>
-<div class="scroll"><div class="row" style="--cols:4">
+<div class="scroll"><div class="row" style="--cols:5">
 <figure><a href="s0_before/01_title.jpg"><img src="s0_before/01_title.jpg" alt="01 タイトル 今まで" width="1920" height="1080" loading="lazy"></a><figcaption><b>前</b>今まで</figcaption></figure>
 <figure><a href="s0_after/01_title.jpg"><img src="s0_after/01_title.jpg" alt="01 タイトル カメラ" width="1920" height="1080" loading="lazy"></a><figcaption><b>0</b>カメラ</figcaption></figure>
 <figure><a href="s1_material/01_title.jpg"><img src="s1_material/01_title.jpg" alt="01 タイトル マテリアル" width="1920" height="1080" loading="lazy"></a><figcaption><b>1</b>マテリアル</figcaption></figure>
 <figure><a href="s2_bevel/01_title.jpg"><img src="s2_bevel/01_title.jpg" alt="01 タイトル ベベル" width="1920" height="1080" loading="lazy"></a><figcaption><b>2</b>ベベル</figcaption></figure>
+<figure><a href="s3_prefab/01_title.jpg"><img src="s3_prefab/01_title.jpg" alt="01 タイトル ギミックのプレハブ" width="1920" height="1080" loading="lazy"></a><figcaption><b>3</b>ギミックのプレハブ</figcaption></figure>
 </div></div>
 <h2>06 キャラのアップ</h2>
-<div class="scroll"><div class="row" style="--cols:4">
+<div class="scroll"><div class="row" style="--cols:5">
 <figure><a href="s0_before/06_character.jpg"><img src="s0_before/06_character.jpg" alt="06 キャラのアップ 今まで" width="1920" height="1080" loading="lazy"></a><figcaption><b>前</b>今まで</figcaption></figure>
 <figure><a href="s0_after/06_character.jpg"><img src="s0_after/06_character.jpg" alt="06 キャラのアップ カメラ" width="1920" height="1080" loading="lazy"></a><figcaption><b>0</b>カメラ</figcaption></figure>
 <figure><a href="s1_material/06_character.jpg"><img src="s1_material/06_character.jpg" alt="06 キャラのアップ マテリアル" width="1920" height="1080" loading="lazy"></a><figcaption><b>1</b>マテリアル</figcaption></figure>
 <figure><a href="s2_bevel/06_character.jpg"><img src="s2_bevel/06_character.jpg" alt="06 キャラのアップ ベベル" width="1920" height="1080" loading="lazy"></a><figcaption><b>2</b>ベベル</figcaption></figure>
+<figure><a href="s3_prefab/06_character.jpg"><img src="s3_prefab/06_character.jpg" alt="06 キャラのアップ ギミックのプレハブ" width="1920" height="1080" loading="lazy"></a><figcaption><b>3</b>ギミックのプレハブ</figcaption></figure>
 </div></div>
 <h2>03 ゲーム中（夜・HUD付き）</h2>
-<div class="scroll"><div class="row" style="--cols:4">
+<div class="scroll"><div class="row" style="--cols:5">
 <figure><a href="s0_before/03_room_night_hud.jpg"><img src="s0_before/03_room_night_hud.jpg" alt="03 ゲーム中（夜・HUD付き） 今まで" width="1920" height="1080" loading="lazy"></a><figcaption><b>前</b>今まで</figcaption></figure>
 <figure><a href="s0_after/03_room_night_hud.jpg"><img src="s0_after/03_room_night_hud.jpg" alt="03 ゲーム中（夜・HUD付き） カメラ" width="1920" height="1080" loading="lazy"></a><figcaption><b>0</b>カメラ</figcaption></figure>
 <figure><a href="s1_material/03_room_night_hud.jpg"><img src="s1_material/03_room_night_hud.jpg" alt="03 ゲーム中（夜・HUD付き） マテリアル" width="1920" height="1080" loading="lazy"></a><figcaption><b>1</b>マテリアル</figcaption></figure>
 <figure><a href="s2_bevel/03_room_night_hud.jpg"><img src="s2_bevel/03_room_night_hud.jpg" alt="03 ゲーム中（夜・HUD付き） ベベル" width="1920" height="1080" loading="lazy"></a><figcaption><b>2</b>ベベル</figcaption></figure>
+<figure><a href="s3_prefab/03_room_night_hud.jpg"><img src="s3_prefab/03_room_night_hud.jpg" alt="03 ゲーム中（夜・HUD付き） ギミックのプレハブ" width="1920" height="1080" loading="lazy"></a><figcaption><b>3</b>ギミックのプレハブ</figcaption></figure>
 </div></div>
 <h2>04 リビング（夜）</h2>
-<div class="scroll"><div class="row" style="--cols:4">
+<div class="scroll"><div class="row" style="--cols:5">
 <figure><a href="s0_before/04_lounge_night.jpg"><img src="s0_before/04_lounge_night.jpg" alt="04 リビング（夜） 今まで" width="1920" height="1080" loading="lazy"></a><figcaption><b>前</b>今まで</figcaption></figure>
 <figure><a href="s0_after/04_lounge_night.jpg"><img src="s0_after/04_lounge_night.jpg" alt="04 リビング（夜） カメラ" width="1920" height="1080" loading="lazy"></a><figcaption><b>0</b>カメラ</figcaption></figure>
 <figure><a href="s1_material/04_lounge_night.jpg"><img src="s1_material/04_lounge_night.jpg" alt="04 リビング（夜） マテリアル" width="1920" height="1080" loading="lazy"></a><figcaption><b>1</b>マテリアル</figcaption></figure>
 <figure><a href="s2_bevel/04_lounge_night.jpg"><img src="s2_bevel/04_lounge_night.jpg" alt="04 リビング（夜） ベベル" width="1920" height="1080" loading="lazy"></a><figcaption><b>2</b>ベベル</figcaption></figure>
+<figure><a href="s3_prefab/04_lounge_night.jpg"><img src="s3_prefab/04_lounge_night.jpg" alt="04 リビング（夜） ギミックのプレハブ" width="1920" height="1080" loading="lazy"></a><figcaption><b>3</b>ギミックのプレハブ</figcaption></figure>
 </div></div>
 <h2>05 リビング（朝）</h2>
-<div class="scroll"><div class="row" style="--cols:4">
+<div class="scroll"><div class="row" style="--cols:5">
 <figure><a href="s0_before/05_lounge_morning.jpg"><img src="s0_before/05_lounge_morning.jpg" alt="05 リビング（朝） 今まで" width="1920" height="1080" loading="lazy"></a><figcaption><b>前</b>今まで</figcaption></figure>
 <figure><a href="s0_after/05_lounge_morning.jpg"><img src="s0_after/05_lounge_morning.jpg" alt="05 リビング（朝） カメラ" width="1920" height="1080" loading="lazy"></a><figcaption><b>0</b>カメラ</figcaption></figure>
 <figure><a href="s1_material/05_lounge_morning.jpg"><img src="s1_material/05_lounge_morning.jpg" alt="05 リビング（朝） マテリアル" width="1920" height="1080" loading="lazy"></a><figcaption><b>1</b>マテリアル</figcaption></figure>
 <figure><a href="s2_bevel/05_lounge_morning.jpg"><img src="s2_bevel/05_lounge_morning.jpg" alt="05 リビング（朝） ベベル" width="1920" height="1080" loading="lazy"></a><figcaption><b>2</b>ベベル</figcaption></figure>
+<figure><a href="s3_prefab/05_lounge_morning.jpg"><img src="s3_prefab/05_lounge_morning.jpg" alt="05 リビング（朝） ギミックのプレハブ" width="1920" height="1080" loading="lazy"></a><figcaption><b>3</b>ギミックのプレハブ</figcaption></figure>
 </div></div>
 <h2>07 家具のアップ（こたつ・ソファ）</h2>
-<div class="scroll"><div class="row" style="--cols:4">
+<div class="scroll"><div class="row" style="--cols:5">
 <figure><a href="s0_before/07_furniture_closeup.jpg"><img src="s0_before/07_furniture_closeup.jpg" alt="07 家具のアップ（こたつ・ソファ） 今まで" width="1920" height="1080" loading="lazy"></a><figcaption><b>前</b>今まで</figcaption></figure>
 <figure><a href="s0_after/07_furniture_closeup.jpg"><img src="s0_after/07_furniture_closeup.jpg" alt="07 家具のアップ（こたつ・ソファ） カメラ" width="1920" height="1080" loading="lazy"></a><figcaption><b>0</b>カメラ</figcaption></figure>
 <figure><a href="s1_material/07_furniture_closeup.jpg"><img src="s1_material/07_furniture_closeup.jpg" alt="07 家具のアップ（こたつ・ソファ） マテリアル" width="1920" height="1080" loading="lazy"></a><figcaption><b>1</b>マテリアル</figcaption></figure>
 <figure><a href="s2_bevel/07_furniture_closeup.jpg"><img src="s2_bevel/07_furniture_closeup.jpg" alt="07 家具のアップ（こたつ・ソファ） ベベル" width="1920" height="1080" loading="lazy"></a><figcaption><b>2</b>ベベル</figcaption></figure>
+<figure><a href="s3_prefab/07_furniture_closeup.jpg"><img src="s3_prefab/07_furniture_closeup.jpg" alt="07 家具のアップ（こたつ・ソファ） ギミックのプレハブ" width="1920" height="1080" loading="lazy"></a><figcaption><b>3</b>ギミックのプレハブ</figcaption></figure>
 </div></div>
 <h2>08 ベッドのアップ</h2>
-<div class="scroll"><div class="row" style="--cols:4">
+<div class="scroll"><div class="row" style="--cols:5">
 <figure><a href="s0_before/08_bed_closeup.jpg"><img src="s0_before/08_bed_closeup.jpg" alt="08 ベッドのアップ 今まで" width="1920" height="1080" loading="lazy"></a><figcaption><b>前</b>今まで</figcaption></figure>
 <figure><a href="s0_after/08_bed_closeup.jpg"><img src="s0_after/08_bed_closeup.jpg" alt="08 ベッドのアップ カメラ" width="1920" height="1080" loading="lazy"></a><figcaption><b>0</b>カメラ</figcaption></figure>
 <figure><a href="s1_material/08_bed_closeup.jpg"><img src="s1_material/08_bed_closeup.jpg" alt="08 ベッドのアップ マテリアル" width="1920" height="1080" loading="lazy"></a><figcaption><b>1</b>マテリアル</figcaption></figure>
 <figure><a href="s2_bevel/08_bed_closeup.jpg"><img src="s2_bevel/08_bed_closeup.jpg" alt="08 ベッドのアップ ベベル" width="1920" height="1080" loading="lazy"></a><figcaption><b>2</b>ベベル</figcaption></figure>
+<figure><a href="s3_prefab/08_bed_closeup.jpg"><img src="s3_prefab/08_bed_closeup.jpg" alt="08 ベッドのアップ ギミックのプレハブ" width="1920" height="1080" loading="lazy"></a><figcaption><b>3</b>ギミックのプレハブ</figcaption></figure>
 </div></div>
 <h2>09 棚と机</h2>
-<div class="scroll"><div class="row" style="--cols:4">
+<div class="scroll"><div class="row" style="--cols:5">
 <figure><a href="s0_before/09_shelf_desk.jpg"><img src="s0_before/09_shelf_desk.jpg" alt="09 棚と机 今まで" width="1920" height="1080" loading="lazy"></a><figcaption><b>前</b>今まで</figcaption></figure>
 <figure><a href="s0_after/09_shelf_desk.jpg"><img src="s0_after/09_shelf_desk.jpg" alt="09 棚と机 カメラ" width="1920" height="1080" loading="lazy"></a><figcaption><b>0</b>カメラ</figcaption></figure>
 <figure><a href="s1_material/09_shelf_desk.jpg"><img src="s1_material/09_shelf_desk.jpg" alt="09 棚と机 マテリアル" width="1920" height="1080" loading="lazy"></a><figcaption><b>1</b>マテリアル</figcaption></figure>
 <figure><a href="s2_bevel/09_shelf_desk.jpg"><img src="s2_bevel/09_shelf_desk.jpg" alt="09 棚と机 ベベル" width="1920" height="1080" loading="lazy"></a><figcaption><b>2</b>ベベル</figcaption></figure>
+<figure><a href="s3_prefab/09_shelf_desk.jpg"><img src="s3_prefab/09_shelf_desk.jpg" alt="09 棚と机 ギミックのプレハブ" width="1920" height="1080" loading="lazy"></a><figcaption><b>3</b>ギミックのプレハブ</figcaption></figure>
 </div></div>
 <h2>10 ベッドのアップ（タイトルの部屋。段階2から撮影）</h2>
-<div class="scroll"><div class="row" style="--cols:4">
+<div class="scroll"><div class="row" style="--cols:5">
 <figure class="none"><figcaption><b>前</b>この段階では撮っていません</figcaption></figure>
 <figure class="none"><figcaption><b>0</b>この段階では撮っていません</figcaption></figure>
 <figure class="none"><figcaption><b>1</b>この段階では撮っていません</figcaption></figure>
 <figure><a href="s2_bevel/10_bed_title.jpg"><img src="s2_bevel/10_bed_title.jpg" alt="10 ベッドのアップ（タイトルの部屋。段階2から撮影） ベベル" width="1920" height="1080" loading="lazy"></a><figcaption><b>2</b>ベベル</figcaption></figure>
+<figure class="none"><figcaption><b>3</b>この段階では撮っていません</figcaption></figure>
 </div></div>
 <h2>ベベルの強さ（こたつ・ソファ）</h2>
 <figure class="wide"><a href="s2_bevel/11_tiers_furniture.jpg"><img src="s2_bevel/11_tiers_furniture.jpg" alt="ベベルの強さ（こたつ・ソファ）" loading="lazy"></a><figcaption>赤＝強、黄＝中、青＝弱、灰＝丸めない。ソファは座面・クッションが強、ひじ掛けと土台が中、脚が弱。こたつは天板が中、脚が弱</figcaption></figure>

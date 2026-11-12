@@ -44,7 +44,6 @@ internal static class RoomiesBevelBuilder
         (R(@"PC desk/Mouse$"), Tier.Strong),
         (R(@"Slot toy/Button$"), Tier.Strong),
         (R(@"Pivot_Door/Visual/Restyle/Magnet$"), Tier.Strong),
-        (R(@"BlackjackTable/Visual/(BackRail|FrontRail|LeftRail|RightRail)$"), Tier.Strong),
         // ---- 家具・家電の本体（中）
         (R(@"Sofa/(Arm|Back|Base)$"), Tier.Medium),
         (R(@"(Bed|Bed look[^/]*)/(.*/)?(Headboard|Footboard|Frame)$"), Tier.Medium),
@@ -65,7 +64,7 @@ internal static class RoomiesBevelBuilder
         (R(@"Slot toy/(Body|Top sign)$"), Tier.Medium),
         (R(@"(Fridge look|Visual/Restyle|Pivot_Door/Visual/Restyle)/(Body|Fridge door|Freezer door|Box on top|Tin on top)$"), Tier.Medium),
         (R(@"CharacterCloset/Visual/(Body|LeftDoor|RightDoor)$"), Tier.Medium),
-        (R(@"BlackjackTable/Visual/TableTop$"), Tier.Medium),
+        (R(@"BlackjackTable/Visual/(TableTop|BackRail|FrontRail|LeftRail|RightRail)$"), Tier.Medium),
         (R(@"SlotMachine[^/]*/Visual$"), Tier.Medium),
         // ---- 薄い物・印刷・細かい飾りは丸めない（なし）
         (R(@"/(Label|Lid print|Print|Pages|Cover photo|Text lines|Left header|Right header|Left stamp|Right panel|Bin label|Paper scrap|Sticky note|Target|Flight|Shaft|Bull|Bullseye|Tape|Arrow mark|Gravel|Water|Lid light|Console light|PC light|Pepperoni|Cheese|Crust|Hanging wire|Power cable|Cord|Stalk|Soil|Ceiling liner|Flyer|Flyer line|Flyer print|Note|Photo|Photo print|Coupon|Door seam|BLACKJACK_Plaque|Mouse pad|Stand shelf gap|Seal|Band)$"), Tier.None),
