@@ -96,6 +96,13 @@
 - 質感のテンプレマテリアル（2026/11/13） … `Roomies/Art/Restyle/Material Templates/1 Build Templates`・`2 Apply To Room And Title`
   （`RoomiesMaterialTemplates.cs`）。テンプレ（親）は `Assets/_Materials/Templates/T_*.mat`、色は子マテリアル（マテリアルバリアント）で上書きする。
   質感を直すときは親を直す。子の名前は元のマテリアルと同じにする（足音 `FootstepAudio` がマテリアル名の言葉で床を判定するため）
+  ギミック付きプレハブは `3 Apply To Gimmick Prefabs`（Visual の中だけ）
+- 角の丸み（ベベル、2026/11/13） … `Roomies/Art/Restyle/Bevel/Apply To Room And Title`・`Apply To Gimmick Prefabs`（`RoomiesBevelBuilder`）。
+  部品ごとの強・中・弱は表で決める（同じ家具でも天板は中・脚は弱）。メッシュは `Assets/_Art/Restyle/BevelMeshes.asset`。
+  `Preview Tiers` で強さを色で見られる（保存されない）。部屋の分は Build Room のあとに自動でかけ直す
+- 朝と夜の明かり（2026/11/13） … `Roomies/Art/Restyle/Material Finish/6 Time Of Day Lighting`。GameRoom の「Roomies_TimeOfDay」の
+  `RoomTimeOfDayLighting` が DayManager の IsNight を読んで、ランプの強さと画面の仕上げ（夜／朝の Volume の重み）を切り替える。
+  強さはインスペクターで直せる（`5 Light Balance` を実行すると夜の値をそろえ直す）
 
 組み立てのコードは各クラスの `EditorBuildUI()` に `#if UNITY_EDITOR` で残してある。
 実行中は動かないので、置き直したいときだけ配置ツールから呼ぶ。

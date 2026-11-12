@@ -219,6 +219,7 @@ internal static partial class RoomiesMaterialFinishBuilder
                 v.SetFloat("_TileSize", 1.4f); v.SetFloat("_Smoothness", .13f); v.SetFloat("_BumpScale", .9f);
             };
         else if (oldName == "ceiling") extra = v => v.SetFloat("_TileSize", 1.2f);
+        else if (oldName == "wall_plaster") c *= .9f;   // 壁が明るくなりすぎないよう、少しだけ暗く
         else if (oldName == "gold") extra = v => { v.SetFloat("_Metallic", .9f); v.SetFloat("_Smoothness", .6f); };
         else if (oldName == "rug" || oldName == "rug_edge") extra = v => v.SetFloat("_TileSize", .3f);
         return Variant(t, oldName, c, extra);

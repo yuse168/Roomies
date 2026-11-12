@@ -21,11 +21,18 @@ internal static partial class RoomiesMaterialFinishBuilder
         ("Entry fill", .8f),
         ("Fairy glow", 1.5f),
         ("Title key light", 3.5f),       // タイトル：顔の明かり（強すぎると青いキャラが白く飛ぶ）
-        ("Bounce - rug under pendant", 3f),
-        ("Bounce - sofa", 1f),
-        ("Bounce - kitchen counter", 1f),
-        ("Bounce - lantern floor", 1.1f),
-        ("Bounce - fairy floor", .7f),
+        // 照り返し（天井と壁が明るくなりすぎないよう、2026/11/13 の段階4で約0.6倍に）
+        ("Bounce - rug under pendant", 1.8f),
+        ("Bounce - sofa", .6f),
+        ("Bounce - kitchen counter", .6f),
+        ("Bounce - lantern floor", .7f),
+        ("Bounce - fairy floor", .4f),
+    };
+    // 明かりの色（オレンジに寄りすぎないよう、補助の光を少し白へ。吊りランプと電飾は暖色のまま）
+    static readonly (string name, Color color)[] LightColors =
+    {
+        ("Lantern light", new Color(1f, .86f, .7f)), ("Kitchen light", new Color(1f, .87f, .7f)), ("Entry fill", new Color(1f, .9f, .78f)),
+        ("Bounce - rug under pendant", new Color(1f, .8f, .68f)), ("Bounce - kitchen counter", new Color(1f, .86f, .72f)),
     };
     const float NightAmbient = .3f, NightReflection = .35f;
 
@@ -43,7 +50,10 @@ internal static partial class RoomiesMaterialFinishBuilder
                 {
                     var row = LightLevels.FirstOrDefault(l => light.name.StartsWith(l.name));
                     if (row.name == null) continue;
-                    light.intensity = row.intensity; EditorUtility.SetDirty(light); n++;
+                    light.intensity = row.intensity;
+                    var tint = LightColors.FirstOrDefault(l => light.name.StartsWith(l.name));
+                    if (tint.name != null) light.color = tint.color;
+                    EditorUtility.SetDirty(light); n++;
                 }
             foreach (var day in roots.SelectMany(g => g.GetComponentsInChildren<DayManager>(true)))
                 SetFloats(day, ("nightAmbientIntensity", NightAmbient), ("nightReflectionIntensity", NightReflection));
@@ -53,6 +63,8 @@ internal static partial class RoomiesMaterialFinishBuilder
             EditorSceneManager.SaveScene(scene);
             Debug.Log($"[Material Finish] light balance: {n} lights in {scene.name}");
         }
+        // 朝と夜の切り替えの「夜の強さ」を今の値にそろえる（GameRoom だけ）
+        BuildTimeOfDay();
     }
 
     static void SetFloats(Object target, params (string name, float value)[] values)

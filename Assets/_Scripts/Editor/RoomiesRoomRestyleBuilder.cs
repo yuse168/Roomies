@@ -648,12 +648,12 @@ internal static partial class RoomiesRoomRestyleBuilder
         }
         var tone = Get<Tonemapping>(); tone.mode.Override(TonemappingMode.ACES);
         // 値は 2026/11/13 の仕上げ（ACES。Docs/restyle_20261113/material/step10_final）にそろえてある
-        var bloom = Get<Bloom>(); bloom.threshold.Override(1f); bloom.intensity.Override(.45f); bloom.scatter.Override(.7f); bloom.tint.Override(new Color(1, .92f, .82f));
+        var bloom = Get<Bloom>(); bloom.threshold.Override(1f); bloom.intensity.Override(.35f); bloom.scatter.Override(.7f); bloom.tint.Override(new Color(1, .92f, .82f));
         var color = Get<ColorAdjustments>(); color.postExposure.Override(.6f); color.contrast.Override(0); color.saturation.Override(10); color.colorFilter.Override(new Color(1, .98f, .95f));
-        var white = Get<WhiteBalance>(); white.temperature.Override(3); white.tint.Override(2);
-        var split = Get<SplitToning>(); split.shadows.Override(new Color(.42f, .42f, .56f)); split.highlights.Override(new Color(.7f, .59f, .48f)); split.balance.Override(-10);
+        var white = Get<WhiteBalance>(); white.temperature.Override(0); white.tint.Override(2);
+        var split = Get<SplitToning>(); split.shadows.Override(new Color(.42f, .42f, .56f)); split.highlights.Override(new Color(.64f, .57f, .5f)); split.balance.Override(-10);
         var smh = Get<ShadowsMidtonesHighlights>(); smh.shadows.Override(new Vector4(.97f, .965f, 1.06f, .02f)); smh.midtones.Override(new Vector4(1, 1, 1, 0)); smh.highlights.Override(new Vector4(1.02f, 1, .97f, -.08f));
-        var vignette = Get<Vignette>(); vignette.intensity.Override(.22f); vignette.smoothness.Override(.4f); vignette.color.Override(new Color(.04f, .03f, .08f));
+        var vignette = Get<Vignette>(); vignette.intensity.Override(.15f); vignette.smoothness.Override(.4f); vignette.color.Override(new Color(.04f, .03f, .08f));
         EditorUtility.SetDirty(profile);
 
         var go = scene.GetRootGameObjects().FirstOrDefault(g => g.name == VolumeName);

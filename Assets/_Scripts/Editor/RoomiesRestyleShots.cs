@@ -178,6 +178,7 @@ internal static class RoomiesRestyleShots
 
         var rt = new RenderTexture(Width, Height, 24, RenderTextureFormat.ARGB32);
         RenderTexture uiRt = null;
+        var timeOfDay = Object.FindAnyObjectByType<RoomTimeOfDayLighting>();
         var previous = RenderTexture.active;
         var tex = new Texture2D(Width, Height, TextureFormat.RGB24, false);
         try
@@ -189,6 +190,8 @@ internal static class RoomiesRestyleShots
                 if (sun) { sun.intensity = nightSun; sun.color = new Color(.6f, .72f, 1f); }
                 DynamicGI.UpdateEnvironment();
             }
+            // 部屋の明かりと画面の仕上げも、撮る時間帯に合わせる（撮ったら夜に戻す。シーンは夜で保存されている）
+            if (timeOfDay != null) timeOfDay.ApplyImmediate(night);
             camera.targetTexture = rt;
             Canvas.ForceUpdateCanvases();
             camera.Render();
@@ -213,6 +216,7 @@ internal static class RoomiesRestyleShots
         {
             RenderTexture.active = previous;
             camera.targetTexture = null;
+            if (timeOfDay != null) timeOfDay.ApplyImmediate(true);
             foreach (var s in samples) { s.text.text = s.old; s.text.color = s.color; }
             foreach (var c in hidden) c.enabled = true;
             foreach (var l in layers) l.go.layer = l.layer;
