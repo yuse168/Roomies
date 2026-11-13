@@ -69,15 +69,25 @@ internal static partial class RoomiesTownRebuild
             var eye = stand + Vector3.up * 1.6f;
             var target = bj.transform.position + Vector3.up * .95f;
             bool hitBj = Physics.Raycast(eye, (target - eye).normalized, out var hit, 3f) && hit.collider.GetComponentInParent<BlackjackTable>() == bj;
-            bool idle0 = bj.IsIdle;
-            int before = money != null ? money.CurrentMoney : 0;
-            bj.Interact(earning);
-            yield return new WaitForSeconds(1.5f);
-            bool dealt = !bj.IsIdle;
-            int afterBet = money != null ? money.CurrentMoney : 0;
-            if (dealt && bj.CanLocalPlayerStand(cc.GetComponentInParent<Unity.Netcode.NetworkObject>().OwnerClientId)) bj.Stand();
-            yield return new WaitForSeconds(3f);
-            Log($"BLACKJACK: ray hits table {hitBj} ({(hit.collider ? PathOf(hit.collider.transform) : "none")}), idle before {idle0}, round started {dealt}, money {before} -> {afterBet} -> {(money != null ? money.CurrentMoney : 0)}, idle after stand {bj.IsIdle}, label '{bj.GetInteractionLabel(cc.GetComponentInParent<Unity.Netcode.NetworkObject>().OwnerClientId)}'");
+            Log($"BLACKJACK: ray hits table {hitBj} ({(hit.collider ? PathOf(hit.collider.transform) : "none")})");
+            ulong me = cc.GetComponentInParent<Unity.Netcode.NetworkObject>().OwnerClientId;
+            // 3 ラウンド遊び切る（2 ラウンド目はヒットしてからスタンド）。結果を見せる時間のあと待機に戻るまで待つ
+            for (int round = 0; round < 3; round++)
+            {
+                for (int w = 0; w < 100 && !bj.IsIdle; w++) yield return new WaitForSeconds(.1f);
+                int before = money != null ? money.CurrentMoney : 0;
+                bj.Interact(earning);
+                yield return new WaitForSeconds(1.2f);
+                bool started = !bj.IsIdle;
+                int afterBet = money != null ? money.CurrentMoney : 0;
+                string hitInfo = "";
+                if (round == 1 && bj.CanLocalPlayerStand(me)) { bj.Interact(earning); yield return new WaitForSeconds(1.2f); hitInfo = $" hit -> label '{bj.GetInteractionLabel(me)}',"; }
+                bool stood = false;
+                if (bj.CanLocalPlayerStand(me)) { bj.Stand(); stood = true; }
+                float t = 0; while (!bj.IsIdle && t < 8f) { yield return new WaitForSeconds(.1f); t += .1f; }
+                int after = money != null ? money.CurrentMoney : 0;
+                Log($"BLACKJACK round {round + 1}: started {started}, money {before} -> {afterBet} (bet) ->{hitInfo} stood {stood}, back to idle {bj.IsIdle} after {t:F1}s, money after {after} (diff {after - before:+0;-0;0}), label '{bj.GetInteractionLabel(me)}'");
+            }
         }
 
         // ---- 牢屋

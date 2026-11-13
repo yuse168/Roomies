@@ -12,8 +12,7 @@ using Object = UnityEngine.Object;
 ///   前の扉（DoorPivot）、自販機、ベンチ、奥の壁・屋根・柱の当たり判定。
 /// ・建物（町のプレハブ「Town casino」）：絨毯の床、奥の壁（板の腰壁と布張り・ネオンの看板の台）、左右の壁（右は通り抜けの開口）、
 ///   天井の照明、台の上の吊りランプ、電球の並んだ正面の看板、金の柱。元の看板の文字は残す。
-/// ・スロットの筐体：Slot.prefab は変えない（ゆせさんの変更がある）。シーンの3台それぞれで、Visual の下に「Cabinet」を足し、
-///   元の箱と RoomiesSlotArt の表示だけを切る（シーン側の上書き）。当たり判定は Visual のまま。
+/// ・スロットの筐体：Slot.prefab の Visual/Cabinet に0から組む（BuildSlotCabinets）。当たり判定と画面はそのまま。
 /// ・ブラックジャック台：BlackjackTable.prefab の Visual の中で、部品の見た目だけ外し（当たり判定は残す）、「Visual/Art」に新しい台を組む。
 /// </summary>
 internal static partial class RoomiesTownRebuild
@@ -210,28 +209,74 @@ internal static partial class RoomiesTownRebuild
         finally { PrefabUtility.UnloadPrefabContents(root); }
     }
 
-    // ================================================================ スロットの筐体（シーンの3台。プレハブは変えない）
-    static void BuildSlotCabinets()
+    // ================================================================ スロットの筐体（Slot.prefab の Visual/Cabinet）
+    const string SlotPrefab = "Assets/_Prefabs/Slot.prefab";
+
+    /// <summary>
+    /// Slot.prefab の中で筐体を0から組む（2026/11/13 ゆせさんの許可 18:46）。
+    /// ・視線で台を選ぶ当たり判定（Visual の BoxCollider。SlotMachine.interactionCollider が参照）と画面の Canvas はそのまま。
+    /// ・Visual の下の古い見た目（RoomiesSlotArt）は消し、「Visual/Cabinet」に組む。Visual は伸ばして回した箱なので、
+    ///   Cabinet で向きと大きさを打ち消し、中の部品は「画面の正面が +z」の普通の座標で置く。
+    /// ・前にシーンの3台に足した筐体（Visual/Cabinet）と、表示を切った上書きは消して元に戻す。
+    /// </summary>
+    [MenuItem("Roomies/Art/Rebuild/3b Slot Cabinet (Slot.prefab)")]
+    internal static void BuildSlotCabinets()
     {
+        // シーン側：前に足した筐体を消し、上書きを戻す
         var scene = SceneManager.GetActiveScene();
-        int n = 0;
         foreach (var sm in Object.FindObjectsByType<SlotMachine>())
         {
             if (sm.gameObject.scene != scene) continue;
-            var visual = sm.transform.Find("Visual"); var canvas = sm.GetComponentInChildren<Canvas>(true);
-            if (visual == null || canvas == null) continue;
-            var old = visual.Find("Cabinet"); if (old != null) Object.DestroyImmediate(old.gameObject);
-            var art = visual.Find("RoomiesSlotArt"); if (art != null && art.gameObject.activeSelf) art.gameObject.SetActive(false);
-            var vr = visual.GetComponent<MeshRenderer>(); if (vr != null && vr.enabled) vr.enabled = false;
-            var corners = new Vector3[4]; ((RectTransform)canvas.transform).GetWorldCorners(corners);
-            var cab = SlotCabinet(corners, visual.GetComponent<Collider>().bounds, n);
-            cab.SetParent(visual, true);
-            foreach (var t in cab.GetComponentsInChildren<Transform>()) EditorUtility.SetDirty(t);
-            n++;
+            var visual = sm.transform.Find("Visual"); if (visual == null) continue;
+            foreach (Transform c in visual.Cast<Transform>().ToArray())
+                if (c.name == "Cabinet" && PrefabUtility.IsAddedGameObjectOverride(c.gameObject)) Object.DestroyImmediate(c.gameObject);
+            var vr = visual.GetComponent<MeshRenderer>(); if (vr != null && PrefabUtility.IsPartOfPrefabInstance(vr)) PrefabUtility.RevertObjectOverride(vr, InteractionMode.AutomatedAction);
+            var art = visual.Find("RoomiesSlotArt"); if (art != null && PrefabUtility.IsPartOfPrefabInstance(art)) PrefabUtility.RevertObjectOverride(art.gameObject, InteractionMode.AutomatedAction);
         }
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
-        Debug.Log($"[Rebuild] slot cabinets: {n}");
+
+        // プレハブ側
+        var root = PrefabUtility.LoadPrefabContents(SlotPrefab);
+        try
+        {
+            var sm = root.GetComponentInChildren<SlotMachine>(true);
+            var visual = sm.transform.Find("Visual");
+            var canvas = sm.GetComponentInChildren<Canvas>(true);
+            foreach (Transform c in visual.Cast<Transform>().ToArray()) Object.DestroyImmediate(c.gameObject);   // RoomiesSlotArt と古い Cabinet
+            var vr = visual.GetComponent<MeshRenderer>(); if (vr != null) vr.enabled = false;
+
+            // 画面の正面を +z にした枠（原点は SlotMachine）
+            var frame = new GameObject("frame").transform;
+            frame.SetParent(root.transform, false);
+            frame.position = sm.transform.position;
+            frame.rotation = Quaternion.LookRotation(Vector3.ProjectOnPlane(-canvas.transform.forward, Vector3.up).normalized, Vector3.up);
+            var cw = new Vector3[4]; ((RectTransform)canvas.transform).GetWorldCorners(cw);
+            var c4 = cw.Select(p => frame.InverseTransformPoint(p)).ToArray();
+            // 画面の左右が入れ替わらないよう、x の小さい方を左下・大きい方を右上にそろえる
+            var lo = new Vector3(c4.Min(p => p.x), c4.Min(p => p.y), c4.Average(p => p.z));
+            var hi = new Vector3(c4.Max(p => p.x), c4.Max(p => p.y), c4.Average(p => p.z));
+            var box = visual.GetComponent<BoxCollider>();
+            var bb = new Bounds(frame.InverseTransformPoint(visual.TransformPoint(box.center)), Vector3.zero);
+            foreach (var sx in new[] { -.5f, .5f }) foreach (var sy in new[] { -.5f, .5f }) foreach (var sz in new[] { -.5f, .5f })
+                bb.Encapsulate(frame.InverseTransformPoint(visual.TransformPoint(box.center + Vector3.Scale(box.size, new Vector3(sx, sy, sz)))));
+            // 足元の高さ（プレハブの中の床）。シーンでは床が 0.118 なので、プレハブの中の y に合わせて組む
+            var g = SlotCabinet(new[] { lo, lo, hi, hi }, bb, 0);
+            g.SetParent(visual, false);
+            g.position = frame.position; g.rotation = frame.rotation;
+            // Visual の伸ばしを打ち消して、Cabinet の中を 1m = 1 にする
+            var ls = Vector3.one;
+            for (int i = 0; i < 3; i++)
+            {
+                var axis = g.localRotation * (i == 0 ? Vector3.right : i == 1 ? Vector3.up : Vector3.forward);
+                ls[i] = 1f / visual.TransformVector(axis).magnitude;
+            }
+            g.localScale = ls;
+            Object.DestroyImmediate(frame.gameObject);
+            PrefabUtility.SaveAsPrefabAsset(root, SlotPrefab);
+            Debug.Log($"[Rebuild] slot cabinet built in prefab: screen {lo}-{hi}, body {bb.min}-{bb.max}, cabinet lossy {g.lossyScale}");
+        }
+        finally { PrefabUtility.UnloadPrefabContents(root); }
     }
 
     /// <summary>画面（Canvas の四隅）を囲む筐体を、ワールド座標で組む。正面は +z、人から見た左は +x。</summary>

@@ -118,7 +118,8 @@
   葉と草の揺れは `4 Wind On Leaves And Grass`（シェーダー `Roomies/Foliage Lit`。強さ・速さ・止まる距離は素材のインスペクター）
 - 作り直し2（2026/11/13） … `Roomies/Art/Rebuild/1 Jail`・`2 Main House`・`3 Casino`・`4 Road`（`RoomiesTownRebuild.*.cs`）。
   元の部品の当たり判定・スクリプト・移送先などは残し、見た目だけを外して新しく組む（外した部品は当たり判定だけの空の物として残っている）。
-  スロットの筐体はシーンの3台の `Visual/Cabinet`（Slot.prefab は変えていない）、ブラックジャック台はプレハブの `Visual/Art`。
+  スロットの筐体は Slot.prefab の `Visual/Cabinet`（`Rebuild/3b Slot Cabinet`。Visual は伸ばして回した当たり判定の箱で、
+  `SlotMachine.interactionCollider` が参照しているので残し、Cabinet で伸ばしを打ち消している）、ブラックジャック台はプレハブの `Visual/Art`。
   メインの家の古い階段の見た目（Demo/pCube12）は表示だけ切っている（当たり判定は使っている）。
   確認は Play Mode で `Town/Walk - Enter GameRoom As Host` → `Walk Check`・`Gimmick Check`・`Perf - Measure In Game`
 
