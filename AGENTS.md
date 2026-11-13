@@ -104,6 +104,13 @@
 - 朝と夜の明かり（2026/11/13） … `Roomies/Art/Restyle/Material Finish/6 Time Of Day Lighting`。GameRoom の「Roomies_TimeOfDay」の
   `RoomTimeOfDayLighting` が DayManager の IsNight を読んで、ランプの強さと画面の仕上げ（夜／朝の Volume の重み）を切り替える。
   強さはインスペクターで直せる（`5 Light Balance` を実行すると夜の値をそろえ直す）
+- 町の作り直し（2026/11/13） … `Roomies/Art/Town/1 Windows And Walls`・`2 Houses And Roofs`・`3 Street And Night Lights`・`9 Combine For Speed`
+  （`RoomiesTownRebuild*.cs`、素材は `RoomiesTownMaterials.cs`）。寸法と色はコードの表。町のプレハブ `RoomiesNeighborhood` の
+  「Town facades / houses / rooftops / street props / night lights」と、GameRoom の遠景 `Roomies_Backdrop` を作り直す。鉱山は触らない。
+  1〜3 と遠景の `Build Distant Backdrop` は最後に `9` を呼び、見た目だけの部品を素材ごとに1つのメッシュへまとめる
+  （`Assets/_Art/Restyle/Town/Combined/`。各グループの「Combined」の下）。**部品を直すときは表を直して 1〜3 を実行し直す**
+  （まとめたメッシュは手で直さない）。夜の明かりは名前の頭（`Street accent`・`Shop light`・`Porch light`）で朝に消える。
+  まとめたあとに `Material Templates/4 Apply To Town` や `Bevel/Apply To Town` をかけ直すと、まとめた物の素材が変わることがあるので、かけ直したら 1〜3 も実行し直す
 
 組み立てのコードは各クラスの `EditorBuildUI()` に `#if UNITY_EDITOR` で残してある。
 実行中は動かないので、置き直したいときだけ配置ツールから呼ぶ。
