@@ -90,6 +90,26 @@ internal static partial class RoomiesTownRebuild
             }
         }
 
+        // ---- カジノの通用口（シーンの DoorPivot。通信で開け閉めする扉）：前に立って開け、通り抜けられるか
+        var door = Object.FindAnyObjectByType<DoorInteract>();
+        if (door != null)
+        {
+            var dp = door.transform.position;
+            Teleport(cc, new Vector3(dp.x - .5f, cc.height / 2 + .15f, dp.z + 1.4f));
+            yield return null;
+            var r0 = door.transform.rotation;
+            door.ToggleDoorServerRpc();
+            yield return new WaitForSeconds(2.0f);
+            float turned = Quaternion.Angle(r0, door.transform.rotation);
+            // 開いたら、外から中へ歩いて入れるか
+            Vector3 start = cc.transform.position; Vector3 target = new Vector3(dp.x - .5f, start.y, dp.z - 2.0f);
+            for (int i = 0; i < 120; i++) { var d = target - cc.transform.position; d.y = 0; if (d.magnitude < .1f) break; cc.Move(Vector3.ClampMagnitude(d, .05f) + Vector3.down * .05f); Physics.SyncTransforms(); }
+            var q = cc.transform.position;
+            Log($"CASINO SIDE DOOR: turned {turned:F0} deg after toggle, walked through to inside {q.z < dp.z - 1.5f} (at {q.x:F2}, {q.z:F2})");
+            door.ToggleDoorServerRpc();
+            yield return new WaitForSeconds(1.0f);
+        }
+
         // ---- 牢屋
         var smug = cc.GetComponentInParent<SmugglingPlayer>();
         var jailPoint = SmugglingJailPoint.Find();

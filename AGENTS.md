@@ -122,6 +122,10 @@
   `SlotMachine.interactionCollider` が参照しているので残し、Cabinet で伸ばしを打ち消している）、ブラックジャック台はプレハブの `Visual/Art`。
   メインの家の古い階段の見た目（Demo/pCube12）は表示だけ切っている（当たり判定は使っている）。
   確認は Play Mode で `Town/Walk - Enter GameRoom As Host` → `Walk Check`・`Gimmick Check`・`Perf - Measure In Game`
+- 作り直し3（2026/11/13 夜） … 同じメニュー（`1 Jail`・`2 Main House`・`3 Casino`）で、建物として0から作る形に置き換えた。
+  カジノは x -1.2〜16.8・z -19.6〜-7.8 の建物（入口は開け放した大きな扉と、シーンの DoorPivot の通用口）。
+  留置所は x 0.8〜12.45・z 13.2〜22.65（待合室・面会の廊下・留置室。裏の z 22.65〜24 は取引の NPC への通り道）。
+  メインの家は外階段を正面の壁に沿った形に変えた（古い段の当たり判定と Demo/pCube12 の坂の当たり判定は外した）。
 
 組み立てのコードは各クラスの `EditorBuildUI()` に `#if UNITY_EDITOR` で残してある。
 実行中は動かないので、置き直したいときだけ配置ツールから呼ぶ。

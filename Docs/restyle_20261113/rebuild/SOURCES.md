@@ -37,3 +37,18 @@
 | 素材（マテリアル） | 既存の素材の型の子、URP Lit | `Assets/_Materials/Templates/Variants/*/Town/`、`Assets/_Materials/Nature/` |
 
 ライセンスの確認が必要な外部素材はない。
+
+## 作り直し3（2026/11/13 夜）：カジノ・留置所・メインの家を建物として0から
+
+外から取り込んだ素材は使っていない。購入もしていない。すべて自作。
+
+| 物 | 作り方 | 場所 |
+|---|---|---|
+| カジノの建物（外壁・ひさし・シャンデリア・バー・両替所など） | Unity の箱・円柱・板を配置ツールで並べたもの | `Assets/_Scripts/Editor/RoomiesTownRebuild.CasinoBuilding.cs` |
+| 留置所の建物（外壁・待合室・廊下） | 同上 | `RoomiesTownRebuild.JailStation.cs`・`RoomiesTownRebuild.Jail.cs` |
+| メインの家（外壁・板張り・日よけ・階段・踊り場） | 同上 | `RoomiesTownRebuild.MainHouse.cs`・`RoomiesTownRebuild.MainHouseParts.cs` |
+| 寄棟の屋根のメッシュ | コードで作ったメッシュ | `Assets/_Art/Restyle/Town/house_roof.asset` |
+| 留置所の市松のタイルのテクスチャ | 手続きテクスチャ | `Assets/_Art/Restyle/Nature/Textures/station_checker*` |
+| 看板の文字（CASINO・CASHIER・SLOTS・BLACKJACK・POLICE・VISITORS など） | 町のプレハブにあった看板の文字（TextMeshPro・LiberationSans）を写したもの | 町のプレハブ |
+
+ライセンスの確認が必要な外部素材はない。
