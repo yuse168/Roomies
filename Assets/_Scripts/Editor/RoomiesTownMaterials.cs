@@ -68,6 +68,17 @@ internal static partial class RoomiesMaterialFinishBuilder
             case "bulb": return V(Tpl.Emissive, C(1f, .92f, .78f), v => v.SetColor("_EmissionColor", new Color(1f, .8f, .55f) * 4f));
             case "block_windows_a": return WindowGlass("town_block_windows_a", (float u, float v, out Color c, out float h) => BlockWindowPixel(u, v, out c, out h, 3), C(1f, .85f, .62f), .7f);
             case "block_windows_b": return WindowGlass("town_block_windows_b", (float u, float v, out Color c, out float h) => BlockWindowPixel(u, v, out c, out h, 11), C(1f, .85f, .62f), .7f);
+            // 牢屋（作り直し2）
+            case "jail_block": return V(Tpl.Brick, C(.62f, .62f, .63f));
+            case "jail_paint_low": return V(Tpl.Plaster, C(.3f, .5f, .48f));
+            case "jail_paint_high": return V(Tpl.Plaster, C(.86f, .86f, .81f));
+            case "jail_floor": return V(Tpl.Concrete, C(.56f, .56f, .55f));
+            case "jail_bars": return V(Tpl.Metal, C(.5f, .52f, .55f), v => { v.SetFloat("_Metallic", .7f); v.SetFloat("_Smoothness", .45f); });
+            case "jail_mattress": return V(Tpl.Fabric, C(.52f, .58f, .66f));
+            case "jail_blanket": return V(Tpl.Fabric, C(.86f, .5f, .28f));
+            case "jail_pillow": return V(Tpl.Fabric, C(.9f, .9f, .86f));
+            case "jail_mirror": return V(Tpl.Metal, C(.8f, .82f, .85f), v => { v.SetFloat("_Metallic", .9f); v.SetFloat("_Smoothness", .8f); });
+            case "jail_frosted": return V(Tpl.Emissive, C(.8f, .88f, .95f), v => v.SetColor("_EmissionColor", new Color(.6f, .7f, .8f) * .6f));
             case "glass_shop": return WindowGlass("town_shop_interior", ShopInteriorPixel, C(1f, .86f, .66f), 1.1f);
             case "glass_home_lit": return WindowGlass("town_home_window", HomeWindowPixel, C(1f, .8f, .55f), .8f);
             case "glass_home_dark": return WindowGlass("town_home_window", HomeWindowPixel, C(.55f, .65f, 1f), .05f);

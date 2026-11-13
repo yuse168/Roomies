@@ -23,7 +23,7 @@ internal static partial class RoomiesTownRebuild
     const string CombinedDir = "Assets/_Art/Restyle/Town/Combined";
     const string CombinedName = "Combined";
     const float ShadowMinSize = .9f;
-    static readonly string[] PrefabGroups = { FacadeGroup, HouseGroup, RooftopGroup, PropGroup, NightLightGroup };
+    static readonly string[] PrefabGroups = { FacadeGroup, HouseGroup, RooftopGroup, PropGroup, NightLightGroup, "Town jail", "Town main house", "Town casino", "Town road" };
     static readonly string[] BackdropGroups = { "Ground beyond the fence", "Outer town", "Mountains" };
 
     [MenuItem("Roomies/Art/Town/9 Combine For Speed")]
