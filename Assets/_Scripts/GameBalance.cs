@@ -73,6 +73,51 @@ public class GameBalance : ScriptableObject
     [Tooltip("牢屋から出るのに必要な労働回数")]
     [Min(1)] public int jailLaborCount = 10;
 
+    [Header("荷物の値段（割れ物）")]
+    [Tooltip("ふつうの箱の最初の値段")]
+    [Min(0)] public int normalBoxValue = 100;
+
+    [Tooltip("レア（割れ物）の箱の最初の値段")]
+    [Min(0)] public int rareBoxValue = 300;
+
+    [Tooltip("この速さ（m/s）を超えてぶつかったときだけ値段が下がる。そっと置く・歩いて運ぶぶんには下がらない")]
+    [Min(0.1f)] public float boxDamageSpeed = 3f;
+
+    [Tooltip("しきい値を1m/s超えるごとに、最初の値段の何割が減るか")]
+    [Range(0f, 1f)] public float boxDamagePerSpeed = 0.1f;
+
+    [Tooltip("ふつうの箱の壊れやすさ（減る量に掛ける）")]
+    [Min(0f)] public float normalBoxFragility = 0.6f;
+
+    [Tooltip("レア（割れ物）の箱の壊れやすさ（減る量に掛ける）")]
+    [Min(0f)] public float rareBoxFragility = 1.5f;
+
+    [Tooltip("1回ぶつかって値段が下がったあと、次に下がるまでの秒数（転がって何度も減るのを防ぐ）")]
+    [Min(0f)] public float boxDamageCooldown = 0.3f;
+
+    [Header("配達トラック")]
+    [Tooltip("朝の残りがこの秒数になったとき、全員に発車を知らせる（大きい順）")]
+    public int[] truckWarnSeconds = { 60, 30, 10 };
+
+    [Tooltip("発車のとき、トラックからこの距離（m）以内にいる人が「乗った」ことになる")]
+    [Min(0.5f)] public float truckBoardRadius = 6f;
+
+    [Tooltip("町に出ている荷物の上限（荷台の中は数えない）。荷台に積むと、この数まで集荷場に補充される")]
+    [Min(1)] public int deliveryLooseBoxes = 4;
+
+    [Tooltip("町に出ている荷物と荷台の荷物を合わせた上限（物が増えすぎないように）")]
+    [Min(1)] public int deliveryMaxBoxes = 16;
+
+    /// <summary>
+    /// ぶつかった速さから、減る額を返す（しきい値以下なら 0）。
+    /// </summary>
+    public int BoxDamage(int startValue, float fragility, float impactSpeed)
+    {
+        float over = impactSpeed - boxDamageSpeed;
+        if (over <= 0f || startValue <= 0) return 0;
+        return Mathf.Max(1, Mathf.RoundToInt(startValue * boxDamagePerSpeed * fragility * over));
+    }
+
     /// <summary>
     /// 何周目の家賃か（1始まり）に対する請求額。
     /// 1周目は `baseRent`、以降は `rentIncreasePerCycle` ずつ上がる（`maxRent` 止まり）。

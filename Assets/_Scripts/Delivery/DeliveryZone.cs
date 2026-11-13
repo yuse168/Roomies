@@ -13,24 +13,40 @@ public class DeliveryZone : NetworkBehaviour
     [SerializeField] private Vector2 spawnJitter = new Vector2(0.6f, 0.6f);
     [SerializeField] private float spawnHeight = 0.5f;
 
-    [Header("箱の最大数")]
-    [SerializeField] private int maxBoxCount = 3;
+    // 出ている数の上限は GameBalance（deliveryLooseBoxes / deliveryMaxBoxes）で決める
 
     [Header("レア確率")]
     [SerializeField, Range(0, 100)]
     private int rarePercent = 20;
 
     private List<NetworkObject> boxesInZone = new List<NetworkObject>();
+    private readonly List<NetworkObject> spawnedBoxes = new List<NetworkObject>();
     private readonly Dictionary<NetworkObject, HashSet<Collider>> collidersInZone = new();
 
     public override void OnNetworkSpawn()
     {
         if (!IsServer) return;
 
-        for (int i = 0; i < maxBoxCount; i++)
-        {
-            SpawnNewBox();
-        }
+        ServerRefill();
+    }
+
+    /// <summary>
+    /// 町に出ている箱（荷台の外・割れていない）が GameBalance の数になるまで集荷場に出す（サーバーのみ）。
+    /// 荷台に積んだときと、割れたときに呼ぶ。全体の上限（deliveryMaxBoxes）は超えない。
+    /// </summary>
+    public void ServerRefill()
+    {
+        if (!IsServer) return;
+
+        spawnedBoxes.RemoveAll(b => b == null || !b.IsSpawned);
+
+        GameBalance balance = GameBalance.Current;
+        int loose = 0;
+        foreach (var box in spawnedBoxes)
+            loose++;
+
+        int room = Mathf.Min(balance.deliveryLooseBoxes - loose, balance.deliveryMaxBoxes - spawnedBoxes.Count);
+        for (int i = 0; i < room; i++) SpawnNewBox();
     }
 
     private void OnTriggerEnter(Collider other)
@@ -74,6 +90,7 @@ public class DeliveryZone : NetworkBehaviour
     {
         boxesInZone.Clear();
         collidersInZone.Clear();
+        spawnedBoxes.Clear();
     }
 
     public bool HasBox()
@@ -107,14 +124,14 @@ public class DeliveryZone : NetworkBehaviour
             Debug.Log("箱を削除 エリア内残り: " + boxesInZone.Count);
         }
 
-        SpawnNewBox();
+        ServerRefill();
     }
 
     public void RespawnBox()
     {
         if (!IsServer) return;
 
-        SpawnNewBox();
+        ServerRefill();
     }
 
     private void SpawnNewBox()
@@ -156,6 +173,7 @@ public class DeliveryZone : NetworkBehaviour
         );
 
         newBox.Spawn();
+        spawnedBoxes.Add(newBox);
 
         Rigidbody boxRb = newBox.GetComponent<Rigidbody>();
         if (boxRb != null)
@@ -171,7 +189,6 @@ public class DeliveryZone : NetworkBehaviour
         {
             deliveryItem.SetOwnerZone(this);
             deliveryItem.SetRare(isRare);
-            Debug.Log("レア判定: " + isRare);
         }
         else if (isRare)
         {
@@ -180,7 +197,6 @@ public class DeliveryZone : NetworkBehaviour
             );
         }
 
-        Debug.Log("新しい箱をスポーンしました");
     }
 
     private void PruneInvalidBoxes()

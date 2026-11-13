@@ -52,6 +52,12 @@ public class CarryableObject : NetworkBehaviour
 
     public bool IsHeld => isHeld.Value;
 
+    /// <summary>
+    /// 最後に持った人の ClientId（サーバーだけが持つ。まだ誰も持っていなければ ulong.MaxValue）。
+    /// 配達トラックが「誰が積んだか」を個人の稼ぎに記録するのに使う。
+    /// </summary>
+    public ulong ServerLastHolderClientId { get; private set; } = NoHolder;
+
     [Header("落ちてぶつかった音")]
     [Tooltip("この速さ以上でぶつかったときだけ鳴らす（m/s）")]
     [SerializeField, Min(0.1f)] private float impactMinSpeed = 1.6f;
@@ -147,6 +153,7 @@ public class CarryableObject : NetworkBehaviour
         isHeld.Value = true;
         holderClientId.Value = clientId;
         holderNetworkObjectId.Value = playerNetworkObjectId;
+        ServerLastHolderClientId = clientId;
 
         if (restoreCollisionCoroutine != null)
         {
