@@ -79,6 +79,14 @@ internal static partial class RoomiesMaterialFinishBuilder
             case "jail_pillow": return V(Tpl.Fabric, C(.9f, .9f, .86f));
             case "jail_mirror": return V(Tpl.Metal, C(.8f, .82f, .85f), v => { v.SetFloat("_Metallic", .9f); v.SetFloat("_Smoothness", .8f); });
             case "jail_frosted": return V(Tpl.Emissive, C(.8f, .88f, .95f), v => v.SetColor("_EmissionColor", new Color(.6f, .7f, .8f) * .6f));
+            // メインの家（作り直し2）
+            case "house_brick": return V(Tpl.Brick, C(.7f, .45f, .36f));
+            case "house_siding": return V(Tpl.Wood, C(.93f, .9f, .82f));
+            case "stair_concrete": return V(Tpl.Concrete, C(.74f, .72f, .68f));
+            case "stair_tread": return V(Tpl.Concrete, C(.62f, .6f, .57f));
+            case "sign_wood": return V(Tpl.Wood, C(.2f, .45f, .46f));
+            case "flower_pink": return V(Tpl.Fabric, C(.95f, .55f, .7f));
+            case "flower_yellow": return V(Tpl.Fabric, C(.98f, .85f, .35f));
             case "glass_shop": return WindowGlass("town_shop_interior", ShopInteriorPixel, C(1f, .86f, .66f), 1.1f);
             case "glass_home_lit": return WindowGlass("town_home_window", HomeWindowPixel, C(1f, .8f, .55f), .8f);
             case "glass_home_dark": return WindowGlass("town_home_window", HomeWindowPixel, C(.55f, .65f, 1f), .05f);

@@ -86,16 +86,7 @@ internal static partial class RoomiesTownRebuild
         for (int i = 0; i < office.Length; i++) express.openings.Add(new Opening(office[i], office[i] + 1.9f, 4.6f, 5.9f, Kind.Window, i % 2 == 0 ? "glass_shop" : "glass_home_dark"));
         yield return express;
 
-        // 家の1階：正面（-z 向き。階段の手前まで）と東面（+x 向き。エアコンの所は空ける）
-        var houseFront = new Facade { name = "House ground front", wall = "wall_house", frame = "frame_house", origin = new Vector3(19.45f, 0, 13.7f), yaw = 180, width = 6.55f, height = 3.3f, thick = .22f, band = true };
-        houseFront.openings.Add(new Opening(.75f, 2.35f, .95f, 2.45f, Kind.Window, "glass_home_lit"));
-        houseFront.openings.Add(new Opening(3.85f, 5.45f, .95f, 2.45f, Kind.Window, "glass_home_dark"));
-        yield return houseFront;
-        var houseEast = new Facade { name = "House ground east", wall = "wall_house", frame = "frame_house", origin = new Vector3(22.9f, 0, 23.7f), yaw = 90, width = 10f, height = 3.3f, thick = .22f, band = true };
-        houseEast.openings.Add(new Opening(.6f, 1.9f, .95f, 2.45f, Kind.Window, "glass_home_dark"));
-        houseEast.openings.Add(new Opening(4.6f, 6.2f, .95f, 2.45f, Kind.Window, "glass_home_lit"));
-        houseEast.openings.Add(new Opening(7.3f, 8.9f, .95f, 2.45f, Kind.Window, "glass_home_dark"));
-        yield return houseEast;
+        // 家の1階の外壁は、作り直し2のメインの家（RoomiesTownRebuild.MainHouse）で作る
     }
 
     /// <summary>店の正面：bays 区画（door 番目は扉）＋上の窓の列。</summary>
@@ -252,9 +243,6 @@ internal static partial class RoomiesTownRebuild
         }
         foreach (Transform c in work.Cast<Transform>().ToArray())
             if (c.name.StartsWith("air_conditioner") && Mathf.Abs(c.position.x + 12.8f) < .5f) Object.DestroyImmediate(c.gameObject);
-        var house = root.Find(House);
-        foreach (Transform c in house)
-            if (c.name.StartsWith("air_conditioner")) { var p = c.position; if (p.x < 23f) { p.x = 22.94f + .22f; c.position = p; } }
     }
 }
 #endif
