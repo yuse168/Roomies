@@ -5,7 +5,8 @@ using UnityEngine;
 using Object = UnityEngine.Object;
 
 /// <summary>
-/// 作り直し2-1：牢屋を0から作る（2026/11/13）。何度実行しても同じ結果。
+/// 牢屋（留置所）の配置ツール。作り直し3（2026/11/13 20:34）で、警察の留置所の建物として0から設計し直した（RoomiesTownRebuild.JailStation.cs）。
+/// 留置室の中（格子・ベッドなど）はここ。何度実行しても同じ結果。
 /// ・ゲームの仕組みはそのまま：移送先（シーンの JailPoint）、作業台（JailLabor_Placeholder）、閉じ込める当たり判定
 ///   （「Community Jail」の床・奥の壁・左右の壁・屋根・前の梁・鉄格子・横棒・寝台・ベンチ）は位置も大きさも変えない。
 ///   これらの部品からは見た目（メッシュ）だけを外し、見た目は「Town jail」に0から組む。看板の文字と Cell light は残す。
@@ -28,10 +29,11 @@ internal static partial class RoomiesTownRebuild
             var old = root.transform.Find(JailOld);
             StripOldJail(old);
             var g = Fresh(root.transform, JailGroup);
-            JailShell(g);
+            var signs = old;
+            CellFinish(g);
             JailFront(g);
             JailInterior(g);
-            JailOutside(g);
+            StationBuilding(g, signs, root.transform.Find(Workplaces));
             RoomiesBevelBuilder.ApplyTownUnder(g);
             PrefabUtility.SaveAsPrefabAsset(root, NeighborhoodPrefab);
         }
@@ -62,28 +64,10 @@ internal static partial class RoomiesTownRebuild
         var c = go.AddComponent<BoxCollider>(); c.center = (min + max) / 2; c.size = max - min;
     }
 
-    static void JailShell(Transform g)
+    /// <summary>留置室の中の仕上げ：床・腰の塗り分け・天井・いたずら書き（壁と屋根は留置所の建物の側）。</summary>
+    static void CellFinish(Transform g)
     {
-        var block = Mat("jail_block"); var low = Mat("jail_paint_low"); var high = Mat("jail_paint_high"); var floor = Mat("jail_floor");
-        var cap = Mat("sill"); var slab = Mat("roof_flat");
-        const float T = .32f, ox0 = JX0 - T - .14f, ox1 = JX1 + .26f, oz1 = JZ1 + T + .12f;
-        // 外壁（コンクリートブロック）：左・右・奥。前は梁と柱
-        Box(g, "Jail wall", ox0, JX0, 0, JCeil + .2f, JZ0 - .15f, oz1, block);
-        Box(g, "Jail wall", JX1, ox1, 0, JCeil + .2f, JZ0 - .15f, oz1, block);
-        Box(g, "Jail wall", JX0, JX1, 0, JCeil + .2f, JZ1, oz1, block);
-        Box(g, "Jail plinth", ox0 - .04f, ox1 + .04f, 0, .28f, JZ0 - .19f, oz1 + .04f, Mat("plinth"));
-        Solid(g, "Jail outer wall collider", new Vector3(ox0, 0, JZ0 - .15f), new Vector3(JX0, JCeil + .2f, oz1));
-        Solid(g, "Jail outer wall collider", new Vector3(JX1, 0, JZ0 - .15f), new Vector3(ox1, JCeil + .2f, oz1));
-        Solid(g, "Jail outer wall collider", new Vector3(JX0, 0, JZ1), new Vector3(JX1, JCeil + .2f, oz1));
-        // 前の柱（格子の両わき）
-        Box(g, "Jail pillar", ox0, JX0 + .12f, 0, JCeil + .2f, JZ0 - .24f, JZ0 + .1f, block);
-        Box(g, "Jail pillar", JX1 - .12f, ox1, 0, JCeil + .2f, JZ0 - .24f, JZ0 + .1f, block);
-        // 屋根（コンクリートの厚い板・水切り・前の庇）
-        Box(g, "Jail roof slab", ox0 - .2f, ox1 + .2f, JCeil + .2f, JCeil + .42f, JZ0 - .8f, oz1 + .2f, slab);
-        Box(g, "Jail roof parapet", ox0 - .2f, ox1 + .2f, JCeil + .42f, JCeil + .62f, oz1, oz1 + .2f, cap);
-        Box(g, "Jail roof parapet", ox0 - .2f, ox0 + .05f, JCeil + .42f, JCeil + .62f, JZ0 - .8f, oz1 + .2f, cap);
-        Box(g, "Jail roof parapet", ox1 - .05f, ox1 + .2f, JCeil + .42f, JCeil + .62f, JZ0 - .8f, oz1 + .2f, cap);
-        Box(g, "Jail eave fascia", ox0 - .2f, ox1 + .2f, JCeil + .12f, JCeil + .42f, JZ0 - .86f, JZ0 - .78f, Mat("frame_h_navy"));
+        var low = Mat("jail_paint_low"); var high = Mat("jail_paint_high"); var floor = Mat("jail_floor");
         // 内側：床（コンクリート・継ぎ目・排水口）、腰の塗り分け、天井
         Box(g, "Jail floor", JX0, JX1, JFloor - .02f, JFloor + .005f, JZ0, JZ1, floor);
         for (float z = JZ0 + 1.8f; z < JZ1; z += 1.8f) Box(g, "Floor joint", JX0, JX1, JFloor + .005f, JFloor + .008f, z - .01f, z + .01f, Mat("plinth"));
@@ -109,11 +93,7 @@ internal static partial class RoomiesTownRebuild
     {
         var bar = Mat("jail_bars"); var frame = Mat("metal_dark");
         // 上の梁（看板の板）
-        Box(g, "Jail lintel", JX0 - .1f, JX1 + .1f, 2.78f, JCeil + .2f, 14.975f, JZ0 + .14f, Mat("jail_block"));
-        // 文字（Sign - COMMUNITY JAIL, z 14.95）の後ろに板
-        Box(g, "Jail sign plate", 6.45f, 10.35f, 2.9f, 3.34f, 14.955f, 14.975f, Mat("frame_h_navy"));
-        Box(g, "Jail sign rivet", 6.5f, 6.56f, 3.09f, 3.15f, 14.945f, 14.955f, Mat("handle"));
-        Box(g, "Jail sign rivet", 10.24f, 10.3f, 3.09f, 3.15f, 14.945f, 14.955f, Mat("handle"));
+        Box(g, "Jail lintel", JX0 - .1f, JX1 + .1f, 2.78f, JCeil, 14.975f, JZ0 + .14f, Mat("jail_paint_high"));
         // 枠・横の平鋼（元の横棒と同じ高さ）・丸い縦格子（元の格子と同じ間隔）
         Box(g, "Bar frame", JX0, JX1, .16f, .26f, JZ0 - .05f, JZ0 + .05f, frame);
         Box(g, "Bar frame", JX0, JX1, 2.68f, 2.8f, JZ0 - .05f, JZ0 + .05f, frame);
@@ -190,24 +170,5 @@ internal static partial class RoomiesTownRebuild
         Cyl(g, "Cage light ring", new Vector3(cx, JCeil - .27f, cz), new Vector3(.32f, .006f, .32f), dark);
     }
 
-    static void JailOutside(Transform g)
-    {
-        var dark = Mat("metal_dark");
-        // 入口の上の灯具と、角の監視カメラ
-        foreach (float x in new[] { 5.3f, 11.5f })
-        {
-            Box(g, "Jail wall lamp", x - .14f, x + .14f, 3.0f, 3.24f, JZ0 - .5f, JZ0 - .24f, dark);
-            Box(g, "Jail wall lamp lens", x - .1f, x + .1f, 2.99f, 3.0f, JZ0 - .46f, JZ0 - .28f, Mat("bulb"));
-        }
-        Box(g, "Camera bracket", 12.2f, 12.26f, 3.1f, 3.16f, JZ0 - .1f, JZ0 + .25f, dark);
-        RBox(g, "Security camera", new Vector3(12.22f, 3.05f, JZ0 - .2f), new Vector3(.16f, .14f, .34f), new Vector3(20, -25, 0), Mat("ac_unit"));
-        Box(g, "Camera lens", 12.16f, 12.26f, 2.99f, 3.07f, JZ0 - .4f, JZ0 - .36f, dark);
-        // 前を照らす光（夜だけ。名前の頭 Shop light で朝に消える）
-        SpotLight(g, "Shop light - JAIL", new Vector3(8.4f, 3.4f, 13.6f), new Vector3(8.4f, .6f, 15.6f), 4.5f, 9f, 115f, LampColor);
-        // 外の壁の注意書きの板
-        Box(g, "Notice plate", JX1 + .26f, JX1 + .28f, 1.3f, 1.8f, 16f, 16.7f, Mat("frame_express"));
-        // 雨どい
-        Box(g, "Downpipe", JX0 - .5f, JX0 - .42f, 0, JCeil + .3f, JZ1 + .3f, JZ1 + .38f, dark);
-    }
 }
 #endif

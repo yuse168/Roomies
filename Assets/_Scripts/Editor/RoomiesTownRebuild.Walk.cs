@@ -32,6 +32,9 @@ internal static partial class RoomiesTownRebuild
         ("casino entrance to bar and cashier", new[] { new Vector2(8.2f, -5.5f), new Vector2(8.2f, -9.4f), new Vector2(2.0f, -9.4f), new Vector2(2.0f, -15.0f), new Vector2(10.5f, -15.0f), new Vector2(14.0f, -16.2f) }, true),
         ("casino right wall (should stop)", new[] { new Vector2(14f, -13.5f), new Vector2(19f, -13.5f) }, false),
         ("casino left wall (should stop)", new[] { new Vector2(2f, -14f), new Vector2(-3f, -14f) }, false),
+        ("jail entrance to visitor corridor", new[] { new Vector2(2.85f, 10.5f), new Vector2(2.85f, 14.3f), new Vector2(11.5f, 14.3f) }, true),
+        ("jail lobby to counter", new[] { new Vector2(2.85f, 10.5f), new Vector2(2.85f, 18.6f) }, true),
+        ("behind jail to dealer", new[] { new Vector2(.3f, 18f), new Vector2(.3f, 23.3f), new Vector2(10.2f, 23.3f) }, true),
         ("west lawn", new[] { new Vector2(-30f, 6.5f), new Vector2(-30f, 20f), new Vector2(-12f, 20f) }, true),
     };
 

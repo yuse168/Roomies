@@ -10,6 +10,14 @@ internal static class RoomiesRebuild2Survey
 {
     static string PathOf(Transform t) { var s = t.name; for (var x = t.parent; x != null; x = x.parent) s = x.name + "/" + s; return s; }
 
+    [MenuItem("Roomies/Art/Town/Survey Carryables")]
+    static void Carry()
+    {
+        var sb = new StringBuilder();
+        foreach (var c in Object.FindObjectsByType<CarryableObject>()) sb.AppendLine($"{PathOf(c.transform)} {c.transform.position}");
+        System.IO.File.WriteAllText("Temp/RoomiesTown/carry.txt", sb.ToString());
+    }
+
     [MenuItem("Roomies/Art/Town/Survey Triangles")]
     static void Tris()
     {

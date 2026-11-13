@@ -119,6 +119,12 @@ internal static partial class RoomiesMaterialFinishBuilder
             case "bottle_green": return V(Tpl.Emissive, C(.2f, .6f, .3f), v => v.SetColor("_EmissionColor", new Color(.2f, .6f, .3f) * .5f));
             case "bottle_clear": return V(Tpl.Emissive, C(.85f, .9f, .95f), v => v.SetColor("_EmissionColor", new Color(.8f, .9f, 1f) * .5f));
             case "bottle_red": return V(Tpl.Emissive, C(.7f, .1f, .15f), v => v.SetColor("_EmissionColor", new Color(.7f, .1f, .15f) * .5f));
+            // 留置所（作り直し3）
+            case "police_brick": return V(Tpl.Brick, C(.62f, .3f, .24f));
+            case "police_stone": return V(Tpl.Concrete, C(.88f, .84f, .74f));
+            case "police_lamp": return V(Tpl.Emissive, C(.3f, .5f, 1f), v => v.SetColor("_EmissionColor", new Color(.25f, .45f, 1f) * 2.5f));
+            case "flag_blue": return V(Tpl.Fabric, C(.15f, .3f, .7f));
+            case "flag_white": return V(Tpl.Fabric, C(.95f, .95f, .92f));
             case "slot_screen": return V(Tpl.Glass, C(.04f, .05f, .08f), v => v.SetFloat("_Smoothness", .85f));
             case "neon_pink": return V(Tpl.Emissive, C(1f, .45f, .75f), v => v.SetColor("_EmissionColor", new Color(1f, .3f, .7f) * 3f));
             case "neon_cyan": return V(Tpl.Emissive, C(.5f, .95f, 1f), v => v.SetColor("_EmissionColor", new Color(.3f, .9f, 1f) * 3f));
