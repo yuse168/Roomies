@@ -127,6 +127,10 @@
   留置所は x 0.8〜12.45・z 13.2〜22.65（待合室・面会の廊下・留置室。裏の z 22.65〜24 は取引の NPC への通り道）。
   メインの家は外階段を正面の壁に沿った形に変えた（古い段の当たり判定と Demo/pCube12 の坂の当たり判定は外した）。
 
+- 配達トラックと箱の値札（2026/11/13） … `Roomies/Delivery/1 Build Price Tags`・`2 Build Truck Prefab`・`3 Place Truck In Open Scene`
+  （`RoomiesDeliveryTruckBuilder`）。トラックは `Assets/_Prefabs/Delivery/DeliveryTruck.prefab`。値段・締め切り・乗る距離は `GameBalance`。
+  通し確認は Play Mode で `Town/Walk - Enter GameRoom As Host` → `Roomies/Delivery/Play Test`
+
 組み立てのコードは各クラスの `EditorBuildUI()` に `#if UNITY_EDITOR` で残してある。
 実行中は動かないので、置き直したいときだけ配置ツールから呼ぶ。
 参照は `[SerializeField]` でシーンに保存される。
