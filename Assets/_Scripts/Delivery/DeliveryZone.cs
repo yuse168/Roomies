@@ -13,6 +13,10 @@ public class DeliveryZone : NetworkBehaviour
     [SerializeField] private Vector2 spawnJitter = new Vector2(0.6f, 0.6f);
     [SerializeField] private float spawnHeight = 0.5f;
 
+    [Header("配達トラック")]
+    [Tooltip("荷物を積むトラック。荷台にある箱は「町に出ている数」に数えない")]
+    [SerializeField] private DeliveryTruck truck;
+
     // 出ている数の上限は GameBalance（deliveryLooseBoxes / deliveryMaxBoxes）で決める
 
     [Header("レア確率")]
@@ -43,7 +47,7 @@ public class DeliveryZone : NetworkBehaviour
         GameBalance balance = GameBalance.Current;
         int loose = 0;
         foreach (var box in spawnedBoxes)
-            loose++;
+            if (truck == null || !truck.ServerContains(box)) loose++;
 
         int room = Mathf.Min(balance.deliveryLooseBoxes - loose, balance.deliveryMaxBoxes - spawnedBoxes.Count);
         for (int i = 0; i < room; i++) SpawnNewBox();

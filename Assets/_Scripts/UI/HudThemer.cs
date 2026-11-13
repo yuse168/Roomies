@@ -383,7 +383,7 @@ public class HudThemer : MonoBehaviour
         if (request != null && request.Kind != DailyRequestManager.RequestKind.None && !request.IsDone)
             return request.StatusText;
 
-        return dm.IsNight ? "家具を買って、夜の街を楽しもう" : "配達で家賃を集めよう";
+        return dm.IsNight ? "家具を買って、夜の街を楽しもう" : "荷物をトラックに積もう（朝の終わりに発車）";
     }
 
     private void UpdateMoney(DayManager dm)
