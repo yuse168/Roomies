@@ -48,7 +48,7 @@ internal static partial class RoomiesTownRebuild
     internal static void StandOnStreet()
     {
         if (!EditorApplication.isPlaying) return;
-        var cc = Object.FindObjectsByType<CharacterController>(FindObjectsSortMode.None).FirstOrDefault(c => c.GetComponentInParent<PlayerMovement>() != null);
+        var cc = Object.FindObjectsByType<CharacterController>().FirstOrDefault(c => c.GetComponentInParent<PlayerMovement>() != null);
         if (cc == null) return;
         Teleport(cc, new Vector3(12f, 1.15f, 5.2f));
         cc.transform.rotation = Quaternion.LookRotation(new Vector3(1f, 0, -1f));
@@ -59,7 +59,7 @@ internal static partial class RoomiesTownRebuild
     internal static void WalkCheck()
     {
         if (!EditorApplication.isPlaying) { Debug.LogWarning("[Town] walk check works only in Play Mode"); return; }
-        var all = Object.FindObjectsByType<CharacterController>(FindObjectsSortMode.None);
+        var all = Object.FindObjectsByType<CharacterController>();
         var cc = all.FirstOrDefault(c => c.GetComponentInParent<PlayerMovement>() != null || c.GetComponentInChildren<PlayerMovement>() != null) ?? all.FirstOrDefault();
         if (cc == null)
         {
@@ -114,7 +114,7 @@ internal static partial class RoomiesTownRebuild
         var zone = GameObject.Find("DeliveryZone");
         if (zone != null) sb.AppendLine($"delivery zone trigger: {(zone.GetComponent<Collider>()?.isTrigger == true ? "trigger ok" : "missing")} at {zone.GetComponent<Collider>()?.bounds.center}");
         // スポーン地点に当たり判定が重なっていないか
-        foreach (var sp in Object.FindObjectsByType<Transform>(FindObjectsSortMode.None).Where(t => t.name.StartsWith("PlayerSpawn") || t.name == "SpawnPoint"))
+        foreach (var sp in Object.FindObjectsByType<Transform>().Where(t => t.name.StartsWith("PlayerSpawn") || t.name == "SpawnPoint"))
         {
             // プレイヤーの CharacterController は中心が足元から1m上（center 0・高さ2）で、スポーン地点に中心が来る
             var p = sp.position + cc.center;

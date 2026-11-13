@@ -144,6 +144,8 @@ internal static partial class RoomiesTownRebuild
         if (mf == null || mf.sharedMesh == null || mf.sharedMesh.subMeshCount != 1) return false;
         if (r.sharedMaterials.Length != 1 || r.sharedMaterial == null) return false;
         if (!r.enabled || !r.gameObject.activeInHierarchy) return false;
+        // LOD の付いた物（木など）と、ほかのプレハブの中身はまとめない（距離で細かさを変えるため）
+        if (r.GetComponentInParent<LODGroup>(true) != null || PrefabUtility.IsPartOfPrefabInstance(r)) return false;
         // Transform・MeshFilter・MeshRenderer 以外が付いている物（光・当たり判定・スクリプトなど）はまとめない
         if (!r.GetComponents<Component>().All(c => c is Transform || c is MeshFilter || c is MeshRenderer)) return false;
         // 親にスクリプトなどが付いている物（回る・動く物の部品）もまとめない

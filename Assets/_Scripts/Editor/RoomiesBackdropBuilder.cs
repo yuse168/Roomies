@@ -63,7 +63,8 @@ internal static class RoomiesBackdropBuilder
             detailed: false);
 
         MarkStatic(root.transform);
-        // 町の作り直し（2026/11/13）：ビルの窓の素材をそろえ、見た目だけの部品を素材ごとにまとめる（軽量化）
+        // 町の作り直し（2026/11/13）：素材の型をかけ、ビルの窓の素材をそろえ、見た目だけの部品を素材ごとにまとめる（軽量化）
+        RoomiesMaterialFinishBuilder.ApplyTownUnder(root.transform, new Dictionary<string, Material>());
         RoomiesTownRebuild.DressBackdrop(false);
         RoomiesTownRebuild.CombineBackdrop(false);
 
@@ -472,8 +473,10 @@ internal static class RoomiesBackdropBuilder
                 tree.localPosition = new Vector3(Range(-spread, spread), 0f, Range(-spread, spread));
 
                 float trunk = Range(3f, 6f);
-                Box(tree, "Trunk", new Vector3(0f, trunk / 2f, 0f), new Vector3(0.7f, trunk, 0.7f), "wood");
-                Sphere(tree, "Canopy", new Vector3(0f, trunk + 2f, 0f), Range(4f, 7f), "green");
+                float canopy = Range(4f, 7f);
+                // 2026/11/13 自然物の作り直し：広葉樹と針葉樹を交互に（LOD 付きのプレハブ。乱数の使い方は前と同じ）
+                RoomiesNature.PlaceTree(tree, i % 3 == 1 ? RoomiesNature.TreeKind.Pine : RoomiesNature.TreeKind.Oak,
+                    trunk + 2f + canopy / 2f, (i * 137.5f) % 360f);
             }
         }
 
@@ -488,8 +491,8 @@ internal static class RoomiesBackdropBuilder
             tree.position = new Vector3(x, 0f, z);
 
             float trunk = Range(2.6f, 4f);
-            Box(tree, "Trunk", new Vector3(0f, trunk / 2f, 0f), new Vector3(0.5f, trunk, 0.5f), "wood");
-            Sphere(tree, "Canopy", new Vector3(0f, trunk + 1.6f, 0f), Range(3.2f, 4.6f), "green");
+            float canopy = Range(3.2f, 4.6f);
+            RoomiesNature.PlaceTree(tree, RoomiesNature.TreeKind.Street, trunk + 1.6f + canopy / 2f, (i * 97.3f) % 360f);
         }
     }
 
