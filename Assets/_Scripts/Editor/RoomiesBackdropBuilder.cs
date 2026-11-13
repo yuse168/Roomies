@@ -62,6 +62,8 @@ internal static class RoomiesBackdropBuilder
             pierCollider: false, waitSeconds: 24f, startDelay: 18f, speed: 42f,
             detailed: false);
 
+        // 自然物の作り直し（2026/11/13）：境界の外の起伏のある地面（道・家・木の足元は平らに残す）
+        RoomiesNature.BuildOuterTerrain(root.transform);
         MarkStatic(root.transform);
         // 町の作り直し（2026/11/13）：素材の型をかけ、ビルの窓の素材をそろえ、見た目だけの部品を素材ごとにまとめる（軽量化）
         RoomiesMaterialFinishBuilder.ApplyTownUnder(root.transform, new Dictionary<string, Material>());
@@ -115,13 +117,9 @@ internal static class RoomiesBackdropBuilder
         Transform group = Group(parent, "Ground beyond the fence");
         Transform visual = Group(group, "Visual");
 
-        // 既存の地面よりほんの少し下に敷いて、Zファイティングを避ける。
-        // 町の地面（x ±40 / z ±25）の下は空ける（同じ所を二重に描かないように。2026/11/13 軽量化）
-        const float hx = 39.9f, hz = 24.9f, half = 450f;
-        Box(visual, "Outer ground", new Vector3(0f, -0.08f, (half + hz) / 2f), new Vector3(900f, 0.1f, half - hz), "green");
-        Box(visual, "Outer ground", new Vector3(0f, -0.08f, -(half + hz) / 2f), new Vector3(900f, 0.1f, half - hz), "green");
-        Box(visual, "Outer ground", new Vector3((half + hx) / 2f, -0.08f, 0f), new Vector3(half - hx, 0.1f, 2f * hz), "green");
-        Box(visual, "Outer ground", new Vector3(-(half + hx) / 2f, -0.08f, 0f), new Vector3(half - hx, 0.1f, 2f * hz), "green");
+        // 地面そのものは、ゆるい起伏のある「Outer terrain」（RoomiesNature.BuildOuterTerrain。Build の最後に作る。2026/11/13）。
+        // 町の地面（x ±40 / z ±25）の下は空ける（同じ所を二重に描かないように）
+        const float hx = 39.9f, half = 450f;
 
         // 街路の続き（マップの道路と同じ z=0 の東西方向）。これだけは通しの道にする（町の中はマップの道路を使う）
         Box(visual, "Main road", new Vector3((half + hx) / 2f, -0.02f, 0f), new Vector3(half - hx, 0.06f, 7.4f), "ink");

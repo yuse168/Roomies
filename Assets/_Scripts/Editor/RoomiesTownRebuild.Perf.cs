@@ -112,6 +112,31 @@ internal static partial class RoomiesTownRebuild
             }
     }
 
+    [MenuItem("Roomies/Art/Town/Perf - Hide Nature (Play Mode)")]
+    static void PerfHideNature() => NatureToggle(false);
+
+    [MenuItem("Roomies/Art/Town/Perf - Show Nature (Play Mode)")]
+    static void PerfShowNature() => NatureToggle(true);
+
+    /// <summary>自然物（町の木・草の束・遠景の木・山・起伏のある地面）を一時的に隠す・戻す。Play Mode 中だけ。</summary>
+    static void NatureToggle(bool on)
+    {
+        if (!EditorApplication.isPlaying) return;
+        int n = 0;
+        for (int i = 0; i < SceneManager.sceneCount; i++)
+            foreach (var root in SceneManager.GetSceneAt(i).GetRootGameObjects())
+            {
+                if (root.name == "Roomies_Grass") { root.SetActive(on); n++; }
+                if (root.name == "Roomies_EnvironmentArt") { var t = root.transform.Find("Town trees"); if (t != null) { t.gameObject.SetActive(on); n++; } }
+                if (root.name == "Roomies_Backdrop")
+                {
+                    foreach (var name in new[] { "Mountains", "Outer terrain" }) { var t = root.transform.Find(name); if (t != null) { t.gameObject.SetActive(on); n++; } }
+                    foreach (var lod in root.GetComponentsInChildren<LODGroup>(true)) { lod.gameObject.SetActive(on); n++; }
+                }
+            }
+        Debug.Log($"[Town] nature toggle {(on ? "show" : "hide")}: {n}");
+    }
+
     static void PerfToggle(bool on)
     {
         if (!EditorApplication.isPlaying) { Debug.LogWarning("[Town] perf toggle works only in Play Mode"); return; }
