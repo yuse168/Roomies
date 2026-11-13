@@ -507,13 +507,10 @@ internal static class RoomiesBackdropBuilder
         Transform group = Group(parent, "Mountains");
         Transform visual = Group(group, "Visual");
 
-        // 形の違う山を3種類作って使い分ける（同じ形が並ぶと作り物っぽく見える）
-        Mesh[] shapes =
-        {
-            LoadOrCreateMountainMesh("backdrop_mountain_a", 1001),
-            LoadOrCreateMountainMesh("backdrop_mountain_b", 2002),
-            LoadOrCreateMountainMesh("backdrop_mountain_c", 3003),
-        };
+        // 形の違う山を3種類作って使い分ける（同じ形が並ぶと作り物っぽく見える）。
+        // 2026/11/13 自然物の作り直し：尾根のある高さの場のメッシュと、斜面・高さで草地・森・岩・雪を塗り分けた素材（RoomiesNature）
+        RoomiesNature.ResetMountains();
+        Mesh[] shapes = { RoomiesNature.MountainMesh(0), RoomiesNature.MountainMesh(1), RoomiesNature.MountainMesh(2) };
 
         (float radius, float minHeight, float maxHeight, string material, int count, bool snow)[] rings =
         {
@@ -522,11 +519,9 @@ internal static class RoomiesBackdropBuilder
             (640f, 150f, 230f,  "blue",   9, true),
         };
 
-        foreach ((float radius, float minHeight, float maxHeight, string material, int count, bool snow) in rings)
+        for (int ringIndex = 0; ringIndex < rings.Length; ringIndex++)
         {
-            Material tint = LoadMaterial(material);
-            Material snowTint = LoadMaterial("paper");
-
+            var (radius, minHeight, maxHeight, _, count, snow) = rings[ringIndex];
             for (int i = 0; i < count; i++)
             {
                 // 等間隔に置くと輪っかに見えるので角度はばらす。
@@ -545,18 +540,12 @@ internal static class RoomiesBackdropBuilder
                 mountain.transform.localRotation = Quaternion.Euler(0f, Range(0f, 360f), 0f);
                 mountain.transform.localScale = new Vector3(width, height, width);
 
-                mountain.AddComponent<MeshFilter>().sharedMesh = shapes[random.Next(shapes.Length)];
-                Paint(mountain.AddComponent<MeshRenderer>(), tint);
-
-                // 高い山には雪をかぶせる
-                if (!snow || height < 120f) continue;
-
-                var cap = new GameObject("Snow cap");
-                cap.transform.SetParent(mountain.transform, false);
-                cap.transform.localPosition = new Vector3(0f, 0.72f, 0f);
-                cap.transform.localScale = new Vector3(0.3f, 0.3f, 0.3f);
-                cap.AddComponent<MeshFilter>().sharedMesh = shapes[0];
-                Paint(cap.AddComponent<MeshRenderer>(), snowTint);
+                int shape = random.Next(shapes.Length);
+                mountain.AddComponent<MeshFilter>().sharedMesh = shapes[shape];
+                var renderer = mountain.AddComponent<MeshRenderer>();
+                // 高い山には雪（前は別の円錐をかぶせていた。いまは素材の中で高い所を雪にする）
+                renderer.sharedMaterial = RoomiesNature.MountainMaterial(shape, snow && height >= 120f, ringIndex);
+                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             }
         }
     }
