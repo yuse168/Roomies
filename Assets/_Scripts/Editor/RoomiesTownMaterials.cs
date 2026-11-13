@@ -110,6 +110,12 @@ internal static partial class RoomiesMaterialFinishBuilder
             case "slot_screen": return V(Tpl.Glass, C(.04f, .05f, .08f), v => v.SetFloat("_Smoothness", .85f));
             case "neon_pink": return V(Tpl.Emissive, C(1f, .45f, .75f), v => v.SetColor("_EmissionColor", new Color(1f, .3f, .7f) * 3f));
             case "neon_cyan": return V(Tpl.Emissive, C(.5f, .95f, 1f), v => v.SetColor("_EmissionColor", new Color(.3f, .9f, 1f) * 3f));
+            // 道路（作り直し2）
+            case "road_gutter": return V(Tpl.Concrete, C(.55f, .55f, .53f));
+            case "road_paint_white": return V(Tpl.Plaster, C(.92f, .92f, .88f));
+            case "road_paint_yellow": return V(Tpl.Plaster, C(.95f, .74f, .2f));
+            case "curb_granite": return V(Tpl.Concrete, C(.66f, .66f, .67f));
+            case "tactile_yellow": return V(Tpl.Rubber, C(.95f, .78f, .15f));
             case "glass_shop": return WindowGlass("town_shop_interior", ShopInteriorPixel, C(1f, .86f, .66f), 1.1f);
             case "glass_home_lit": return WindowGlass("town_home_window", HomeWindowPixel, C(1f, .8f, .55f), .8f);
             case "glass_home_dark": return WindowGlass("town_home_window", HomeWindowPixel, C(.55f, .65f, 1f), .05f);
