@@ -107,6 +107,18 @@ internal static partial class RoomiesMaterialFinishBuilder
             case "slot_purple": return V(Tpl.PaintedMetal, C(.42f, .18f, .62f));
             case "slot_teal": return V(Tpl.PaintedMetal, C(.12f, .52f, .55f));
             case "slot_chrome": return V(Tpl.Metal, C(.85f, .86f, .88f), v => { v.SetFloat("_Metallic", .9f); v.SetFloat("_Smoothness", .7f); });
+            // カジノの建物（作り直し3）
+            case "casino_facade": return V(Tpl.Plaster, C(.48f, .11f, .16f));
+            case "casino_cream": return V(Tpl.Plaster, C(.93f, .87f, .74f));
+            case "casino_marble": return V(Tpl.Ceramic, C(.92f, .9f, .86f), v => v.SetFloat("_Smoothness", .6f));
+            case "crystal": return V(Tpl.Emissive, C(.95f, .97f, 1f), v => v.SetColor("_EmissionColor", new Color(1f, .95f, .85f) * 1.6f));
+            case "poster_cards": return V(Tpl.Emissive, C(.95f, .2f, .3f), v => v.SetColor("_EmissionColor", new Color(1f, .25f, .35f) * 1.4f));
+            case "poster_dice": return V(Tpl.Emissive, C(.3f, .5f, 1f), v => v.SetColor("_EmissionColor", new Color(.3f, .55f, 1f) * 1.4f));
+            case "poster_coins": return V(Tpl.Emissive, C(1f, .8f, .25f), v => v.SetColor("_EmissionColor", new Color(1f, .75f, .2f) * 1.4f));
+            case "bottle_amber": return V(Tpl.Emissive, C(.85f, .5f, .15f), v => v.SetColor("_EmissionColor", new Color(.9f, .5f, .15f) * .5f));
+            case "bottle_green": return V(Tpl.Emissive, C(.2f, .6f, .3f), v => v.SetColor("_EmissionColor", new Color(.2f, .6f, .3f) * .5f));
+            case "bottle_clear": return V(Tpl.Emissive, C(.85f, .9f, .95f), v => v.SetColor("_EmissionColor", new Color(.8f, .9f, 1f) * .5f));
+            case "bottle_red": return V(Tpl.Emissive, C(.7f, .1f, .15f), v => v.SetColor("_EmissionColor", new Color(.7f, .1f, .15f) * .5f));
             case "slot_screen": return V(Tpl.Glass, C(.04f, .05f, .08f), v => v.SetFloat("_Smoothness", .85f));
             case "neon_pink": return V(Tpl.Emissive, C(1f, .45f, .75f), v => v.SetColor("_EmissionColor", new Color(1f, .3f, .7f) * 3f));
             case "neon_cyan": return V(Tpl.Emissive, C(.5f, .95f, 1f), v => v.SetColor("_EmissionColor", new Color(.3f, .9f, 1f) * 3f));

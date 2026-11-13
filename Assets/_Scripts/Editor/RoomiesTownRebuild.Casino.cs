@@ -28,10 +28,10 @@ internal static partial class RoomiesTownRebuild
         var root = PrefabUtility.LoadPrefabContents(NeighborhoodPrefab);
         try
         {
-            StripOldCasino(root.transform.Find(Workplaces));
+            var work = root.transform.Find(Workplaces);
+            StripOldCasino(work);
             var g = Fresh(root.transform, CasinoGroup);
-            CasinoRoom(g);
-            CasinoFront(g);
+            BuildCasinoBuilding(g, work);
             RoomiesBevelBuilder.ApplyTownUnder(g);
             PrefabUtility.SaveAsPrefabAsset(root, NeighborhoodPrefab);
         }
@@ -39,122 +39,18 @@ internal static partial class RoomiesTownRebuild
         BuildBlackjackArt();
         BuildSlotCabinets();
         AssetDatabase.SaveAssets();
+        RoomiesMaterialFinishBuilder.BuildTimeOfDay();
         CombineForSpeed();
-        Debug.Log("[Rebuild] casino built");
+        Debug.Log("[Rebuild] casino building built");
     }
 
+    /// <summary>元の屋根付きの「Arcade」：見た目は前の作り直しで外してある。当たり判定（屋根・柱・奥の壁）とベンチも外す（建物の壁・屋根に置き換える）。</summary>
     static void StripOldCasino(Transform work)
     {
         if (work == null) return;
         foreach (Transform c in work.Cast<Transform>().ToArray())
-        {
-            if (!(c.name.StartsWith("Arcade"))) continue;
-            if (c.GetComponent<Collider>() == null) { Object.DestroyImmediate(c.gameObject); continue; }
-            Object.DestroyImmediate(c.GetComponent<MeshRenderer>()); Object.DestroyImmediate(c.GetComponent<MeshFilter>());
-        }
-    }
-
-    // ================================================================ 建物の中
-    static void CasinoRoom(Transform g)
-    {
-        var gold = Mat("casino_gold"); var wood = Mat("casino_wood"); var fabric = Mat("casino_wall"); var dark = Mat("metal_dark");
-        // 絨毯（2m ごとの模様）
-        var carpet = GameObject.CreatePrimitive(PrimitiveType.Quad);
-        carpet.name = "Casino carpet"; Object.DestroyImmediate(carpet.GetComponent<Collider>());
-        carpet.transform.SetParent(g, false);
-        carpet.transform.localPosition = new Vector3((CX0 + CX1) / 2, CFloor + .012f, (CZBack + CZFront) / 2);
-        carpet.transform.localRotation = Quaternion.Euler(90, 0, 0);
-        carpet.transform.localScale = new Vector3(CX1 - CX0 - .1f, CZFront - CZBack + .1f, 1);
-        carpet.GetComponent<MeshRenderer>().sharedMaterial = CasinoCarpet(CX1 - CX0, CZFront - CZBack);
-        carpet.isStatic = true;
-        // 奥の壁：板の腰壁＋布張り＋金の見切り（元の当たり判定 z -19.63〜-19.47 の前）
-        float wz = CZBack;
-        Box(g, "Back wainscot", CX0, CX1, CFloor, 1.1f, wz, wz + .06f, wood);
-        for (float x = CX0 + .9f; x < CX1; x += 1.8f) Box(g, "Wainscot panel", x - .7f, x + .7f, .3f, .95f, wz + .06f, wz + .08f, wood);
-        Box(g, "Back fabric", CX0, CX1, 1.1f, CCeil, wz, wz + .04f, fabric);
-        for (float x = CX0 + 1.5f; x < CX1; x += 3f) Box(g, "Fabric seam", x - .02f, x + .02f, 1.1f, CCeil, wz + .04f, wz + .06f, gold);
-        Box(g, "Chair rail", CX0, CX1, 1.08f, 1.16f, wz, wz + .1f, gold);
-        Box(g, "Crown molding", CX0, CX1, CCeil - .14f, CCeil, wz, wz + .14f, gold);
-        // 看板の台（元の文字 Sign - AFTER HOURS, z -19.37 の後ろ）とネオンの縁
-        Box(g, "Neon backing", 4.6f, 11.0f, 2.08f, 2.92f, wz + .04f, wz + .09f, Mat("casino_black"));
-        foreach (var (x0, x1, y0, y1) in new[] { (4.65f, 10.95f, 2.08f, 2.12f), (4.65f, 10.95f, 2.88f, 2.92f), (4.65f, 4.69f, 2.08f, 2.92f), (10.91f, 10.95f, 2.08f, 2.92f) })
-            Box(g, "Neon tube", x0, x1, y0, y1, wz + .09f, wz + .12f, Mat("neon_pink"));
-        // 左右の壁（右は通り抜けの開口 z -14.2〜-11.6 を空ける）。当たり判定つき
-        foreach (var (x0, x1) in new[] { (CX0, CX0 + .2f), (CX1 - .2f, CX1) })
-        {
-            bool right = x0 > 5;
-            var spans = right ? new[] { (CZBack, -14.2f), (-11.6f, -9.3f) } : new[] { (CZBack, -9.3f) };
-            foreach (var (z0, z1) in spans)
-            {
-                Box(g, "Side wainscot", x0, x1, CFloor, 1.1f, z0, z1, wood);
-                Box(g, "Side fabric", x0, x1, 1.1f, CCeil, z0, z1, fabric);
-                Box(g, "Side chair rail", x0 - .03f, x1 + .03f, 1.08f, 1.16f, z0, z1, gold);
-                Solid(g, "Casino side wall collider", new Vector3(x0, 0, z0), new Vector3(x1, CCeil, z1));
-            }
-            if (right)
-            {
-                Box(g, "Side door header", x0, x1, 2.4f, CCeil, -14.2f, -11.6f, fabric);
-                Box(g, "Side door trim", x0 - .03f, x1 + .03f, 0, 2.45f, -14.28f, -14.2f, gold);
-                Box(g, "Side door trim", x0 - .03f, x1 + .03f, 0, 2.45f, -11.6f, -11.52f, gold);
-                Box(g, "Side door trim", x0 - .03f, x1 + .03f, 2.4f, 2.48f, -14.28f, -11.52f, gold);
-            }
-        }
-        // 天井：板と、埋め込みの照明（光る四角）
-        Box(g, "Casino ceiling", CX0, CX1, CCeil - .03f, CCeil, CZBack, CZFront, Mat("casino_ceiling"));
-        for (float x = CX0 + 1.5f; x < CX1; x += 3f)
-            for (float z = CZBack + 1.5f; z < CZFront; z += 3f)
-            {
-                Box(g, "Ceiling light trim", x - .32f, x + .32f, CCeil - .05f, CCeil - .03f, z - .32f, z + .32f, gold);
-                Box(g, "Ceiling light panel", x - .26f, x + .26f, CCeil - .055f, CCeil - .05f, z - .26f, z + .26f, Mat("bulb"));
-            }
-        // 台の上の吊りランプ（ブラックジャック台の上・スロットの列の上）
-        foreach (var (x, z) in new[] { (5.0f, -16.3f), (6.5f, -16.3f) }) PendantLamp(g, new Vector3(x, CCeil, z), 1.2f, Mat("casino_green_shade"));
-        foreach (float x in new[] { 3.2f, 8.2f, 12.9f }) PendantLamp(g, new Vector3(x, CCeil, -10.9f), .9f, Mat("casino_gold"));
-        // 中の明かり（いつも点いている。屋根の下が暗くならないように）
-        PointLight(g, "Casino light - tables", new Vector3(5.8f, 3.0f, -16.3f), 3.5f, 8f, new Color(1f, .86f, .66f));
-        PointLight(g, "Casino light - slots", new Vector3(8.0f, 3.0f, -10.8f), 3.2f, 9f, new Color(1f, .8f, .7f));
-        // 赤いロープの仕切り（入口の両わき。通り道はふさがない）
-        foreach (float x in new[] { .2f, 15.4f })
-        {
-            foreach (float dz in new[] { 0f, 1.6f })
-            {
-                Cyl(g, "Stanchion base", new Vector3(x, CFloor + .02f, -8.6f - dz), new Vector3(.3f, .02f, .3f), gold);
-                Cyl(g, "Stanchion post", new Vector3(x, CFloor + .5f, -8.6f - dz), new Vector3(.06f, .48f, .06f), gold);
-                Cyl(g, "Stanchion top", new Vector3(x, CFloor + 1.0f, -8.6f - dz), new Vector3(.1f, .04f, .1f), gold);
-            }
-            Box(g, "Velvet rope", x - .03f, x + .03f, .82f, .88f, -10.2f, -8.6f, Mat("casino_red"));
-        }
-    }
-
-    static void PendantLamp(Transform g, Vector3 top, float drop, Material shade)
-    {
-        var dark = Mat("metal_dark");
-        Box(g, "Pendant cord", top.x - .01f, top.x + .01f, top.y - drop, top.y, top.z - .01f, top.z + .01f, dark);
-        Cyl(g, "Pendant shade", new Vector3(top.x, top.y - drop - .08f, top.z), new Vector3(.5f, .09f, .5f), shade);
-        Cyl(g, "Pendant bulb", new Vector3(top.x, top.y - drop - .18f, top.z), new Vector3(.2f, .02f, .2f), Mat("bulb"));
-    }
-
-    // ================================================================ 正面：電球の看板と金の柱
-    static void CasinoFront(Transform g)
-    {
-        var gold = Mat("casino_gold");
-        // 看板（元の文字 Sign - PLAY / UNWIND / REPEAT は z -7.67。その後ろに板）
-        Box(g, "Marquee board", CX0 - .1f, CX1 + .1f, 3.22f, 3.78f, -7.84f, -7.68f, Mat("casino_red"));
-        Box(g, "Marquee trim", CX0 - .14f, CX1 + .14f, 3.18f, 3.22f, -7.86f, -7.66f, gold);
-        Box(g, "Marquee trim", CX0 - .14f, CX1 + .14f, 3.78f, 3.82f, -7.86f, -7.66f, gold);
-        Box(g, "Marquee name plate", 5.9f, 9.7f, 3.36f, 3.66f, -7.7f, -7.68f, Mat("casino_black"));
-        for (float x = CX0 + .15f; x < CX1; x += .4f)
-            foreach (float y in new[] { 3.28f, 3.72f })
-                if (x < 5.7f || x > 9.9f) Cyl(g, "Marquee bulb", new Vector3(x, y, -7.66f), new Vector3(.09f, .02f, .09f), Mat("bulb")).transform.localRotation = Quaternion.Euler(90, 0, 0);
-        // 柱（元の柱の当たり判定のまわりに金の板）
-        foreach (float x in new[] { -.95f, 16.6f })
-        {
-            Box(g, "Gold column", x - .14f, x + .14f, 0, 3.2f, -9.14f, -8.86f, gold);
-            Box(g, "Column base", x - .2f, x + .2f, 0, .25f, -9.2f, -8.8f, Mat("casino_black"));
-            Box(g, "Column light strip", x - .02f, x + .02f, .3f, 3.0f, -8.86f, -8.84f, Mat("neon_pink"));
-        }
-        // 入口の赤い絨毯（外へ少し）
-        Box(g, "Entrance runner", 5.4f, 10.2f, 0, .02f, -7.8f, -6.6f, Mat("casino_red"));
+            if (c.name.StartsWith("Arcade") || (c.name == "bench" && c.position.x > -2f && c.position.x < 17f && c.position.z < -10f))
+                Object.DestroyImmediate(c.gameObject);
     }
 
     // ================================================================ ブラックジャック台（プレハブの Visual/Art）

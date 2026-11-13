@@ -28,8 +28,9 @@ internal static partial class RoomiesTownRebuild
         ("entry stairs up", new[] { new Vector2(20.5f, 7f), new Vector2(20.5f, 9.6f), new Vector2(20.5f, 14.6f) }, true),
         ("delivery zone", new[] { new Vector2(-4f, 6f), new Vector2(-4f, 18f) }, true),
         ("east lawn to ONE MORE ROCK side", new[] { new Vector2(27f, 6f), new Vector2(27f, 9.5f), new Vector2(35f, 9.5f) }, true),
-        ("casino entrance to blackjack", new[] { new Vector2(5.4f, -5.5f), new Vector2(5.4f, -14.6f), new Vector2(6.2f, -14.6f) }, true),
-        ("casino side opening to the gap", new[] { new Vector2(14f, -13f), new Vector2(17.6f, -12.9f), new Vector2(17.6f, -20.5f) }, true),
+        ("casino entrance to blackjack", new[] { new Vector2(7.0f, -5.5f), new Vector2(7.0f, -8.6f), new Vector2(5.2f, -9.3f), new Vector2(5.2f, -14.6f), new Vector2(6.2f, -14.6f) }, true),
+        ("casino entrance to bar and cashier", new[] { new Vector2(8.2f, -5.5f), new Vector2(8.2f, -9.4f), new Vector2(2.0f, -9.4f), new Vector2(2.0f, -15.0f), new Vector2(10.5f, -15.0f), new Vector2(14.0f, -16.2f) }, true),
+        ("casino right wall (should stop)", new[] { new Vector2(14f, -13.5f), new Vector2(19f, -13.5f) }, false),
         ("casino left wall (should stop)", new[] { new Vector2(2f, -14f), new Vector2(-3f, -14f) }, false),
         ("west lawn", new[] { new Vector2(-30f, 6.5f), new Vector2(-30f, 20f), new Vector2(-12f, 20f) }, true),
     };
