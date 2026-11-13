@@ -8,6 +8,8 @@ using UnityEngine.SceneManagement;
 /// <summary>作り直し2の調査（シーンは変えない）。Temp/RoomiesTown/survey3.txt。</summary>
 internal static class RoomiesRebuild2Survey
 {
+    static string PathOf(Transform t) { var s = t.name; for (var x = t.parent; x != null; x = x.parent) s = x.name + "/" + s; return s; }
+
     [MenuItem("Roomies/Art/Town/Survey Gimmicks")]
     static void Run()
     {
@@ -34,6 +36,27 @@ internal static class RoomiesRebuild2Survey
                 sb.AppendLine($"  {c.name} [{comps}] {b.min:F2}-{b.max:F2} mat {(r ? r.sharedMaterial?.name : "")} kids {c.childCount}");
             }
         }
+        foreach (var sm in Object.FindObjectsByType<SlotMachine>())
+        {
+            var t = sm.transform;
+            sb.AppendLine($"SLOT {PathOf(t)} pos {t.position} fwd {t.forward} right {t.right} lossy {t.lossyScale}");
+            foreach (var c in t.GetComponentsInChildren<Collider>(true)) sb.AppendLine($"   col {PathOf(c.transform)} {c.bounds.min:F3}-{c.bounds.max:F3}");
+            foreach (var r in t.GetComponentsInChildren<MeshRenderer>(true)) sb.AppendLine($"   ren {PathOf(r.transform)} {r.bounds.min:F3}-{r.bounds.max:F3} rot {r.transform.rotation.eulerAngles}");
+            foreach (var rt in t.GetComponentsInChildren<RectTransform>(true))
+            {
+                var c4 = new Vector3[4]; rt.GetWorldCorners(c4);
+                sb.AppendLine($"   ui {rt.name} {c4[0]:F3} {c4[2]:F3}");
+            }
+            break;
+        }
+        foreach (var bj in Object.FindObjectsByType<BlackjackTable>())
+        {
+            var t = bj.transform;
+            sb.AppendLine($"BJ {t.position} fwd {t.forward}");
+            foreach (var c in t.GetComponentsInChildren<Collider>(true)) sb.AppendLine($"   col {PathOf(c.transform)} {c.bounds.min:F3}-{c.bounds.max:F3} trig {c.isTrigger}");
+        }
+        foreach (var r in Object.FindObjectsByType<MeshRenderer>())
+            if (r.name == "pCube2" || r.name.Contains("Casino_Carpet") || r.name == "pCube8") sb.AppendLine($"FLOOR {PathOf(r.transform)} {r.bounds.min:F3}-{r.bounds.max:F3} enabled {r.enabled} mat {r.sharedMaterial?.name}");
         System.IO.File.WriteAllText("Temp/RoomiesTown/survey3.txt", sb.ToString());
     }
 }
