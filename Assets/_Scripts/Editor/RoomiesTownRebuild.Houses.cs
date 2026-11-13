@@ -68,6 +68,7 @@ internal static partial class RoomiesTownRebuild
 
         int far = RebuildBackdropHouses();
         AssetDatabase.SaveAssets();
+        CombineForSpeed();
         Debug.Log($"[Town] houses: back row {houses}, rooftops {roofs}, backdrop houses {far}");
     }
 
@@ -311,11 +312,7 @@ internal static partial class RoomiesTownRebuild
     {
         var body = house.Find("Body");
         var model = house.Find("Model");
-        if (body == null && model != null)
-        {
-            var mark = model.Cast<Transform>().FirstOrDefault(c => c.name.StartsWith(SpecMark));
-            return mark != null ? ParseSpec(mark.name.Substring(SpecMark.Length)) : null;
-        }
+        if (body == null && model != null) return null;   // もう作り直してある（まとめたあとも部品が二重にならないように触らない）
         if (body == null) return null;
         Vector3 size = body.localScale;
         string wallName = body.GetComponent<Renderer>().sharedMaterial.name;

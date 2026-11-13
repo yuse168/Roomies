@@ -547,7 +547,7 @@ internal static partial class RoomiesMaterialFinishBuilder
         return v;
     }
 
-    static int ApplyTownUnder(Transform root, Dictionary<string, Material> cache)
+    internal static int ApplyTownUnder(Transform root, Dictionary<string, Material> cache)
     {
         int n = 0;
         foreach (var r in root.GetComponentsInChildren<Renderer>(true))

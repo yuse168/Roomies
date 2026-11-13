@@ -39,6 +39,7 @@ internal static partial class RoomiesTownRebuild
         AssetDatabase.SaveAssets();
         // 新しい明かりを朝夜の切り替えに登録し直す（シーンも保存される）
         RoomiesMaterialFinishBuilder.BuildTimeOfDay();
+        CombineForSpeed();
         Debug.Log($"[Town] street and night: backdrop window bands {bands}");
     }
 
@@ -187,7 +188,7 @@ internal static partial class RoomiesTownRebuild
 
     // ================================================================ 遠景
     /// <summary>遠景のビルの窓の帯を、窓の並んだ素材（2種類を交互）に替える。遠景の配置ツールの最後にも呼ぶ。</summary>
-    internal static int DressBackdrop()
+    internal static int DressBackdrop(bool save = true)
     {
         var scene = EditorSceneManager.GetActiveScene();
         var back = scene.GetRootGameObjects().FirstOrDefault(g => g.name == "Roomies_Backdrop");
@@ -200,7 +201,7 @@ internal static partial class RoomiesTownRebuild
             if (r.sharedMaterial != m) r.sharedMaterial = m;
         }
         EditorSceneManager.MarkSceneDirty(scene);
-        EditorSceneManager.SaveScene(scene);
+        if (save) EditorSceneManager.SaveScene(scene);
         return n;
     }
 }

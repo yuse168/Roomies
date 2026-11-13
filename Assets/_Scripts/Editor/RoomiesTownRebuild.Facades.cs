@@ -57,6 +57,7 @@ internal static partial class RoomiesTownRebuild
         }
         finally { PrefabUtility.UnloadPrefabContents(root); }
         AssetDatabase.SaveAssets();
+        CombineForSpeed();
     }
 
     // ================================================================ 表（寸法）

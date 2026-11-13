@@ -63,6 +63,9 @@ internal static class RoomiesBackdropBuilder
             detailed: false);
 
         MarkStatic(root.transform);
+        // 町の作り直し（2026/11/13）：ビルの窓の素材をそろえ、見た目だけの部品を素材ごとにまとめる（軽量化）
+        RoomiesTownRebuild.DressBackdrop(false);
+        RoomiesTownRebuild.CombineBackdrop(false);
 
         EditorSceneManager.MarkSceneDirty(root.scene);
         Selection.activeGameObject = root;
@@ -70,6 +73,20 @@ internal static class RoomiesBackdropBuilder
         int renderers = root.GetComponentsInChildren<MeshRenderer>(true).Length;
         Debug.Log($"[Backdrop] 遠景（街の続き・山なみ・電車）を置きました。描画物 {renderers} 個・" +
                   "動かないものは静的バッチング対象（シーンを保存してください）");
+    }
+
+    /// <summary>地面の続きだけを作り直す（Build と同じ乱数の順なので、道の形は Build と同じになる）。町の作り直しの軽量化から呼ぶ。</summary>
+    internal static Transform RebuildGround(Transform root)
+    {
+        var old = root.Find("Ground beyond the fence");
+        int index = old != null ? old.GetSiblingIndex() : 0;
+        if (old != null) Object.DestroyImmediate(old.gameObject);
+        random = new System.Random(20261022);
+        BuildGroundExtension(root);
+        var group = root.Find("Ground beyond the fence");
+        group.SetSiblingIndex(index);
+        MarkStatic(group);
+        return group;
     }
 
     [MenuItem("Roomies/Environment/Remove Distant Backdrop")]
@@ -97,13 +114,17 @@ internal static class RoomiesBackdropBuilder
         Transform group = Group(parent, "Ground beyond the fence");
         Transform visual = Group(group, "Visual");
 
-        // 既存の地面よりほんの少し下に敷いて、Zファイティングを避ける
-        Box(visual, "Outer ground", new Vector3(0f, -0.08f, 0f),
-            new Vector3(900f, 0.1f, 900f), "green");
+        // 既存の地面よりほんの少し下に敷いて、Zファイティングを避ける。
+        // 町の地面（x ±40 / z ±25）の下は空ける（同じ所を二重に描かないように。2026/11/13 軽量化）
+        const float hx = 39.9f, hz = 24.9f, half = 450f;
+        Box(visual, "Outer ground", new Vector3(0f, -0.08f, (half + hz) / 2f), new Vector3(900f, 0.1f, half - hz), "green");
+        Box(visual, "Outer ground", new Vector3(0f, -0.08f, -(half + hz) / 2f), new Vector3(900f, 0.1f, half - hz), "green");
+        Box(visual, "Outer ground", new Vector3((half + hx) / 2f, -0.08f, 0f), new Vector3(half - hx, 0.1f, 2f * hz), "green");
+        Box(visual, "Outer ground", new Vector3(-(half + hx) / 2f, -0.08f, 0f), new Vector3(half - hx, 0.1f, 2f * hz), "green");
 
-        // 街路の続き（マップの道路と同じ z=0 の東西方向）。これだけは通しの道にする
-        Box(visual, "Main road", new Vector3(0f, -0.02f, 0f),
-            new Vector3(900f, 0.06f, 7.4f), "ink");
+        // 街路の続き（マップの道路と同じ z=0 の東西方向）。これだけは通しの道にする（町の中はマップの道路を使う）
+        Box(visual, "Main road", new Vector3((half + hx) / 2f, -0.02f, 0f), new Vector3(half - hx, 0.06f, 7.4f), "ink");
+        Box(visual, "Main road", new Vector3(-(half + hx) / 2f, -0.02f, 0f), new Vector3(half - hx, 0.06f, 7.4f), "ink");
         for (float x = -440f; x <= 440f; x += 14f)
         {
             if (Mathf.Abs(x) < 42f) continue;      // 遊べる範囲の道路は既存のものを使う
