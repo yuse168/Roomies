@@ -45,6 +45,7 @@ internal static partial class RoomiesNature
     internal static void BuildTrees()
     {
         BuildTreeAssets();
+        ApplyWind();
         PlaceTownTrees();
         AssetDatabase.SaveAssets();
         Debug.Log("[Nature] trees built and placed in the town (backdrop: run Roomies/Environment/Build Distant Backdrop)");

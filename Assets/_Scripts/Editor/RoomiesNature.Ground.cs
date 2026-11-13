@@ -35,6 +35,7 @@ internal static partial class RoomiesNature
         var r = plane.GetComponent<MeshRenderer>();
         if (r.sharedMaterial != mat) { r.sharedMaterial = mat; EditorUtility.SetDirty(r); }
         int tufts = BuildGrass(scene);
+        ApplyWind();
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
         AssetDatabase.SaveAssets();
