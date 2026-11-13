@@ -111,6 +111,10 @@
   （`Assets/_Art/Restyle/Town/Combined/`。各グループの「Combined」の下）。**部品を直すときは表を直して 1〜3 を実行し直す**
   （まとめたメッシュは手で直さない）。夜の明かりは名前の頭（`Street accent`・`Shop light`・`Porch light`）で朝に消える。
   まとめたあとに `Material Templates/4 Apply To Town` や `Bevel/Apply To Town` をかけ直すと、まとめた物の素材が変わることがあるので、かけ直したら 1〜3 も実行し直す
+- 町の自然物（2026/11/13） … `Roomies/Art/Nature/1 Trees`（木のプレハブ `Assets/_Prefabs/Environment/Nature/Tree_*` と町の庭の木）・
+  `3 Ground And Grass`（町の地面 pPlane1 の素材と、GameRoom の草の束「Roomies_Grass」）。遠景の木・山・境界の外の起伏のある地面は
+  `Roomies/Environment/Build Distant Backdrop` が作る（`RoomiesNature*.cs` を呼ぶ。乱数の順は前のまま）。木と草は LODGroup で遠いと消える。
+  町の地面の当たり判定（pPlane1 の平らな箱）は変えていない。草の束・木・境界の外の地面に当たり判定はない。素材は URP Lit（自作の手続きテクスチャ）
 
 組み立てのコードは各クラスの `EditorBuildUI()` に `#if UNITY_EDITOR` で残してある。
 実行中は動かないので、置き直したいときだけ配置ツールから呼ぶ。
