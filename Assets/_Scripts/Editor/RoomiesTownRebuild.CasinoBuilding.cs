@@ -185,11 +185,25 @@ internal static partial class RoomiesTownRebuild
         {
             ("back", Vector3.forward, iz0, ix0, ix1), ("left", Vector3.right, ix0, iz0, iz1), ("right", Vector3.left, ix1, iz0, iz1), ("front", Vector3.back, iz1, ix0, ix1),
         };
+        // 正面の壁の開口（通用口・入口）は仕上げの板でふさがない（前はふさいでいて、外から中・中から外が見えなかった）
+        var frontOpenings = new[] { (KDoorX0, KDoorX1, 2.18f), (KEntX0, KEntX1, KEntH) };
         foreach (var w in walls)
         {
-            FaceBox(g, "Wainscot", w.n, w.plane, w.a0, w.a1, KFloor, 1.1f, 0, .05f, wood);
-            FaceBox(g, "Chair rail", w.n, w.plane, w.a0, w.a1, 1.08f, 1.16f, 0, .09f, gold);
-            FaceBox(g, "Wall fabric", w.n, w.plane, w.a0, w.a1, 1.16f, KCeil, 0, .02f, fabric);
+            // 面に沿って、開口のない区間と、開口の上の区間に分けて貼る
+            var spans = new System.Collections.Generic.List<(float a0, float a1, float yMin)>();
+            if (w.name == "front")
+            {
+                float a = w.a0;
+                foreach (var (o0, o1, oh) in frontOpenings) { if (o0 > a) spans.Add((a, o0, KFloor)); spans.Add((o0, o1, oh)); a = o1; }
+                spans.Add((a, w.a1, KFloor));
+            }
+            else spans.Add((w.a0, w.a1, KFloor));
+            foreach (var (a0, a1, yMin) in spans)
+            {
+                if (yMin < 1.1f) FaceBox(g, "Wainscot", w.n, w.plane, a0, a1, yMin, 1.1f, 0, .05f, wood);
+                if (yMin < 1.16f) FaceBox(g, "Chair rail", w.n, w.plane, a0, a1, 1.08f, 1.16f, 0, .09f, gold);
+                FaceBox(g, "Wall fabric", w.n, w.plane, a0, a1, Mathf.Max(1.16f, yMin), KCeil, 0, .02f, fabric);
+            }
             FaceBox(g, "Crown molding", w.n, w.plane, w.a0, w.a1, KCeil - .22f, KCeil, 0, .16f, gold);
             for (float a = w.a0 + 1.2f; a < w.a1 - .5f; a += 2.4f)
             {
@@ -197,6 +211,13 @@ internal static partial class RoomiesTownRebuild
                 FaceBox(g, "Wall pilaster", w.n, w.plane, a - .14f, a + .14f, 1.16f, KCeil - .22f, 0, .08f, gold);
                 FaceBox(g, "Wainscot panel", w.n, w.plane, a - .9f, a + .9f, .3f, .95f, .05f, .065f, wood);
             }
+        }
+        // 入口と通用口の内側の額縁
+        foreach (var (o0, o1, oh) in frontOpenings)
+        {
+            FaceBox(g, "Entrance inner trim", Vector3.back, iz1, o0 - .14f, o0, KFloor, oh + .14f, 0, .1f, gold);
+            FaceBox(g, "Entrance inner trim", Vector3.back, iz1, o1, o1 + .14f, KFloor, oh + .14f, 0, .1f, gold);
+            FaceBox(g, "Entrance inner trim", Vector3.back, iz1, o0 - .14f, o1 + .14f, oh, oh + .14f, 0, .1f, gold);
         }
         // 正面の内側の入口の上：PLAY / UNWIND / REPEAT は左の壁のバーの上へ（部屋の中から読める向き）
         MoveSign(work, "Sign - PLAY / UNWIND / REPEAT", new Vector3(ix0 + .06f, 3.25f, -15.6f), 270, 1.2f);
@@ -266,22 +287,24 @@ internal static partial class RoomiesTownRebuild
         Solid(g, "Cashier collider", new Vector3(qx0 - .12f, 0, iz0), new Vector3(ix1, KCeil, qz1 + .08f));
         NewSign(g, work, "Sign - CASHIER", "CASHIER", new Vector3((qx0 + ix1) / 2, 3.1f, qz1 + .02f), 180, .9f, new Color(1f, .86f, .45f));
 
-        // ---- スロットの列（シーンの3台は動かさない）：通路の敷物、間仕切り、スツール、上の看板
-        float sz = -11.36f;
-        Box(g, "Slot aisle rug", ix0 + .4f, ix1 - .4f, KFloor + .007f, KFloor + .012f, sz - 1.1f, sz + 1.3f, Mat("casino_red"));
-        foreach (float x in new[] { 2.67f, 7.66f, 12.36f })
+        // ---- スロットの列：右の壁ぎわ（3台はシーンの台を PlaceSlots で並べ直す）。敷物・スツール・両端の柱・吊り看板
+        float rx = ix1 - .45f;   // 台の中心の x
+        Box(g, "Slot aisle rug", rx - 2.4f, ix1 - .05f, KFloor + .007f, KFloor + .012f, SlotZ[2] - 1.0f, SlotZ[0] + 1.0f, Mat("casino_red"));
+        foreach (float z in SlotZ)
         {
-            Cyl(g, "Slot stool base", new Vector3(x, KFloor + .02f, sz + .95f), new Vector3(.34f, .02f, .34f), gold);
-            Cyl(g, "Slot stool post", new Vector3(x, KFloor + .32f, sz + .95f), new Vector3(.06f, .3f, .06f), gold);
-            Cyl(g, "Slot stool seat", new Vector3(x, KFloor + .66f, sz + .95f), new Vector3(.4f, .05f, .4f), Mat("casino_red"));
+            Cyl(g, "Slot stool base", new Vector3(rx - 1.2f, KFloor + .02f, z), new Vector3(.34f, .02f, .34f), gold);
+            Cyl(g, "Slot stool post", new Vector3(rx - 1.2f, KFloor + .32f, z), new Vector3(.06f, .3f, .06f), gold);
+            Cyl(g, "Slot stool seat", new Vector3(rx - 1.2f, KFloor + .66f, z), new Vector3(.4f, .05f, .4f), Mat("casino_red"));
         }
-        // 列の両端の柱（金の柱と光る頭）
-        foreach (float x in new[] { .2f, 15.3f })
+        foreach (float z in new[] { SlotZ[0] + .95f, SlotZ[2] - .95f })
         {
-            Cyl(g, "Slot row post", new Vector3(x, KFloor + .7f, sz - .3f), new Vector3(.22f, .7f, .22f), gold);
-            Cyl(g, "Slot row lamp", new Vector3(x, KFloor + 1.5f, sz - .3f), new Vector3(.3f, .1f, .3f), Mat("neon_cyan"));
+            Cyl(g, "Slot row post", new Vector3(rx, KFloor + .7f, z), new Vector3(.22f, .7f, .22f), gold);
+            Cyl(g, "Slot row lamp", new Vector3(rx, KFloor + 1.5f, z), new Vector3(.3f, .1f, .3f), Mat("neon_cyan"));
         }
-        HangingSign(g, work, "Sign - SLOTS", "SLOTS", new Vector3(7.8f, 3.25f, sz - .6f), 1.0f);
+        PointLight(g, "Casino light - slot row", new Vector3(rx - 1.4f, 3.1f, SlotZ[1]), 4.5f, 7f, new Color(1f, .82f, .64f));
+        var slotSign = new GameObject("Slots sign") { isStatic = true }.transform;
+        slotSign.SetParent(g, false); slotSign.localPosition = new Vector3(rx - 1.0f, 0, SlotZ[1]); slotSign.localRotation = Quaternion.Euler(0, -90, 0);
+        HangingSign(slotSign, work, "Sign - SLOTS", "SLOTS", new Vector3(0, 3.25f, 0), 1.0f);
 
         // ---- ブラックジャック台のまわり：丸い敷物・ロープ（親の側）・看板・チップの台
         var bj = new Vector3(5.76f, KFloor, -16.34f);
@@ -303,7 +326,7 @@ internal static partial class RoomiesTownRebuild
         }
         HangingSign(g, work, "Sign - BLACKJACK", "BLACKJACK", new Vector3(bj.x, 3.0f, bj.z - 1.6f), 1.0f);
         // 植木（金の鉢）と、壁ぎわのソファ
-        foreach (var (x, z) in new[] { (ix0 + .5f, iz1 - .5f), (ix1 - .5f, iz1 - 1.6f), (ix1 - .5f, -15.8f), (9.6f, iz0 + .5f) })
+        foreach (var (x, z) in new[] { (ix0 + .5f, iz1 - .5f), (9.6f, iz0 + .5f) })
         {
             Cyl(g, "Gold planter", new Vector3(x, KFloor + .3f, z), new Vector3(.5f, .3f, .5f), gold);
             var bush = GameObject.CreatePrimitive(PrimitiveType.Sphere); bush.name = "Planter leaves";
@@ -316,6 +339,36 @@ internal static partial class RoomiesTownRebuild
         Box(g, "Lounge sofa arm", 9.1f, 9.3f, KFloor, .8f, iz0 + .05f, iz0 + .9f, Mat("casino_red"));
         Box(g, "Lounge sofa arm", 12.3f, 12.5f, KFloor, .8f, iz0 + .05f, iz0 + .9f, Mat("casino_red"));
         Solid(g, "Lounge sofa collider", new Vector3(9.1f, 0, iz0), new Vector3(12.5f, .8f, iz0 + .9f));
+    }
+
+    // スロット3台の置き場所：右の壁ぎわ、入口の側から奥へ（台の中心の z）。画面は部屋の中（-x）を向く
+    static readonly float[] SlotZ = { -10.9f, -12.95f, -15.0f };
+
+    /// <summary>
+    /// シーンのスロット3台（Slot.prefab のインスタンス）を右の壁ぎわに並べ直す。位置と向きだけ変える（中身・通信・当たり判定はそのまま）。
+    /// 今の画面の向き（Canvas の裏）と本体の当たり判定の中心から計算するので、何度実行しても同じ結果。
+    /// </summary>
+    internal static void PlaceSlots()
+    {
+        var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+        var roots = Object.FindObjectsByType<SlotMachine>().Where(s => s.gameObject.scene == scene)
+            .Select(s => { var r = UnityEditor.PrefabUtility.GetOutermostPrefabInstanceRoot(s.gameObject); return r != null ? r.transform : s.transform.root; })
+            .Distinct().OrderBy(t => t.name).ToArray();
+        float rx = KX1 - KT - .45f;
+        for (int i = 0; i < roots.Length && i < SlotZ.Length; i++)
+        {
+            var root = roots[i];
+            var sm = root.GetComponentInChildren<SlotMachine>(true);
+            var canvas = sm.GetComponentInChildren<Canvas>(true);
+            var front = Vector3.ProjectOnPlane(-canvas.transform.forward, Vector3.up).normalized;
+            root.rotation = Quaternion.FromToRotation(front, Vector3.left) * root.rotation;
+            var box = sm.transform.Find("Visual").GetComponent<BoxCollider>();
+            var center = box.transform.TransformPoint(box.center);
+            root.position += new Vector3(rx - center.x, 0, SlotZ[i] - center.z);
+            UnityEditor.EditorUtility.SetDirty(root);
+        }
+        UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(scene);
+        UnityEditor.SceneManagement.EditorSceneManager.SaveScene(scene);
     }
 
     /// <summary>シャンデリア：金の輪3段・ろうそくの灯・水晶のしずく。天井から吊る。</summary>

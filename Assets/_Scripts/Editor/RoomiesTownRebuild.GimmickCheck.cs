@@ -44,7 +44,8 @@ internal static partial class RoomiesTownRebuild
             var canvas = slot.GetComponentInChildren<Canvas>(true);
             var corners = new Vector3[4]; ((RectTransform)canvas.transform).GetWorldCorners(corners);
             Vector3 screen = (corners[0] + corners[2]) / 2;
-            Vector3 stand = new Vector3(screen.x, 0, screen.z + 1.1f);
+            var faceDir = Vector3.ProjectOnPlane(-canvas.transform.forward, Vector3.up).normalized;   // 画面の正面の向き
+            Vector3 stand = screen + faceDir * 1.1f; stand.y = 0;
             Teleport(cc, stand + Vector3.up * (cc.height / 2 + .12f));
             yield return null;
             var eye = stand + Vector3.up * 1.6f;

@@ -38,6 +38,7 @@ internal static partial class RoomiesTownRebuild
         finally { PrefabUtility.UnloadPrefabContents(root); }
         BuildBlackjackArt();
         BuildSlotCabinets();
+        PlaceSlots();
         AssetDatabase.SaveAssets();
         RoomiesMaterialFinishBuilder.BuildTimeOfDay();
         CombineForSpeed();
