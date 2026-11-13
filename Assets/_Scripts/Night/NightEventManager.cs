@@ -12,16 +12,16 @@ using UnityEngine;
 /// 夜になった瞬間にサーバーが抽選し、全クライアントへ演出を同期する：
 ///  ・平和な夜     … 何も起きない
 ///  ・電気代請求   … 共同口座からランダム額を徴収
-///  ・食費請求     … 各プレイヤーの個人所持金からランダム額を徴収
+///  ・食費請求     … ひとりあたりランダム額 × 人数を共同口座から払う（個人の稼ぎにも記録）
 ///  ・停電         … 朝まで照明が消えて暗くなる（見た目のみ）
 ///  ・地震         … 部屋の荷物が吹っ飛ぶ＋画面が揺れる
 ///  ・家賃値上げ   … 次回の家賃徴収額に上乗せ
 ///  ・空き巣       … 共同口座から盗まれる＋部屋が荒らされる
-///  ・冷蔵庫の故障 … 次の夜の食費が2倍になる
+///  ・冷蔵庫の故障 … 次の夜の食費が2倍になる（夜のうちに冷蔵庫を直せば防げる）
 ///  ・隣人の騒音   … 翌朝だけ全員の移動が重くなる（寝不足）
 ///  ・宝くじ当選   … 共同口座に加算
 ///  ・大家の気まぐれ… 次回の家賃が値引き（基本家賃の半額までが下限）
-///  ・落とし物     … 各プレイヤーの個人所持金に加算
+///  ・落とし物     … ひとりあたりランダム額 × 人数を共同口座へ（個人の稼ぎにも記録）
 ///  ・謎の小包     … 中身は半々。当たりなら加算、ハズレなら出費
 ///
 /// Dayが進むほど金額が上がり、平和な夜の確率が下がる。Day2以降は
@@ -213,13 +213,13 @@ public class NightEventManager : MonoBehaviour
                     break;
                 }
 
-                if (fridgeBroken)
-                {
-                    // 冷蔵庫が壊れた次の夜は食材が傷んでいる
-                    amount *= 2;
-                    fridgeBroken = false;
-                }
-                TakeFromEveryone(amount);
+                // 冷蔵庫が壊れた次の夜は食材が傷んでいる（2倍）。
+                // ただし夜のうちに冷蔵庫を直していれば、傷みは防げたことにする。
+                bool fridgeStillBroken = NightFridge.Instance == null || NightFridge.Instance.IsBroken;
+                if (fridgeBroken && fridgeStillBroken) amount *= 2;
+                fridgeBroken = false;
+
+                amount = TakeFoodBillFromEveryone(amount);
                 dm.ServerSendNightEvent((byte)type, amount);
                 break;
             }
@@ -268,8 +268,15 @@ public class NightEventManager : MonoBehaviour
 
             case NightEventType.FoundMoney:
             {
+                // お金は共同口座に入れ、個人の稼ぎには記録として足す（ほかの稼ぎと同じ扱い）
                 int amount = RandomAmount(foundMoneyMin, foundMoneyMax);
-                foreach (var pe in FindObjectsByType<PlayerEarning>()) pe.AddEarning(amount);
+                var players = FindObjectsByType<PlayerEarning>();
+                var money = SharedMoneyManager.Instance;
+                if (money == null || players.Length == 0 ||
+                    !money.TryAdd(amount * players.Length, SharedMoneyReason.NightLuck, "Found money"))
+                    amount = 0;
+                else
+                    foreach (var pe in players) pe.AddEarning(amount);
                 dm.ServerSendNightEvent((byte)type, amount);
                 break;
             }
@@ -302,10 +309,21 @@ public class NightEventManager : MonoBehaviour
         return money != null ? money.SpendUpTo(amount, reason, note) : 0;
     }
 
-    private static void TakeFromEveryone(int amount)
+    /// <summary>
+    /// 食費を「ひとり amount ずつ」共同口座から払う。個人の稼ぎにも記録として引く。
+    /// 個人の稼ぎは記録なので、手持ちを空にしておけば払わずに済む、ということはない。
+    /// 口座が足りないときは払える分だけ払い、ひとりあたりの実額を返す。
+    /// </summary>
+    private static int TakeFoodBillFromEveryone(int amount)
     {
-        foreach (var pe in FindObjectsByType<PlayerEarning>())
-            pe.SpendEarning(Mathf.Min(amount, Mathf.Max(0, pe.GetEarning())));
+        var players = FindObjectsByType<PlayerEarning>();
+        var money = SharedMoneyManager.Instance;
+        if (players.Length == 0 || money == null || amount <= 0) return 0;
+
+        int charged = money.SpendUpTo(amount * players.Length, SharedMoneyReason.FoodBill, "Night event");
+        int perPlayer = charged / players.Length;
+        foreach (var pe in players) pe.SpendEarning(perPlayer);
+        return perPlayer;
     }
 
     // 共同口座・個人所持金が減るイベント（同じ夜に2件重ねない判定に使う）
@@ -400,7 +418,7 @@ public class NightEventManager : MonoBehaviour
                 break;
 
             case NightEventType.FoodBill:
-                ShowBanner("食費の請求！", $"ひとり ¥{value:N0} ずつ支払った……腹は減る。", StyleDanger);
+                ShowBanner("食費の請求！", $"共同口座から ひとり ¥{value:N0} ずつ払った……腹は減る。", StyleDanger);
                 break;
 
             case NightEventType.Blackout:

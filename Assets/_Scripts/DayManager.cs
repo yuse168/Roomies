@@ -28,7 +28,7 @@ public class DayManager : NetworkBehaviour
     [SerializeField, Min(10f)] private float turnDuration = 180f;
 
     [Header("開発用")]
-    [Tooltip("Hostでのみ、Nキーによるターン送りを許可します。製品版前に無効化してください。")]
+    [Tooltip("Hostでのみ、Nキーによるターン送りを許可します。Editor と Development Build だけで効きます。")]
     [SerializeField] private bool enableDebugDaySkip = true;
 
     // UIは別シーン（GameRoomUI）にあるので、読み込まれたら GameUIRefs から受け取る
@@ -264,12 +264,15 @@ public class DayManager : NetworkBehaviour
 
         if (!IsServer) return;
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        // 開発用のターン送り。製品ビルドでは、インスペクターの設定に関係なく効かない
         if (enableDebugDaySkip &&
             Keyboard.current != null &&
             Keyboard.current.nKey.wasPressedThisFrame)
         {
             AdvanceTurnServer();
         }
+#endif
 
         // 朝への切り替え演出中はタイマーを止める
         if (isTransitioning.Value) return;

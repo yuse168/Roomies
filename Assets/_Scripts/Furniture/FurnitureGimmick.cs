@@ -10,7 +10,7 @@ using UnityEngine;
 /// 使える家具：
 ///  ・自販機 / エナドリ冷蔵庫 … 飲み物を買う（共同口座から支払い）。しばらく速く動ける
 ///  ・コーヒーメーカー         … コーヒーを淹れる。寝不足が消えて少し速くなる
-///  ・ちょきんばこ             … 自分の所持金を共同口座へ入れる
+///  ・ちょきんばこ             … 自分の稼ぎ（記録）を見る。お金は動かさない
 ///  ・アーケード機             … 1プレイ。当たると共同口座にお金が入る
 ///  ・招き猫                   … なでると小銭が出ることがある（1日1回）
 ///
@@ -97,7 +97,7 @@ public class FurnitureGimmick : HomeAppliance
             case "coffee_maker":
                 return $"コーヒーを淹れる ¥{coffeeCost:N0}";
             case "piggy_bank":
-                return "所持金を共同口座へ入れる";
+                return "自分の稼ぎを見る";
             case "arcade_machine":
                 return $"遊ぶ ¥{arcadeCost:N0}";
             case "lucky_cat":
@@ -142,7 +142,7 @@ public class FurnitureGimmick : HomeAppliance
                 break;
 
             case "piggy_bank":
-                Deposit(sender, money);
+                ShowEarning(sender);
                 break;
 
             case "arcade_machine":
@@ -160,7 +160,8 @@ public class FurnitureGimmick : HomeAppliance
     private bool Buy(ulong client, SharedMoneyManager money, int cost,
                      float speed, float seconds, string title, string body)
     {
-        if (!money.TrySpend(cost, SharedMoneyReason.FurniturePurchase, "Furniture gimmick"))
+        // 家具の「購入」ではなく「使う代金」。今日のおねがい（家具を置く）には数えない
+        if (!money.TrySpend(cost, SharedMoneyReason.FurnitureUse, "Furniture gimmick"))
         {
             Announce("お金が足りない", $"¥{cost:N0} 必要だった……", NightEventManager.StyleInfo);
             return false;
@@ -171,7 +172,7 @@ public class FurnitureGimmick : HomeAppliance
         return true;
     }
 
-    private void Deposit(ulong client, SharedMoneyManager money)
+    private static void ShowEarning(ulong client)
     {
         var nm = NetworkManager.Singleton;
         if (nm == null || !nm.ConnectedClients.TryGetValue(client, out var connected)) return;
@@ -181,16 +182,14 @@ public class FurnitureGimmick : HomeAppliance
             : null;
         if (earning == null) return;
 
-        int amount = Mathf.Max(0, earning.GetEarning());
-        if (amount <= 0)
-        {
-            Announce("からっぽ", "入れるお金が無い……", NightEventManager.StyleInfo);
-            return;
-        }
-
-        earning.SpendEarning(amount);
-        money.TryAdd(amount, SharedMoneyReason.DebugGrant, "Piggy bank");
-        Announce("ちょきん！", $"共同口座へ ¥{amount:N0} 入れた", NightEventManager.StyleFun);
+        // 個人の稼ぎ（PlayerEarning）は「誰がいくら稼いだか」の記録で、お金そのものは
+        // 稼いだ時点で共同口座に入っている。ここで共同口座へ足すと二重に入るので、
+        // ちょきんばこは記録を見せるだけにする（毎朝の小銭は家具の効果で入る）。
+        int amount = earning.GetEarning();
+        if (NightEventManager.Instance != null)
+            NightEventManager.Instance.ServerAnnounceTo(client, "ちょきんばこ",
+                $"あなたの稼ぎ ¥{amount:N0}（もう共同口座に入っている）",
+                NightEventManager.StyleInfo);
     }
 
     private void PlayArcade(ulong client, SharedMoneyManager money)
