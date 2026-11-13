@@ -115,6 +115,12 @@
   `3 Ground And Grass`（町の地面 pPlane1 の素材と、GameRoom の草の束「Roomies_Grass」）。遠景の木・山・境界の外の起伏のある地面は
   `Roomies/Environment/Build Distant Backdrop` が作る（`RoomiesNature*.cs` を呼ぶ。乱数の順は前のまま）。木と草は LODGroup で遠いと消える。
   町の地面の当たり判定（pPlane1 の平らな箱）は変えていない。草の束・木・境界の外の地面に当たり判定はない。素材は URP Lit（自作の手続きテクスチャ）
+  葉と草の揺れは `4 Wind On Leaves And Grass`（シェーダー `Roomies/Foliage Lit`。強さ・速さ・止まる距離は素材のインスペクター）
+- 作り直し2（2026/11/13） … `Roomies/Art/Rebuild/1 Jail`・`2 Main House`・`3 Casino`・`4 Road`（`RoomiesTownRebuild.*.cs`）。
+  元の部品の当たり判定・スクリプト・移送先などは残し、見た目だけを外して新しく組む（外した部品は当たり判定だけの空の物として残っている）。
+  スロットの筐体はシーンの3台の `Visual/Cabinet`（Slot.prefab は変えていない）、ブラックジャック台はプレハブの `Visual/Art`。
+  メインの家の古い階段の見た目（Demo/pCube12）は表示だけ切っている（当たり判定は使っている）。
+  確認は Play Mode で `Town/Walk - Enter GameRoom As Host` → `Walk Check`・`Gimmick Check`・`Perf - Measure In Game`
 
 組み立てのコードは各クラスの `EditorBuildUI()` に `#if UNITY_EDITOR` で残してある。
 実行中は動かないので、置き直したいときだけ配置ツールから呼ぶ。

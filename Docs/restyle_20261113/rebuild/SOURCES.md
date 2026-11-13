@@ -24,3 +24,16 @@
 | シェーダー | URP 標準の Lit（Unity の URP パッケージ同梱） | — |
 
 ライセンスの確認が必要な外部素材はない。
+
+## 作り直し2（2026/11/13 夕方）：葉の揺れ・牢屋・メインの家・カジノ・道路
+
+外から取り込んだ素材は使っていない。購入もしていない。すべて自作。
+
+| 物 | 作り方 | 場所 |
+|---|---|---|
+| 葉と草の揺れ | 自作シェーダー（URP の標準のライブラリだけを使う） | `Assets/_Art/Shaders/RoomiesFoliageLit.shader` |
+| 牢屋・メインの家・カジノ・道路の部品 | Unity の箱・円柱・板を配置ツールで並べたもの | `Assets/_Scripts/Editor/RoomiesTownRebuild.Jail/MainHouse/Casino/Road.cs` |
+| カジノの絨毯・アスファルト・歩道の平板のテクスチャ | コードで描いた手続きテクスチャ（ノーマルマップは高さから作成） | `Assets/_Art/Restyle/Nature/Textures/casino_carpet*`・`road_asphalt*`・`sidewalk_slabs*` |
+| 素材（マテリアル） | 既存の素材の型の子、URP Lit | `Assets/_Materials/Templates/Variants/*/Town/`、`Assets/_Materials/Nature/` |
+
+ライセンスの確認が必要な外部素材はない。

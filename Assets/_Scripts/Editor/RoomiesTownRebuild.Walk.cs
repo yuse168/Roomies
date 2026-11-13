@@ -28,6 +28,9 @@ internal static partial class RoomiesTownRebuild
         ("entry stairs up", new[] { new Vector2(20.5f, 7f), new Vector2(20.5f, 9.6f), new Vector2(20.5f, 14.6f) }, true),
         ("delivery zone", new[] { new Vector2(-4f, 6f), new Vector2(-4f, 18f) }, true),
         ("east lawn to ONE MORE ROCK side", new[] { new Vector2(27f, 6f), new Vector2(27f, 9.5f), new Vector2(35f, 9.5f) }, true),
+        ("casino entrance to blackjack", new[] { new Vector2(5.4f, -5.5f), new Vector2(5.4f, -14.6f), new Vector2(6.2f, -14.6f) }, true),
+        ("casino side opening to the gap", new[] { new Vector2(14f, -13f), new Vector2(17.6f, -12.9f), new Vector2(17.6f, -20.5f) }, true),
+        ("casino left wall (should stop)", new[] { new Vector2(2f, -14f), new Vector2(-3f, -14f) }, false),
         ("west lawn", new[] { new Vector2(-30f, 6.5f), new Vector2(-30f, 20f), new Vector2(-12f, 20f) }, true),
     };
 
@@ -132,7 +135,8 @@ internal static partial class RoomiesTownRebuild
 
     static float Ground(Vector2 xz)
     {
-        return Physics.Raycast(new Vector3(xz.x, 30, xz.y), Vector3.down, out var hit, 60, ~0, QueryTriggerInteraction.Ignore) ? hit.point.y : 0;
+        // 屋根の下から探す（屋根の上に置かないように）。家の2階などの高い所から始める道すじはない
+        return Physics.Raycast(new Vector3(xz.x, 2.5f, xz.y), Vector3.down, out var hit, 10, ~0, QueryTriggerInteraction.Ignore) ? hit.point.y : 0;
     }
 
     static void Teleport(CharacterController cc, Vector3 pos)

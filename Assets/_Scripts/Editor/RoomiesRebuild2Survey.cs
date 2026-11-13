@@ -10,6 +10,26 @@ internal static class RoomiesRebuild2Survey
 {
     static string PathOf(Transform t) { var s = t.name; for (var x = t.parent; x != null; x = x.parent) s = x.name + "/" + s; return s; }
 
+    [MenuItem("Roomies/Art/Town/Survey Triangles")]
+    static void Tris()
+    {
+        var sb = new StringBuilder();
+        var by = new System.Collections.Generic.Dictionary<string, long>();
+        foreach (var r in Object.FindObjectsByType<MeshRenderer>())
+        {
+            if (!r.enabled || !r.gameObject.activeInHierarchy) continue;
+            var lod = r.GetComponentInParent<LODGroup>();
+            if (lod != null && !r.name.EndsWith("LOD0")) continue;   // 近くの段だけ数える
+            var mf = r.GetComponent<MeshFilter>(); if (mf == null || mf.sharedMesh == null) continue;
+            long t = 0; for (int i = 0; i < mf.sharedMesh.subMeshCount; i++) t += mf.sharedMesh.GetIndexCount(i) / 3;
+            var tr = r.transform; string key = tr.root.name;
+            var parts = PathOf(tr).Split('/'); if (parts.Length > 1) key += "/" + parts[1];
+            by[key] = (by.TryGetValue(key, out var v) ? v : 0) + t;
+        }
+        foreach (var kv in by.OrderByDescending(k => k.Value).Take(30)) sb.AppendLine($"{kv.Value,10} {kv.Key}");
+        System.IO.File.WriteAllText("Temp/RoomiesTown/tris.txt", sb.ToString());
+    }
+
     [MenuItem("Roomies/Art/Town/Survey Gimmicks")]
     static void Run()
     {

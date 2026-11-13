@@ -9,7 +9,7 @@ using UnityEngine.SceneManagement;
 /// </summary>
 internal static partial class RoomiesTownRebuild
 {
-    static readonly string[] PerfTargets = { FacadeGroup, HouseGroup, RooftopGroup, PropGroup, NightLightGroup };
+    static readonly string[] PerfTargets = { FacadeGroup, HouseGroup, RooftopGroup, PropGroup, NightLightGroup, "Town jail", "Town main house", "Town casino", "Town road" };
 
     [MenuItem("Roomies/Art/Town/Perf - Hide Town Rebuild (Play Mode)")]
     static void PerfHide() => PerfToggle(false);
