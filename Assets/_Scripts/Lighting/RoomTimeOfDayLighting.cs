@@ -5,6 +5,7 @@ using UnityEngine.Rendering;
 /// 部屋の明かりと画面の仕上げを、朝と夜で切り替える（見た目だけ。ゲームの進行・通信には触らない）。
 /// DayManager の IsNight を読むだけ。全員の画面で同じように動く（時間帯は DayManager が同期している）。
 /// 明かりの強さ・画面の仕上げの重みはインスペクターで直せる。配置ツール「Material Finish/6 Time Of Day Lighting」が置く。
+/// 遠くの霧の色も朝と夜で切り替える（霧の有無・始まり・終わりの距離は GameRoom のライティング設定）。
 /// </summary>
 public class RoomTimeOfDayLighting : MonoBehaviour
 {
@@ -20,6 +21,10 @@ public class RoomTimeOfDayLighting : MonoBehaviour
     [SerializeField] private Volume nightVolume;
     [SerializeField] private Volume morningVolume;
     [SerializeField, Min(0f)] private float blendSeconds = 1.5f;
+    [Header("霧の色（空の地平線の色に合わせる）")]
+    [SerializeField] private bool applyFogColor = true;
+    [SerializeField] private Color morningFogColor = new Color(.62f, .74f, .88f);
+    [SerializeField] private Color nightFogColor = new Color(.04f, .05f, .12f);
 
     private float blend = 1f;   // 1 = 夜、0 = 朝
     private bool targetNight = true;
@@ -56,5 +61,6 @@ public class RoomTimeOfDayLighting : MonoBehaviour
         }
         if (nightVolume != null) nightVolume.weight = nightAmount;
         if (morningVolume != null) morningVolume.weight = 1f - nightAmount;
+        if (applyFogColor) RenderSettings.fogColor = Color.Lerp(morningFogColor, nightFogColor, nightAmount);
     }
 }
