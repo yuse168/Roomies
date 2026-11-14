@@ -32,6 +32,18 @@ public class DeliveryTruck : NetworkBehaviour
     [Tooltip("荷物を出す集荷場。積んだら補充してもらう")]
     [SerializeField] private DeliveryZone deliveryZone;
 
+    [Header("走り去る（見た目だけ）")]
+    [Tooltip("動かす軸（Pivot_Drive）。見た目と看板はこの下。荷台の判定（ルート）は動かさない")]
+    [SerializeField] private Transform drivePivot;
+    [Tooltip("発車してから動き出すまでの秒数")]
+    [SerializeField, Min(0f)] private float driveStartDelay = 0.8f;
+    [Tooltip("曲がり終えてから消えるまでに、まっすぐ走る距離（m）")]
+    [SerializeField, Min(0f)] private float driveStraightDistance = 20f;
+    [Tooltip("曲がる半径（m）。正の値で左へ、負の値で右へ曲がる")]
+    [SerializeField] private float driveTurnRadius = 3f;
+    [Tooltip("動き出してから消えるまでの秒数（だんだん速くなる）")]
+    [SerializeField, Min(0.5f)] private float driveSeconds = 5f;
+
     [Header("音")]
     [SerializeField] private string warnSoundKey = "mining/warning";
     [SerializeField] private string departSoundKey = "delivery/complete";
@@ -45,12 +57,24 @@ public class DeliveryTruck : NetworkBehaviour
     private readonly NetworkVariable<int> bedValue = new(0);
     private readonly NetworkVariable<int> bedCount = new(0);
 
+    // 全員：発車して出かけているか（サーバーだけが書く）。見た目の動きは各自の画面で動かす
+    private readonly NetworkVariable<bool> away = new(false);
+    private float driveTime;
+    public bool IsAway => away.Value;
+
     private int nextWarnIndex;
     private bool sawMorning;        // サーバー：朝を見たか（朝→夜に変わった瞬間に発車する）
     private float nextTallyTime;
 
     public int BedValue => bedValue.Value;
     public int BedCount => bedCount.Value;
+
+    public override void OnNetworkSpawn()
+    {
+        // 出かけている途中で入った人は、もう走り去ったあとの状態から
+        driveTime = away.Value ? driveStartDelay + driveSeconds : 0f;
+        ApplyDrivePose();
+    }
 
     public override void OnNetworkDespawn()
     {
@@ -61,7 +85,7 @@ public class DeliveryTruck : NetworkBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (!IsServer) return;
+        if (!IsServer || away.Value) return;    // 出かけている間は積めない
         NetworkObject box = BoxOf(other);
         if (box == null) return;
 
@@ -143,6 +167,7 @@ public class DeliveryTruck : NetworkBehaviour
     private void Update()
     {
         UpdateSign();
+        UpdateDrive();
 
         if (!IsServer || !IsSpawned) return;
 
@@ -170,6 +195,12 @@ public class DeliveryTruck : NetworkBehaviour
         {
             sawMorning = true;
             nextWarnIndex = 0;
+            if (away.Value)
+            {
+                // 朝になったら元の場所に戻る。出かけている間に荷台の場所へ置かれた箱も数える
+                away.Value = false;
+                ServerRescanBed();
+            }
         }
 
         int[] warns = GameBalance.Current.truckWarnSeconds;
@@ -263,6 +294,9 @@ public class DeliveryTruck : NetworkBehaviour
         ServerTally();
         if (deliveryZone != null) deliveryZone.ServerRefill();
 
+        // お金の確定はここまでで済んでいる。あとは見た目だけ走り去る（朝に戻る）
+        away.Value = true;
+
         // 3) 乗った人は家へ帰る（朝と同じリスポーン。牢屋の人は牢屋のまま）
         if (nm != null)
         {
@@ -285,6 +319,85 @@ public class DeliveryTruck : NetworkBehaviour
             NightEventManager.Instance.ServerAnnounce(
                 "トラック発車！", body.ToString(),
                 count > 0 ? NightEventManager.StylePeace : NightEventManager.StyleInfo);
+    }
+
+    /// <summary>荷台の場所にある箱を数え直す（サーバーのみ。戻ってきた朝に1回）。</summary>
+    private void ServerRescanBed()
+    {
+        var bed = GetComponent<BoxCollider>();
+        Vector3 center = transform.TransformPoint(bed.center);
+        Vector3 half = Vector3.Scale(bed.size, transform.lossyScale) * 0.5f;
+        foreach (var c in Physics.OverlapBox(center, half, transform.rotation, ~0, QueryTriggerInteraction.Ignore))
+        {
+            NetworkObject box = BoxOf(c);
+            if (box == null) continue;
+            if (!inBed.TryGetValue(box, out var colliders))
+            {
+                colliders = new HashSet<Collider>();
+                inBed.Add(box, colliders);
+            }
+            colliders.Add(c);
+        }
+        ServerTally();
+    }
+
+    // ---- 全員：走り去る見た目 ----
+
+    private void UpdateDrive()
+    {
+        if (drivePivot == null) return;
+        float target = away.Value ? driveTime + Time.deltaTime : 0f;
+        if (Mathf.Approximately(target, driveTime) && !away.Value) return;
+        driveTime = target;
+        ApplyDrivePose();
+    }
+
+    /// <summary>
+    /// 走り去る途中の位置と向き。左（または右）へ90度曲がってから、まっすぐ加速して消える。
+    /// 見た目だけなので各自の画面で計算する（away が同期されるので、全員ほぼ同じ時に動く）。
+    /// </summary>
+    private void ApplyDrivePose()
+    {
+        if (drivePivot == null) return;
+
+        float t = Mathf.Max(0f, driveTime - driveStartDelay);
+        if (!away.Value || t <= 0f)
+        {
+            if (!drivePivot.gameObject.activeSelf) drivePivot.gameObject.SetActive(true);
+            drivePivot.localPosition = Vector3.zero;
+            drivePivot.localRotation = Quaternion.identity;
+            return;
+        }
+
+        if (t >= driveSeconds)
+        {
+            if (drivePivot.gameObject.activeSelf) drivePivot.gameObject.SetActive(false);
+            return;
+        }
+
+        float r = Mathf.Abs(driveTurnRadius);
+        float side = driveTurnRadius >= 0f ? -1f : 1f;        // 左は -X
+        float arc = r * Mathf.PI * 0.5f;
+        float total = arc + driveStraightDistance;
+        float u = t / driveSeconds;
+        float s = total * u * u;                              // だんだん速くなる
+
+        Vector3 pos;
+        float yaw;
+        if (s < arc && r > 0.01f)
+        {
+            float a = s / r;
+            pos = new Vector3(side * (r - r * Mathf.Cos(a)), 0f, r * Mathf.Sin(a));
+            yaw = side * a * Mathf.Rad2Deg;
+        }
+        else
+        {
+            float straight = s - arc;
+            pos = new Vector3(side * (r + straight), 0f, r);
+            yaw = side * 90f;
+        }
+        drivePivot.localPosition = pos;
+        drivePivot.localRotation = Quaternion.Euler(0f, yaw, 0f);
     }
 
     // ---- 全員：音と看板 ----

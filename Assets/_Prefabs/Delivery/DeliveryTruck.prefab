@@ -579,7 +579,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1447870077962995877}
-  m_Father: {fileID: 2064013925990040727}
+  m_Father: {fileID: 2581921434758530945}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &4438000683997212650
 GameObject:
@@ -630,7 +630,7 @@ BoxCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4438000683997212650}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 13400000, guid: 5a01c609d847b494a8e0d56b4e95f403, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -723,6 +723,39 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 4612814305248179464}
+  m_Father: {fileID: 2581921434758530945}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &4932022930683892663
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2581921434758530945}
+  m_Layer: 0
+  m_Name: Pivot_Drive
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2581921434758530945
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4932022930683892663}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1498688181433418817}
+  - {fileID: 6655463249757590671}
   m_Father: {fileID: 2064013925990040727}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &5097946361473931109
@@ -774,7 +807,7 @@ BoxCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5097946361473931109}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 13400000, guid: 5a01c609d847b494a8e0d56b4e95f403, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -865,8 +898,8 @@ Transform:
   m_GameObject: {fileID: 5300304410259593143}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1.05, z: -2.9}
-  m_LocalScale: {x: 2.2, y: 0.25, z: 0.08}
+  m_LocalPosition: {x: 0, y: 1.1, z: -2.86}
+  m_LocalScale: {x: 2.2, y: 0.3, z: 0.12}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1447870077962995877}
@@ -886,7 +919,7 @@ BoxCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5300304410259593143}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 13400000, guid: 5a01c609d847b494a8e0d56b4e95f403, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -1290,7 +1323,7 @@ BoxCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7030750360662297109}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 13400000, guid: 5a01c609d847b494a8e0d56b4e95f403, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -1385,9 +1418,8 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 1498688181433418817}
+  - {fileID: 2581921434758530945}
   - {fileID: 5873248475161449865}
-  - {fileID: 6655463249757590671}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &8416796300077413750
@@ -1402,7 +1434,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 432843765
+  GlobalObjectIdHash: 2579854493
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -1452,6 +1484,11 @@ MonoBehaviour:
   boardAnchor: {fileID: 5873248475161449865}
   signLabel: {fileID: 5122265847467433081}
   deliveryZone: {fileID: 0}
+  drivePivot: {fileID: 2581921434758530945}
+  driveStartDelay: 0.8
+  driveStraightDistance: 20
+  driveTurnRadius: 3
+  driveSeconds: 5
   warnSoundKey: mining/warning
   departSoundKey: delivery/complete
   loadSoundKey: money/gain
@@ -1775,7 +1812,7 @@ BoxCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8740626682385118345}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 13400000, guid: 5a01c609d847b494a8e0d56b4e95f403, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0

@@ -11,7 +11,8 @@ using UnityEngine;
 ///
 ///  1. Build Price Tags            … 箱のプレハブ（Nomal_Box / rare_Box）に値札（Anchor_PriceTag/PriceTag）を置く
 ///  2. Build Truck Prefab          … Assets/_Prefabs/Delivery/DeliveryTruck.prefab を作る
-///                                   （ルート：NetworkObject・DeliveryTruck・荷台の判定／Visual/Placeholder：仮の見た目／
+///                                   （ルート：NetworkObject・DeliveryTruck・荷台の判定／Pivot_Drive：走り去るときに動かす軸／
+///                                     Pivot_Drive/Visual/Placeholder：仮の見た目／Pivot_Drive/Anchor_Sign：看板の文字／
 ///                                     Anchor_Board：乗る位置の中心／Anchor_Sign：看板の文字）
 ///  3. Place Truck In Open Scene   … 開いている GameRoom の配達ゾーンの所にトラックを置き、集荷場とつなぎ、
 ///                                   古い納品ボタン（DeliveryButton）を止める
@@ -115,9 +116,13 @@ internal static class RoomiesDeliveryTruckBuilder
 
             var truck = root.AddComponent<DeliveryTruck>();
 
+            // 走り去るときに動かす軸。見た目と看板はこの下（荷台の判定と乗る位置はルートに残す）
+            var pivot = new GameObject("Pivot_Drive").transform;
+            pivot.SetParent(root.transform, false);
+
             // 見た目（仮）。ぶつかるだけの当たり判定は見た目と一緒に替わるので Visual の中に置く
             var visual = new GameObject("Visual").transform;
-            visual.SetParent(root.transform, false);
+            visual.SetParent(pivot, false);
             var ph = new GameObject("Placeholder").transform;
             ph.SetParent(visual, false);
 
@@ -163,7 +168,7 @@ internal static class RoomiesDeliveryTruckBuilder
 
             // 看板の文字（荷台の口の方＝後ろから読める）
             var signAnchor = new GameObject("Anchor_Sign").transform;
-            signAnchor.SetParent(root.transform, false);
+            signAnchor.SetParent(pivot, false);
             signAnchor.localPosition = new Vector3(0f, 3.05f, 0.9f);
             var signT = new GameObject("SignText", typeof(RectTransform)).transform;
             signT.SetParent(signAnchor, false);
@@ -179,6 +184,7 @@ internal static class RoomiesDeliveryTruckBuilder
 
             var so = new SerializedObject(truck);
             so.FindProperty("boardAnchor").objectReferenceValue = board;
+            so.FindProperty("drivePivot").objectReferenceValue = pivot;
             so.FindProperty("signLabel").objectReferenceValue = sign;
             so.ApplyModifiedPropertiesWithoutUndo();
 
