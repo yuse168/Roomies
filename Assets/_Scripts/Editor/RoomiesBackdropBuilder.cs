@@ -48,6 +48,9 @@ internal static partial class RoomiesBackdropBuilder
         Undo.RegisterCreatedObjectUndo(root, "Build distant backdrop");
 
         BuildGroundExtension(root.transform);
+        // 角丸・回転体などのメッシュ（RoomiesRestyleKit）と、倉庫の波板の素材を作り直す準備
+        RoomiesRestyleKit.Begin();
+        corrugated = null;
         BuildOuterTown(root.transform);
         BuildMountains(root.transform);
 
@@ -263,101 +266,7 @@ internal static partial class RoomiesBackdropBuilder
         RoomiesTownRebuild.BuildFarHouse(house, spec);
     }
 
-    private static void Block(Transform parent, Vector3 position)
-    {
-        Transform building = Group(parent, "Block");
-        building.position = position;
-        building.localRotation = Quaternion.Euler(0f, random.Next(8) * 45f, 0f);
-
-        float width = Range(12f, 20f);
-        float depth = Range(10f, 18f);
-        float height = Range(12f, 34f);
-        string wall = Pick("cream", "paper", "teal", "coral");
-
-        Box(building, "Body", new Vector3(0f, height / 2f, 0f), new Vector3(width, height, depth), wall);
-        Box(building, "Roof", new Vector3(0f, height + 0.3f, 0f),
-            new Vector3(width + 0.9f, 0.6f, depth + 0.9f), "ink");
-
-        // 階数ぶんの窓。全部同じ高さに並べない
-        int floors = Mathf.Clamp(Mathf.FloorToInt(height / 3.4f), 2, 8);
-        for (int f = 1; f <= floors; f++)
-        {
-            float y = f * 3.4f;
-            if (y > height - 1.6f) break;
-            Box(building, "Window band", new Vector3(0f, y, depth / 2f + 0.06f),
-                new Vector3(width * 0.76f, 1.4f, 0.12f), "blue");
-            if (random.Next(10) < 6)
-                Box(building, "Window band", new Vector3(width / 2f + 0.06f, y, 0f),
-                    new Vector3(0.12f, 1.4f, depth * 0.76f), "blue");
-        }
-
-        // 屋上の設備（同じ形が並ばないように）
-        if (random.Next(10) < 6)
-            Box(building, "Rooftop unit", new Vector3(Range(-3f, 3f), height + 1.2f, Range(-3f, 3f)),
-                new Vector3(Range(2f, 4f), 1.8f, Range(2f, 4f)), "silver");
-        if (random.Next(10) < 4)
-            Box(building, "Antenna", new Vector3(Range(-4f, 4f), height + 3.5f, Range(-4f, 4f)),
-                new Vector3(0.2f, 5f, 0.2f), "ink");
-    }
-
-    private static void Warehouse(Transform parent, Vector3 position)
-    {
-        Transform shed = Group(parent, "Warehouse");
-        shed.position = position;
-        shed.localRotation = Quaternion.Euler(0f, Range(0f, 360f), 0f);
-
-        float width = Range(22f, 38f);
-        float depth = Range(14f, 22f);
-        float height = Range(6f, 9f);
-
-        Box(shed, "Body", new Vector3(0f, height / 2f, 0f), new Vector3(width, height, depth), "silver");
-        Box(shed, "Roof", new Vector3(0f, height + 0.25f, 0f),
-            new Vector3(width + 1.2f, 0.5f, depth + 1.2f), "teal");
-
-        // シャッター（規則的に並ぶが、ここは倉庫らしさなのでよい）
-        int doors = Mathf.Clamp(Mathf.FloorToInt(width / 9f), 2, 4);
-        for (int i = 0; i < doors; i++)
-        {
-            float x = -width / 2f + width / (doors + 1f) * (i + 1);
-            Box(shed, "Shutter", new Vector3(x, 2.2f, depth / 2f + 0.08f),
-                new Vector3(5f, 4.2f, 0.16f), "mustard");
-        }
-
-        if (random.Next(10) < 5)
-            Box(shed, "Yard crate", new Vector3(Range(-width / 2f, width / 2f), 1.2f, depth / 2f + Range(4f, 9f)),
-                new Vector3(Range(2f, 4f), 2.4f, Range(2f, 4f)), "wood");
-    }
-
-    private static void Factory(Transform parent, Vector3 position)
-    {
-        Transform factory = Group(parent, "Factory");
-        factory.position = position;
-        factory.localRotation = Quaternion.Euler(0f, Range(0f, 360f), 0f);
-
-        float width = Range(20f, 32f);
-        float depth = Range(16f, 26f);
-        float height = Range(8f, 13f);
-
-        Box(factory, "Body", new Vector3(0f, height / 2f, 0f), new Vector3(width, height, depth), "ink");
-        Box(factory, "Roof", new Vector3(0f, height + 0.3f, 0f),
-            new Vector3(width + 1f, 0.6f, depth + 1f), "silver");
-
-        // 煙突（高さを変える）
-        int stacks = random.Next(2, 4);
-        for (int i = 0; i < stacks; i++)
-        {
-            float stackHeight = Range(14f, 26f);
-            Cylinder(factory, "Chimney",
-                new Vector3(Range(-width / 3f, width / 3f), stackHeight / 2f + height, Range(-depth / 3f, depth / 3f)),
-                Range(2f, 3.2f), stackHeight, "cream", upright: true);
-        }
-
-        // タンク
-        for (int i = 0; i < random.Next(1, 4); i++)
-            Cylinder(factory, "Tank",
-                new Vector3(width / 2f + Range(5f, 12f), 4f, Range(-depth / 2f, depth / 2f)),
-                Range(6f, 9f), 8f, "paper", upright: true);
-    }
+    // ビル・倉庫・工場は RoomiesBackdropBuilder.OuterTown.cs（2026/11/14 作り直し。乱数の使い方は前と同じ）
 
     // ---- 目印になる大きな物 ----
 
