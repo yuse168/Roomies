@@ -123,7 +123,9 @@ public class DeliveryZone : NetworkBehaviour
             boxesInZone.RemoveAt(0);
             collidersInZone.Remove(box);
 
-            box.Despawn(true);
+            var item = box.GetComponentInChildren<DeliveryItem>();
+            if (item != null) item.ServerRemove();
+            else box.Despawn(true);
 
             Debug.Log("箱を削除 エリア内残り: " + boxesInZone.Count);
         }

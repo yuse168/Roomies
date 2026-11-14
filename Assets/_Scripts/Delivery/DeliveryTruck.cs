@@ -257,7 +257,7 @@ public class DeliveryTruck : NetworkBehaviour
             }
 
             inBed.Remove(box);
-            box.Despawn(true);
+            item.ServerRemove();
         }
 
         ServerTally();

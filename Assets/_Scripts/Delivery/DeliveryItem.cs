@@ -87,6 +87,22 @@ public class DeliveryItem : NetworkBehaviour
     {
         currentValue.OnValueChanged -= OnValueChanged;
         isRareItem.OnValueChanged -= OnRareChanged;
+
+        // シーンに直接置いた箱は消さずに隠す（ServerRemove 参照）。遅れて入った人の画面でも
+        // NGO がこの OnNetworkDespawn を呼ぶので、同じように隠れる
+        if (NetworkObject != null && NetworkObject.IsSceneObject == true) gameObject.SetActive(false);
+    }
+
+    /// <summary>
+    /// 箱を消す（サーバーのみ）。割れたとき・トラックで運び出したときに使う。
+    /// 集荷場が出した箱は破棄する。シーンに直接置いてある箱は、破棄すると NGO が警告を出すので
+    /// （遅れて入った人との食い違いのもと）、Despawn(false) でネットワークから外し、隠すだけにする。
+    /// </summary>
+    public void ServerRemove()
+    {
+        if (!IsServer || NetworkObject == null || !NetworkObject.IsSpawned) return;
+        bool sceneObject = NetworkObject.IsSceneObject == true;
+        NetworkObject.Despawn(!sceneObject);
     }
 
     // ---- サーバー：ぶつかったら値段を下げる ----
@@ -137,7 +153,7 @@ public class DeliveryItem : NetworkBehaviour
                 NightEventManager.StyleDanger);
 
         DeliveryZone zone = ownerZone;
-        NetworkObject.Despawn(true);
+        ServerRemove();
         if (zone != null) zone.ServerRefill();
     }
 
