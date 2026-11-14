@@ -20490,6 +20490,18 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2066017864216258073, guid: 3896aab4e1176964f8e33ce8c8cfee92, type: 3}
+      propertyPath: m_fontSize
+      value: 1.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 2066017864216258073, guid: 3896aab4e1176964f8e33ce8c8cfee92, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4281543465
+      objectReference: {fileID: 0}
+    - target: {fileID: 2066017864216258073, guid: 3896aab4e1176964f8e33ce8c8cfee92, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 5122265847467433081, guid: 3896aab4e1176964f8e33ce8c8cfee92, type: 3}
       propertyPath: m_fontColor32.rgba
       value: 4288605183
@@ -20514,6 +20526,12 @@ PrefabInstance:
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 7179761077527384473, guid: 3896aab4e1176964f8e33ce8c8cfee92, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 0}
+    - targetCorrespondingSourceObject: {fileID: 48919582973574751, guid: 3896aab4e1176964f8e33ce8c8cfee92, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 0}
     - targetCorrespondingSourceObject: {fileID: 8391751920276443559, guid: 3896aab4e1176964f8e33ce8c8cfee92, type: 3}
       insertIndex: -1
       addedObject: {fileID: 0}

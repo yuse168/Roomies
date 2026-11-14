@@ -12,14 +12,14 @@ using UnityEngine;
 ///  1. Build Price Tags            … 箱のプレハブ（Nomal_Box / rare_Box）に値札（Anchor_PriceTag/PriceTag）を置く
 ///  2. Build Truck Prefab          … Assets/_Prefabs/Delivery/DeliveryTruck.prefab を作る
 ///                                   （ルート：NetworkObject・DeliveryTruck・荷台の判定／Pivot_Drive：走り去るときに動かす軸／
-///                                     Pivot_Drive/Visual/Placeholder：仮の見た目／Pivot_Drive/Anchor_Sign：看板の文字／
-///                                     Anchor_Board：乗る位置の中心／Anchor_Sign：看板の文字）
+///                                     Pivot_Drive/Visual/Truck：見た目とぶつかるだけの当たり判定（2026/11/14 作り直し）／
+///                                     Pivot_Drive/Anchor_Sign：看板の文字／Anchor_Board：乗る位置の中心）
 ///  3. Place Truck In Open Scene   … 開いている GameRoom の配達ゾーンの所にトラックを置き、集荷場とつなぎ、
 ///                                   古い納品ボタン（DeliveryButton）を止める
 ///
 /// トラックの位置・向きは、置いたあとシーンビューで動かしてよい（もう一度 3 を実行すると下の値に戻る）。
 /// </summary>
-internal static class RoomiesDeliveryTruckBuilder
+internal static partial class RoomiesDeliveryTruckBuilder
 {
     const string NormalBoxPath = "Assets/_Prefabs/Nomal_Box.prefab";
     const string RareBoxPath = "Assets/_Prefabs/rare_Box.prefab";
@@ -120,46 +120,12 @@ internal static class RoomiesDeliveryTruckBuilder
             var pivot = new GameObject("Pivot_Drive").transform;
             pivot.SetParent(root.transform, false);
 
-            // 見た目（仮）。ぶつかるだけの当たり判定は見た目と一緒に替わるので Visual の中に置く
+            // 見た目（Visual/Truck。中身は RoomiesDeliveryTruckBuilder.Look.cs）。
+            // ぶつかるだけの当たり判定は見た目と一緒に替わるので Visual/Truck/Collision に置く。
+            // 荷台の床・板は跳ね返らず、すべりにくい（投げ込んだ箱が前の板で跳ね返って後ろへ出ないように）
             var visual = new GameObject("Visual").transform;
             visual.SetParent(pivot, false);
-            var ph = new GameObject("Placeholder").transform;
-            ph.SetParent(visual, false);
-
-            Material body = Mat("PaintedMetal/Town/mustard.mat");
-            Material bedMat = Mat("PaintedMetal/Town/cream.mat");
-            Material dark = Mat("Rubber/plastic_black.mat");
-            Material glass = Mat("Glass/Town/blue.mat");
-            Material ink = Mat("PaintedMetal/Town/ink.mat");
-
-            Box(ph, "Chassis", new Vector3(0f, 0.6f, -0.3f), new Vector3(2.2f, 0.3f, 5.2f), dark, true);
-            Box(ph, "BedFloor", new Vector3(0f, 0.85f, -1.35f), new Vector3(2.2f, 0.2f, 3.1f), bedMat, true);
-            Box(ph, "BedSide_L", new Vector3(-1.05f, 1.3f, -1.35f), new Vector3(0.1f, 0.7f, 3.1f), body, true);
-            Box(ph, "BedSide_R", new Vector3(1.05f, 1.3f, -1.35f), new Vector3(0.1f, 0.7f, 3.1f), body, true);
-            Box(ph, "BedFront", new Vector3(0f, 1.3f, 0.15f), new Vector3(2.2f, 0.7f, 0.1f), body, true);
-            // 後ろのあおり：床から 0.3m（持った高さから投げても越えられる低さ）
-            Box(ph, "Tailgate", new Vector3(0f, 1.1f, -2.86f), new Vector3(2.2f, 0.3f, 0.12f), body, true);
-
-            // 荷台の床・板は跳ね返らず、すべりにくい（投げ込んだ箱が前の板で跳ね返って後ろへ出ないように）
-            var bedSurface = BedPhysicsMaterial();
-            foreach (var part in new[] { "BedFloor", "BedSide_L", "BedSide_R", "BedFront", "Tailgate" })
-                ph.Find(part).GetComponent<Collider>().sharedMaterial = bedSurface;
-            Box(ph, "Cab", new Vector3(0f, 1.6f, 1.25f), new Vector3(2.2f, 1.9f, 1.8f), body, true);
-            Box(ph, "Windshield", new Vector3(0f, 2.05f, 2.16f), new Vector3(1.9f, 0.8f, 0.04f), glass, false);
-            Box(ph, "Window_L", new Vector3(-1.11f, 2.05f, 1.35f), new Vector3(0.04f, 0.7f, 1.1f), glass, false);
-            Box(ph, "Window_R", new Vector3(1.11f, 2.05f, 1.35f), new Vector3(0.04f, 0.7f, 1.1f), glass, false);
-            Box(ph, "SignBoard", new Vector3(0f, 3.05f, 0.95f), new Vector3(2.0f, 0.75f, 0.08f), ink, false);
-            foreach (var (n, x, z) in new[] { ("Wheel_FL", -1.0f, 1.3f), ("Wheel_FR", 1.0f, 1.3f), ("Wheel_RL", -1.0f, -1.9f), ("Wheel_RR", 1.0f, -1.9f) })
-            {
-                var w = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                w.name = n;
-                Object.DestroyImmediate(w.GetComponent<Collider>());
-                w.transform.SetParent(ph, false);
-                w.transform.localPosition = new Vector3(x, 0.42f, z);
-                w.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
-                w.transform.localScale = new Vector3(0.84f, 0.15f, 0.84f);
-                w.GetComponent<Renderer>().sharedMaterial = dark;
-            }
+            BuildTruckLook(visual, BedPhysicsMaterial());
 
             // 乗った・乗らないを測る中心（荷台の口の後ろ）
             var board = new GameObject("Anchor_Board").transform;
@@ -225,17 +191,6 @@ internal static class RoomiesDeliveryTruckBuilder
         return m;
     }
 
-    static void Box(Transform parent, string name, Vector3 pos, Vector3 size, Material mat, bool collide)
-    {
-        var g = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        g.name = name;
-        if (!collide) Object.DestroyImmediate(g.GetComponent<Collider>());
-        g.transform.SetParent(parent, false);
-        g.transform.localPosition = pos;
-        g.transform.localScale = size;
-        if (mat != null) g.GetComponent<Renderer>().sharedMaterial = mat;
-    }
-
     // ---- 3. シーンに置く ----
 
     [MenuItem("Roomies/Delivery/3 Place Truck In Open Scene")]
@@ -262,6 +217,9 @@ internal static class RoomiesDeliveryTruckBuilder
             .Where(h => !h.transform.IsChildOf(truck.transform)).OrderBy(h => h.distance).ToArray();
         if (groundHits.Length > 0) p.y = groundHits[0].point.y;
         truck.transform.SetPositionAndRotation(p, Quaternion.Euler(0f, TruckYaw, 0f));
+        // プレハブを作り直すと中の部品の ID が変わるので、もう無い部品への上書きをシーンから消す
+        if (PrefabUtility.IsPartOfPrefabInstance(truck))
+            PrefabUtility.RemoveUnusedOverrides(new[] { truck.gameObject }, InteractionMode.AutomatedAction);
 
         var tso = new SerializedObject(truck);
         tso.FindProperty("deliveryZone").objectReferenceValue = zone;
