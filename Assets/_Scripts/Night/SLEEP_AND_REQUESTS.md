@@ -49,8 +49,12 @@
 置き場所はシーンの `DailyRequestManager`（`Roomies/Night/Place Beds In Open Scene` が一緒に置く）。
 必要数・報酬・告知の有無はインスペクターで変えられる。
 
+### HUD の表示
+
+- 進み具合は HUD の「いまの目標」に1行で出る（`HudThemer.DefaultObjective` が `DailyRequestManager.StatusText` を出す）。
+  達成したあとは、ふだんの目標の文に戻る。牢屋にいる間は牢屋の作業の文が優先
+- 告知のバナーは朝・半分・達成の3回
+
 ### まだ無いもの
 
-- **HUDに進み具合が出ない**。いまは朝の告知・半分・達成の3回しかバナーが出ない。
-  HUDを実体化したら、`DailyRequestManager.StatusText` を1行出すとよい
 - 寝ている間の見た目（目を閉じる・画面を暗くするなど）は無い
