@@ -23,7 +23,7 @@ internal static partial class RoomiesTownRebuild
     const string CombinedDir = "Assets/_Art/Restyle/Town/Combined";
     const string CombinedName = "Combined";
     const float ShadowMinSize = .9f;
-    static readonly string[] PrefabGroups = { FacadeGroup, HouseGroup, RooftopGroup, PropGroup, NightLightGroup, "Town jail", "Town main house", "Town casino", "Town road" };
+    static readonly string[] PrefabGroups = { FacadeGroup, HouseGroup, RooftopGroup, PropGroup, NightLightGroup, "Town jail", "Town main house", "Town casino", "Town road", EnclosureGroup };
     static readonly string[] BackdropGroups = { "Ground beyond the fence", "Outer town", "Mountains" };
 
     [MenuItem("Roomies/Art/Town/9 Combine For Speed")]
@@ -86,7 +86,8 @@ internal static partial class RoomiesTownRebuild
             Vector3 c = toLocal.MultiplyPoint3x4(r.bounds.center);
             bool already = r.transform.parent != null && r.transform.parent.name == CombinedName;
             bool shadow = shadows && (already ? r.shadowCastingMode != ShadowCastingMode.Off : CastsShadow(r, mat));
-            var key = (mat, Mathf.FloorToInt(c.x / cell), Mathf.FloorToInt(c.z / cell), shadow);
+            // cell が 0 以下なら区画に分けない（素材と影の有無だけで分ける）
+            var key = cell > 0 ? (mat, Mathf.FloorToInt(c.x / cell), Mathf.FloorToInt(c.z / cell), shadow) : (mat, 0, 0, shadow);
             if (!buckets.TryGetValue(key, out var list)) buckets[key] = list = new List<CombineInstance>();
             // まとめ直しのときは、まとめた物を1つの部品として数える（区画は中心で決まるので同じ所に入る）
             list.Add(new CombineInstance { mesh = mf.sharedMesh, subMeshIndex = 0, transform = toLocal * r.localToWorldMatrix });
