@@ -378,32 +378,8 @@ internal static partial class RoomiesBackdropBuilder
         Box(tower, "Mast", new Vector3(0f, 68f, 0f), new Vector3(0.5f, 24f, 0.5f), "silver");
         Box(tower, "Beacon", new Vector3(0f, 80f, 0f), new Vector3(1.2f, 1.2f, 1.2f), "coral");
 
-        // 観覧車
-        Transform wheel = Group(parent, "Ferris wheel");
-        wheel.position = new Vector3(188f, 0f, 188f);
-        wheel.localRotation = Quaternion.Euler(0f, -28f, 0f);
-        const float radius = 26f;
-        Box(wheel, "Base", new Vector3(0f, 1.2f, 0f), new Vector3(14f, 2.4f, 10f), "cream");
-        foreach (float side in new[] { -3.2f, 3.2f })
-        {
-            Box(wheel, "Support", new Vector3(-6f, radius / 2f + 2f, side),
-                new Vector3(1.2f, radius + 4f, 1.2f), "silver");
-            Box(wheel, "Support", new Vector3(6f, radius / 2f + 2f, side),
-                new Vector3(1.2f, radius + 4f, 1.2f), "silver");
-        }
-        for (int i = 0; i < 16; i++)
-        {
-            float angle = 360f / 16f * i;
-            Vector3 offset = Quaternion.Euler(angle, 0f, 0f) * new Vector3(0f, radius, 0f);
-
-            Transform spoke = Group(wheel, "Spoke");
-            spoke.localPosition = new Vector3(0f, radius + 4f, 0f);
-            spoke.localRotation = Quaternion.Euler(angle, 0f, 0f);
-            Box(spoke, "Arm", new Vector3(0f, radius / 2f, 0f), new Vector3(0.35f, radius, 0.35f), "silver");
-
-            Box(wheel, "Cabin", new Vector3(0f, radius + 4f + offset.y, offset.z),
-                new Vector3(2.6f, 2.6f, 2.6f), Pick("coral", "mustard", "teal", "pink"));
-        }
+        // 観覧車（RoomiesBackdropBuilder.Ferris.cs。乱数はゴンドラの色の16回だけで、前と同じ順）
+        FerrisWheel(parent);
 
         // 球形のガスタンク（丸い物が1つあると目を引く）
         Transform gas = Group(parent, "Gas holder");
