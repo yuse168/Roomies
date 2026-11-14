@@ -127,6 +127,12 @@
   留置所は x 0.8〜12.45・z 13.2〜22.65（待合室・面会の廊下・留置室。裏の z 22.65〜24 は取引の NPC への通り道）。
   メインの家は外階段を正面の壁に沿った形に変えた（古い段の当たり判定と Demo/pCube12 の坂の当たり判定は外した）。
 
+- 町の改善（2026/11/14） … 遊べる範囲の外の囲い `Roomies/Art/Town/4 Enclosure`（`RoomiesTownEnclosure.cs`、町のプレハブの「Town enclosure」）、
+  大通りの歩道橋 `5 Footbridge`（「Town footbridge」。確認は `Footbridge Check (Play Mode)`）、遠くの霧 `Roomies/Art/Restyle/Material Finish/7 Distance Fog`
+  （朝夜の色は `RoomTimeOfDayLighting` の `morningFogColor`・`nightFogColor`、距離はシーンのライティング設定）、牢屋の作業台の見た目
+  `Roomies/Art/Rebuild/5 Jail Workbench`（プレハブ `JailLabor_Placeholder` の `Visual/Workbench`）。高架・電車・観覧車・遠景のビルは
+  `Roomies/Environment/Build Distant Backdrop`（`RoomiesBackdropBuilder.Railway/Ferris/OuterTown.cs`）。
+  `9 Combine For Speed` がまとめるのは、上の町の作り直しのグループに加えて、留置所・メインの家・カジノ・道路・囲い・歩道橋（コードの `PrefabGroups`）
 - 配達トラックと箱の値札（2026/11/13） … `Roomies/Delivery/1 Build Price Tags`・`2 Build Truck Prefab`・`3 Place Truck In Open Scene`
   （`RoomiesDeliveryTruckBuilder`）。トラックは `Assets/_Prefabs/Delivery/DeliveryTruck.prefab`。値段・締め切り・乗る距離は `GameBalance`。
   通し確認は Play Mode で `Town/Walk - Enter GameRoom As Host` → `Roomies/Delivery/Play Test`
