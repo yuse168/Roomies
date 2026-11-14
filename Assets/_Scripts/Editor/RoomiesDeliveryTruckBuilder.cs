@@ -132,7 +132,13 @@ internal static class RoomiesDeliveryTruckBuilder
             Box(ph, "BedSide_L", new Vector3(-1.05f, 1.3f, -1.35f), new Vector3(0.1f, 0.7f, 3.1f), body, true);
             Box(ph, "BedSide_R", new Vector3(1.05f, 1.3f, -1.35f), new Vector3(0.1f, 0.7f, 3.1f), body, true);
             Box(ph, "BedFront", new Vector3(0f, 1.3f, 0.15f), new Vector3(2.2f, 0.7f, 0.1f), body, true);
-            Box(ph, "Tailgate", new Vector3(0f, 1.05f, -2.9f), new Vector3(2.2f, 0.25f, 0.08f), body, true);
+            // 後ろのあおり：床から 0.3m（持った高さから投げても越えられる低さ）
+            Box(ph, "Tailgate", new Vector3(0f, 1.1f, -2.86f), new Vector3(2.2f, 0.3f, 0.12f), body, true);
+
+            // 荷台の床・板は跳ね返らず、すべりにくい（投げ込んだ箱が前の板で跳ね返って後ろへ出ないように）
+            var bedSurface = BedPhysicsMaterial();
+            foreach (var part in new[] { "BedFloor", "BedSide_L", "BedSide_R", "BedFront", "Tailgate" })
+                ph.Find(part).GetComponent<Collider>().sharedMaterial = bedSurface;
             Box(ph, "Cab", new Vector3(0f, 1.6f, 1.25f), new Vector3(2.2f, 1.9f, 1.8f), body, true);
             Box(ph, "Windshield", new Vector3(0f, 2.05f, 2.16f), new Vector3(1.9f, 0.8f, 0.04f), glass, false);
             Box(ph, "Window_L", new Vector3(-1.11f, 2.05f, 1.35f), new Vector3(0.04f, 0.7f, 1.1f), glass, false);
@@ -183,6 +189,27 @@ internal static class RoomiesDeliveryTruckBuilder
         {
             Object.DestroyImmediate(root);
         }
+    }
+
+    const string BedMaterialPath = TruckFolder + "/TruckBedSurface.physicsMaterial";
+
+    /// <summary>
+    /// 荷台の物理の素材（跳ね返り 0・摩擦 ふつう）。無ければ作り、あれば値をそろえる。
+    /// 摩擦を強くしすぎると、あおりの上に乗った箱がすべり落ちずに口をふさぐので、ふつうにしている。
+    /// </summary>
+    static PhysicsMaterial BedPhysicsMaterial()
+    {
+        var m = AssetDatabase.LoadAssetAtPath<PhysicsMaterial>(BedMaterialPath);
+        bool create = m == null;
+        if (create) m = new PhysicsMaterial("TruckBedSurface");
+        m.bounciness = 0f;
+        m.bounceCombine = PhysicsMaterialCombine.Minimum;
+        m.dynamicFriction = 0.45f;
+        m.staticFriction = 0.5f;
+        m.frictionCombine = PhysicsMaterialCombine.Average;
+        if (create) AssetDatabase.CreateAsset(m, BedMaterialPath);
+        else { EditorUtility.SetDirty(m); AssetDatabase.SaveAssetIfDirty(m); }
+        return m;
     }
 
     static Material Mat(string relative)
