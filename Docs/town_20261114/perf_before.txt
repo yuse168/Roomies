@@ -1,0 +1,9 @@
+spawn   all          render med 7.20 ms  mean 7.42 ms  tris 1288448  draws 2811
+spawn   no_rebuild2  render med 6.17 ms  mean 6.63 ms  tris 705490  draws 2648
+spawn   no_nature    render med 7.23 ms  mean 7.40 ms  tris 1145156  draws 2673
+street  all          render med 5.89 ms  mean 6.35 ms  tris 991482  draws 1486
+street  no_rebuild2  render med 5.46 ms  mean 5.83 ms  tris 627356  draws 1281
+street  no_nature    render med 5.47 ms  mean 5.99 ms  tris 836198  draws 1319
+casino  all          render med 5.85 ms  mean 6.36 ms  tris 1149474  draws 1429
+casino  no_rebuild2  render med 5.56 ms  mean 5.88 ms  tris 785640  draws 1259
+casino  no_nature    render med 5.69 ms  mean 6.02 ms  tris 964426  draws 1245
