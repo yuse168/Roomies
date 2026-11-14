@@ -40,6 +40,10 @@ internal static partial class RoomiesTownRebuild
         ("jail lobby to counter", new[] { new Vector2(2.85f, 10.5f), new Vector2(2.85f, 18.6f) }, true),
         ("behind jail to dealer", new[] { new Vector2(.3f, 18f), new Vector2(.3f, 23.3f), new Vector2(10.2f, 23.3f) }, true),
         ("west lawn", new[] { new Vector2(-30f, 6.5f), new Vector2(-30f, 20f), new Vector2(-12f, 20f) }, true),
+        // 歩道橋（詳しくは Footbridge Check）
+        ("footbridge south stairs to north stairs", new[] { new Vector2(-27.4f, -7.5f), new Vector2(-19.6f, -7.5f), new Vector2(-19.6f, 15.2f) }, true),
+        ("footbridge ramp to south stairs", new[] { new Vector2(-5f, 7.5f), new Vector2(-19.6f, 7.5f), new Vector2(-19.6f, -7.5f), new Vector2(-27.4f, -7.5f) }, true),
+        ("footbridge deck east rail (should stop)", new[] { new Vector2(-27.4f, -7.5f), new Vector2(-19.6f, -7.5f), new Vector2(-19.6f, 0f), new Vector2(-15f, 0f) }, false),
     };
 
     /// <summary>Play Mode 中：ロビーと同じく、ホストを始めて GameRoom を読み込む（SteamLobby の StartHostRoutine と同じ呼び方）。</summary>
