@@ -25,6 +25,7 @@ internal static class RoomiesDeliveryPlayTest
     static readonly StringBuilder log = new StringBuilder();
     static readonly List<string> moneyLines = new List<string>();
     static int ok, ng;
+    static readonly List<string> netcodeWarnings = new List<string>();
 
     class Runner : MonoBehaviour { }
 
@@ -32,7 +33,7 @@ internal static class RoomiesDeliveryPlayTest
     static void Run()
     {
         if (!EditorApplication.isPlaying) { Debug.LogWarning("[DeliveryTest] Play Mode で実行する"); return; }
-        log.Clear(); moneyLines.Clear(); ok = ng = 0;
+        log.Clear(); moneyLines.Clear(); netcodeWarnings.Clear(); ok = ng = 0;
         var runner = new GameObject("Delivery Play Test Runner").AddComponent<Runner>();
         Object.DontDestroyOnLoad(runner.gameObject);
         runner.StartCoroutine(Main(runner));
@@ -56,6 +57,7 @@ internal static class RoomiesDeliveryPlayTest
     {
         if (message.StartsWith("[Money") || message.StartsWith("[DIAG")) moneyLines.Add(message);
         if (type == LogType.Exception || type == LogType.Error) { moneyLines.Add("ERROR: " + message); }
+        if (message.Contains("[Netcode]") && type == LogType.Warning) netcodeWarnings.Add(message.Split('\n')[0]);
     }
 
     static IEnumerator Main(MonoBehaviour runner)
@@ -225,14 +227,57 @@ internal static class RoomiesDeliveryPlayTest
         yield return new WaitForSeconds(0.5f);
         Check(Boxes().Count == loosesBefore, $"割れたら集荷場に補充される（{loosesBefore} → {Boxes().Count}）");
 
-        // ---- 持って荷台へ（ホストの RPC 経路：拾う → 持ったまま動かす → 落とす）
         var player = HostPlayer();
+        // ---- 強く投げ込んでも、後ろ（あおり）から跳ね出ない
+        {
+            int backOut = 0, inside = 0, sideOut = 0, notCleared = 0;
+            // 荷台が空のうちに確かめる。投げる道すじに自分が立たないよう、トラックの横へよける
+            TeleportHost(GroundAt(truck.transform.TransformPoint(new Vector3(4f, 0f, -3f))) + Vector3.up * 1.1f);
+            yield return new WaitForSeconds(0.3f);
+            foreach (float speed in new[] { 6f, 8f, 10f })
+            {
+                var hb = Boxes().FirstOrDefault(b => b != a && !truck.ServerContains(b.NetworkObject) && b.name.Contains("(Clone)"));
+                if (hb == null) break;
+                hb.GetComponent<CarryableObject>().ServerRelocate(truck.transform.TransformPoint(new Vector3(0f, 1.9f, -5.0f)));
+                yield return new WaitForFixedUpdate();
+                hb.GetComponent<Rigidbody>().linearVelocity = truck.transform.TransformDirection(new Vector3(0f, 1.6f, speed));
+                float maxZ = -99f;
+                var path = new StringBuilder();
+                var hbCol = hb.GetComponentInChildren<Collider>();
+                Log($"  box bounds size {hbCol.bounds.size}");
+                float nextSample = 0f;
+                for (float w = 0f; w < 3f && hb != null && hb.IsSpawned; w += Time.deltaTime)
+                {
+                    Vector3 lp = truck.transform.InverseTransformPoint(hb.transform.position);
+                    maxZ = Mathf.Max(maxZ, lp.z);
+                    if (w >= nextSample && w < 1.2f) { path.Append($" [{w:F2}s z{lp.z:F2} y{lp.y:F2} bot{hbCol.bounds.min.y - truck.transform.position.y:F2}]"); nextSample += 0.08f; }
+                    yield return null;
+                }
+                Log("  path" + path);
+                if (hb == null || !hb.IsSpawned) continue;
+                Vector3 local = truck.transform.InverseTransformPoint(hb.transform.position);
+                Log($"  (furthest z {maxZ:F1})");
+                bool entered = maxZ > -2.3f;     // 箱の中心があおりを越えて荷台に入ったか
+                if (truck.ServerContains(hb.NetworkObject)) inside++;
+                else if (!entered) notCleared++;
+                else if (local.z < -2.9f) backOut++;
+                else sideOut++;
+                Log($"  throw {speed}m/s: local ({local.x:F1}, {local.y:F1}, {local.z:F1}) in bed {truck.ServerContains(hb.NetworkObject)}");
+                // 次の投げ込みのために荷台を空ける
+                hb.GetComponent<CarryableObject>().ServerRelocate(testSpot + new Vector3(-2f + inside + backOut + sideOut + notCleared, 0.6f, 2f));
+                yield return new WaitForSeconds(0.8f);
+            }
+            Check(backOut == 0 && inside >= 2,
+                $"強く投げ込んでも後ろから跳ね出ない（荷台に残った {inside}・入ってから後ろへ {backOut}・横や前へ {sideOut}・あおりを越えず {notCleared}）");
+        }
+
+        // ---- 持って荷台へ（ホストの RPC 経路：拾う → 持ったまま動かす → 落とす）
         Vector3 board = truck.transform.TransformPoint(new Vector3(0f, 0f, -3.2f));
         TeleportHost(GroundAt(board) + Vector3.up * 1.1f);
         yield return new WaitForSeconds(0.3f);
 
         int looseBefore = Boxes().Count(b => !truck.ServerContains(b.NetworkObject));
-        var b1 = Boxes().First(b => b != a);
+        var b1 = Boxes().First(b => b != a && b.name.Contains("(Clone)"));
         var c1 = b1.GetComponent<CarryableObject>();
         c1.ServerRelocate(player.transform.position + player.transform.forward * 1.2f);
         yield return new WaitForSeconds(0.8f);
@@ -251,7 +296,7 @@ internal static class RoomiesDeliveryPlayTest
         yield return new WaitForSeconds(1.5f);
         Check(truck.BedCount == 1, $"荷台に落とすと積んだことになる（荷台 {truck.BedCount}個 ¥{truck.BedValue}、落ちた衝撃で ¥{b1Before} → ¥{b1.CurrentValue}）");
         int looseAfter = Boxes().Count(b => !truck.ServerContains(b.NetworkObject));
-        Check(looseAfter == looseBefore, $"積んだら集荷場に補充される（町の箱 {looseBefore} → {looseAfter}個）");
+        Check(looseAfter >= balance.deliveryLooseBoxes, $"積んだら集荷場に補充される（町の箱 {looseBefore} → {looseAfter}個、GameBalance は {balance.deliveryLooseBoxes}個以上）");
 
         // ---- 荷台に投げ込む（遠くから放物線で）
         var b2 = Boxes().First(b => b != a && b != b1 && !truck.ServerContains(b.NetworkObject));
@@ -261,6 +306,15 @@ internal static class RoomiesDeliveryPlayTest
         b2.GetComponent<Rigidbody>().linearVelocity = truck.transform.TransformDirection(new Vector3(0f, 2.5f, 5f));
         yield return new WaitForSeconds(2f);
         Check(truck.ServerContains(b2.NetworkObject), $"投げ込んだ箱が荷台に入った（¥{b2Before} → ¥{b2.CurrentValue}）");
+
+        // ---- シーンに直接置いた箱も荷台へ（発車で消すときに NGO の警告が出ないか）
+        var sceneBox = Boxes().FirstOrDefault(b => !b.name.Contains("(Clone)") && b != a && b != b1 && b != b2);
+        if (sceneBox != null)
+        {
+            sceneBox.GetComponent<CarryableObject>().ServerRelocate(truck.transform.TransformPoint(new Vector3(0.5f, 1.4f, -1.0f)));
+            yield return new WaitForSeconds(1.5f);
+            Log($"scene box {sceneBox.name} in bed {truck.ServerContains(sceneBox.NetworkObject)}");
+        }
 
         // ---- 手に持ったまま発車を迎える箱
         var b3 = Boxes().First(b => b != a && !truck.ServerContains(b.NetworkObject));
@@ -295,14 +349,28 @@ internal static class RoomiesDeliveryPlayTest
         Check(credited == bedValue && truckLines.Count == bedCount,
             $"発車で荷台の荷物がお金になる（荷台 {bedCount}個 ¥{bedValue} → 入金 {truckLines.Count}件 ¥{credited}）");
         int earnDelta = player.GetComponent<PlayerEarning>().GetEarning() - earnBefore;
-        Check(earnDelta + foodPerPlayer == (b1InBed ? b1Value : 0),
-            $"積んだ人（乗った）の稼ぎに記録される（稼ぎ {earnDelta:+#;-#;0} ＝ 自分で積んだ箱 ¥{b1Value} − 同じ瞬間の食費 ¥{foodPerPlayer}。投げ込んだ箱は誰も持っていないので記録なし）");
+        int foundPerPlayer = moneyLines.SkipWhile(l => l != "---- depart 1 ----").Where(l => l.Contains("Found money"))
+            .Sum(l => int.Parse(System.Text.RegularExpressions.Regex.Match(l, @"\+(\d+)R").Groups[1].Value)) / Mathf.Max(1, nm.ConnectedClients.Count);
+        Check(earnDelta + foodPerPlayer - foundPerPlayer == (b1InBed ? b1Value : 0),
+            $"積んだ人（乗った）の稼ぎに記録される（稼ぎ {earnDelta:+#;-#;0} ＝ 自分で積んだ箱 ¥{b1Value} − 食費 ¥{foodPerPlayer} ＋ 落とし物 ¥{foundPerPlayer}（同じ瞬間の夜イベント）。投げ込んだ箱は誰も持っていないので記録なし）");
         Check(truck.BedCount == 0 && (b1 == null || !b1.IsSpawned), "発車で荷台は空になる");
         Check(b3 != null && b3.IsSpawned && c3.IsHeld, "手に持っていた箱は数えず、手に残る");
         float distHome = Object.FindObjectsByType<SpawnPoint>().Min(s => Vector3.Distance(s.transform.position, player.transform.position));
         Check(distHome < 2.5f, $"乗った人は家（スポーン地点）へ帰る（いちばん近いスポーン地点まで {distHome:F1}m）");
         c3.DropServerRpc(player.transform.position + player.transform.forward, Vector3.zero);
-        yield return new WaitForSeconds(0.5f);
+        if (sceneBox != null)
+            Check(!sceneBox.gameObject.activeSelf && netcodeWarnings.Count == 0,
+                $"シーンに直接置いた箱を運び出しても NGO の警告が出ず、隠れる（表示 {sceneBox.gameObject.activeSelf}、警告 {netcodeWarnings.Count}件）");
+
+        // ---- 走り去る（見た目だけ）
+        var pivot = (Transform)typeof(DeliveryTruck).GetField("drivePivot", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(truck);
+        Check(truck.IsAway, "発車したらトラックは出かけている（away）");
+        yield return new WaitForSeconds(2.2f);
+        Vector3 mid = pivot.localPosition;
+        Check(pivot.gameObject.activeSelf && mid.magnitude > 0.5f, $"走り去る途中（軸の位置 ({mid.x:F1}, {mid.y:F1}, {mid.z:F1})・向き {pivot.localEulerAngles.y:F0}°）");
+        yield return new WaitForSeconds(4f);
+        Check(!pivot.gameObject.activeSelf, "走り去ったあとは見えなくなる");
+        Check(truck.BedCount == 0, "出かけている間は荷台に何もない");
 
         // ---- 夜1：運び屋の成功
         var contacts = Object.FindObjectsByType<SmugglingContact>();
@@ -357,6 +425,8 @@ internal static class RoomiesDeliveryPlayTest
             yield return WaitUntil(() => !dm.IsNight && dm.CurrentDay == day0 + 1, 40f);
             Check(!dm.IsNight && dm.CurrentDay == day0 + 1, $"ひとりで寝たら朝になる（DAY {day0} → {dm.CurrentDay}）");
             yield return new WaitForSeconds(3.5f);
+            Check(!truck.IsAway && pivot.gameObject.activeSelf && pivot.localPosition.magnitude < 0.01f,
+                "朝になるとトラックは元の場所に戻る");
         }
         else Check(false, "ベッドが見つからない");
 
@@ -378,13 +448,19 @@ internal static class RoomiesDeliveryPlayTest
             TeleportHost(far);
             int earnB = player.GetComponent<PlayerEarning>().GetEarning();
             int lines0 = moneyLines.Count(l => l.Contains("(Truck)"));
+            moneyLines.Add("---- depart 2 ----");
             SetRemaining(2f);
             yield return WaitUntil(() => dm.IsNight, 10f);
             yield return new WaitForSeconds(1f);
             int lines1 = moneyLines.Count(l => l.Contains("(Truck)"));
             Check(lines1 == lines0 + 1, $"置いていかれても、荷台の荷物はお金になる（¥{value}）");
             int dEarn = player.GetComponent<PlayerEarning>().GetEarning() - earnB;
-            Check(dEarn <= 0, $"置いていかれた人の稼ぎには記録されない（稼ぎの増減 {dEarn}。同じ瞬間の夜イベントの食費だけ）");
+            // 同じ瞬間の夜イベント（食費・落とし物）も個人の記録を動かすので、その分を除く
+            var after2 = moneyLines.SkipWhile(l => l != "---- depart 2 ----").ToList();
+            int players = Mathf.Max(1, nm.ConnectedClients.Count);
+            int food = after2.Where(l => l.Contains("FoodBill")).Sum(l => int.Parse(System.Text.RegularExpressions.Regex.Match(l, @"-(\d+)R").Groups[1].Value)) / players;
+            int found = after2.Where(l => l.Contains("Found money")).Sum(l => int.Parse(System.Text.RegularExpressions.Regex.Match(l, @"\+(\d+)R").Groups[1].Value)) / players;
+            Check(dEarn + food - found == 0, $"置いていかれた人の稼ぎには記録されない（稼ぎの増減 {dEarn} ＝ 落とし物 +{found} − 食費 {food}）");
             Check(Vector3.Distance(player.transform.position, far) < 1.5f, "置いていかれた人は町に残る（家へ帰らない）");
         }
 
@@ -417,6 +493,7 @@ internal static class RoomiesDeliveryPlayTest
             }
         }
 
+        Check(netcodeWarnings.Count == 0, $"通しで NGO の警告なし（{netcodeWarnings.Count}件）" + (netcodeWarnings.Count > 0 ? "：" + netcodeWarnings[0] : ""));
         Log($"end: day {dm.CurrentDay} night {dm.IsNight} money {Money()}");
     }
 }
