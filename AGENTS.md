@@ -133,6 +133,11 @@
   `Roomies/Art/Rebuild/5 Jail Workbench`（プレハブ `JailLabor_Placeholder` の `Visual/Workbench`）。高架・電車・観覧車・遠景のビルは
   `Roomies/Environment/Build Distant Backdrop`（`RoomiesBackdropBuilder.Railway/Ferris/OuterTown.cs`）。
   `9 Combine For Speed` がまとめるのは、上の町の作り直しのグループに加えて、留置所・メインの家・カジノ・道路・囲い・歩道橋（コードの `PrefabGroups`）
+- 部屋の小物のローポリ（2026/11/23） … 缶・瓶・観葉植物・電飾と吊りランプの電球・ピザと箱は、`Build Room` / `Build Title Room` が
+  1 つの形のメッシュで置く（`RoomiesRoomRestyleBuilder.Props.cs`。メッシュは `RestyleMeshes.asset` の `prop_*`）。色はアトラス
+  `Assets/_Art/Restyle/Props/props_atlas.png` とマテリアル `Assets/_Materials/Props/props_atlas.mat` を使い回す。
+  本物のテクスチャは `Assets/_Art/Restyle/Props/Source/` に決まった名前で置いて作り直す（名前は同じ場所の README.txt）。
+  同じ角度の写真と数の確認は `RoomiesPropsCheck`（バッチ用）
 - 配達トラックと箱の値札（2026/11/13） … `Roomies/Delivery/1 Build Price Tags`・`2 Build Truck Prefab`・`3 Place Truck In Open Scene`
   （`RoomiesDeliveryTruckBuilder`）。トラックは `Assets/_Prefabs/Delivery/DeliveryTruck.prefab`。値段・締め切り・乗る距離は `GameBalance`。
   通し確認は Play Mode で `Town/Walk - Enter GameRoom As Host` → `Roomies/Delivery/Play Test`

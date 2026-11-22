@@ -206,6 +206,7 @@ internal static partial class RoomiesRoomRestyleBuilder
         glowPurple = TextGlow("text_neon_purple", "B45CFF", 5.5f);
         glowRed = TextGlow("text_glow_red", "FF3A2A", 3.2f);
         glowWhite = TextGlow("text_glow_white", "FFFFFF", 1.8f);
+        PropsPalette();   // 小物のアトラスとマテリアル（RoomiesRoomRestyleBuilder.Props.cs）
     }
 
     // ================================================================ 元の部屋を整える（消さない）
@@ -502,7 +503,8 @@ internal static partial class RoomiesRoomRestyleBuilder
         var path = new List<Vector3>();
         for (int i = 0; i <= 32; i++) { float t = i / 32f; path.Add(V(0, -.16f * Mathf.Abs(Mathf.Sin(t * Mathf.PI * 4)), 14.4f + t * 8.6f)); }
         Tube(lights, "Wire", "fairy_wire", path.ToArray(), .004f, black, false, default, default, false);
-        for (int i = 1; i < 32; i += 2) Ball(lights, "Bulb", path[i] + V(.012f, -.02f, 0), V(.035f, .045f, .035f), fairy);
+        // 電球はソケットの上がコードに付く（少しずつ左右に傾ける）。玉は光る素材、ソケットはアトラスの色
+        for (int i = 1; i < 32; i += 2) MeshPart(lights, "Bulb", BulbMesh(), new[] { fairy, propsMat }, path[i] + V(.016f, -.002f, 0), V((i / 2) % 2 == 0 ? 9 : -9, 0, 0), 1.25f, false);
     }
 
     // ================================================================ すみっこ（段ボールとサメ・扇風機・観葉植物・洗濯物）
@@ -606,14 +608,14 @@ internal static partial class RoomiesRoomRestyleBuilder
         Cyl(pendant, "Cord", V(0, -.4f, 0), .012f, .76f, black);
         Lathe(pendant, "Shade", "pendant_shade", new[] { new Vector2(.415f, -1.09f), new Vector2(.4f, -1.06f), new Vector2(.2f, -.88f), new Vector2(.09f, -.8f), new Vector2(.035f, -.78f) }, V(0, 0, 0), lampShade, default, 20);
         Lathe(pendant, "Shade inside", "pendant_inner", new[] { new Vector2(.39f, -1.065f), new Vector2(.19f, -.89f), new Vector2(.08f, -.81f) }, V(0, 0, 0), Mat("lamp_inner", "F2E2C0", .2f, 0, "FFD9A0", 1.4f, null, null, true), default, 20);
-        Ball(pendant, "Bulb", V(0, -.97f, 0), V(.13f, .15f, .13f), bulb);
+        MeshPart(pendant, "Bulb", BulbMesh(), new[] { bulb, propsMat }, V(0, -.86f, 0), default, 3.6f);
         foreach (var r in pendant.GetComponentsInChildren<MeshRenderer>()) if (r.name != "Shade") r.shadowCastingMode = ShadowCastingMode.Off;
         Lamp(pendant, "Pendant light", V(0, -1.0f, 0), new Color(1f, .78f, .5f), 15f, 11f, true);
 
         var kitchen = Group(g, "Kitchen lamp", V(18.9f, Ceiling, 22.2f));
         Cyl(kitchen, "Cord", V(0, -.25f, 0), .01f, .5f, black);
         Lathe(kitchen, "Shade", "kitchen_shade", new[] { new Vector2(.205f, -.64f), new Vector2(.2f, -.62f), new Vector2(.07f, -.52f), new Vector2(.03f, -.5f) }, V(0, 0, 0), Mat("lamp_shade_green", "3F5E52", .4f, .3f, null, 1, null, null, true), default, 16);
-        Ball(kitchen, "Bulb", V(0, -.6f, 0), V(.09f, .1f, .09f), bulb);
+        MeshPart(kitchen, "Bulb", BulbMesh(), new[] { bulb, propsMat }, V(0, -.52f, 0), default, 2.2f);
         foreach (var r in kitchen.GetComponentsInChildren<MeshRenderer>()) r.shadowCastingMode = ShadowCastingMode.Off;
         Lamp(kitchen, "Kitchen light", V(0, -.72f, 0), new Color(1f, .8f, .55f), 5f, 6.5f);
 
@@ -665,24 +667,18 @@ internal static partial class RoomiesRoomRestyleBuilder
     // ================================================================ 小物
     static Vector3[] Circle(float radius, int count) => Enumerable.Range(0, count).Select(i => V(Mathf.Cos(i * Mathf.PI * 2 / count) * radius, Mathf.Sin(i * Mathf.PI * 2 / count) * radius, 0)).ToArray();
 
-    static readonly Vector2[] CanProfile = { new Vector2(0, 0), new Vector2(.029f, 0), new Vector2(.033f, .008f), new Vector2(.033f, .112f), new Vector2(.027f, .122f), new Vector2(0, .122f) };
+    // 缶・瓶は 1 つの形（RoomiesRoomRestyleBuilder.Props.cs）。ラベルはアトラスの帯を周り 1 周に貼る
     static void Can(Transform p, Vector3 pos, int color, bool tipped, float yaw = 0)
     {
         var c = Group(p, "Can", tipped ? pos + V(0, .033f, 0) : pos, yaw);
         if (tipped) c.localEulerAngles = V(0, yaw, 90);
-        var body = canColors[color % canColors.Length];
-        Lathe(c, "Body", "can", CanProfile, Vector3.zero, body, default, 12);
-        Cyl(c, "Label", V(0, .062f, 0), .0675f, .045f, canColors[(color + 3) % canColors.Length]);
-        Cyl(c, "Lid", V(0, .121f, 0), .052f, .004f, metalGrey);
+        MeshPart(c, "Body", CanMesh(color % canColors.Length), new[] { propsMat }, Vector3.zero);
     }
 
-    static readonly Vector2[] BottleProfile = { new Vector2(0, 0), new Vector2(.032f, 0), new Vector2(.035f, .01f), new Vector2(.035f, .13f), new Vector2(.014f, .19f), new Vector2(.013f, .24f), new Vector2(0, .24f) };
     static void Bottle(Transform p, Vector3 pos, float scale, Vector3 rot = default)
     {
         var b = Group(p, "Bottle", pos); b.localEulerAngles = rot; b.localScale = Vector3.one * scale;
-        Lathe(b, "Glass", "bottle", BottleProfile, Vector3.zero, glassBrown, default, 12);
-        Cyl(b, "Label", V(0, .075f, 0), .072f, .07f, cream);
-        Cyl(b, "Cap", V(0, .242f, 0), .03f, .012f, gold);
+        MeshPart(b, "Body", BottleMesh(BottleVariant(pos)), new[] { propsMat }, Vector3.zero);
     }
 
     static readonly Vector2[] CupProfile = { new Vector2(0, 0), new Vector2(.036f, 0), new Vector2(.052f, .095f), new Vector2(.056f, .1f), new Vector2(0, .1f) };
@@ -724,21 +720,9 @@ internal static partial class RoomiesRoomRestyleBuilder
 
     static void PizzaBox(Transform p, Vector3 pos, float yaw, bool withPizza, bool open = true)
     {
+        // 箱とピザを 1 つの形に（開いて中身あり・開いて空と残りの 1 切れ・閉じた）。ピザの上面はアトラスの円を真上から貼る
         var b = Group(p, "Pizza box", pos, yaw);
-        Box(b, "Box", V(0, .02f, 0), V(.42f, .04f, .42f), cream);
-        if (!open)
-        {
-            Box(b, "Lid", V(0, .046f, .01f), V(.42f, .008f, .42f), cream, V(0, 6, 0));
-            Box(b, "Lid print", V(0, .051f, .01f), V(.24f, .002f, .24f), red, V(0, 6, 0));
-            return;
-        }
-        Box(b, "Lid", V(0, .2f, -.24f), V(.42f, .008f, .42f), cream, V(-78, 0, 0));
-        Box(b, "Lid print", V(0, .2f, -.234f), V(.24f, .002f, .24f), red, V(-78, 0, 0));
-        if (!withPizza) { Cyl(b, "Grease", V(0, .0415f, 0), .3f, .003f, Mat("grease", "CDBE95", .5f)); Prism(b, "Last slice", "pizza_slice", new Vector2(0, 0), new Vector2(-.05f, .15f), new Vector2(.05f, .15f), .012f, V(.03f, .05f, .02f), cheese, V(90, 40, 0)); return; }
-        Cyl(b, "Crust", V(0, .046f, 0), .36f, .012f, crust);
-        Cyl(b, "Cheese", V(0, .053f, 0), .32f, .008f, cheese);
-        for (int i = 0; i < 7; i++) { float a = i * 51.4f * Mathf.Deg2Rad; float r = i == 0 ? 0 : .1f; Cyl(b, "Pepperoni", V(Mathf.Cos(a) * r, .058f, Mathf.Sin(a) * r), .05f, .004f, red); }
-        for (int i = 0; i < 6; i++) { float a = (i * 60 + 25) * Mathf.Deg2Rad; Ball(b, "Pepper", V(Mathf.Cos(a) * .065f, .059f, Mathf.Sin(a) * .065f), V(.03f, .006f, .012f), green, V(0, i * 40, 0)); }
+        MeshPart(b, "Body", PizzaBoxMesh(!open ? "closed" : withPizza ? "open_full" : "open_empty"), new[] { propsMat }, Vector3.zero);
     }
 
     static void Controller(Transform p, Vector3 pos, float yaw, Material body)
@@ -848,16 +832,9 @@ internal static partial class RoomiesRoomRestyleBuilder
 
     static void Plant(Transform root, Vector3 pos, float height, int leaves)
     {
+        // 鉢・土・茎・葉を 1 つの形に（茎の向きと長さは前と同じ式）。葉の板＋アルファにするときは PlantCardLeaves
         var g = Group(root, "House plant", pos, Rand(0, 360));
-        Lathe(g, "Pot", "plant_pot", new[] { new Vector2(0, 0), new Vector2(.11f, 0), new Vector2(.15f, .24f), new Vector2(.16f, .25f), new Vector2(.13f, .25f), new Vector2(.12f, .2f), new Vector2(0, .2f) }, Vector3.zero, pot, default, 14);
-        Cyl(g, "Soil", V(0, .21f, 0), .25f, .02f, Mat("soil", "3A2A20", .05f));
-        for (int i = 0; i < leaves; i++)
-        {
-            float a = i * 137.5f, tilt = 25 + (i * 29 % 40), len = height * (.45f + (i * 17 % 10) * .04f);
-            var stem = Group(g, "Stem", V(0, .22f, 0), a); stem.localEulerAngles = V(tilt, a, 0);
-            Cyl(stem, "Stalk", V(0, len * .5f, 0), .014f, len, leafDark);
-            Ball(stem, "Leaf", V(0, len + .1f, .03f), V(.2f + (i % 3) * .04f, .3f, .02f), i % 2 == 0 ? leaf : leafDark, V(25, 0, 0));
-        }
+        MeshPart(g, "Plant", PlantMesh(height, leaves, PlantCardLeaves), PlantCardLeaves ? new[] { propsMat, propsCutout } : new[] { propsMat }, Vector3.zero);
     }
 
     static void Shark(Transform p, Vector3 pos, float yaw)

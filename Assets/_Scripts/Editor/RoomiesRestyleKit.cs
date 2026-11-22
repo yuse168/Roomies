@@ -168,6 +168,9 @@ internal static class RoomiesRestyleKit
         return mesh;
     }
 
+    /// <summary>小物など、配置ツールが自分で組む形（RestyleMeshes.asset に「prop_」の名前で入る）。</summary>
+    internal static Mesh CustomMesh(string key, Action<Mesh> fill) => GetMesh("prop_" + key, fill);
+
     static string K(float f) => Mathf.RoundToInt(f * 1000).ToString();
 
     internal static Mesh RoundedBoxMesh(Vector3 size, float radius)
@@ -316,6 +319,14 @@ internal static class RoomiesRestyleKit
 
     internal static GameObject Prism(Transform p, string name, string key, Vector2 a, Vector2 b, Vector2 c, float depth, Vector3 pos, Material mat, Vector3 rot = default)
         => Part(p, name, PrismMesh(key, a, b, c, depth), mat, pos, Vector3.one, rot);
+
+    /// <summary>組んだ形を置く。マテリアルはサブメッシュの順（2 つ目以降があれば付け足す）。</summary>
+    internal static GameObject MeshPart(Transform p, string name, Mesh mesh, Material[] mats, Vector3 pos, Vector3 rot = default, float scale = 1, bool shadow = true)
+    {
+        var go = Part(p, name, mesh, mats[0], pos, Vector3.one * scale, rot, shadow);
+        if (mats.Length > 1) go.GetComponent<MeshRenderer>().sharedMaterials = mats;
+        return go;
+    }
 
     /// <summary>平らな板（+Z 側から見える面）。画面・紙・ラベル用。</summary>
     internal static GameObject Plane(Transform p, string name, Vector3 pos, Vector2 size, Material mat, Vector3 rot = default)

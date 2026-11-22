@@ -1,5 +1,34 @@
 # PROGRESS.md
 
+## 2026/11/23｜部屋の小物をローポリのメッシュに（缶・瓶・観葉植物・電球・ピザ）
+
+ゆせさんの依頼（11/23 06:36）。控えのブランチ `backup/open-views-20261123` から worktree（`D:\Bonchan\Roomies_wt\props-pass1`、ブランチ `art/props-pass1`）を作って作業した。
+`D:\Bonchan\Roomies_save` には触っていない。push はしていない。外部の素材は使っていない（形もテクスチャもコードで作った自作。クレジットに書く物はない）。
+
+### 作り直した物（`RoomiesRoomRestyleBuilder.Props.cs`）
+- 缶：箱・円柱 3 つ → 八角の 1 つの形（色 8 種、ラベルの帯・プルタブ付き）。ラベルはアトラスの帯（4:1）を周り 1 周に貼る UV
+- 瓶：3 つ → 1 つ（ガラス 4 種＝茶・緑・茶・透明っぽい色、ラベル 4 種）。どの瓶がどの種類かは置く位置で決まる（乱数は使わない）
+- ピザと箱：箱・ふた・耳・チーズ・ペパロニ 7・ピーマン 6 の 17〜21 個 → 箱とピザで 1 つ。ピザは 8 切れ（テーブルの物は 1 切れ食べたあと）、
+  上面はアトラスの円（真上から貼る UV）。ペパロニは薄い円盤の形でも載せる（`PizzaToppingDiscs`）。ふたは架空の柄
+- 観葉植物：鉢・土・茎 11・つぶした球の葉 11 の 24 個 → 1 つ。葉は中央で折れたハート形で、茎 1 本に 3 枚。茎の向きと長さの式は前と同じ。
+  葉を板＋アルファにする形も作れる（`PlantCardLeaves`。マテリアル `props_atlas_cutout`）。比べて、角の立ったメッシュの葉を既定にした
+- 電球：球 → ソケット付きの六角の電球（光る玉とソケットの 2 面）。電飾はソケットの上がコードに付き、少しずつ左右に傾く。吊りランプ 2 つの電球も同じ形
+- 色はすべてアトラス `Assets/_Art/Restyle/Props/props_atlas.png`（1024。ラベル・ピザの上面・ふたの柄・葉の板・単色の色見本）と
+  マテリアル `Assets/_Materials/Props/props_atlas.mat`（URP Lit、つや 0.12、GPU インスタンシング ON）を使い回す。テンプレや Bevel の対象外の場所に置いた
+- 本物のテクスチャ：`Assets/_Art/Restyle/Props/Source/` に `can_label_0〜7`・`bottle_label_0〜3`・`pizza_top`・`pizza_box_print`・`leaf_card` の PNG を置いて
+  Build Room を実行し直すと、その区画に貼られる（README.txt）
+
+### 作り直しと確認
+- GameRoom と MainMenuSteam で Build Room / Build Title Room を実行した（`RoomiesPropsCheck.BatchRebuild`）
+- 小物以外の部品（位置・向き・大きさ・メッシュ・マテリアル・明かり・当たり判定）の一覧は、作り直しの前後で 2 つのシーンとも差 0 だった（手で直した物は消えていない）
+- 数（GameRoom の Roomies_RoomRestyle）：描画物 761 → 629、三角形 185,582 → 149,833、プリミティブの部品 731 → 533。
+  小物だけでは部品 205 → 73、三角形 45,376 → 9,627、マテリアル 25 → 8（電球は光る素材＋アトラス）。タイトルも同じ減り方（854 → 722）
+- 同じ角度の写真 4 組と比べるページ：`D:\TK230088\Leica\brain\tmp_roomies_props_20261123\`（`RoomiesPropsCheck.BatchShots`。編集画面の明かりで撮った）
+- EditMode テスト：前 245 件中 231 成功・13 失敗・1 スキップ、後も同じ（新しい失敗なし。13 件は前からのネットワーク・家賃・採掘の失敗）
+- 作り直しのあとに自動でかかる仕上げ（Material Finish）が `finish_cardboard/plaster/weave.png` と `BobBody.mat` をわずかに書き換えた（画素の差は最大 7/255）ので、元に戻した
+- 未確認：Play Mode・夜の明かりでの見た目・実機の描画負荷。部屋の別の観葉植物（家の中の `planter`。`Resources/RoomiesArt` のライブラリの物）は
+  ライブラリを作り直す道具の担当なので今回は替えていない。`RestyleMeshes.asset` には前の缶・瓶の形（使われていない）と葉を板にした植物の形が残っている
+
 ## 2026/11/14｜町の改善：ローポリ上位5つ・境界の外の囲いと霧・大通りの歩道橋
 
 ゆせさんが調査ページ（ローポリと空間）から選んだ3つ（11/14 10:40）。ブランチ `art/town-20261114`（feat/redesign-stage1 の上）。push はしていない。
