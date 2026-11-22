@@ -34,7 +34,7 @@ internal static class RoomiesPropsCheck
     };
 
     // 作り直しの対象（親の名前）
-    internal static readonly string[] PropGroups = { "Can", "Bottle", "Pizza box", "House plant", "Fairy lights", "Pendant lamp", "Kitchen lamp" };
+    internal static readonly string[] PropGroups = { "Can", "Bottle", "Pizza box", "House plant", "Fairy lights", "Pendant lamp", "Kitchen lamp", "Magazine", "Paper scrap", "Sticky note", "Neon cat sign", "Fridge look" };
 
     static string Arg(string key, string fallback)
     {
@@ -50,6 +50,17 @@ internal static class RoomiesPropsCheck
         Directory.CreateDirectory(dir);
         var scene = EditorSceneManager.OpenScene(GameRoom, OpenSceneMode.Single);
         foreach (var s in Shots) Capture(s.eye, s.target, s.fov, Path.Combine(dir, $"{tag}_{s.name}.jpg"));
+        // 近くで見る確認（ネオンの向き・冷蔵庫の扉のメモの向き）：-propsExtra true
+        if (Arg("-propsExtra", "false") == "true")
+        {
+            var all = scene.GetRootGameObjects().SelectMany(g => g.GetComponentsInChildren<Transform>(true)).ToArray();
+            var sign = all.FirstOrDefault(t => t.name == "Neon cat sign");
+            if (sign != null) Capture(sign.position + sign.forward * 1.3f + Vector3.down * .3f, sign.position, 45, Path.Combine(dir, $"{tag}_x_neon.jpg"));
+            var door = all.FirstOrDefault(t => t.name == "Pivot_Door" && t.parent != null && t.parent.name.Contains("Fridge"));
+            if (door != null) { var c = door.position + door.right * .38f; Capture(c - door.forward * 1.3f + Vector3.up * .1f, c, 50, Path.Combine(dir, $"{tag}_x_fridge.jpg")); }
+            var mag = all.FirstOrDefault(t => t.name == "Floor clutter");
+            Capture(new Vector3(17.4f, F + .9f, 18.3f), new Vector3(16.45f, F + .48f, 19.95f), 30, Path.Combine(dir, $"{tag}_x_pizza.jpg"));
+        }
         File.WriteAllText(Path.Combine(dir, $"{tag}_stats.txt"), Stats(scene));
         File.WriteAllText(Path.Combine(dir, $"{tag}_others.txt"), OthersListing(scene));
         var menu = EditorSceneManager.OpenScene(MenuScene, OpenSceneMode.Single);
@@ -63,6 +74,15 @@ internal static class RoomiesPropsCheck
     {
         // 観葉植物の葉を板＋アルファで比べるとき：-plantCards true
         RoomiesRoomRestyleBuilder.PlantCardLeaves = Arg("-plantCards", "false") == "true";
+        // 冷蔵庫の扉のメモ（プレハブの Visual の中）：-nightPrefabs true。作り直したあとにテンプレとベベルをかけ直す
+        // （メニューの Restyle Night Prefabs → Material Templates/3 Apply To Gimmick Prefabs → Bevel/Apply To Gimmick Prefabs と同じ）
+        if (Arg("-nightPrefabs", "false") == "true")
+        {
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            RoomiesRoomRestyleBuilder.RestyleNightPrefabs();
+            RoomiesMaterialFinishBuilder.ApplyTemplatesToPrefabs();
+            RoomiesBevelBuilder.ApplyToPrefabs();
+        }
         EditorSceneManager.OpenScene(GameRoom, OpenSceneMode.Single);
         RoomiesRoomRestyleBuilder.Build();
         EditorSceneManager.OpenScene(MenuScene, OpenSceneMode.Single);
@@ -130,6 +150,19 @@ internal static class RoomiesPropsCheck
         foreach (var g in PropGroups)
             Line("  " + g, all.Where(r => { for (var p = r.transform; p != null && p != root.transform; p = p.parent) if (p.name == g) return true; return false; }));
         sb.AppendLine($"lights={root.GetComponentsInChildren<Light>(true).Length}");
+        // 部屋の物（Roomies_RoomRestyle と元の家）が使うテクスチャの数と大きさ（インスペクターの「圧縮後の大きさ」と同じ値）
+        var storage = typeof(Editor).Assembly.GetType("UnityEditor.TextureUtil")?.GetMethod("GetStorageMemorySizeLong", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+        var texs = new HashSet<Texture>();
+        foreach (var r in scene.GetRootGameObjects().SelectMany(g => g.GetComponentsInChildren<Renderer>(true)))
+            foreach (var m in r.sharedMaterials)
+            {
+                if (m == null) continue;
+                foreach (var id in m.GetTexturePropertyNameIDs()) { var t = m.GetTexture(id); if (t is Texture2D) texs.Add(t); }
+            }
+        long bytes = storage == null ? -1 : texs.Sum(t => (long)storage.Invoke(null, new object[] { t }));
+        sb.AppendLine($"sceneTextures={texs.Count}\tstorageMB={bytes / 1048576f:F2}");
+        foreach (var t in texs.Where(t => { var p = AssetDatabase.GetAssetPath(t); return p.Contains("/Props/") || p.Contains("/Tiles/") || p.Contains("/Neon/") || p.Contains("finish_"); }).OrderBy(t => t.name))
+            sb.AppendLine($"  tex {t.name}\t{t.width}x{t.height}\t{((Texture2D)t).format}\t{(storage == null ? -1 : (long)storage.Invoke(null, new object[] { t })) / 1024}KB");
         return sb.ToString();
     }
 

@@ -8,244 +8,12 @@ using static RoomiesRestyleKit;
 using Object = UnityEngine.Object;
 
 /// <summary>
-/// 部屋の小物（缶・瓶・観葉植物・電飾の電球・ピザと箱）のローポリのメッシュ（2026/11/23）。
+/// 部屋の小物（缶・瓶・観葉植物・電球・ピザと箱・雑誌の表紙・メモ・紙くず・ネコのネオン）の形（2026/11/23）。
 /// 箱・球・円柱を積むのをやめ、小物ごとに 1 つの形にした（少し角の立った面で、なめらかにしない）。
-/// 色はすべて 1 枚のアトラス（props_atlas.png）から取り、マテリアルは props_atlas（と葉の板用の props_atlas_cutout）だけを使い回す。
-///
-/// アトラスの区画（1024×1024、左下が原点）：
-///   y 512〜1023 … 缶のラベル 8 本（512×128。列 = 番号/4、行 = 番号%4）。缶の周り 1 周が横幅いっぱい
-///   y 256〜511  … 瓶のラベル 4 本（512×128。列 = 番号/2、行 = 番号%2）。瓶の周り 1 周が横幅いっぱい
-///   y 0〜255    … 256×256 が 4 つ：ピザの上面（円の直径がマス幅）・ピザの箱のふたの柄・葉の板（アルファ）・単色の色見本（32px × 8×8）
-/// 本物のテクスチャに替えるときは Assets/_Art/Restyle/Props/Source/ に
-///   can_label_0〜7.png / bottle_label_0〜3.png / pizza_top.png / pizza_box_print.png / leaf_card.png
-/// を置いて Build Room（または Build Title Room）を実行し直す。置いた物がその区画に貼られる（ない物は手続きの仮の柄）。
+/// 色と絵はアトラス（RoomiesRoomRestyleBuilder.PropsAtlas.cs）から取る。
 /// </summary>
 internal static partial class RoomiesRoomRestyleBuilder
 {
-    const string PropsDir = ArtDir + "/Props";
-    const string PropsSourceDir = PropsDir + "/Source";
-    const string PropsAtlasPath = PropsDir + "/props_atlas.png";
-    const string PropsMatDir = "Assets/_Materials/Props";
-    const int Atlas = 1024;
-    /// <summary>観葉植物の葉：false = 折れ目のある葉のメッシュ（既定）、true = 葉の板＋アルファ（props_atlas_cutout）。</summary>
-    internal static bool PlantCardLeaves = false;
-    /// <summary>ピザの具を薄い円盤の形でも載せる（false にすると上面のテクスチャだけ）。</summary>
-    const bool PizzaToppingDiscs = true;
-
-    static Material propsMat, propsCutout;
-
-    // ---------------------------------------------------------------- 色見本（単色の区画の番号）
-    const int SwMetal = 8, SwMetalDark = 9, SwGlassBrown = 10, SwCream = 11, SwGold = 12, SwCrust = 13, SwCheese = 14, SwPepperoni = 15,
-        SwPepper = 16, SwLeaf = 17, SwLeafDark = 18, SwLeafLight = 19, SwStem = 20, SwPot = 21, SwPotDark = 22, SwSoil = 23,
-        SwBoxOuter = 24, SwBoxInner = 25, SwBoxEdge = 26, SwGrease = 27, SwCrustDark = 28, SwSocket = 29, SwWhite = 30, SwGlassGreen = 31, SwGlassClear = 32;
-    // 0〜7 は缶の色（canColors と同じ順：青・赤・黄・緑・白・紫・橙・青緑）
-    static readonly string[] SwatchHex =
-    {
-        "3A5FB4", "C4453A", "E6BE36", "6DAA48", "E6E1D6", "7A4CC4", "D8822C", "3C8A86",
-        "9AA0A8", "5E636B", "5A3420", "E3D3B0", "D9A62E", "C98A4A", "E8B04A", "A8322C",
-        "4F8A3A", "4E8A3A", "2F5E2C", "79AE48", "3F6630", "B2623A", "8A4628", "3A2A20",
-        "D2BC8E", "E4D4AE", "A88E62", "C9B07A", "A86A34", "26302A", "EEE9DE", "2F5A34",
-        "9DB0A8",
-    };
-    static readonly int[] BottleGlass = { SwGlassBrown, SwGlassGreen, SwGlassBrown, SwGlassClear };
-    static readonly string[] BottleBand = { "C4453A", "3C8A86", "3A5FB4", "D8822C" };
-
-    static RectInt CanLabelRect(int i) => new RectInt((i / 4) * 512, 512 + (i % 4) * 128, 512, 128);
-    static RectInt BottleLabelRect(int j) => new RectInt((j / 2) * 512, 256 + (j % 2) * 128, 512, 128);
-    static readonly RectInt PizzaTopRect = new RectInt(0, 0, 256, 256), BoxPrintRect = new RectInt(256, 0, 256, 256), LeafCardRect = new RectInt(512, 0, 256, 256), SwatchRect = new RectInt(768, 0, 256, 256);
-
-    static Vector2 SwUV(int idx) => new Vector2((SwatchRect.x + (idx % 8) * 32 + 16f) / Atlas, (SwatchRect.y + (idx / 8) * 32 + 16f) / Atlas);
-    /// <summary>区画の中の (0〜1, 0〜1) をアトラスの UV に（端は 2px 内側に寄せてにじみを防ぐ）。</summary>
-    static Vector2 InRect(RectInt r, float u, float v) => new Vector2((r.x + 2 + Mathf.Clamp01(u) * (r.width - 4)) / Atlas, (r.y + 2 + Mathf.Clamp01(v) * (r.height - 4)) / Atlas);
-
-    // ================================================================ アトラスとマテリアル
-    static void PropsPalette()
-    {
-        Directory.CreateDirectory(PropsSourceDir);
-        Directory.CreateDirectory(PropsMatDir);
-        var atlas = BuildPropsAtlas();
-        propsMat = PropsMaterial("props_atlas", atlas, false);
-        propsCutout = PropsMaterial("props_atlas_cutout", atlas, true);
-    }
-
-    static Material PropsMaterial(string name, Texture2D atlas, bool cutout)
-    {
-        string path = $"{PropsMatDir}/{name}.mat";
-        var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
-        if (mat == null) { mat = new Material(Shader.Find("Universal Render Pipeline/Lit")); AssetDatabase.CreateAsset(mat, path); }
-        mat.SetTexture("_BaseMap", atlas); mat.SetColor("_BaseColor", Color.white);
-        mat.SetFloat("_Smoothness", .12f); mat.SetFloat("_Metallic", 0);   // 光沢のないマット寄り
-        mat.SetFloat("_EnvironmentReflections", 0); mat.EnableKeyword("_ENVIRONMENTREFLECTIONS_OFF");
-        mat.enableInstancing = true;
-        if (cutout)
-        {
-            mat.SetFloat("_AlphaClip", 1); mat.SetFloat("_Cutoff", .5f); mat.EnableKeyword("_ALPHATEST_ON");
-            mat.SetFloat("_Cull", 0); mat.SetOverrideTag("RenderType", "TransparentCutout");
-            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.AlphaTest;
-        }
-        else
-        {
-            mat.SetFloat("_AlphaClip", 0); mat.DisableKeyword("_ALPHATEST_ON"); mat.SetFloat("_Cull", 2);
-            mat.SetOverrideTag("RenderType", "Opaque"); mat.renderQueue = -1;
-        }
-        EditorUtility.SetDirty(mat);
-        return mat;
-    }
-
-    static Texture2D BuildPropsAtlas()
-    {
-        var px = new Color32[Atlas * Atlas];
-        void Paint(RectInt r, string source, Func<float, float, Color> fn)
-        {
-            Texture2D src = null;
-            string file = $"{PropsSourceDir}/{source}.png";
-            if (File.Exists(file)) { src = new Texture2D(2, 2, TextureFormat.RGBA32, false); if (!src.LoadImage(File.ReadAllBytes(file))) { Object.DestroyImmediate(src); src = null; } }
-            for (int y = 0; y < r.height; y++) for (int x = 0; x < r.width; x++)
-            {
-                float u = (x + .5f) / r.width, v = (y + .5f) / r.height;
-                px[(r.y + y) * Atlas + r.x + x] = src != null ? src.GetPixelBilinear(u, v) : fn(u, v);
-            }
-            if (src != null) Object.DestroyImmediate(src);
-        }
-        for (int i = 0; i < 8; i++) { int k = i; Paint(CanLabelRect(i), "can_label_" + i, (u, v) => CanLabelPixel(k, u, v)); }
-        for (int j = 0; j < 4; j++) { int k = j; Paint(BottleLabelRect(j), "bottle_label_" + j, (u, v) => BottleLabelPixel(k, u, v)); }
-        Paint(PizzaTopRect, "pizza_top", PizzaTopPixel);
-        Paint(BoxPrintRect, "pizza_box_print", BoxPrintPixel);
-        Paint(LeafCardRect, "leaf_card", LeafCardPixel);
-        Paint(SwatchRect, "-", (u, v) =>
-        {
-            int idx = Mathf.FloorToInt(v * 8) * 8 + Mathf.FloorToInt(u * 8);
-            var c = idx < SwatchHex.Length ? Hex(SwatchHex[idx]) : new Color(.5f, .5f, .5f);
-            return Grain(c, u, v, .025f);
-        });
-
-        var tex = new Texture2D(Atlas, Atlas, TextureFormat.RGBA32, false);
-        tex.SetPixels32(px); tex.Apply();
-        var bytes = tex.EncodeToPNG();
-        Object.DestroyImmediate(tex);
-        bool changed = !File.Exists(PropsAtlasPath) || !BytesEqual(File.ReadAllBytes(PropsAtlasPath), bytes);
-        if (changed) { File.WriteAllBytes(PropsAtlasPath, bytes); AssetDatabase.ImportAsset(PropsAtlasPath, ImportAssetOptions.ForceUpdate); }
-        var importer = (TextureImporter)AssetImporter.GetAtPath(PropsAtlasPath);
-        if (importer.wrapMode != TextureWrapMode.Clamp || !importer.alphaIsTransparency || importer.maxTextureSize != Atlas || importer.anisoLevel != 4 || importer.textureCompression != TextureImporterCompression.CompressedHQ)
-        {
-            importer.wrapMode = TextureWrapMode.Clamp; importer.alphaIsTransparency = true; importer.mipmapEnabled = true;
-            importer.maxTextureSize = Atlas; importer.anisoLevel = 4; importer.textureCompression = TextureImporterCompression.CompressedHQ;
-            importer.SaveAndReimport();
-        }
-        return AssetDatabase.LoadAssetAtPath<Texture2D>(PropsAtlasPath);
-    }
-
-    static bool BytesEqual(byte[] a, byte[] b)
-    {
-        if (a.Length != b.Length) return false;
-        for (int i = 0; i < a.Length; i++) if (a[i] != b[i]) return false;
-        return true;
-    }
-
-    static Color Grain(Color c, float u, float v, float amount)
-    {
-        float n = (Mathf.PerlinNoise(u * 61.3f + 3.1f, v * 61.3f + 7.7f) - .5f) * 2 * amount;
-        return new Color(Mathf.Clamp01(c.r + n), Mathf.Clamp01(c.g + n), Mathf.Clamp01(c.b + n), c.a);
-    }
-
-    // ---------------------------------------------------------------- 仮の柄（実在のブランド・文字は使わない）
-    static Color CanLabelPixel(int i, float u, float v)
-    {
-        Color bg = Hex(SwatchHex[(i + 3) % 8]), fg = Hex(SwatchHex[i]), accent = Hex("EEE9DE");
-        float x = u * 4, y = v;           // 周り 1 周 = 高さの 4 倍
-        float px = Mathf.Repeat(x, 2);    // 柄は半周ごとにくり返す（表と裏に同じ柄）
-        Color c = bg;
-        if (y < .07f || y > .93f) c = fg;
-        else switch (i % 4)
-        {
-            case 0:   // 丸い紋と細い帯
-                if (Mathf.Abs(y - .2f) < .035f) c = fg;
-                float d = new Vector2(px - 1, y - .52f).magnitude;
-                if (d < .3f) c = accent; if (d < .19f) c = fg; if (d < .08f) c = accent;
-                break;
-            case 1:   // 水玉
-                float gx = Mathf.Repeat(x + (Mathf.FloorToInt(y * 4) % 2) * .125f, .25f) - .125f, gy = Mathf.Repeat(y, .25f) - .125f;
-                if (new Vector2(gx, gy).magnitude < .065f) c = accent;
-                break;
-            case 2:   // ぎざぎざの帯
-                float wave = Mathf.Abs(Mathf.Repeat(x * 2, 1) - .5f) * 2;   // 0〜1 の三角波
-                if (Mathf.Abs(y - (.38f + wave * .24f)) < .06f) c = accent;
-                if (Mathf.Abs(y - (.2f + wave * .24f)) < .02f) c = fg;
-                break;
-            default:  // 斜めの縞とひし形
-                if (Mathf.Repeat((x + y) * 2.5f, 1) < .3f) c = Color.Lerp(bg, fg, .55f);
-                if (Mathf.Abs(px - 1) + Mathf.Abs(y - .5f) * 1.2f < .3f) c = accent;
-                if (Mathf.Abs(px - 1) + Mathf.Abs(y - .5f) * 1.2f < .14f) c = fg;
-                break;
-        }
-        return Grain(c, u, v, .02f);
-    }
-
-    static Color BottleLabelPixel(int j, float u, float v)
-    {
-        Color bg = Hex("E8DCC0"), band = Hex(BottleBand[j]), ink = Hex("6A5A48");
-        float x = u * 3.4f, y = v, px = Mathf.Repeat(x, 1.7f);
-        Color c = bg;
-        if (y < .05f || y > .95f) c = band;
-        if (y > .64f && y < .82f) c = band;
-        if (Mathf.Abs(px - .85f) + Mathf.Abs(y - .38f) < .17f) c = band;
-        if (Mathf.Abs(px - .85f) + Mathf.Abs(y - .38f) < .08f) c = bg;
-        // 文字に見える細い棒（読める文字にはしない）
-        if (y > .15f && y < .21f && Mathf.Repeat(x * 9, 1) < .7f && Mathf.Abs(px - .85f) < .45f) c = ink;
-        return Grain(c, u, v, .02f);
-    }
-
-    const float PizzaR = .18f, PizzaCheeseR = .15f;
-
-    static Color PizzaTopPixel(float u, float v)
-    {
-        float x = (u - .5f) * 2 * PizzaCheeseR, z = (v - .5f) * 2 * PizzaCheeseR, r = Mathf.Sqrt(x * x + z * z);
-        if (r > PizzaCheeseR * .985f) return Grain(Hex(SwatchHex[SwCrust]), u, v, .04f);
-        float m = Mathf.PerlinNoise(u * 9 + 1.3f, v * 9 + 4.1f);
-        Color c = Color.Lerp(Hex("D9982F"), Hex("F2C766"), m);
-        if (Mathf.PerlinNoise(u * 23 + 8, v * 23 + 2) > .72f) c = Color.Lerp(c, Hex("B9762A"), .55f);   // 焼き色
-        foreach (var p in PepperoniSpots())
-        {
-            float d = new Vector2(x - p.x, z - p.y).magnitude;
-            if (d < .021f) c = d > .017f ? Hex("7E2420") : Color.Lerp(Hex("A8322C"), Hex("8E2A26"), Mathf.PerlinNoise(u * 80, v * 80));
-        }
-        foreach (var p in PepperSpots())
-            if (Mathf.Abs((x - p.x) * .8f + (z - p.y) * .6f) < .003f && new Vector2(x - p.x, z - p.y).magnitude < .012f) c = Hex(SwatchHex[SwPepper]);
-        return Grain(c, u, v, .02f);
-    }
-
-    static Color BoxPrintPixel(float u, float v)
-    {
-        Color bg = Hex(SwatchHex[SwBoxOuter]), red = Hex("C4453A"), cream = Hex("EEE2C4"), cheese = Hex("E8B04A");
-        float x = u - .5f, y = v - .5f, r = Mathf.Sqrt(x * x + y * y);
-        Color c = bg;
-        float edge = Mathf.Max(Mathf.Abs(x), Mathf.Abs(y));
-        if (edge > .40f && edge < .425f) c = red;
-        if (r < .3f) c = red;
-        if (r < .25f) c = cream;
-        // まん中に一切れのピザの絵（三角）
-        float ty = y + .14f, half = .13f * (1 - ty / .3f);
-        if (ty > 0 && ty < .3f && Mathf.Abs(x) < half) c = ty > .25f ? Hex("C98A4A") : cheese;
-        foreach (var d in new[] { new Vector2(-.04f, -.03f), new Vector2(.035f, .02f), new Vector2(0, .07f) })
-            if (new Vector2(x - d.x, y - d.y).magnitude < .022f && ty > 0 && ty < .25f) c = red;
-        foreach (var k in new[] { new Vector2(-.36f, -.36f), new Vector2(.36f, -.36f), new Vector2(-.36f, .36f), new Vector2(.36f, .36f) })
-            if (Mathf.Abs(x - k.x) + Mathf.Abs(y - k.y) < .03f) c = red;
-        return Grain(c, u, v, .02f);
-    }
-
-    static Color LeafCardPixel(float u, float v)
-    {
-        float x = u - .5f, y = v;
-        float half = .44f * Mathf.Sin(Mathf.PI * Mathf.Pow(Mathf.Clamp01(y), .75f)) * (1 - .25f * y);
-        float a = Mathf.Clamp01((half - Mathf.Abs(x)) * 120);
-        if (y < .04f && Mathf.Abs(x) < .015f) a = 1;   // 葉柄
-        Color c = Color.Lerp(Hex(SwatchHex[SwLeafDark]), Hex(SwatchHex[SwLeafLight]), Mathf.Clamp01(y * .8f + (x > 0 ? .15f : 0)));
-        if (Mathf.Abs(x) < .008f) c = Color.Lerp(c, Hex("8CBF6A"), .6f);   // 葉脈
-        if (half - Mathf.Abs(x) < .02f) c = Color.Lerp(c, Hex(SwatchHex[SwLeafDark]), .6f);
-        c = Grain(c, u, v, .03f); c.a = a;
-        return c;
-    }
-
     // ================================================================ メッシュを組む道具（面ごとに頂点を分けて、角の立った陰影にする）
     sealed class LP
     {
@@ -316,8 +84,8 @@ internal static partial class RoomiesRoomRestyleBuilder
         }
     }
 
-    // ================================================================ 缶（色 8 種。ラベルは周り 1 周に貼れる UV）
-    static readonly Vector2[] CanRings = { new Vector2(.029f, 0), new Vector2(.033f, .008f), new Vector2(.033f, .030f), new Vector2(.033f, .082f), new Vector2(.033f, .112f), new Vector2(.027f, .122f), new Vector2(.0245f, .119f) };
+    // ================================================================ 缶（6 種。ラベルは周り 1 周に貼る UV。ラベルの帯は 2.75:1）
+    static readonly Vector2[] CanRings = { new Vector2(.029f, 0), new Vector2(.033f, .008f), new Vector2(.033f, .018f), new Vector2(.033f, .096f), new Vector2(.033f, .112f), new Vector2(.027f, .122f), new Vector2(.0245f, .119f) };
 
     static Mesh CanMesh(int color) => CustomMesh("can_" + color, m =>
     {
@@ -331,15 +99,15 @@ internal static partial class RoomiesRoomRestyleBuilder
         lp.Fill(m);
     });
 
-    // ================================================================ 瓶（4 種。ガラスの色とラベル）
-    static readonly Vector2[] BottleRings = { new Vector2(.030f, 0), new Vector2(.035f, .01f), new Vector2(.035f, .045f), new Vector2(.035f, .110f), new Vector2(.035f, .13f), new Vector2(.018f, .175f), new Vector2(.014f, .19f), new Vector2(.013f, .23f) };
+    // ================================================================ 瓶（4 種。ガラスの色とラベル。ラベルの帯は 5.5:1）
+    static readonly Vector2[] BottleRings = { new Vector2(.030f, 0), new Vector2(.035f, .01f), new Vector2(.035f, .055f), new Vector2(.035f, .095f), new Vector2(.035f, .13f), new Vector2(.018f, .175f), new Vector2(.014f, .19f), new Vector2(.013f, .23f) };
     static readonly Vector2[] BottleCapRings = { new Vector2(.013f, .23f), new Vector2(.016f, .23f), new Vector2(.016f, .247f) };
 
     static Mesh BottleMesh(int j) => CustomMesh("bottle_" + j, m =>
     {
         var lp = new LP();
         Vector2 glass = SwUV(BottleGlass[j]), gold = SwUV(SwGold);
-        var label = BottleLabelRect(j);
+        var label = BottleLabelRect(BottleLabel[j]);
         LatheBands(lp, BottleRings, 8, (b, u, v) => b == 2 ? InRect(label, u, v) : glass, 0, Mathf.PI / 8);
         LatheBands(lp, BottleCapRings, 8, (b, u, v) => gold, 0, Mathf.PI / 8);
         Cap(lp, .016f, .247f, 8, gold, true, 0, Mathf.PI / 8);
@@ -347,7 +115,7 @@ internal static partial class RoomiesRoomRestyleBuilder
         lp.Fill(m);
     });
 
-    static int BottleVariant(Vector3 pos) => Mathf.Abs(Mathf.RoundToInt(pos.x * 100) + Mathf.RoundToInt(pos.z * 37) + Mathf.RoundToInt(pos.y * 53)) % 4;
+    static int BottleVariant(Vector3 pos) => Mathf.Abs(Mathf.RoundToInt(pos.x * 100) + Mathf.RoundToInt(pos.z * 37) + Mathf.RoundToInt(pos.y * 53)) % BottleKinds;
 
     // ================================================================ ピザ（8 切れ。上面は 1 枚のテクスチャを真上から貼る UV）
     static IEnumerable<Vector2> PepperoniSpots()
@@ -500,9 +268,10 @@ internal static partial class RoomiesRoomRestyleBuilder
             float L = .28f + .04f * (i % 3), W = .26f + .04f * (i % 3);
             Vector3 side = Vector3.Cross(Vector3.up, outH).normalized;
             float sgn = i % 2 == 0 ? 1 : -1;
-            Leaf(lp, p2, (d2 + outH * .5f - Vector3.up * .25f).normalized, outH, L, W, i % 2 == 0, cards);
-            Leaf(lp, p1, (outH * .9f + Vector3.up * .2f + side * .35f * sgn).normalized, outH, L * .72f, W * .72f, i % 2 != 0, cards);
-            Leaf(lp, p0 + d * len * .32f, (outH * .8f + Vector3.up * .35f - side * .4f * sgn).normalized, outH, L * .55f, W * .55f, i % 2 == 0, cards);
+            int kind = cards ? i % 2 : 0;   // 板の葉はポトスとマドカズラを交互に。メッシュの葉は形の合うポトス
+            Leaf(lp, p2, (d2 + outH * .5f - Vector3.up * .25f).normalized, outH, L, W, i % 2 == 0, cards, kind);
+            Leaf(lp, p1, (outH * .9f + Vector3.up * .2f + side * .35f * sgn).normalized, outH, L * .72f, W * .72f, i % 2 != 0, cards, kind);
+            Leaf(lp, p0 + d * len * .32f, (outH * .8f + Vector3.up * .35f - side * .4f * sgn).normalized, outH, L * .55f, W * .55f, i % 2 == 0, cards, kind);
         }
         lp.Fill(m);
     });
@@ -520,26 +289,32 @@ internal static partial class RoomiesRoomRestyleBuilder
     }
 
     /// <summary>葉。メッシュの葉は中央の葉脈で折れたハート形（表と裏）。板の葉は 2 枚の四角（アトラスの葉の区画を貼る）。</summary>
-    static void Leaf(LP lp, Vector3 basePos, Vector3 f, Vector3 outH, float L, float W, bool light, bool card)
+    static void Leaf(LP lp, Vector3 basePos, Vector3 f, Vector3 outH, float L, float W, bool light, bool card, int kind = 0)
     {
         Vector3 s = Vector3.Cross(Vector3.up, outH).normalized;
         s = (s - f * Vector3.Dot(s, f)).normalized;
         if (s.sqrMagnitude < .01f) s = Vector3.Cross(f, Vector3.forward).normalized;
         Vector3 n = Vector3.Cross(f, s).normalized; if (n.y < 0) n = -n;
         Vector3 P(float x, float y, float z) => basePos + s * x + f * y + n * z;
+        var rect = LeafRect(kind);
         if (card)
         {
-            Vector3 b0 = P(-.5f * W, 0, 0), b1 = P(.5f * W, 0, 0), m0 = P(0, 0, .06f * W), t0 = P(-.5f * W, L, -.05f * L), t1 = P(.5f * W, L, -.05f * L), tm = P(0, L, .03f * W - .05f * L);
-            lp.Quad(b0, m0, tm, t0, InRect(LeafCardRect, 0, 0), InRect(LeafCardRect, .5f, 0), InRect(LeafCardRect, .5f, 1), InRect(LeafCardRect, 0, 1), n, 1);
-            lp.Quad(m0, b1, t1, tm, InRect(LeafCardRect, .5f, 0), InRect(LeafCardRect, 1, 0), InRect(LeafCardRect, 1, 1), InRect(LeafCardRect, .5f, 1), n, 1);
+            // 板の葉：葉の絵の区画（縦長 256×320）をそのまま 2 枚の四角に。幅は区画の縦横比に合わせる
+            float cw = L * rect.width / rect.height;
+            Vector3 b0 = P(-.5f * cw, 0, 0), b1 = P(.5f * cw, 0, 0), m0 = P(0, 0, .06f * cw), t0 = P(-.5f * cw, L, -.05f * L), t1 = P(.5f * cw, L, -.05f * L), tm = P(0, L, .03f * cw - .05f * L);
+            lp.Quad(b0, m0, tm, t0, InRect(rect, 0, 0), InRect(rect, .5f, 0), InRect(rect, .5f, 1), InRect(rect, 0, 1), n, 1);
+            lp.Quad(m0, b1, t1, tm, InRect(rect, .5f, 0), InRect(rect, 1, 0), InRect(rect, 1, 1), InRect(rect, .5f, 1), n, 1);
             return;
         }
         Vector3 B = P(0, 0, 0), T = P(0, L, -.06f * L), M1 = P(0, .28f * L, .07f * W), M2 = P(0, .66f * L, .05f * W);
         Vector3 L1 = P(-.48f * W, .3f * L, 0), L2 = P(-.4f * W, .68f * L, -.02f * L), R1 = P(.48f * W, .3f * L, 0), R2 = P(.4f * W, .68f * L, -.02f * L);
-        Vector2 front = SwUV(SwLeaf), frontB = SwUV(light ? SwLeafLight : SwLeafDark), back = SwUV(SwLeafDark);
-        void Both(Vector3 a, Vector3 b, Vector3 c, Vector2 uvFront) { lp.Tri(a, b, c, uvFront, n); lp.Tri(a, b, c, back, -n); }
-        Both(B, L1, M1, front); Both(M1, L1, L2, front); Both(M1, L2, M2, front); Both(M2, L2, T, front);
-        Both(B, M1, R1, frontB); Both(M1, R2, R1, frontB); Both(M1, M2, R2, frontB); Both(M2, T, R2, frontB);
+        // 表は葉の絵を貼る（葉の付け根 = 区画の下、先 = 上。横は区画の縦横比で合わせる）。裏は濃い緑の単色
+        Vector2 back = SwUV(SwLeafDark);
+        float cwidth = L * rect.width / rect.height;
+        Vector2 Uv(Vector3 p) { var d = p - basePos; return InRect(rect, .5f + Vector3.Dot(d, s) / cwidth, Vector3.Dot(d, f) / L); }
+        void Both(Vector3 a, Vector3 b, Vector3 c) { lp.Tri(a, b, c, Uv(a), Uv(b), Uv(c), n); lp.Tri(a, b, c, back, -n); }
+        Both(B, L1, M1); Both(M1, L1, L2); Both(M1, L2, M2); Both(M2, L2, T);
+        Both(B, M1, R1); Both(M1, R2, R1); Both(M1, M2, R2); Both(M2, T, R2);
     }
 
     // ================================================================ 電球（電飾・吊りランプ共通。原点がソケットの上＝コードに付く点）
@@ -551,6 +326,28 @@ internal static partial class RoomiesRoomRestyleBuilder
         Cap(lp, .0055f, 0, 6, socket, true, 1);
         var glow = new Vector2(.5f, .5f);
         LatheBands(lp, new[] { new Vector2(0, -.052f), new Vector2(.0085f, -.043f), new Vector2(.0125f, -.031f), new Vector2(.0105f, -.019f), new Vector2(.0055f, -.013f) }, 6, (b, u, v) => glow, 0, Mathf.PI / 6);
+        lp.Fill(m);
+    });
+
+    // ================================================================ 絵を貼る板（雑誌の表紙・メモ・紙くず・ネオン）
+    /// <summary>四角い板。horizontal = true は上向き（床・机の上に置く物）、false は +Z 向き（壁・扉に貼る物。+Z 側から読める向き）。</summary>
+    static void AddQuad(LP lp, Vector2 size, Func<float, float, Vector2> uv, bool horizontal)
+    {
+        float w = size.x / 2, h = size.y / 2;
+        if (horizontal) lp.Quad(V(-w, 0, -h), V(w, 0, -h), V(w, 0, h), V(-w, 0, h), uv(0, 0), uv(1, 0), uv(1, 1), uv(0, 1), Vector3.up);
+        else lp.Quad(V(-w, -h, 0), V(w, -h, 0), V(w, h, 0), V(-w, h, 0), uv(1, 0), uv(0, 0), uv(0, 1), uv(1, 1), Vector3.forward);   // +Z から見ると左右が逆になるので u を反転
+    }
+
+    static Mesh CoverMesh(int k) => CustomMesh("cover_" + k, m => { var lp = new LP(); AddQuad(lp, new Vector2(.212f, .287f), (u, v) => InRect(CoverRect(k), u, v), true); lp.Fill(m); });
+    /// <summary>メモ（高さ 1m。置くときに大きさをかける）。</summary>
+    static Mesh NoteMesh(int n) => CustomMesh("note_" + n, m => { var lp = new LP(); var r = NoteRect(n); AddQuad(lp, new Vector2((float)r.width / r.height, 1), (u, v) => InRect(r, u, v), false); lp.Fill(m); });
+    /// <summary>紙くず（1m 四方。置くときに縦横の大きさをかける）。</summary>
+    static Mesh ScrapMesh(int k) => CustomMesh("scrap_" + k, m => { var lp = new LP(); AddQuad(lp, Vector2.one, (u, v) => InRect(ScrapRect(k), u, v), true); lp.Fill(m); });
+    /// <summary>ネコのネオン（幅 0.56m。UV はネオンのテクスチャの絵の範囲）。</summary>
+    static Mesh NeonCatMesh() => CustomMesh("neon_cat", m =>
+    {
+        var lp = new LP(); var r = SrcNeonCat; const float texW = 1024, texH = 683;
+        AddQuad(lp, new Vector2(.56f, .56f * r.height / r.width), (u, v) => new Vector2((r.x + u * r.width) / texW, 1 - (r.yMax - v * r.height) / texH), false);
         lp.Fill(m);
     });
 }

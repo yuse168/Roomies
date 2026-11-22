@@ -350,8 +350,8 @@ internal static partial class RoomiesRoomRestyleBuilder
         CupNoodle(d, V(.42f, .766f, .2f)); Can(d, V(.6f, .766f, .05f), 0, false); Can(d, V(.52f, .766f, -.12f), 3, false); Can(d, V(-.55f, .766f, .2f), 5, true, 20);
         RBox(d, "PC tower", V(-.52f, .25f, -.05f), V(.2f, .44f, .46f), .012f, black);
         Box(d, "PC light", V(-.52f, .4f, .182f), V(.012f, .1f, .003f), neon);
-        Box(d, "Sticky note", V(.2f, 1.2f, -.13f), V(.07f, .07f, .002f), yellow, V(0, 0, 6));
-        Box(d, "Sticky note", V(.22f, 1.11f, -.13f), V(.07f, .07f, .002f), pink, V(0, 0, -5));
+        MeshPart(d, "Sticky note", NoteMesh(0), new[] { propsCutout }, V(.2f, 1.2f, -.129f), V(0, 0, 6), .08f, false);
+        MeshPart(d, "Sticky note", NoteMesh(3), new[] { propsCutout }, V(.22f, 1.1f, -.129f), V(0, 0, -5), .08f, false);
         Solid(d, V(0, .39f, 0), V(1.5f, .78f, .7f));
         // いす（当たり判定なし）
         var chair = Group(d, "Office chair", V(-.12f, 0, .78f), 22);
@@ -439,16 +439,8 @@ internal static partial class RoomiesRoomRestyleBuilder
 
         // 窓のネオン（ねこ「うえい」）
         var sign = Group(root, "Neon cat sign", V(17.35f, F + 1.72f, 23.33f), 180);
-        Vector3 P(float x, float y) => V(x, y, 0);
-        Tube(sign, "Cat head", "neon_cat_head", new[] { P(-.19f, -.13f), P(-.235f, 0), P(-.22f, .12f), P(-.215f, .27f), P(-.11f, .17f), P(0, .185f), P(.11f, .17f), P(.215f, .27f), P(.22f, .12f), P(.235f, 0), P(.19f, -.13f), P(.08f, -.185f), P(-.08f, -.185f) }, .011f, neon, true, default, default, false);
-        foreach (int sx in new[] { -1, 1 })
-        {
-            Tube(sign, "Cat eye", "neon_eye" + sx, new[] { P(sx * .13f, .055f), P(sx * .1f, .085f), P(sx * .07f, .055f) }, .01f, neon, false, default, default, false);
-            Tube(sign, "Whisker", "neon_wh_a" + sx, new[] { P(sx * .15f, -.035f), P(sx * .3f, -.01f) }, .008f, neonPink, false, default, default, false);
-            Tube(sign, "Whisker", "neon_wh_b" + sx, new[] { P(sx * .15f, -.07f), P(sx * .3f, -.095f) }, .008f, neonPink, false, default, default, false);
-        }
-        Tube(sign, "Cat mouth", "neon_mouth", new[] { P(-.06f, -.06f), P(-.03f, -.095f), P(0, -.06f), P(.03f, -.095f), P(.06f, -.06f) }, .009f, neonPink, false, default, default, false);
-        Ball(sign, "Cat nose", V(0, -.035f, 0), V(.03f, .022f, .022f), neonPink);
+        // ネコはネオンの絵（線だけ切り抜き、マスクの白線が光る）を貼った板 1 枚（RoomiesRoomRestyleBuilder.PropsAtlas.cs の props_neon_cat）
+        MeshPart(sign, "Cat neon", NeonCatMesh(), new[] { neonCatMat }, V(0, .05f, 0), default, 1, false);
         Text(sign, "うえい", V(0, -.31f, 0), new Vector2(.5f, .17f), Color.white, 2.4f, default, glowPurple);
         Box(sign, "Back bar", V(0, .31f, -.02f), V(.6f, .02f, .02f), black);
         foreach (int sx in new[] { -1, 1 }) Box(sign, "Hanging wire", V(sx * .25f, .42f, -.02f), V(.004f, .22f, .004f), black);
@@ -672,7 +664,7 @@ internal static partial class RoomiesRoomRestyleBuilder
     {
         var c = Group(p, "Can", tipped ? pos + V(0, .033f, 0) : pos, yaw);
         if (tipped) c.localEulerAngles = V(0, yaw, 90);
-        MeshPart(c, "Body", CanMesh(color % canColors.Length), new[] { propsMat }, Vector3.zero);
+        MeshPart(c, "Body", CanMesh(color % CanKinds), new[] { propsMat }, Vector3.zero);
     }
 
     static void Bottle(Transform p, Vector3 pos, float scale, Vector3 rot = default)
@@ -714,8 +706,12 @@ internal static partial class RoomiesRoomRestyleBuilder
 
     static void PaperScrap(Transform p, Vector3 pos, float yaw)
     {
+        // 紙くずの絵（4 種）を貼った板。乱数を引く順と回数は前の作り（箱）と同じにして、ほかの散らかりの位置を変えない
         float s = Rand(.08f, .2f);
-        Box(p, "Paper scrap", pos + V(0, .002f, 0), V(s, .002f, s * Rand(.6f, 1.3f)), rng.Next(4) == 0 ? cream : paper, V(0, yaw, 0), false);
+        float d = s * Rand(.6f, 1.3f);
+        int kind = rng.Next(4);
+        var go = MeshPart(p, "Paper scrap", ScrapMesh(kind), new[] { propsCutout }, pos + V(0, .002f, 0), V(0, yaw, 0), 1, false);
+        go.transform.localScale = V(s * 1.2f, 1, d * 1.2f);
     }
 
     static void PizzaBox(Transform p, Vector3 pos, float yaw, bool withPizza, bool open = true)
@@ -742,10 +738,10 @@ internal static partial class RoomiesRoomRestyleBuilder
     static void Magazine(Transform p, Vector3 pos, float yaw, Material cover, string title = null)
     {
         var m = Group(p, "Magazine", pos, yaw);
+        // 表紙はアトラスの絵（4 種。どれになるかは置く位置で決まる）。cover と title は前の作りの引数で、今は使っていない
         Box(m, "Pages", V(0, .006f, 0), V(.21f, .012f, .285f), paper);
-        Box(m, "Cover", V(0, .0125f, 0), V(.212f, .002f, .287f), cover);
-        Box(m, "Cover photo", V(0, .014f, .03f), V(.16f, .001f, .14f), cream);
-        if (title != null) Text(m, title, V(0, .0155f, -.1f), new Vector2(.19f, .06f), Color.white, .5f, V(90, 0, 0));
+        int kind = Mathf.Abs(Mathf.RoundToInt(pos.x * 131) + Mathf.RoundToInt(pos.z * 71) + Mathf.RoundToInt(pos.y * 17)) % 4;
+        MeshPart(m, "Cover", CoverMesh(kind), new[] { propsMat }, V(0, .0125f, 0));
     }
 
     static void OpenMagazine(Transform p, Vector3 pos, float yaw)

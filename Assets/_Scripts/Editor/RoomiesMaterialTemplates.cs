@@ -209,22 +209,94 @@ internal static partial class RoomiesMaterialFinishBuilder
         if (old == null) return null;
         Color c = old.GetColor("_BaseColor");
         Action<Material> extra = null;
+        if (Tiles.TryGetValue(oldName, out var tile))
+        {
+            if (oldName == "wall_plaster") c *= .9f;   // 壁が明るくなりすぎないよう、少しだけ暗く（前と同じ）
+            var target = c;
+            return Variant(t, oldName, c, v => ApplyTile(v, tile, target));
+        }
         if (t == Tpl.Emissive)
             extra = v => { v.SetColor("_EmissionColor", old.GetColor("_EmissionColor")); v.SetFloat("_Smoothness", old.GetFloat("_Smoothness")); };
         else if (t == Tpl.Fabric && Plush.Contains(oldName))
             extra = v => { v.SetFloat("_DetailContrast", .6f); v.SetFloat("_BumpScale", .4f); v.SetFloat("_TileSize", .14f); };   // 起毛（ソファ・ぬいぐるみ・クッション）
-        else if (oldName == "floor_planks")
-            extra = v =>
-            {
-                v.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(TexDir + "finish_floor.png"));
-                v.SetTexture("_BumpMap", AssetDatabase.LoadAssetAtPath<Texture2D>(TexDir + "finish_floor_n.png"));
-                v.SetFloat("_TileSize", 1.4f); v.SetFloat("_Smoothness", .13f); v.SetFloat("_BumpScale", .9f);
-            };
+        // 床・壁・ソファ・段ボール・ラグは上の Tiles（描いたテクスチャ）で決める。前の finish_floor などは使わなくなった
         else if (oldName == "ceiling") extra = v => v.SetFloat("_TileSize", 1.2f);
-        else if (oldName == "wall_plaster") c *= .9f;   // 壁が明るくなりすぎないよう、少しだけ暗く
         else if (oldName == "gold") extra = v => { v.SetFloat("_Metallic", .9f); v.SetFloat("_Smoothness", .6f); };
-        else if (oldName == "rug" || oldName == "rug_edge") extra = v => v.SetFloat("_TileSize", .3f);
         return Variant(t, oldName, c, extra);
+    }
+
+    // ================================================================ 大きい面の描いたテクスチャ（2026/11/23）
+    // Textures/Tiles の色（albedo）とノーマル（OpenGL 形式＝Unity と同じ向きなので反転しない）を、元の色の子マテリアルに貼る。
+    // 色は「元の色 ÷ テクスチャの平均の色」をかけて、絵の模様を残したまま部屋の配色（元の色）にそろえる。
+    // tile は模様 1 枚が何メートルか（床の板の幅 約 0.14m、ソファの織り目 約 7mm、ラグの模様 約 0.2m になる大きさ）
+    const string TileDir = "Assets/_Art/Restyle/Textures/Tiles/";
+    static readonly Dictionary<string, (string tex, float tile, float bump, float smooth)> Tiles = new Dictionary<string, (string, float, float, float)>
+    {
+        ["floor_planks"] = ("floor_wood", 1.4f, .8f, .13f),
+        ["wall_plaster"] = ("wall_plaster", 2.0f, .5f, -1),
+        ["sofa_yellow"] = ("fabric", .25f, .6f, -1), ["sofa_yellow_dark"] = ("fabric", .25f, .6f, -1),
+        ["cardboard"] = ("cardboard", .5f, .5f, -1), ["cardboard_dark"] = ("cardboard", .5f, .5f, -1),
+        ["rug"] = ("rug", .8f, .5f, -1), ["rug_edge"] = ("rug", .8f, .5f, -1),
+    };
+    static readonly Dictionary<string, Color> TileMeans = new Dictionary<string, Color>();
+
+    static void ApplyTile(Material v, (string tex, float tile, float bump, float smooth) t, Color target)
+    {
+        string albedo = TileDir + t.tex + "_albedo.png", normal = TileDir + t.tex + "_normal.png";
+        var a = ImportTile(albedo, false); var n = ImportTile(normal, true);
+        if (a == null || n == null) { Debug.LogWarning("[Material Templates] tile texture missing: " + t.tex); return; }
+        var mean = TileMean(albedo);
+        v.SetTexture("_BaseMap", a); v.SetTexture("_BumpMap", n);
+        v.SetFloat("_TileSize", t.tile); v.SetFloat("_BumpScale", t.bump);
+        v.SetFloat("_DetailContrast", 1); v.SetFloat("_ColorVariation", 1);
+        if (t.smooth >= 0) v.SetFloat("_Smoothness", t.smooth);
+        v.SetColor("_BaseColor", new Color(target.r / Mathf.Max(mean.r, .05f), target.g / Mathf.Max(mean.g, .05f), target.b / Mathf.Max(mean.b, .05f), 1));
+    }
+
+    /// <summary>元の Restyle の素材（URP Lit）に描いたタイルを貼る。originalHex は Palette の元の色（何度実行しても同じ結果になるよう、今の色ではなく元の色から決める）。</summary>
+    internal static void TileOnRestyle(string material, string tex, string originalHex, float bump, Vector2 tiling, float smooth)
+    {
+        var mat = AssetDatabase.LoadAssetAtPath<Material>(Restyle + material + ".mat");
+        string albedo = TileDir + tex + "_albedo.png", normal = TileDir + tex + "_normal.png";
+        var a = ImportTile(albedo, false); var n = ImportTile(normal, true);
+        if (mat == null || a == null || n == null) { Debug.LogWarning("[Material Finish] tile not applied: " + material); return; }
+        ColorUtility.TryParseHtmlString("#" + originalHex, out var target);
+        var mean = TileMean(albedo);
+        mat.SetTexture("_BaseMap", a); mat.SetTextureScale("_BaseMap", tiling);
+        mat.SetTexture("_BumpMap", n); mat.SetFloat("_BumpScale", bump); mat.EnableKeyword("_NORMALMAP");
+        mat.SetColor("_BaseColor", new Color(target.r / Mathf.Max(mean.r, .05f), target.g / Mathf.Max(mean.g, .05f), target.b / Mathf.Max(mean.b, .05f), 1));
+        if (smooth >= 0) mat.SetFloat("_Smoothness", smooth);
+        EditorUtility.SetDirty(mat);
+    }
+
+    /// <summary>タイルの取り込み設定（1024・ミップマップ・繰り返し・高品質圧縮。ノーマルは Normal map）。</summary>
+    static Texture2D ImportTile(string path, bool normal)
+    {
+        var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+        if (importer == null) return null;
+        var type = normal ? TextureImporterType.NormalMap : TextureImporterType.Default;
+        int aniso = normal ? 4 : 8;
+        if (importer.textureType != type || importer.maxTextureSize != 1024 || !importer.mipmapEnabled || importer.wrapMode != TextureWrapMode.Repeat
+            || importer.textureCompression != TextureImporterCompression.CompressedHQ || importer.anisoLevel != aniso || importer.flipGreenChannel)
+        {
+            importer.textureType = type; importer.maxTextureSize = 1024; importer.mipmapEnabled = true; importer.wrapMode = TextureWrapMode.Repeat;
+            importer.textureCompression = TextureImporterCompression.CompressedHQ; importer.anisoLevel = aniso; importer.flipGreenChannel = false;
+            importer.SaveAndReimport();
+        }
+        return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+    }
+
+    /// <summary>色の画像の平均の色（sRGB）。</summary>
+    static Color TileMean(string path)
+    {
+        if (TileMeans.TryGetValue(path, out var c)) return c;
+        var t = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+        t.LoadImage(File.ReadAllBytes(path));
+        var p = t.GetPixels32(); double r = 0, g = 0, b = 0; int n = 0;
+        for (int i = 0; i < p.Length; i += 7) { r += p[i].r; g += p[i].g; b += p[i].b; n++; }
+        UnityEngine.Object.DestroyImmediate(t);
+        c = new Color((float)(r / n / 255), (float)(g / n / 255), (float)(b / n / 255), 1);
+        TileMeans[path] = c; return c;
     }
 
     // ================================================================ テクスチャ（色は灰色の濃淡だけ。色は _BaseColor で付く）

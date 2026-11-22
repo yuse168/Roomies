@@ -93,15 +93,14 @@ internal static partial class RoomiesRoomRestyleBuilder
         RBox(d, "Handle", V(.7f, .02f, -.065f), V(.035f, .46f, .04f), .012f, metalGrey);
         // 貼り紙とマグネット（扉と一緒に動く）
         const float z = -.047f;
-        Box(d, "Note", V(.25f, .62f, z), V(.16f, .16f, .002f), yellow, V(0, 0, 5));
-        Box(d, "Note", V(.47f, .5f, z), V(.13f, .13f, .002f), pink, V(0, 0, -7));
-        Box(d, "Flyer", V(.3f, -.05f, z), V(.26f, .34f, .002f), paper, V(0, 0, -3));
-        Box(d, "Flyer print", V(.3f, .02f, z - .001f), V(.22f, .12f, .002f), red, V(0, 0, -3));
-        Text(d, "当番表", V(.3f, .02f, z - .003f), new Vector2(.2f, .09f), Hex("FFF3D0"), .6f, V(0, 180, -3));
-        for (int i = 0; i < 4; i++) Box(d, "Flyer line", V(.3f, -.08f - i * .035f, z - .001f), V(.2f, .012f, .002f), Mat("page_grey", "9A9484", .1f), V(0, 0, -3));
-        Box(d, "Photo", V(.52f, -.3f, z), V(.15f, .11f, .002f), white, V(0, 0, 8));
-        Box(d, "Photo print", V(.52f, -.295f, z - .001f), V(.125f, .08f, .002f), teal, V(0, 0, 8));
-        Box(d, "Coupon", V(.2f, -.5f, z), V(.2f, .09f, .002f), orange, V(0, 0, -10));
+        // メモはアトラスの絵（fridge_notes_atlas）を貼った板。扉の表（-Z）へ向ける。数字は（絵の番号, 位置, 高さ, 傾き）
+        (int n, Vector2 at, float h, float roll)[] notes =
+        {
+            (0, new Vector2(.25f, .6f), .18f, 5), (3, new Vector2(.48f, .48f), .15f, -7), (2, new Vector2(.3f, -.05f), .34f, -3),
+            (5, new Vector2(.53f, -.32f), .16f, 8), (1, new Vector2(.2f, -.52f), .2f, -10),
+        };
+        foreach (var note in notes)
+            MeshPart(d, "Note", NoteMesh(note.n), new[] { propsCutout }, V(note.at.x, note.at.y, z - .001f), V(0, 180, note.roll), note.h, false);
         Material[] magnets = { red, blue, yellow, purple, green };
         Vector2[] spots = { new Vector2(.25f, .69f), new Vector2(.47f, .555f), new Vector2(.3f, .11f), new Vector2(.52f, -.25f), new Vector2(.12f, -.5f), new Vector2(.6f, .7f), new Vector2(.62f, -.62f) };
         for (int i = 0; i < spots.Length; i++) Cyl(d, "Magnet", V(spots[i].x, spots[i].y, z - .004f), .035f, .012f, magnets[i % magnets.Length], V(90, 0, 0));

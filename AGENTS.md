@@ -136,7 +136,12 @@
 - 部屋の小物のローポリ（2026/11/23） … 缶・瓶・観葉植物・電飾と吊りランプの電球・ピザと箱は、`Build Room` / `Build Title Room` が
   1 つの形のメッシュで置く（`RoomiesRoomRestyleBuilder.Props.cs`。メッシュは `RestyleMeshes.asset` の `prop_*`）。色はアトラス
   `Assets/_Art/Restyle/Props/props_atlas.png` とマテリアル `Assets/_Materials/Props/props_atlas.mat` を使い回す。
-  本物のテクスチャは `Assets/_Art/Restyle/Props/Source/` に決まった名前で置いて作り直す（名前は同じ場所の README.txt）。
+  ラベル・雑誌の表紙・メモ・紙くず・ピザの具・葉の元の絵はプロジェクト直下の `ArtSource/Props/`（Unity に取り込まない）にあり、
+  Build Room が切り出してアトラスに組む（`RoomiesRoomRestyleBuilder.PropsAtlas.cs` の表。説明は `ArtSource/Props/README.md`）。
+  ネコのネオンは `Textures/Neon` の絵を貼った板（マテリアル `props_neon_cat`）。冷蔵庫の扉のメモは `Restyle Night Prefabs` が置く。
+  床・壁・ソファ・段ボール・ラグの描いたテクスチャ（色とノーマル）は `Assets/_Art/Restyle/Textures/Tiles/`。床と壁は家のプレハブの部品なので
+  `Material Finish/2 Surface Detail` が元の素材（Restyle の floor_planks・wall_plaster）に貼り、ソファ・段ボール・ラグはテンプレの子
+  （`RoomiesMaterialTemplates.cs` の `Tiles`）に貼る。色は「元の色 ÷ 絵の平均の色」をかけて部屋の配色にそろえる。
   同じ角度の写真と数の確認は `RoomiesPropsCheck`（バッチ用）
 - 配達トラックと箱の値札（2026/11/13） … `Roomies/Delivery/1 Build Price Tags`・`2 Build Truck Prefab`・`3 Place Truck In Open Scene`
   （`RoomiesDeliveryTruckBuilder`）。トラックは `Assets/_Prefabs/Delivery/DeliveryTruck.prefab`。値段・締め切り・乗る距離は `GameBalance`。

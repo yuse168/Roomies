@@ -52,8 +52,11 @@ internal static partial class RoomiesMaterialFinishBuilder
         var weave = Make("finish_weave", 512, WeavePixel, out var weaveN, 3.5f);
         var board = Make("finish_cardboard", 512, CardboardPixel, out var boardN, 3f);
 
-        Surface("floor_planks", floor, floorN, .9f);
-        Surface("wall_plaster", plaster, plasterN, .7f);
+        // 床と壁は家のプレハブの部品なのでテンプレの子に替わらず、この素材がそのまま使われる。
+        // 描いたテクスチャ（Textures/Tiles、2026/11/23）を直接貼る。色は元の色（Palette の値）÷ テクスチャの平均の色
+        // 床：板 10 段の絵を 7 回くり返す（板の幅 約 0.13m に見える大きさ）。壁：前と同じ割り付け
+        RoomiesMaterialFinishBuilder.TileOnRestyle("floor_planks", "floor_wood", "8A5A3C", .8f, new Vector2(7, 7), .13f);
+        RoomiesMaterialFinishBuilder.TileOnRestyle("wall_plaster", "wall_plaster", "B8A98E", .5f, new Vector2(2, 1), -1);
         Surface("ceiling", plaster, plasterN, .5f, new Vector2(4, 4));
         foreach (var n in new[] { "sofa_yellow", "sofa_yellow_dark", "fabric_grey", "rug", "rug_edge", "curtain",
                      "bed_duvet", "bed_duvet_light", "bed_sheet", "brown", "shark_blue", "shark_belly" })
