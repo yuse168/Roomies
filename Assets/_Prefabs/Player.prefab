@@ -253,6 +253,9 @@ MonoBehaviour:
   groundDeceleration: 32
   airAcceleration: 7
   carrySlowAmount: 0.15
+  speedScale: 1
+  boostSecondsLeft: 0
+  bounceCooldown: 0.2
   mouseSensitivity: 0.22
   jumpHeight: 1.5
   gravity: -18
@@ -271,6 +274,8 @@ MonoBehaviour:
   sprintBobFrequency: 12.5
   strafeTilt: 1.6
   landingDipAmount: 0.09
+  footstepDistance: 1.55
+  footstepMinInterval: 0.26
   cameraMotionSmoothness: 14
   sprintFieldOfViewBonus: 5
   fieldOfViewSmoothness: 7
