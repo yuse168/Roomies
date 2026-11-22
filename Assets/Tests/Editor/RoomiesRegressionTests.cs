@@ -45,9 +45,11 @@ public class RoomiesRegressionTests
     [SetUp]
     public void SetUp()
     {
-        Assert.That(NetworkManager.Singleton, Is.Null, "Run outside an active game session.");
+        Assert.That(RoomiesTestNetcode.NoActiveSession, Is.True, "Run outside an active game session.");
+        RoomiesTestNetcode.EnsureInitialized(); // EditModeではNetcodeの登録が走らないので、ここで済ませる
         var go = NewObject("Network");
         network = go.AddComponent<NetworkManager>();
+        network.SetSingleton(); // EditModeではOnEnableが呼ばれず、Singletonが入らないため
         network.NetworkConfig = new NetworkConfig
         {
             NetworkTransport = go.AddComponent<RoomiesTestTransport>(),
@@ -69,6 +71,7 @@ public class RoomiesRegressionTests
         var effects = GameType("FurnitureEffectManager").GetProperty("InstanceOrNull").GetValue(null) as Component;
         if (effects != null) Object.DestroyImmediate(effects.gameObject);
         objects.Clear();
+        RoomiesTestNetcode.ClearSingleton();
     }
 
     private NetworkBehaviour SpawnOre(int index)

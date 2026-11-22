@@ -131,6 +131,17 @@ public class NightFridge : HomeAppliance
         stocked.Value = false;      // 中身は傷んだ
     }
 
+    /// <summary>
+    /// セーブから状態を戻す（サーバーのみ）。続きから始めるときに <see cref="RunSaveManager"/> が呼ぶ。
+    /// お金は動かさず、告知も扉の演出も出さない。壊れているなら中身は空にする（故障時と同じ扱い）。
+    /// </summary>
+    public void ServerRestoreState(bool savedStocked, bool savedBroken)
+    {
+        if (!IsServer || !IsSpawned) return;
+        broken.Value = savedBroken;
+        stocked.Value = savedStocked && !savedBroken;
+    }
+
     // ---- 扉の開閉（見た目だけ。各クライアントで動かす） ----
 
     [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]

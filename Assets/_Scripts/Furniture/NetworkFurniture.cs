@@ -35,6 +35,9 @@ public class NetworkFurniture : NetworkBehaviour
     private float disconnectCheckTimer;
 
     public bool IsHeld => isHeld.Value;
+
+    /// <summary>効果（移動速度・毎朝の収入など）が効いているか。セーブに残すために公開している。</summary>
+    public bool IsEffectActive => effectActive.Value;
     public int CatalogIndex => catalogIndex.Value;
     public string DisplayName
     {

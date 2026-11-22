@@ -11,7 +11,8 @@ using UnityEngine;
 ///
 /// やること：
 ///  ・開始時：ロビーで選んだセーブ（<see cref="SaveSystem.PendingLoad"/>）を部屋へ反映する
-///  ・途中：ターンが変わる・家具が増減する・お金が動くたびに上書き保存する
+///  ・途中：ターンが変わる・家具が増減/移動する・お金が動く・冷蔵庫が変わるたびに上書き保存する
+///  ・終わり：ホストがメニューへ戻る／ゲームを閉じる直前にもう一度保存する（<see cref="TrySaveNow"/>）
 ///  ・参加者が入ってきたら、セーブにある同じ名前の人の所持金を戻す
 ///
 /// 規約（AGENTS.md）：実行時に見た目を作らない。間隔や挙動はインスペクターで変えられる。
@@ -44,14 +45,48 @@ public class RunSaveManager : MonoBehaviour
     private bool deletedForThisRun;
     private readonly List<SavedPlayerMoney> pendingPlayerMoney = new List<SavedPlayerMoney>();
 
+    /// <summary>GameRoomに置いてある実体（無ければ null）。</summary>
+    public static RunSaveManager Active { get; private set; }
+
     private void OnEnable()
     {
+        Active = this;
         PlayerNameDisplay.ServerPlayerNamed += OnServerPlayerNamed;
     }
 
     private void OnDisable()
     {
+        if (Active == this) Active = null;
         PlayerNameDisplay.ServerPlayerNamed -= OnServerPlayerNamed;
+    }
+
+    /// <summary>ウィンドウを閉じた（Alt+F4など）ときも、最後の状態を残す。</summary>
+    private void OnApplicationQuit()
+    {
+        ServerSaveNow();
+    }
+
+    /// <summary>
+    /// いまの進行を**すぐに**保存する。ホストがメニューへ戻る／終了する直前に呼ぶ。
+    /// 保存できたら true。ホストでない・負けている・保存を切っている・書けなかったときは false
+    /// （呼ぶ側は「保存されています」と言ってよいかの判断に使う）。
+    /// </summary>
+    public static bool TrySaveNow() => Active != null && Active.ServerSaveNow();
+
+    /// <summary><see cref="TrySaveNow"/> の中身。</summary>
+    public bool ServerSaveNow()
+    {
+        if (!IsServer || !autoSave || !applied) return false;
+
+        DayManager day = DayManager.Instance;
+        if (day == null || !day.IsSpawned || day.IsGameOver) return false;
+
+        RoomiesSaveData data = ServerCapture();
+        if (data == null || !SaveSystem.Write(data)) return false;
+
+        lastSignature = Signature(data);
+        nextForceSaveTime = Time.time + forceSaveInterval;
+        return true;
     }
 
     private void Update()
@@ -88,11 +123,14 @@ public class RunSaveManager : MonoBehaviour
 
         if (!autoSave) return;
 
-        RoomiesSaveData data = Capture(day);
+        // 朝↔夜の切り替え演出の最中は書かない（家賃の支払いなどが半分だけ済んだ状態を残さないため）
+        if (day.IsTransitioning) return;
+
+        RoomiesSaveData data = ServerCapture();
         if (data == null) return;
 
         // 中身が変わっていないときは書かない（ディスクを触る回数を減らす）
-        string signature = $"{data.day}/{data.time}/{data.sharedMoney}/{data.rentSurcharge}/{data.furniture.Count}";
+        string signature = Signature(data);
         bool forced = forceSaveInterval > 0f && Time.time >= nextForceSaveTime;
         if (signature == lastSignature && !forced) return;
 
@@ -101,6 +139,33 @@ public class RunSaveManager : MonoBehaviour
             lastSignature = signature;
             nextForceSaveTime = Time.time + forceSaveInterval;
         }
+    }
+
+    /// <summary>
+    /// 「前回の保存から変わったか」を見るための文字列。残り秒は毎フレーム変わるので入れない
+    /// （残り秒だけの更新は forceSaveInterval ごとの保存に任せる）。
+    /// </summary>
+    private static string Signature(RoomiesSaveData data)
+    {
+        var sb = new System.Text.StringBuilder(128);
+        sb.Append(data.day).Append('/').Append(data.time).Append('/')
+          .Append(data.sharedMoney).Append('/').Append(data.rentSurcharge).Append('/')
+          .Append(data.fridgeStocked ? 1 : 0).Append(data.fridgeBroken ? 1 : 0);
+
+        foreach (SavedFurniture f in data.furniture)
+        {
+            // 置き直しに気づければよいので 10cm 単位に丸める（物理の細かい揺れでは書かない）
+            sb.Append('|').Append(f.catalogIndex).Append(f.effectActive ? '+' : '-')
+              .Append(Mathf.RoundToInt(f.position.x * 10f)).Append(',')
+              .Append(Mathf.RoundToInt(f.position.y * 10f)).Append(',')
+              .Append(Mathf.RoundToInt(f.position.z * 10f)).Append(',')
+              .Append(Mathf.RoundToInt(f.yaw / 5f));
+        }
+
+        foreach (SavedPlayerMoney p in data.players)
+            sb.Append('|').Append(p.name).Append('=').Append(p.earning);
+
+        return sb.ToString();
     }
 
     private static bool IsServer
@@ -137,14 +202,46 @@ public class RunSaveManager : MonoBehaviour
         }
 
         SaveSystem.ClearPendingLoad();
+        ServerApply(data);
+    }
+
+    /// <summary>
+    /// セーブの中身を部屋へ反映する（サーバーのみ）。DayManagerと口座がそろっていなければ false。
+    /// 途中で1つ失敗しても残りは続ける（家具が1つ置けなくても、日数とお金は戻す）。
+    /// </summary>
+    public bool ServerApply(RoomiesSaveData data)
+    {
+        if (data == null || !IsServer) return false;
+
+        DayManager day = DayManager.Instance;
+        SharedMoneyManager money = SharedMoneyManager.Instance;
+        if (day == null || !day.IsSpawned || money == null || !money.IsSpawned) return false;
+
+        applied = true;
 
         day.ServerApplySavedState(data.day, data.time, data.remainingSeconds, data.rentSurcharge);
         money.ServerRestoreBalance(data.sharedMoney);
 
+        NightFridge fridge = NightFridge.Instance;
+        if (fridge != null && fridge.IsSpawned)
+            fridge.ServerRestoreState(data.fridgeStocked, data.fridgeBroken);
+
         int spawned = 0;
-        foreach (SavedFurniture saved in data.furniture)
+        int total = data.furniture != null ? data.furniture.Count : 0;
+        if (data.furniture != null)
         {
-            if (day.ServerSpawnFurniture(saved.catalogIndex, saved.position, saved.yaw) != null) spawned++;
+            foreach (SavedFurniture saved in data.furniture)
+            {
+                if (saved == null) continue;
+
+                NetworkFurniture furniture =
+                    day.ServerSpawnFurniture(saved.catalogIndex, saved.position, saved.yaw);
+                if (furniture == null) continue;
+
+                // 効いていた家具は効いたまま戻す（戻さないと翌朝まで効果が消える）
+                if (saved.effectActive) furniture.ServerActivateEffect();
+                spawned++;
+            }
         }
 
         pendingPlayerMoney.Clear();
@@ -154,7 +251,8 @@ public class RunSaveManager : MonoBehaviour
         RestoreAlreadySpawnedPlayers();
 
         Debug.Log($"[Save] 続きから開始: Day{data.day} {(data.time == 1 ? "夜" : "朝")} " +
-                  $"口座¥{data.sharedMoney} 家具{spawned}/{data.furniture.Count}個");
+                  $"口座¥{data.sharedMoney} 家具{spawned}/{total}個");
+        return true;
     }
 
     private void RestoreAlreadySpawnedPlayers()
@@ -202,10 +300,14 @@ public class RunSaveManager : MonoBehaviour
 
     // ---- いまの状態を集める ----
 
-    private RoomiesSaveData Capture(DayManager day)
+    /// <summary>いまの部屋の状態をセーブの形にまとめる（サーバーのみ）。そろっていなければ null。</summary>
+    public RoomiesSaveData ServerCapture()
     {
+        if (!IsServer) return null;
+
+        DayManager day = DayManager.Instance;
         SharedMoneyManager money = SharedMoneyManager.Instance;
-        if (money == null) return null;
+        if (day == null || !day.IsSpawned || money == null || !money.IsSpawned) return null;
 
         var data = new RoomiesSaveData
         {
@@ -217,6 +319,13 @@ public class RunSaveManager : MonoBehaviour
             hostName = LocalPlayerName(),
         };
 
+        NightFridge fridge = NightFridge.Instance;
+        if (fridge != null && fridge.IsSpawned)
+        {
+            data.fridgeStocked = fridge.IsStocked;
+            data.fridgeBroken = fridge.IsBroken;
+        }
+
         foreach (NetworkFurniture furniture in FindObjectsByType<NetworkFurniture>(FindObjectsSortMode.None))
         {
             if (furniture == null || !furniture.IsSpawned) continue;
@@ -227,6 +336,7 @@ public class RunSaveManager : MonoBehaviour
                 catalogIndex = furniture.CatalogIndex,
                 position = furniture.transform.position,
                 yaw = furniture.transform.eulerAngles.y,
+                effectActive = furniture.IsEffectActive,
             });
         }
 

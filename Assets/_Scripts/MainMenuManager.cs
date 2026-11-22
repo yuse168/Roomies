@@ -33,8 +33,18 @@ public class MainMenuManager : MonoBehaviour
     [Tooltip("ボタンの中の説明文（「Day 2 夜 ／ 共同口座 ¥1,200」が入る）。")]
     [SerializeField] private TMP_Text continueSummaryText;
 
+    [Tooltip("続きがあるのに「はじめから」を押したときの確認文。もう一度押すと新しく始める。")]
+    [SerializeField] private string newGameConfirmMessage =
+        "続きのデータがあります。もう一度押すと新しく始めます（前の進行は上書きされます）";
+
+    [Tooltip("上の確認が有効な秒数。過ぎたらもう一度確認する。")]
+    [SerializeField, Min(1f)] private float newGameConfirmSeconds = 6f;
+
     // 「続きから」で始めるときに読み込んだセーブ。ホスト作成が成功したら引き渡す
     private RoomiesSaveData loadedSave;
+
+    // 「はじめから」の2回押し確認が有効な時刻（これより前なら確認済みとして進む）
+    private float newGameConfirmUntil = -1f;
 
     // =========================================================
     // Unity ライフサイクル
@@ -126,9 +136,19 @@ public class MainMenuManager : MonoBehaviour
     /// <summary>
     /// 「はじめから」。前回のセーブは読み込まず、まっさらな部屋でホストを作る
     /// （セーブファイルは消さない。次のオートセーブで上書きされる）。
+    /// 続きがあるときは押し間違いで進行を失わないよう、1回目は確認文を出すだけにする。
     /// </summary>
     private void OnNewGameClicked()
     {
+        bool confirmed = Time.unscaledTime <= newGameConfirmUntil;
+        if (!confirmed && SaveSystem.Load() != null)
+        {
+            newGameConfirmUntil = Time.unscaledTime + newGameConfirmSeconds;
+            ShowStatus(newGameConfirmMessage);
+            return;
+        }
+
+        newGameConfirmUntil = -1f;
         SaveSystem.ClearPendingLoad();
         loadedSave = null;
         OnHostClicked();

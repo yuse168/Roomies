@@ -1,5 +1,73 @@
 # PROGRESS.md
 
+## 2026/11/23｜セーブ（続きから）の穴を埋めた：冷蔵庫・家具の効果・退出時の保存・テスト
+
+10/23 に入っていたセーブを土台に、足りなかった所を足した。作業ブランチは `feature/save-system`
+（`origin/main` の bf1a66c から。push はしていない）。
+
+### 今回の変更
+1. **保存する項目を足した**（`RoomiesSaveData` を版2へ）
+   - 冷蔵庫：食材が入っているか・壊れているか（`NightFridge.ServerRestoreState` で戻す）
+   - 家具ごとの「効果が効いているか」。これまでは続きから始めると、翌朝まで
+     家具の効果（移動速度・毎朝の収入）が消えていた
+2. **版の扱いを「範囲」にした**（`MinSupportedVersion`〜`CurrentVersion`）
+   - 版1（10/23 の形）のセーブもそのまま読める。足りない項目は既定値になる
+   - 自分より新しい版・版0は読まない
+3. **壊れたセーブへの備え**（`SaveSystem`）
+   - 上書きのたびに、ひとつ前を `roomies_save.json.bak` に残す。本体が読めなければ控えから読む
+   - 控えも読めなければ「セーブ無し」。メニューは「はじめから」だけになり、落ちない
+   - 手で編集されたおかしな値（日数が負・座標が NaN など）は安全な値に直す
+4. **保存のきっかけを増やした**（`RunSaveManager`）
+   - 家具の置き直し・冷蔵庫・参加者の所持金の変化でも保存する（前は個数しか見ていなかった）
+   - 朝↔夜の切り替え演出の最中は書かない
+   - ホストが「メニューへ」「終了」を選んだとき、ウィンドウを閉じたときにも保存する（`TrySaveNow`）
+5. **ホストが抜けるときの確認文**（`EscMenuUI`）
+   - ホスト：「全員のゲームが終了します（進行は保存されています）」。
+     保存が残らないとき（負けた後など）は「保存されません」。参加者はこれまでどおり
+   - 文はインスペクターで直せる
+6. **「はじめから」の押し間違い対策**（`MainMenuManager`）
+   - 続きがあるときは1回目は確認文を出すだけで、もう一度押すと始まる
+     （これまでは押して2秒後のオートセーブで前の進行が上書きされた）
+7. **テスト**
+   - `RoomiesSaveTests`（EditMode・17件）：読み書き、壊れたファイル、版の違い、控えからの復旧、
+     部屋の状態（日数・口座・家賃の上乗せ・冷蔵庫）の往復、負けた後は保存しないこと
+   - `RoomiesTestNetcode`：EditMode では Netcode の登録（メッセージの種類など）と
+     `NetworkManager.Singleton` が入らず、ホストを起動できない。それをテスト側で済ませる小さな準備。
+     既存の `RoomiesRegressionTests` にも同じ1行を入れた
+
+### 変更ファイル
+- 変更：`Assets/_Scripts/Save/RoomiesSaveData.cs`、`SaveSystem.cs`、`RunSaveManager.cs`、`SAVE.md`
+- 変更：`Assets/_Scripts/Night/NightFridge.cs`、`Furniture/NetworkFurniture.cs`（`IsEffectActive` を公開）、
+  `DayManager.cs`（家具の復元に失敗したときのログを詳しく）、`UI/EscMenuUI.cs`、`MainMenuManager.cs`
+- 新規：`Assets/Tests/Editor/RoomiesSaveTests.cs`、`RoomiesTestNetcode.cs`
+- 変更：`Assets/Tests/Editor/RoomiesRegressionTests.cs`（準備の呼び出しだけ。テストの中身は触っていない）
+- シーン・プレハブ・アートは触っていない
+
+### 確認したこと
+- Unity（バッチ）でコンパイルエラー0
+- EditMode テスト全体：**262件中 251 成功・10 失敗・1 スキップ**。セーブの17件はすべて成功
+  - 作業前のこのブランチは 245件中 14 失敗（うち13件は「ホストを起動できない」で中身まで進んでいなかった）
+  - 準備を入れた結果、家賃・家具購入・配達のうち4件が通るようになり、残り9件は中身の食い違いが見えるようになった
+- **Play Mode（バッチ）で通し確認**：1回目のPlayで Day3 夜・口座¥2,345・家賃上乗せ¥120・
+  冷蔵庫に食材・家具2個（片方だけ効果あり）にして保存 → Playを止める → 2回目のPlayで「続きから」
+  → 同じ日数・時間帯・残り秒・口座・上乗せ・冷蔵庫・家具の番号/位置/向き/効果に戻ることを確認。
+  保存先は一時フォルダへ向け、Steamロビーは使わず UnityTransport でホストした。確認用の一時スクリプトは削除済み
+
+### まだ確認していないこと
+- **メニューのボタンを実際に押す流れは未確認**（「続きから」「はじめから」の2回押し、ポーズ画面の確認文の見た目）。
+  上の通し確認は、ボタンが呼ぶのと同じ処理をスクリプトから呼んだもの
+- 2台での確認、参加者の所持金が名前で戻るところ、負けてセーブが消えるところは未確認
+- 家具の置き直しは EditMode のテストでは確かめられない（`NetworkTransform` が EditMode で初期化されないため）。
+  Play Mode の通し確認でだけ見ている
+- Steam Cloud（Auto-Cloud）の設定はしていない。`companyName` が `DefaultCompany` のままなので、
+  発売前に変えると保存場所が変わり、それまでのセーブと設定が見えなくなる
+
+### 残っているテストの失敗（今回の対象外）
+- 採掘 6件（5件は NullReference、1件はシーン検査）、`DeliveryCreatesInitialBoxesOnNetworkSpawn`（2個のはずが1個）、
+  `FurniturePurchasesUseServerDeliveryOrder…`（残高不足と判定）、`RentSuccessAdvancesToDayFour…`（家賃が引かれない）
+- `UnitySkills…Migration_RepeatLoad…` 1件はパッケージ側のテストで、実行ごとに通ったり落ちたりする
+
+
 ## 2026/10/23｜UIの実体化（その2：HUD・メニュー/ロビー・ポーズ/設定）
 
 残っていた大きい3つを実体化した。これでコードから実行時に組み立てるUIはほぼ無くなった。

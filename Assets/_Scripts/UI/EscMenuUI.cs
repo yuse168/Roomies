@@ -191,6 +191,16 @@ public sealed class EscMenuUI : MonoBehaviour
     [Tooltip("ポーズカードの位置。(0,0)で画面中央")]
     [SerializeField] private Vector2 cardOffset = Vector2.zero;
 
+    [Header("退出・終了の確認文")]
+    [Tooltip("参加者がメニューへ戻るとき")]
+    [SerializeField] private string leaveMessageClient = "現在のルームから退出します";
+    [Tooltip("参加者がゲームを終了するとき")]
+    [SerializeField] private string quitMessageClient = "現在のゲームを終了します";
+    [Tooltip("ホストが抜けるとき（進行を保存できる状態）")]
+    [SerializeField] private string hostMessageSaved = "全員のゲームが終了します\n（進行は保存されています）";
+    [Tooltip("ホストが抜けるとき（負けた後など、保存が残らない状態）")]
+    [SerializeField] private string hostMessageNotSaved = "全員のゲームが終了します\n（進行は保存されません）";
+
 #if UNITY_EDITOR
     /// <summary>
     /// シーンへ実体を置くための組み立て（エディタ専用）。
@@ -695,11 +705,23 @@ public sealed class EscMenuUI : MonoBehaviour
     {
         pendingAction = action;
         confirmTitle.text = action == ConfirmAction.Quit ? "ゲームを終了しますか？" : "メニューへ戻りますか？";
-        confirmMessage.text = action == ConfirmAction.Quit
-            ? "現在のゲームを終了します"
-            : "現在のルームから退出します";
+        confirmMessage.text = ConfirmationMessage(action);
         SetVisible(confirmGroup, true);
         Select(confirmCancelButton);
+    }
+
+    /// <summary>
+    /// 確認ダイアログの文。ホストが抜けると全員の部屋が閉じるので、ホストには実態どおりに伝える。
+    /// 「保存されています」は、ここで実際に保存できたときだけ出す。
+    /// </summary>
+    string ConfirmationMessage(ConfirmAction action)
+    {
+        var network = NetworkManager.Singleton;
+        bool isHost = network != null && network.IsListening && network.IsServer;
+        if (!isHost)
+            return action == ConfirmAction.Quit ? quitMessageClient : leaveMessageClient;
+
+        return RunSaveManager.TrySaveNow() ? hostMessageSaved : hostMessageNotSaved;
     }
 
     void HideConfirmation()
@@ -801,6 +823,9 @@ public sealed class EscMenuUI : MonoBehaviour
 
     IEnumerator ReturnToMainMenuRoutine()
     {
+        // ホストなら、部屋を閉じる前に最後の状態を保存する（ホスト以外では何もしない）
+        RunSaveManager.TrySaveNow();
+
         if (SteamLobby.Instance != null)
             SteamLobby.Instance.LeaveLobby();
         else if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
@@ -818,6 +843,9 @@ public sealed class EscMenuUI : MonoBehaviour
     {
         if (isLeavingScene) return;
         isLeavingScene = true;
+
+        // ホストなら、部屋を閉じる前に最後の状態を保存する（ホスト以外では何もしない）
+        RunSaveManager.TrySaveNow();
 
         if (SteamLobby.Instance != null)
             SteamLobby.Instance.LeaveLobby();

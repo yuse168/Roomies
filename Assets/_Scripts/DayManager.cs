@@ -746,7 +746,7 @@ public class DayManager : NetworkBehaviour
         catch (System.Exception exception)
         {
             RemoveFailedFurniture(go, no);
-            Debug.LogWarning($"[Save] 家具の復元に失敗: {exception.Message}");
+            Debug.LogWarning($"[Save] 家具の復元に失敗（番号 {catalogIndex}）: {exception}");
             return null;
         }
     }
