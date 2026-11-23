@@ -2,7 +2,7 @@
 
 ## 2026/11/23｜カジノ 段階1：得しすぎの台を直す
 
-ゆせさんの返事（11/23 16:24「全部やっていいよ」）。設計案は `D:\TK230088\Leicarain	mp_roomies_casino_plan_20261123\index.html`。Roomies_save で直接作業（ブランチ art/open-views-20261119）。
+ゆせさんの返事（11/23 16:24「全部やっていいよ」）。設計案は `D:\TK230088\Leica\brain\tmp_roomies_casino_plan_20261123\index.html`。Roomies_save で直接作業（ブランチ art/open-views-20261119）。
 
 - スロット（`Slot.prefab`）：当たりの重みをコードの元の値に戻した（スター 50→30、宝石 10→5、7 が 5→2）。戻る割合の期待値は 116.6% → 96.2%
 - スロットのフィーバー：無料の回は「フィーバーが始まった回の賭け金」で配当を決める（`SlotMachine.feverBetCost`、サーバーだけが持つ）。
