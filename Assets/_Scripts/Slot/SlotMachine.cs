@@ -102,6 +102,10 @@ public class SlotMachine : NetworkBehaviour
             NetworkVariableWritePermission.Server
         );
 
+    // フィーバーが始まった回の賭け金（サーバーだけが持つ）。無料の回はこの賭け金で配当を決める。
+    // 無料の回のあいだに賭け金を上げても、配当は増えない。
+    private int feverBetCost;
+
     private Coroutine spinCoroutine;
     private Coroutine reelLoopCoroutine;
     private readonly Dictionary<TextMeshProUGUI, ReelImages> reelImages = new();
@@ -197,6 +201,13 @@ public class SlotMachine : NetworkBehaviour
 
         bool isFeverSpin = feverSpinCount.Value > 0;
 
+        // 無料の回は、フィーバーが始まった回の賭け金で配当を決める（手元の賭け金の切り替えは見ない）
+        if (isFeverSpin && feverBetCost > 0)
+        {
+            cost = feverBetCost;
+            multiplier = (float)cost / Mathf.Max(1, betAmounts[0]);
+        }
+
         if (!isFeverSpin)
         {
             if (!SharedMoneyManager.Instance.TrySpend(
@@ -264,8 +275,38 @@ public class SlotMachine : NetworkBehaviour
 
         SpinClientRpc(r1, r2, r3, resultMessage);
 
-        StartCoroutine(ApplyRewardAfterSpin(reward, addFever, playerNetworkObjectId));
+        StartCoroutine(ApplyRewardAfterSpin(reward, addFever, playerNetworkObjectId, cost));
     }
+
+    /// <summary>
+    /// 賭け金に対して戻る割合の期待値（1 = 100%）。当たりの重み・配当・フィーバーから計算する。
+    /// 数値を直したときに、テストとインスペクターの右クリック（Log Expected Return）で確かめるためのもの。
+    /// </summary>
+    public float ExpectedReturn()
+    {
+        if (betAmounts == null || betAmounts.Length == 0 || slotSymbols == null) return 0f;
+
+        float totalWeight = 0f, rewardSum = 0f, feverWeight = 0f;
+        foreach (SlotSymbol s in slotSymbols)
+        {
+            float w = Mathf.Max(0, s.weight);
+            totalWeight += w;
+            rewardSum += w * s.reward;
+            if (s.isFeverSymbol) feverWeight += w;
+        }
+        if (totalWeight <= 0f) return 0f;
+
+        float hit = 1f - missPercent / 100f;
+        float basePay = hit * rewardSum / totalWeight;                 // 1回ぶん（いちばん低い賭け金あたり）
+        float feverChance = hit * feverWeight / totalWeight;
+        float chain = 1f - feverFreeSpins * feverChance;               // 無料の回でまた 7 が出るぶん
+        float freeSpin = chain > 0.001f ? feverMultiplier * basePay / chain : 0f;
+        return (basePay + feverChance * feverFreeSpins * freeSpin) / Mathf.Max(1, betAmounts[0]);
+    }
+
+    [ContextMenu("Log Expected Return")]
+    private void LogExpectedReturn() =>
+        Debug.Log($"[Slot] {name} 戻る割合の期待値 {ExpectedReturn() * 100f:F1}%", this);
 
     /// <summary>Server validation shared with the editor regression check.</summary>
     public bool IsWithinInteractionRange(Vector3 playerPosition)
@@ -289,7 +330,7 @@ public class SlotMachine : NetworkBehaviour
         return spinDuration + reelStopDelay * 2f + stopPulseDuration;
     }
 
-    private IEnumerator ApplyRewardAfterSpin(int reward, bool addFever, ulong playerNetworkObjectId)
+    private IEnumerator ApplyRewardAfterSpin(int reward, bool addFever, ulong playerNetworkObjectId, int cost)
     {
         yield return new WaitForSeconds(GetSpinAnimationDuration());
 
@@ -317,6 +358,8 @@ public class SlotMachine : NetworkBehaviour
 
         if (addFever)
         {
+            // フィーバー中にまた 7 が出たときは、最初の賭け金のまま回数だけ足す
+            if (feverSpinCount.Value <= 0) feverBetCost = cost;
             feverSpinCount.Value += feverFreeSpins;
         }
 

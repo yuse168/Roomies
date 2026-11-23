@@ -140,6 +140,7 @@ MonoBehaviour:
   coffeeSpeed: 1.15
   coffeeSeconds: 25
   arcadeCost: 50
-  arcadeMaxPrize: 250
+  arcadeMaxPrize: 120
+  arcadeMissChance: 0.45
   luckyCatMax: 120
   useCooldown: 1.2

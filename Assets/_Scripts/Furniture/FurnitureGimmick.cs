@@ -32,7 +32,10 @@ public class FurnitureGimmick : HomeAppliance
 
     [Header("アーケード機")]
     [SerializeField, Min(0)] private int arcadeCost = 50;
-    [SerializeField, Min(0)] private int arcadeMaxPrize = 250;
+    [Tooltip("当たりの景品の上限（下限は 1 プレイの値段）。10 円きざみに切り捨てる")]
+    [SerializeField, Min(0)] private int arcadeMaxPrize = 120;
+    [Tooltip("外れる確率。0.45・¥50・上限 ¥120 のとき、戻る割合は約 89%（遊ぶほど少しずつ減る）")]
+    [SerializeField, Range(0f, 1f)] private float arcadeMissChance = 0.45f;
 
     [Header("招き猫")]
     [SerializeField, Min(0)] private int luckyCatMax = 120;
@@ -200,7 +203,9 @@ public class FurnitureGimmick : HomeAppliance
             return;
         }
 
-        int prize = Random.value < 0.45f ? 0 : Random.Range(arcadeCost, arcadeMaxPrize + 1) / 10 * 10;
+        int prize = Random.value < arcadeMissChance
+            ? 0
+            : Random.Range(arcadeCost, Mathf.Max(arcadeCost, arcadeMaxPrize) + 1) / 10 * 10;
 
         if (prize <= 0)
         {

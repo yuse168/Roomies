@@ -1708,7 +1708,7 @@ MonoBehaviour:
     isFeverSymbol: 0
   - symbol: L
     reward: 15
-    weight: 50
+    weight: 30
     isFeverSymbol: 0
   - symbol: S
     reward: 30
@@ -1716,11 +1716,11 @@ MonoBehaviour:
     isFeverSymbol: 0
   - symbol: D
     reward: 50
-    weight: 10
+    weight: 5
     isFeverSymbol: 0
   - symbol: 7
     reward: 100
-    weight: 5
+    weight: 2
     isFeverSymbol: 1
   missPercent: 50
   feverFreeSpins: 3
