@@ -237,7 +237,9 @@ internal static partial class RoomiesCasinoBuilder
             so.FindProperty("interactDistance").floatValue = 3f;
             // 頭の上の吹き出し（全員に見えるひとこと）
             var speech = BuildSpeechBubble(root, 1.95f);
-            speech.transform.Find("Anchor_Bubble").localPosition = new Vector3(0, 1.95f, .55f);   // カウンターの上の看板の手前に出す
+            // カウンターの上の看板（踏み台の上から見て高さ 2.0〜2.6m）より下に、体の横へ出す。
+            // 看板より下に収めておけば、近くからも遠くからも看板に隠れない。顔も隠さない
+            speech.transform.Find("Anchor_Bubble").localPosition = new Vector3(-1.0f, 1.45f, .2f);
             so.FindProperty("bubble").objectReferenceValue = speech;
             so.ApplyModifiedPropertiesWithoutUndo();
 

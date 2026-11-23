@@ -11,21 +11,54 @@ using UnityEngine;
 internal static partial class RoomiesCasinoArt
 {
     // ================================================================ 角の丸い塔
-    internal const float TurretRadius = .9f;
+    // 塔の中心は、正面の壁の面より TurretInset だけ奥にある。屋根より下は「壁の面より前に出ている弧」だけを作る
+    // （丸ごとの円柱にすると、建物の中の部屋へ突き出る）。屋根より上（てっぺんの帯と丸屋根）は、丸ごと。
+    internal const float TurretRadius = .9f, TurretInset = .45f;
 
-    /// <summary>塔の胴（レンガにする部分）。足元から高さ height まで。</summary>
-    internal static Mesh TurretBody(float height) => Build("facade_turret_body_" + Mathf.RoundToInt(height * 10), lp =>
-        lp.Lathe(new[] { (TurretRadius, 0f), (TurretRadius, height) }, 20, "brick", 0, false, false));
+    /// <summary>壁の面より前に出ている範囲（角度）。Lathe と同じ向き（+Z が正面）。壁の厚みの中で止まるよう、ほんの少しだけ奥へ回す。</summary>
+    static (float a0, float a1) TurretFrontArc(float r)
+    {
+        float a = Mathf.Asin(Mathf.Clamp((TurretInset - .06f) / r, -1f, 1f));
+        return (a, Mathf.PI - a);
+    }
 
-    /// <summary>塔の飾り：足元の石、階の境の金の帯とピンクのネオンの輪、てっぺんの白い帯・金の丸屋根・飾り玉・電球。</summary>
+    /// <summary>回転体の一部（角度 a0〜a1 の弧）。rings は下から (半径, 高さ)。</summary>
+    static void LatheArc(Lp lp, (float r, float y)[] rings, int sides, float a0, float a1, System.Func<int, string> colorOfBand, bool glow = false)
+    {
+        Vector3 R(float r, float y, float a) => new Vector3(Mathf.Cos(a) * r, y, Mathf.Sin(a) * r);
+        for (int b = 0; b < rings.Length - 1; b++)
+        {
+            var r0 = rings[b]; var r1 = rings[b + 1];
+            float dr = r1.r - r0.r, dy = r1.y - r0.y;
+            Vector2 u = Sw(colorOfBand(b));
+            for (int k = 0; k < sides; k++)
+            {
+                float t0 = Mathf.Lerp(a0, a1, (float)k / sides), t1 = Mathf.Lerp(a0, a1, (float)(k + 1) / sides);
+                Vector3 outward = R(1, 0, (t0 + t1) / 2) * dy - Vector3.up * dr;
+                if (outward.sqrMagnitude < 1e-12f) continue;
+                lp.Quad(R(r0.r, r0.y, t0), R(r0.r, r0.y, t1), R(r1.r, r1.y, t1), R(r1.r, r1.y, t0), u, u, u, u, outward, glow);
+            }
+        }
+    }
+
+    /// <summary>塔の胴（レンガにする部分）。足元から roofY までは前の弧だけ、roofY から height までは丸ごと。</summary>
+    internal static Mesh TurretBody(float height, float roofY) => Build("facade_turret_body_" + Mathf.RoundToInt(height * 10), lp =>
+    {
+        var (a0, a1) = TurretFrontArc(TurretRadius);
+        LatheArc(lp, new[] { (TurretRadius, 0f), (TurretRadius, roofY) }, 14, a0, a1, _ => "brick");
+        lp.Lathe(new[] { (TurretRadius, roofY), (TurretRadius, height) }, 20, "brick", 0, false, false);
+    });
+
+    /// <summary>塔の飾り：足元の石、階の境の金の帯とピンクのネオンの輪（どれも前の弧だけ）、てっぺんの白い帯・金の丸屋根・飾り玉・電球（丸ごと）。</summary>
     internal static Mesh TurretTrim(float height, float[] bands) => Build("facade_turret_trim_" + Mathf.RoundToInt(height * 10), lp =>
     {
         float r = TurretRadius;
-        lp.Lathe(new[] { (r + .1f, 0f), (r + .1f, .42f), (r + .03f, .5f) }, 20, "stone", 0, false, false);
+        var (a0, a1) = TurretFrontArc(r + .08f);
+        LatheArc(lp, new[] { (r + .1f, 0f), (r + .1f, .42f), (r + .03f, .5f) }, 14, a0, a1, _ => "stone");
         foreach (float y in bands)
         {
-            lp.Lathe(new[] { (r + .01f, y - .04f), (r + .08f, y), (r + .08f, y + .2f), (r + .01f, y + .24f) }, 20, "gold", 0, false, false);
-            lp.Lathe(new[] { (r + .03f, y + .3f), (r + .07f, y + .33f), (r + .03f, y + .36f) }, 20, "pink", 0, false, false, true);
+            LatheArc(lp, new[] { (r + .01f, y - .04f), (r + .08f, y), (r + .08f, y + .2f), (r + .01f, y + .24f) }, 14, a0, a1, _ => "gold");
+            LatheArc(lp, new[] { (r + .03f, y + .3f), (r + .07f, y + .33f), (r + .03f, y + .36f) }, 14, a0, a1, _ => "pink", true);
         }
         // てっぺん：白い帯 → 金のふち → 丸屋根 → 飾り玉
         lp.Lathe(new[] { (r + .02f, height - .02f), (r + .1f, height + .06f), (r + .1f, height + .62f), (r + .16f, height + .7f), (r + .16f, height + .82f), (r + .04f, height + .86f) },
@@ -127,12 +160,17 @@ internal static partial class RoomiesCasinoArt
         lp.Box(new Vector3(-.2f, ArchOuter - .1f, 0), new Vector3(.2f, ArchOuter + .34f, depth + .06f), "gold_dark");
     });
 
-    // ================================================================ 付け柱（正面の壁に付く、白い柱と金の柱頭）
-    internal static Mesh Pilaster(float height) => Build("facade_pilaster_" + Mathf.RoundToInt(height * 10), lp =>
+    // ================================================================ 付け柱（正面の壁の外の面に付く、白い柱と金の柱頭）
+    /// <summary>付け柱。原点は柱の足元・壁の面。壁の面より前（+Z）にだけ形がある。onGround のときは足元に石の台。</summary>
+    internal static Mesh Pilaster(float height, bool onGround = true) => Build($"facade_pilaster_{Mathf.RoundToInt(height * 10)}_{(onGround ? "g" : "w")}", lp =>
     {
-        lp.Prism(Offset(Chamfer(.62f, .26f, .06f), new Vector2(0, .1f)), 0, .5f, "stone");
-        lp.Prism(Offset(Chamfer(.46f, .2f, .07f), new Vector2(0, .08f)), .5f, height - .5f, "cream");
-        lp.Loft(Offset(Chamfer(.46f, .2f, .07f), new Vector2(0, .08f)), new[] { (height - .5f, 1f), (height - .38f, 1.12f), (height - .12f, 1.3f), (height, 1.34f) }, "gold", "gold_dark");
+        const float back = .01f;          // 壁の面からのすき間（壁の中へは入れない）
+        var shaft = Offset(Chamfer(.46f, .2f, .07f), new Vector2(0, back + .1f));
+        float y0 = 0;
+        if (onGround) { lp.Prism(Offset(Chamfer(.62f, .28f, .06f), new Vector2(0, back + .14f)), 0, .5f, "stone"); y0 = .5f; }
+        else lp.Loft(shaft, new[] { (0f, 1.25f), (.1f, 1.2f), (.22f, 1f) }, "gold", null, true);     // 壁の途中から立つ柱の、下の受け
+        lp.Prism(shaft, y0 + (onGround ? 0 : .22f), height - .5f, "cream");
+        lp.Loft(shaft, new[] { (height - .5f, 1f), (height - .38f, 1.1f), (height - .12f, 1.22f), (height, 1.25f) }, "gold", "gold_dark");
     });
 
     // ================================================================ 窓の日よけ（えんじと白のしま）

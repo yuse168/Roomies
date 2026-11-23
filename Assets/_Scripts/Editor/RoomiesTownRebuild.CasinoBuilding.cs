@@ -161,8 +161,9 @@ internal static partial class RoomiesTownRebuild
         float z0 = zs[zs.Length - 1] - 1.0f, z1 = zs[0] + 1.0f;
         Box(g, "Slot rug", 13.3f, KIX1 - .02f, fy + .012f, fy + .028f, z0, z1, Mat("casino_carpet"));
         foreach (float z in zs) Prop(g, "Slot stool", Art.Stool("maroon"), 15.02f, fy, z);
-        Box(g, "Slot neon line", KIX1 - .05f, KIX1 - .02f, fy + 2.62f, fy + 2.68f, z0 + .1f, z1 - .1f, Swatch("pink", true));
-        Art.NeonText(g, "Sign - " + sign, sign, new Vector3(KIX1 - .06f, fy + 3.02f, (z0 + z1) / 2), 270, .42f);
+        // ネオンの線と文字は、壁の柱（壁から 12cm 出ている）より手前に出す（柱の後ろだと、文字が柱で隠れる）
+        Box(g, "Slot neon line", KIX1 - .19f, KIX1 - .16f, fy + 2.62f, fy + 2.68f, z0 + .1f, z1 - .1f, Swatch("pink", true));
+        Art.NeonText(g, "Sign - " + sign, sign, new Vector3(KIX1 - .2f, fy + 3.02f, (z0 + z1) / 2), 270, .42f);
         PointLight(g, "Casino light - slot neon", new Vector3(14.9f, fy + 2.4f, (z0 + z1) / 2), 1.5f, 6f, KPink);
     }
 
@@ -205,16 +206,24 @@ internal static partial class RoomiesTownRebuild
         // 足元の石（開口は空ける）と、正面の柱
         foreach (var (x0, x1) in new[] { (KX0 - .04f, KDoorX0), (KDoorX1, KEntX0), (KEntX1, KX1 + .04f) })
             Box(g, "Casino plinth", x0, x1, 0, .45f, face, face + .05f, stone);
-        // 正面の付け柱（白い柱に金の柱頭）。入口の両わきと、その外
-        foreach (float x in new[] { 3.6f, 5.3f, 10.3f, 12.0f })
-            Prop(g, "Casino pilaster", Art.Pilaster(KRoof - .3f), x, 0, face);
+        // 正面の付け柱（白い柱に金の柱頭）。窓の前には立てない（中から窓ごしに柱が見えてしまう）ので、階ごとに窓と窓の間へ置く
+        //  ・入口の両わき：ひさしの下まで
+        //  ・1〜2 階：2 階の窓の間（x 3.0〜4.6 と 11.0〜12.6）を、3 階の境の帯の下まで
+        //  ・3 階：3 階の窓の間（x 4.8〜5.6 と 10.0〜10.8）を、屋上の帯の下まで
+        foreach (float x in new[] { 5.3f, 10.3f })
+            Prop(g, "Casino pilaster", Art.Pilaster(3.3f), x, 0, face);
+        foreach (float x in new[] { 3.8f, 11.8f })
+            Prop(g, "Casino pilaster", Art.Pilaster(KF3 - .45f), x, 0, face);
+        foreach (float x in new[] { 5.2f, 10.4f })
+            Prop(g, "Casino pilaster", Art.Pilaster(KRoof - .32f - KF3, false), x, KF3 + .02f, face);
 
-        // 正面の 2 つの角：丸い塔（胴はレンガ、帯と丸屋根は金）。建物の幅からは出さず、前へ 0.45m だけ張り出す
+        // 正面の 2 つの角：丸い塔（胴はレンガ、帯と丸屋根は金）。建物の幅からは出さず、前へ 0.45m だけ張り出す。
+        // 屋根より下は、壁の面より前の弧だけ（中の部屋へは入らない）。屋根より上は丸ごと
         float turretHeight = KRoof + .5f;
         foreach (float x in new[] { KX0 + Art.TurretRadius - .12f, KX1 - Art.TurretRadius + .12f })
         {
-            float tz = face - Art.TurretRadius + .45f;
-            PropMat(g, "Casino turret", Art.TurretBody(turretHeight), x, 0, tz, Mat("casino_brick"));
+            float tz = face - Art.TurretInset;
+            PropMat(g, "Casino turret", Art.TurretBody(turretHeight, KRoof), x, 0, tz, Mat("casino_brick"));
             Prop(g, "Casino turret trim", Art.TurretTrim(turretHeight, new[] { KF2 - .34f, KF3 - .34f }), x, 0, tz);
             Solid(g, "Casino turret collider", new Vector3(x - .8f, 0, face), new Vector3(x + .8f, KRoof, face + .45f));
         }
@@ -239,6 +248,10 @@ internal static partial class RoomiesTownRebuild
         Box(g, "Side door frame", KDoorX1, KDoorX1 + .12f, 0, KDoorH + .12f, face, face + .1f, timber);
         Box(g, "Side door frame", KDoorX0 - .12f, KDoorX1 + .12f, KDoorH, KDoorH + .12f, face, face + .1f, timber);
         Prop(g, "Side door lantern", Art.Lantern(), 2.25f, 2.1f, face + .01f);
+        // 通用口の開口の内側（壁の厚みの面）は、レンガのままだと中から見てレンガの柱のように見えるので、木の板を張る（厚さ 1.2cm。扉の動きは変えない）
+        Box(g, "Side door liner", KDoorX0, KDoorX0 + .012f, 0, KDoorH, KIZ1 - .01f, face, timber);
+        Box(g, "Side door liner", KDoorX1 - .012f, KDoorX1, 0, KDoorH, KIZ1 - .01f, face, timber);
+        Box(g, "Side door liner", KDoorX0, KDoorX1, KDoorH - .012f, KDoorH, KIZ1 - .01f, face, timber);
 
         // 入口：半円に張り出すひさし（ふちに電球、下の面が光る）と、その上に立つ金のアーチ（中に AFTER HOURS の看板）
         float marqueeY = 3.35f;

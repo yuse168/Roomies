@@ -260,6 +260,26 @@ internal static class RoomiesCasinoDemo
         bool asyncBefore = ShaderUtil.allowAsyncCompilation;
         ShaderUtil.allowAsyncCompilation = false;
 
+        // ---- 入口の右の配達の箱の値札：遊んでいる人の目からは、正しい向きで読める（値札は、見ている人のほうを向く）
+        var box = Object.FindObjectsByType<DeliveryItem>().OrderBy(d => (d.transform.position - new Vector3(13f, 0, -7f)).sqrMagnitude).FirstOrDefault();
+        if (box != null)
+        {
+            log.AppendLine($"    delivery box '{box.name}' at {box.transform.position:F1}");
+            Vector3 stand = box.transform.position + Vector3.forward * 2.4f; stand.y = .05f;
+            Teleport(cc, stand);
+            cc.transform.rotation = Quaternion.LookRotation(Vector3.back);
+            yield return new WaitForSeconds(1.0f);
+            Camera bcam = NewCamera(runner.transform, stand + Vector3.up * 1.62f + Vector3.back * .4f, box.transform.position + Vector3.up * .9f, 55);
+            yield return new WaitForEndOfFrame();
+            Shoot(bcam, "npc", "price_tag_in_game");
+            Object.Destroy(bcam.gameObject);
+            var tag = box.GetComponentInChildren<TMPro.TMP_Text>(true);
+            Vector3 toEye = stand + Vector3.up * 1.62f - tag.transform.position; toEye.y = 0;
+            // 文字の表は、文字の -Z の側。それが見ている人のほうを向いていれば、裏返しには見えない
+            Expect(tag != null && tag.enabled && Vector3.Dot(-tag.transform.forward, toEye.normalized) > .7f, $"delivery box price tag '{tag.text}' faces the player (not mirrored)");
+        }
+        else log.AppendLine("    (no delivery box in the scene)");
+
         // ---- 店の人（3 階：鍵を売らず、話すだけ）
         foreach (var clerk in Object.FindObjectsByType<CasinoClerk>().OrderBy(c => c.transform.position.y))
         {
@@ -280,7 +300,8 @@ internal static class RoomiesCasinoDemo
                 if (k == 0)
                 {
                     Vector3 head = clerk.transform.position + Vector3.up * 1.7f;
-                    Camera cam = NewCamera(runner.transform, head + clerk.transform.forward * 2.9f + clerk.transform.right * .6f + Vector3.up * .05f, head + Vector3.up * .1f, 50);
+                    // 話しかけている人の目の位置から撮る（看板に隠れずに、全文が読めるかを見るため）
+                    Camera cam = NewCamera(runner.transform, feet + Vector3.up * 1.62f - clerk.transform.forward * .4f, clerk.transform.position + Vector3.up * 1.4f - clerk.transform.right * .45f, 62);
                     yield return new WaitForEndOfFrame();
                     Shoot(cam, "npc", $"clerk_{floor}f");
                     Object.Destroy(cam.gameObject);
