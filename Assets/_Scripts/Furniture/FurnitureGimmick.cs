@@ -213,7 +213,7 @@ public class FurnitureGimmick : HomeAppliance
             return;
         }
 
-        money.TryAdd(prize, SharedMoneyReason.SlotReward, "Arcade");
+        money.TryAdd(prize, SharedMoneyReason.SlotReward, "Arcade", arcadeCost);
         Announce("ハイスコア！", $"景品の ¥{prize:N0} が出てきた", NightEventManager.StyleFun);
     }
 

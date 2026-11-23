@@ -73,6 +73,60 @@ public class RoomiesCasinoTests
         Assert.That(Field<int[]>(third, "betAmounts"), Is.EqualTo(new[] { 500, 2000, 5000 }));
     }
 
+    // ---- ルーレット ----
+
+    private static float RouletteReturn(string kindName, bool zeroRefund)
+    {
+        Type rules = GameType("RouletteRules");
+        object kind = Enum.Parse(GameType("RouletteBetKind"), kindName);
+        return (float)rules.GetMethod("ExpectedReturn").Invoke(null, new[] { kind, (object)zeroRefund });
+    }
+
+    [Test]
+    public void RouletteEveryBetReturnsThirtySixOverThirtySeven()
+    {
+        foreach (string kind in new[] { "Number", "Red", "Black", "Odd", "Even", "Low", "High", "Dozen1", "Dozen2", "Dozen3" })
+            Assert.That(RouletteReturn(kind, false), Is.EqualTo(36f / 37f).Within(0.0001f), kind + " は 97.3% のはず");
+    }
+
+    [Test]
+    public void RouletteThirdFloorRefundsEvenMoneyBetsOnZero()
+    {
+        foreach (string kind in new[] { "Red", "Black", "Odd", "Even", "Low", "High" })
+            Assert.That(RouletteReturn(kind, true), Is.EqualTo(1f).Within(0.0001f), kind + " は 0 の返金で 100% になる");
+        foreach (string kind in new[] { "Number", "Dozen1", "Dozen2", "Dozen3" })
+            Assert.That(RouletteReturn(kind, true), Is.EqualTo(36f / 37f).Within(0.0001f), kind + " は返金なしのまま");
+    }
+
+    [Test]
+    public void RouletteWheelHasEveryNumberOnceAndRedsAreEighteen()
+    {
+        Type rules = GameType("RouletteRules");
+        int[] order = (int[])rules.GetField("WheelOrder").GetValue(null);
+        Assert.That(order.Length, Is.EqualTo(37));
+        Assert.That(new System.Collections.Generic.HashSet<int>(order).Count, Is.EqualTo(37), "盤の数字に重なりがない");
+        int reds = 0;
+        for (int n = 1; n <= 36; n++)
+            if ((bool)rules.GetMethod("IsRed").Invoke(null, new object[] { n })) reds++;
+        Assert.That(reds, Is.EqualTo(18));
+    }
+
+    [Test]
+    public void RoulettePrefabHasAllSpotsAndThirdFloorRules()
+    {
+        Component second = LoadComponent("Assets/_Prefabs/Casino/RouletteTable.prefab", "RouletteTable");
+        Component third = LoadComponent("Assets/_Prefabs/Casino/RouletteTable_3F.prefab", "RouletteTable");
+        var so = new SerializedObject(second);
+        SerializedProperty spots = so.FindProperty("spots");
+        Assert.That(spots.arraySize, Is.EqualTo(46), "数字 37 ＋ 外側 9");
+        for (int i = 0; i < spots.arraySize; i++)
+            Assert.That(spots.GetArrayElementAtIndex(i).objectReferenceValue, Is.Not.Null, "賭ける場所 " + i);
+        Assert.That(Field<bool>(second, "zeroRefundsEvenMoney"), Is.False);
+        Assert.That(Field<bool>(third, "zeroRefundsEvenMoney"), Is.True, "3 階は 0 で 2 倍の賭けを返金");
+        Assert.That(Field<int[]>(second, "betAmounts"), Is.EqualTo(new[] { 100, 500, 1000 }));
+        Assert.That(Field<int[]>(third, "betAmounts"), Is.EqualTo(new[] { 500, 2000, 5000 }));
+    }
+
     [Test]
     public void CasinoKeyPricesComeFromGameBalance()
     {

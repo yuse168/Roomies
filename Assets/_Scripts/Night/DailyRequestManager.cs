@@ -180,6 +180,7 @@ public class DailyRequestManager : NetworkBehaviour
     /// <summary>
     /// お金が動いたときに呼ばれる（<see cref="SharedMoneyManager"/> から）。
     /// 稼ぎの理由を見て、関係するおねがいだけ進める。
+    /// ギャンブルの払い戻しは、賭け金を引いた差（勝った額）で届く。差が 0 以下なら「稼ぎ」にも「勝ち」にも数えない。
     /// </summary>
     public static void ServerNotifyMoney(SharedMoneyReason reason, int amount)
     {
@@ -197,8 +198,10 @@ public class DailyRequestManager : NetworkBehaviour
                 break;
 
             case RequestKind.GambleWins:
-                if (reason == SharedMoneyReason.SlotReward ||
-                    reason == SharedMoneyReason.BlackjackPayout) me.ServerAddProgress(1);
+                if (amount > 0 &&
+                    (reason == SharedMoneyReason.SlotReward ||
+                     reason == SharedMoneyReason.BlackjackPayout ||
+                     reason == SharedMoneyReason.CasinoPayout)) me.ServerAddProgress(1);
                 break;
 
             case RequestKind.BuyFurniture:
@@ -226,6 +229,7 @@ public class DailyRequestManager : NetworkBehaviour
             case SharedMoneyReason.SmugglingReward:
             case SharedMoneyReason.SlotReward:
             case SharedMoneyReason.BlackjackPayout:
+            case SharedMoneyReason.CasinoPayout:
             case SharedMoneyReason.MiningSale:
                 return true;
             default:

@@ -89,6 +89,12 @@ internal static partial class RoomiesCasinoBuilder
         Expect(access.IsSpawned && ev.IsSpawned && clerks.All(c => c.IsSpawned), "network objects spawned");
         Expect(access.KeysBought == 0 && access.UnlockedFloor == 1, $"start: keys {access.KeysBought}, unlocked floor {access.UnlockedFloor}");
 
+        // 「今日のおねがい」の達成ボーナスが途中で入ると、お金の計算が合わなくなる。確認のあいだは「達成済み」にしておく
+        if (DailyRequestManager.Instance != null)
+            ((Unity.Netcode.NetworkVariable<bool>)typeof(DailyRequestManager)
+                .GetField("done", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                .GetValue(DailyRequestManager.Instance)).Value = true;
+
         Transform cabin0 = ev.transform.Find("Floor_1F/Anchor_Cabin"), cabin1 = ev.transform.Find("Floor_2F/Anchor_Cabin"), cabin2 = ev.transform.Find("Floor_3F/Anchor_Cabin");
 
         // ---- 1 階の店の人：お金が足りないと買えない
@@ -209,6 +215,8 @@ internal static partial class RoomiesCasinoBuilder
             $"save file has keys bought {(saved != null ? saved.casinoKeysBought : -1)}, used {(saved != null ? saved.casinoKeysUsed : -1)}");
 
         yield return CheckRates(cc, money, vis);
+        yield return CheckRoulette(cc, money);
+        CheckDailyRequestCountsOnlyWinnings(money);
 
         Finish(cc, home, runner);
     }
@@ -342,6 +350,136 @@ internal static partial class RoomiesCasinoBuilder
             int d3 = money.CurrentMoney - m3;
             Expect(d3 == -500 || d3 == 0 || d3 == 500 || d3 == 1000, $"3F table result is -500 / 0 / +500 / +1000 (blackjack): {d3:+0;-0;0}");
         }
+    }
+
+    // ================================================================ ルーレット（段階 5）
+    static int SpotIndexOf(RouletteTable table, RouletteBetKind kind, int number)
+    {
+        for (int i = 0; i < table.SpotCount; i++)
+        {
+            var s = table.SpotAt(i);
+            if (s.kind == kind && (kind != RouletteBetKind.Number || s.number == number)) return i;
+        }
+        return -1;
+    }
+
+    /// <summary>PlayerInteract と同じ見方で、その場所を見ているか（最初に当たる当たり判定がその場所か）。</summary>
+    static bool LooksAtSpot(CharacterController cc, RouletteTable table, int spot, out Collider collider)
+    {
+        collider = null;
+        Vector3 eye = cc.transform.position + Vector3.up * .6f;
+        Vector3 aim = table.SpotAt(spot).transform.position + Vector3.up * .02f;
+        if (!Physics.Raycast(eye, (aim - eye).normalized, out var hit, 3f)) return false;
+        collider = hit.collider;
+        return hit.collider.GetComponentInParent<RouletteSpot>() == table.SpotAt(spot) && hit.collider.GetComponentInParent<CasinoGame>() == table;
+    }
+
+    static IEnumerator CheckRoulette(CharacterController cc, SharedMoneyManager money)
+    {
+        var earning = cc.GetComponentInParent<PlayerEarning>();
+        ulong me = cc.GetComponentInParent<Unity.Netcode.NetworkObject>().OwnerClientId;
+        var tables = Object.FindObjectsByType<RouletteTable>().OrderBy(t => t.transform.position.y).ToArray();
+        Expect(tables.Length == 2, $"roulette tables in scene {tables.Length} (2F and 3F)");
+        if (tables.Length != 2) yield break;
+        var t2 = tables[0]; var t3 = tables[1];
+        Expect(t2.IsSpawned && t3.IsSpawned, "roulette tables spawned");
+        Expect(!t2.ZeroRefundsEvenMoney && t2.BetAmounts[0] == 100, "2F roulette: chips from 100, zero takes all outside bets");
+        Expect(t3.ZeroRefundsEvenMoney && t3.BetAmounts[0] == 500, "3F roulette: chips from 500, zero refunds even-money bets");
+
+        // 2 階の台：遊ぶ人の側（台の +Z）の真ん中に立つ
+        Teleport(cc, t2.transform.TransformPoint(new Vector3(-.45f, 0, 1.3f)));
+        yield return new WaitForSeconds(.4f);
+        int red = SpotIndexOf(t2, RouletteBetKind.Red, 0), n17 = SpotIndexOf(t2, RouletteBetKind.Number, 17), n36 = SpotIndexOf(t2, RouletteBetKind.Number, 36), n0 = SpotIndexOf(t2, RouletteBetKind.Number, 0);
+        Expect(LooksAtSpot(cc, t2, red, out var redCol), "red can be looked at from the player side");
+        Expect(LooksAtSpot(cc, t2, n17, out var n17Col), "number 17 can be looked at");
+        Expect(LooksAtSpot(cc, t2, n36, out _), "number 36 (far right, far row) can be looked at");
+        Expect(LooksAtSpot(cc, t2, n0, out _), "number 0 can be looked at");
+        if (redCol == null || n17Col == null) yield break;
+        Expect(t2.GetLabel(redCol, me).Contains("赤") && t2.GetLabel(redCol, me).Contains("100"), "label names the spot and the chip value");
+        Expect(t2.IsIdle, "table waits for the first bet");
+
+        int start = money.CurrentMoney;
+        t2.Interact(redCol, earning);
+        yield return new WaitForSeconds(.4f);
+        Expect(money.CurrentMoney == start - 100 && t2.TotalOn(red) == 100 && !t2.IsIdle, $"bet 100 on red: money {start} -> {money.CurrentMoney}, on red {t2.TotalOn(red)}, countdown started");
+        Expect(t2.SpotAt(red).chips.gameObject.activeSelf, "chips are shown on red");
+
+        // チップを 500 に替えて 17 に置き、R で下げる
+        t2.ChangeBet(1);
+        t2.Interact(n17Col, earning);
+        yield return new WaitForSeconds(.4f);
+        Expect(money.CurrentMoney == start - 600 && t2.TotalOn(n17) == 500, $"bet 500 on 17: money {money.CurrentMoney}, on 17 {t2.TotalOn(n17)}");
+        Expect(t2.GetLabel(n17Col, me).Contains("500"), "label shows the own chips on 17");
+        t2.Secondary(n17Col, earning);
+        yield return new WaitForSeconds(.4f);
+        Expect(money.CurrentMoney == start - 100 && t2.TotalOn(n17) == 0, $"took the 17 bet back: money {money.CurrentMoney}, on 17 {t2.TotalOn(n17)}");
+        Expect(!t2.SpotAt(n17).chips.gameObject.activeSelf, "chips on 17 are hidden again");
+        t2.ChangeBet(-1);
+
+        // 1 人の上限（5000）を超えては置けない
+        t2.ChangeBet(-1);   // 1000
+        for (int i = 0; i < 6; i++) t2.Interact(n17Col, earning);
+        yield return new WaitForSeconds(.5f);
+        Expect(t2.TotalOn(n17) == 4000 && money.CurrentMoney == start - 4100, $"per-player limit 5000: on 17 {t2.TotalOn(n17)}, money {money.CurrentMoney} (100 on red + 4000, the rest refused)");
+        t2.ChangeBet(1);
+
+        // 締め切り → 回る → 結果。払い戻しが決まりどおりか
+        float t = 0; while (t2.IsBettingOpen && t < 20f) { yield return new WaitForSeconds(.2f); t += .2f; }
+        Expect(!t2.IsBettingOpen, $"betting closed after {t:F0}s");
+        int mid = money.CurrentMoney;
+        t2.Interact(redCol, earning);
+        yield return new WaitForSeconds(.3f);
+        Expect(money.CurrentMoney == mid, "no bets while the wheel spins");
+        t = 0; while (!t2.IsIdle && t < 20f) { yield return new WaitForSeconds(.2f); t += .2f; }
+        int result = t2.LastResult;
+        int back = 100 * RouletteRules.ReturnMultiplier(RouletteBetKind.Red, 0, result, false) + 4000 * RouletteRules.ReturnMultiplier(RouletteBetKind.Number, 17, result, false);
+        Expect(result >= 0 && result <= 36, $"result {RouletteRules.ResultName(result)}".Replace("緑", "green").Replace("赤", "red").Replace("黒", "black"));
+        Expect(money.CurrentMoney == start - 4100 + back, $"payout by the rules: money {start} - 4100 + {back} = {money.CurrentMoney}");
+        Expect(t2.TotalOn(red) == 0 && t2.TotalOn(n17) == 0 && !t2.SpotAt(red).chips.gameObject.activeSelf, "table cleared for the next round");
+
+        // 3 階の台：置けるか（1 回だけ。結果は待つ）
+        Teleport(cc, t3.transform.TransformPoint(new Vector3(-.45f, 0, 1.3f)));
+        yield return new WaitForSeconds(.4f);
+        int black3 = SpotIndexOf(t3, RouletteBetKind.Black, 0);
+        Expect(LooksAtSpot(cc, t3, black3, out var blackCol), "3F roulette: black can be looked at");
+        int s3 = money.CurrentMoney;
+        if (blackCol != null) t3.Interact(blackCol, earning);
+        yield return new WaitForSeconds(.4f);
+        Expect(money.CurrentMoney == s3 - 500, $"3F roulette: chip 500, money {s3} -> {money.CurrentMoney}");
+        t = 0; while (!t3.IsIdle && t < 40f) { yield return new WaitForSeconds(.2f); t += .2f; }
+        int r3 = t3.LastResult;
+        int back3 = 500 * RouletteRules.ReturnMultiplier(RouletteBetKind.Black, 0, r3, true);
+        Expect(money.CurrentMoney == s3 - 500 + back3, $"3F payout: result {r3}, back {back3}, money {money.CurrentMoney}");
+    }
+
+    // ================================================================ 今日のおねがい：賭け金を引いた差だけを数える
+    static void CheckDailyRequestCountsOnlyWinnings(SharedMoneyManager money)
+    {
+        var req = DailyRequestManager.Instance;
+        Expect(req != null && req.IsSpawned, "daily request manager present");
+        if (req == null) return;
+        var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+        void Set<T>(string field, T value) => ((Unity.Netcode.NetworkVariable<T>)typeof(DailyRequestManager).GetField(field, flags).GetValue(req)).Value = value;
+
+        // 「◯円稼ぐ」
+        Set("kind", (byte)DailyRequestManager.RequestKind.EarnMoney); Set("target", 1000000); Set("progress", 0); Set("done", false);
+        money.TryAdd(500, SharedMoneyReason.BlackjackPayout, "check: push", 500);
+        Expect(req.Progress == 0, $"earn request: a push (500 back on a 500 bet) counts 0 (progress {req.Progress})");
+        money.TryAdd(1000, SharedMoneyReason.BlackjackPayout, "check: win", 500);
+        Expect(req.Progress == 500, $"earn request: a win (1000 back on 500) counts 500 (progress {req.Progress})");
+        money.TryAdd(300, SharedMoneyReason.CasinoPayout, "check: partial", 1000);
+        Expect(req.Progress == 500, $"earn request: a net loss counts 0 (progress {req.Progress})");
+        money.TryAdd(200, SharedMoneyReason.DeliveryReward, "check: delivery");
+        Expect(req.Progress == 700, $"earn request: other income still counts in full (progress {req.Progress})");
+
+        // 「ギャンブルで◯回勝つ」
+        Set("kind", (byte)DailyRequestManager.RequestKind.GambleWins); Set("target", 100); Set("progress", 0); Set("done", false);
+        money.TryAdd(500, SharedMoneyReason.BlackjackPayout, "check: push", 500);
+        money.TryAdd(10, SharedMoneyReason.SlotReward, "check: slot even", 10);
+        Expect(req.Progress == 0, $"gamble-wins request: pushes are not wins (progress {req.Progress})");
+        money.TryAdd(1000, SharedMoneyReason.CasinoPayout, "check: roulette win", 500);
+        money.TryAdd(20, SharedMoneyReason.SlotReward, "check: fever free spin");
+        Expect(req.Progress == 2, $"gamble-wins request: real wins count (progress {req.Progress})");
     }
 
     /// <summary>

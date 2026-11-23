@@ -116,6 +116,7 @@ public class PlayerInteract : NetworkBehaviour
         UpdateInteractUI();
         UpdateSlotBetInput();
         UpdateBlackjackBetInput();
+        UpdateCasinoGameBetInput();
         if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame &&
             heldObject == null && heldFurniture == null && cameraTransform != null &&
             Physics.Raycast(cameraTransform.position, cameraTransform.forward, out var miningHit, interactDistance))
@@ -143,7 +144,7 @@ public class PlayerInteract : NetworkBehaviour
         {
             if (heldFurniture != null)
                 furnitureYawOffset = Mathf.Repeat(furnitureYawOffset + 45f, 360f);
-            else
+            else if (!TryCasinoGameSecondary())
                 TryStandBlackjack();
         }
 
@@ -248,6 +249,11 @@ public class PlayerInteract : NetworkBehaviour
                 else if (hit.collider.GetComponentInParent<BlackjackTable>() is BlackjackTable blackjack)
                 {
                     label = Key(GameAction.Interact) + " " + blackjack.GetInteractionLabel(OwnerClientId);
+                }
+                // カジノの新しいゲーム（ルーレットなど）。案内の文は、キーの表示も含めてゲームの側が作る
+                else if (hit.collider.GetComponentInParent<CasinoGame>() is CasinoGame casinoGame)
+                {
+                    label = casinoGame.GetLabel(hit.collider, OwnerClientId);
                 }
             }
         }
@@ -397,7 +403,48 @@ public class PlayerInteract : NetworkBehaviour
                 blackjack.Interact(playerEarning);
                 return;
             }
+
+            // カジノの新しいゲーム（ルーレットなど）
+            CasinoGame casinoGame = hit.collider.GetComponentInParent<CasinoGame>();
+
+            if (casinoGame != null)
+            {
+                casinoGame.Interact(hit.collider, playerEarning);
+                return;
+            }
         }
+    }
+
+    // カジノの新しいゲーム：見ている台の賭け金をホイール／←→で変える
+    private void UpdateCasinoGameBetInput()
+    {
+        if (cameraTransform == null) return;
+
+        float scroll = Mouse.current != null ? Mouse.current.scroll.ReadValue().y : 0f;
+        bool next = scroll > 0.01f || Keyboard.current.rightArrowKey.wasPressedThisFrame;
+        bool previous = scroll < -0.01f || Keyboard.current.leftArrowKey.wasPressedThisFrame;
+        if (!next && !previous) return;
+
+        Ray ray = new Ray(cameraTransform.position, cameraTransform.forward);
+        if (!Physics.Raycast(ray, out RaycastHit hit, interactDistance)) return;
+
+        CasinoGame game = hit.collider.GetComponentInParent<CasinoGame>();
+        if (game != null) game.ChangeBet(next ? 1 : -1);
+    }
+
+    // カジノの新しいゲーム：2 つ目の操作（R）。台を見ていなければ false
+    private bool TryCasinoGameSecondary()
+    {
+        if (cameraTransform == null) return false;
+
+        Ray ray = new Ray(cameraTransform.position, cameraTransform.forward);
+        if (!Physics.Raycast(ray, out RaycastHit hit, interactDistance)) return false;
+
+        CasinoGame game = hit.collider.GetComponentInParent<CasinoGame>();
+        if (game == null) return false;
+
+        game.Secondary(hit.collider, playerEarning);
+        return true;
     }
 
     private void TryStandBlackjack()

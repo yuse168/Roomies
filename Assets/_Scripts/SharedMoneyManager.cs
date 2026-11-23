@@ -25,7 +25,9 @@ public enum SharedMoneyReason
     DailyRequest,
     FurnitureUse,       // 置いた家具を使う代金（飲み物・コーヒーなど）。家具の購入とは別
     FoodBill,           // 夜の食費（共同口座から払う）
-    CasinoKey           // カジノの上の階の鍵（買い切り）
+    CasinoKey,          // カジノの上の階の鍵（買い切り）
+    CasinoBet,          // カジノの新しいゲーム（ルーレットなど）の賭け金
+    CasinoPayout        // カジノの新しいゲームの払い戻し
 }
 
 public class SharedMoneyManager : NetworkBehaviour
@@ -109,11 +111,14 @@ public class SharedMoneyManager : NetworkBehaviour
     /// <summary>
     /// Server側で共有口座へ正の金額を入金する。
     /// 不正値・Server以外・int上限超過は拒否する。
+    /// `stake` は、この入金のもとになった賭け金（ギャンブルの払い戻しのときだけ渡す）。
+    /// 「今日のおねがい」は、払い戻しそのものではなく、賭け金を引いた差（勝った額）だけを数える。
     /// </summary>
     public bool TryAdd(
         int amount,
         SharedMoneyReason reason,
-        string context = null)
+        string context = null,
+        int stake = 0)
     {
         if (!CanApplyTransaction(amount, "入金", reason)) return false;
 
@@ -128,7 +133,7 @@ public class SharedMoneyManager : NetworkBehaviour
         ApplyTransaction((int)nextBalance, amount, reason, context);
 
         // 「今日のおねがい」の進み具合は、入金の理由を見て数える
-        DailyRequestManager.ServerNotifyMoney(reason, amount);
+        DailyRequestManager.ServerNotifyMoney(reason, amount - Mathf.Max(0, stake));
         return true;
     }
 

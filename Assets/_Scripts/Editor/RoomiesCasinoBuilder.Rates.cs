@@ -98,6 +98,8 @@ internal static partial class RoomiesCasinoBuilder
     // スロット：1 階の台と同じ並び（右の壁ぎわ）の、入口側から 2 台ぶん。ブラックジャック：奥の左寄り
     static readonly Vector3 Blackjack2FXZ = new Vector3(4.2f, 0f, -16.6f);
     static readonly Vector3 Blackjack3FXZ = new Vector3(4.2f, 0f, -16.8f);
+    static readonly Vector3 Roulette2FXZ = new Vector3(7.6f, 0f, -12.0f);
+    static readonly Vector3 Roulette3FXZ = new Vector3(6.4f, 0f, -12.2f);
 
     /// <summary>2 階・3 階の台を置く。階ごとの表示の切り替えに入れる見た目（Visual の中の飾りと画面）を返す。</summary>
     static Dictionary<int, List<GameObject>> PlaceUpperTables(Scene scene)
@@ -131,6 +133,14 @@ internal static partial class RoomiesCasinoBuilder
             var p = xz; p.y = RoomiesTownRebuild.KFloorY(floor) + sink;
             var go = PlacePrefab(scene, path, name, p, 0f);
             AddLook(looks[floor], go.transform.Find("Visual/Art"));
+        }
+        // ルーレット：遊ぶ人は奥（エレベーターの側）に立ち、通りの窓の方を向く（台の +Z を奥へ向ける）
+        if (AssetDatabase.LoadAssetAtPath<GameObject>(RoulettePath) == null) BuildRoulettePrefabs();
+        foreach (var (path, name, xz, floor) in new[] { (RoulettePath, "RouletteTable_2F", Roulette2FXZ, 2), (Roulette3FPath, "RouletteTable_3F", Roulette3FXZ, 3) })
+        {
+            var p = xz; p.y = RoomiesTownRebuild.KFloorY(floor);
+            var go = PlacePrefab(scene, path, name, p, 180f);
+            foreach (string part in new[] { "Visual", "Pivot_Wheel", "Spots", "Anchor_Board" }) AddLook(looks[floor], go.transform.Find(part));
         }
         return looks;
     }

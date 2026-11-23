@@ -425,7 +425,8 @@ public class BlackjackTable : NetworkBehaviour
                             SharedMoneyManager.Instance.TryAdd(
                                 returnAmount,
                                 SharedMoneyReason.BlackjackPayout,
-                                $"client={roundOwnerClientId.Value}");
+                                $"client={roundOwnerClientId.Value}",
+                                activeBet.Value);   // おねがいは、賭け金を引いた差だけを数える（引き分けは 0）
 
             if (credited &&
                 TryGetRoundPlayer(out PlayerEarning playerEarning))

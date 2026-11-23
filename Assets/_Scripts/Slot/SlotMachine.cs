@@ -275,7 +275,7 @@ public class SlotMachine : NetworkBehaviour
 
         SpinClientRpc(r1, r2, r3, resultMessage);
 
-        StartCoroutine(ApplyRewardAfterSpin(reward, addFever, playerNetworkObjectId, cost));
+        StartCoroutine(ApplyRewardAfterSpin(reward, addFever, playerNetworkObjectId, cost, isFeverSpin ? 0 : cost));
     }
 
     /// <summary>
@@ -330,7 +330,7 @@ public class SlotMachine : NetworkBehaviour
         return spinDuration + reelStopDelay * 2f + stopPulseDuration;
     }
 
-    private IEnumerator ApplyRewardAfterSpin(int reward, bool addFever, ulong playerNetworkObjectId, int cost)
+    private IEnumerator ApplyRewardAfterSpin(int reward, bool addFever, ulong playerNetworkObjectId, int cost, int paid)
     {
         yield return new WaitForSeconds(GetSpinAnimationDuration());
 
@@ -341,7 +341,8 @@ public class SlotMachine : NetworkBehaviour
                             SharedMoneyManager.Instance.TryAdd(
                                 reward,
                                 SharedMoneyReason.SlotReward,
-                                $"playerObject={playerNetworkObjectId}");
+                                $"playerObject={playerNetworkObjectId}",
+                                paid);   // 払った賭け金（無料の回は 0）。おねがいは差だけを数える
 
             // 個人の収支にも反映（賭け金を個人から引いているので当たりも個人へ加算）
             if (credited &&
