@@ -146,7 +146,7 @@ internal static partial class RoomiesCasinoArt
     internal static Mesh ChipPile() => Build("chip_pile", lp =>
     {
         foreach (var (x, z, n, c) in new[] { (0f, 0f, 6, "chip_red"), (.1f, .03f, 4, "chip_blue"), (.04f, -.09f, 8, "chip_green"), (-.08f, .06f, 3, "chip_black") })
-            lp.Cyl(new Vector3(x, 0, z), .04f, n * .012f, 8, c, false, "chip_white");
+            lp.ChipStack(new Vector3(x, 0, z), .04f, n, c);
     });
 
     /// <summary>グラス（足つき）と、ポップコーンの入れ物。</summary>

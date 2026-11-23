@@ -46,7 +46,8 @@ def fit(img, size):
     w, h = size if isinstance(size, tuple) else (size, size)
     out = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     k = min(w / img.width, h / img.height)
-    r = img.resize((max(1, round(img.width * k)), max(1, round(img.height * k))), Image.LANCZOS)
+    # 透明な所の色（黒など）が、縮めるときにふちへ混ざらないよう、色に透明度を掛けてから縮めて、あとで戻す
+    r = img.convert("RGBa").resize((max(1, round(img.width * k)), max(1, round(img.height * k))), Image.LANCZOS).convert("RGBA")
     out.alpha_composite(r, ((w - r.width) // 2, (h - r.height) // 2))
     return out
 
@@ -142,18 +143,22 @@ def sym_seven(d, S):
     d.polygon([(x * k, y * k) for x, y in [(160, 96), (176, 96), (112, 216), (96, 216)]], fill=(255, 120, 120))
 
 
+SYM = 512            # シンボルの絵の大きさ（前は 256）
+BG = (768, 1120)     # 背景の絵の大きさ（前は 384×560）
+
+
 def make_symbols():
     for name, fn, glow in (("cherry", sym_cherry, False), ("bell", sym_bell, False), ("bar", sym_bar, False), ("crown", sym_crown, False), ("seven", sym_seven, True)):
         src = codex(f"slot_sym_{name}.png")
-        img = fit(src, 256) if src else outlined(fn)
+        img = fit(src, SYM) if src else outlined(fn, SYM, 10 * SYM // 256)
         save(img, f"sym_{name}.png")
         # 回っている間に使う、縦にぶれた絵
-        blur = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
+        blur = Image.new("RGBA", (SYM, SYM), (0, 0, 0, 0))
         for i in range(-6, 7):
-            layer = ImageChops.offset(img, 0, i * 7)
+            layer = ImageChops.offset(img, 0, i * 7 * SYM // 256)
             layer.putalpha(layer.split()[3].point(lambda a: a // 9))
             blur.alpha_composite(layer)
-        save(blur.filter(ImageFilter.GaussianBlur(1.2)), f"sym_{name}_blur.png")
+        save(blur.filter(ImageFilter.GaussianBlur(1.2 * SYM / 256)), f"sym_{name}_blur.png")
 
 
 # ---------------------------------------------------------------- 背景
@@ -168,7 +173,7 @@ def gradient(size, top, bottom):
 
 
 def make_backgrounds():
-    size = (384, 560)
+    size = (384, 560)      # コードで描くときの大きさ（あとで BG に広げる）
     src = codex("slot_bg_normal.png")
     if src:
         bg = src.resize(size, Image.LANCZOS)
@@ -181,7 +186,7 @@ def make_backgrounds():
                 d.polygon([(cx, cy - 14), (cx + 12, cy), (cx, cy + 14), (cx - 12, cy)], fill=(255, 255, 255, 14))
         d.rectangle([0, 0, size[0], 6], fill=GOLD + (255,))
         d.rectangle([0, size[1] - 6, size[0], size[1]], fill=GOLD + (255,))
-    save(bg, "bg_normal.png")
+    save(bg.resize(BG, Image.LANCZOS), "bg_normal.png")
 
     src = codex("slot_bg_fever.png")
     if src:
@@ -200,14 +205,14 @@ def make_backgrounds():
         d = ImageDraw.Draw(bg, "RGBA")
         d.rectangle([0, 0, size[0], 6], fill=GOLD_L + (255,))
         d.rectangle([0, size[1] - 6, size[0], size[1]], fill=GOLD_L + (255,))
-    save(bg, "bg_fever.png")
+    save(bg.resize(BG, Image.LANCZOS), "bg_fever.png")
 
 
 # ---------------------------------------------------------------- 光・コイン・きらめき
 def make_effects():
     src = codex("slot_fx_sunburst.png")
     if src:
-        sun = fit(src, 512)
+        sun = fit(src, 1024)
     else:
         S = 1024
         sun = Image.new("L", (S, S), 0)
@@ -224,11 +229,11 @@ def make_effects():
         white = Image.new("RGBA", (512, 512), (255, 255, 255, 255))
         white.putalpha(sun)
         sun = white
-    save(sun, "fx_sunburst.png")
+    save(sun if sun.width == 1024 else sun.resize((1024, 1024), Image.LANCZOS), "fx_sunburst.png")
 
     src = codex("slot_fx_coin.png")
     if src:
-        coin = fit(src, 128)
+        coin = fit(src, 256)
     else:
         def draw(d, S):
             d.ellipse([S * .06, S * .06, S * .94, S * .94], fill=GOLD_D)
@@ -237,11 +242,11 @@ def make_effects():
             d.ellipse([S * .26, S * .24, S * .74, S * .72], fill=GOLD)
             d.polygon([(S * .34, S * .62), (S * .32, S * .4), (S * .43, S * .5), (S * .5, S * .34), (S * .57, S * .5), (S * .68, S * .4), (S * .66, S * .62)], fill=GOLD_D)
         coin = outlined(draw, 128, 6)
-    save(coin, "fx_coin.png")
+    save(coin if coin.width == 256 else coin.resize((256, 256), Image.LANCZOS), "fx_coin.png")
 
     src = codex("slot_fx_sparkle.png")
     if src:
-        sp = fit(src, 128)
+        sp = fit(src, 256)
     else:
         S = 512
         m = Image.new("L", (S, S), 0)
@@ -251,7 +256,7 @@ def make_effects():
         m = ImageChops.lighter(m, m.filter(ImageFilter.GaussianBlur(18))).resize((128, 128), Image.LANCZOS)
         sp = Image.new("RGBA", (128, 128), (255, 255, 255, 255))
         sp.putalpha(m)
-    save(sp, "fx_sparkle.png")
+    save(sp if sp.width == 256 else sp.resize((256, 256), Image.LANCZOS), "fx_sparkle.png")
 
     # やわらかい丸い光（ランプ・フラッシュ・リーチの縁）
     S = 256
@@ -363,13 +368,13 @@ def card_face(rank, suit):
     img.alpha_composite(corner.rotate(180), (CW - k(112), CH - k(186)))
 
     if rank >= 11:
-        d.rounded_rectangle([k(116), k(96), CW - k(116), CH - k(96)], radius=k(14), outline=color + (255,), width=k(5), fill=(255, 250, 236, 255))
+        d.rounded_rectangle([k(104), k(84), CW - k(104), CH - k(84)], radius=k(14), outline=color + (255,), width=k(5), fill=(255, 250, 236, 255))
         court = codex({11: "card_court_j.png", 12: "card_court_q.png", 13: "card_court_k.png"}[rank])
         if court:
-            art = fit(court, (CW - k(248), CH - k(208)))
+            art = fit(court, (CW - k(220), CH - k(180)))
             tint = Image.new("RGBA", art.size, color + (255,))
             tint.putalpha(art.split()[3])
-            img.alpha_composite(tint, (k(124), k(104)))
+            img.alpha_composite(tint, (k(110), k(90)))
         else:
             big = ImageFont.truetype(FONT_BOLD, k(176))
             box = d.textbbox((0, 0), label, font=big)
@@ -392,12 +397,14 @@ def card_face(rank, suit):
 def card_back():
     src = codex("card_back.png")
     if src:
-        # 届いた絵は角が透明（丸く切ってある）。角は板の形で切るので、透明な所は絵のふちの色で埋める（にじみ防止）
-        src = src.resize((CW, CH), Image.LANCZOS)
-        edge = src.getpixel((CW // 2, k(6)))
-        flat = Image.new("RGBA", (CW, CH), edge[:3] + (255,))
-        flat.alpha_composite(src)
-        return flat
+        # 届いた絵は、角の外が透明（まわりに透明の余白があることもある）。絵のある所だけを切り出して、紙の色の札の上に、
+        # 白いふちを残してのせる（透明な角は紙の色になる。黒ずみ・にじみが出ない）。札の角は、板の形で丸く切る
+        box = src.split()[3].point(lambda a: 255 if a > 128 else 0).getbbox()
+        m = k(13)
+        art = src.crop(box).convert("RGBa").resize((CW - m * 2, CH - m * 2), Image.LANCZOS).convert("RGBA")
+        img, _ = card_paper()
+        img.alpha_composite(art, (m, m))
+        return img
     img, d = card_paper()
     d.rounded_rectangle([k(20), k(20), CW - 1 - k(20), CH - 1 - k(20)], radius=k(18), fill=(138, 43, 60, 255))
     pattern = Image.new("RGBA", (CW, CH), (0, 0, 0, 0))
@@ -417,6 +424,28 @@ def card_back():
     return img
 
 
+CHIP_COLORS = [(217, 54, 62), (61, 107, 217), (63, 163, 90), (34, 34, 42)]     # 赤・青・緑・黒（RoomiesCasinoArt の chip_〇 と同じ色）
+CHIP_TILE = 186      # チップ 1 色ぶんのマス（1 辺）。その中に、半径 CHIP_R の丸
+CHIP_R = 88
+
+
+def chip_top(color):
+    """チップを上から見た絵（1 色）。codex/chip_top.png（白 1 色の模様）があれば、それを色の上に重ねる。四角いマスいっぱいに色を敷く（丸く切るのは形のほう）。"""
+    S = CHIP_TILE
+    img = Image.new("RGBA", (S, S), color + (255,))
+    src = codex("chip_top.png")
+    if src:
+        art = fit(src, CHIP_R * 2 + 6)
+        white = Image.new("RGBA", art.size, (246, 240, 226, 255))
+        white.putalpha(art.split()[3])
+        img.alpha_composite(white, ((S - art.width) // 2, (S - art.height) // 2))
+    else:
+        d = ImageDraw.Draw(img)
+        d.ellipse([S / 2 - CHIP_R, S / 2 - CHIP_R, S / 2 + CHIP_R, S / 2 + CHIP_R], outline=(246, 240, 226, 255), width=12)
+        d.ellipse([S / 2 - 40, S / 2 - 40, S / 2 + 40, S / 2 + 40], outline=(246, 240, 226, 255), width=6)
+    return img
+
+
 def make_cards():
     atlas = Image.new("RGBA", (ATLAS_W, ATLAS_H), PAPER)
 
@@ -430,6 +459,13 @@ def make_cards():
         for rank in range(1, 14):
             put(suit * 13 + rank - 1, card_face(rank, suit))
     put(52, card_back())
+    # 54 番目のマス（番号 53）：チップを上から見た絵を 4 色（2 × 2）。チップの上の面に貼る（RoomiesCasinoArt.Cards.cs の ChipTop）
+    x0, y0 = (53 % COLS) * CELL_W, (53 // COLS) * CELL_H
+    atlas.paste(Image.new("RGBA", (CELL_W, CELL_H), (30, 26, 34, 255)), (x0, y0))
+    for i, color in enumerate(CHIP_COLORS):
+        cx, cy = x0 + CHIP_TILE // 2 + (i % 2) * CHIP_TILE, y0 + CHIP_TILE // 2 + (i // 2) * CHIP_TILE
+        top = chip_top(color)
+        atlas.paste(top, (cx - top.width // 2, cy - top.height // 2))
     atlas.convert("RGB").save(OUT_CARDS)
     print("casino_cards.png", atlas.size)
 

@@ -47,7 +47,7 @@ internal static partial class RoomiesCasinoArt
         // 山：札と同じ大きさ（HlCardScale 倍の札）の、角の丸い束。いちばん上の裏面の札は、プレハブの Visual/DeckTop
         lp.Prism(Offset(Chamfer(CardW * HlCardScale, CardH * HlCardScale, CardW * HlCardScale * CardCorner), new Vector2(HlDeck.x, HlDeck.z)), HlTop, HlTop + HlDeckHeight, "card");
         foreach (var (x, z, n, c) in new[] { (-.7f, -.06f, 6, "chip_red"), (-.61f, -.1f, 4, "chip_blue"), (-.7f, -.2f, 8, "chip_green"), (-.61f, -.22f, 5, "chip_black") })
-            lp.Cyl(new Vector3(x, HlTop + .012f, z), .04f, n * .012f, 8, c, false, "chip_white");
+            lp.ChipStack(new Vector3(x, HlTop + .012f, z), .04f, n, c);
         // 手持ちの額の札（手前のふちの上）
         lp.Prism(Offset(Chamfer(.9f, .05f, .015f), new Vector2(0, HlPlateZ)), HlTop, HlTop + .12f, "ink", "gold_dark");
         // 上の小さな看板
@@ -73,7 +73,7 @@ internal static partial class RoomiesCasinoArt
         lp.Prism(Offset(Chamfer(1.0f, .06f, .02f), new Vector2(0, -.54f)), 1.44f, 1.96f, "ink", "gold_dark");
         // チップ
         foreach (var (x, z, n, c) in new[] { (.4f, .2f, 5, "chip_black"), (.34f, .32f, 7, "chip_red"), (-.42f, .22f, 4, "chip_white") })
-            lp.Cyl(new Vector3(x, CcTop, z), .04f, n * .012f, 8, c, false, "chip_white");
+            lp.ChipStack(new Vector3(x, CcTop, z), .04f, n, c);
     });
 
     /// <summary>サイコロ（上=1・下=6・前(+Z)=2・後ろ=5・右(+X)=3・左=4。1 の目だけ赤）。原点は真ん中。</summary>

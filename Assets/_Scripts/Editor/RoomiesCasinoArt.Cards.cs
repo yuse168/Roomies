@@ -146,6 +146,30 @@ internal static partial class RoomiesCasinoArt
         return mat;
     }
 
+    /// <summary>
+    /// チップの上の面（上から見た模様）。トランプの絵の 54 番目のマスに、4 色ぶん（2 × 2）入っている。マテリアルはトランプと同じ。
+    /// 原点はチップの足元。チップの見た目（BjChip）の子に置く。
+    /// </summary>
+    internal static Mesh ChipTop(string color)
+    {
+        int tile = System.Array.IndexOf(new[] { "chip_red", "chip_blue", "chip_green", "chip_black" }, color);
+        if (tile < 0) tile = 0;
+        const int cell = 53, seg = 20;
+        const float tilePx = 186f, radiusPx = 88f, atlasW = 4096f, atlasH = 2048f;
+        float cx = (cell % CardColumns) * 372f + tilePx / 2 + (tile % 2) * tilePx, cy = (cell / CardColumns) * 409f + tilePx / 2 + (tile / 2) * tilePx;
+        var v = new Vector3[seg + 1]; var uv = new Vector2[seg + 1]; var tri = new int[seg * 3];
+        float y = ChipThickness + .0012f;
+        v[0] = new Vector3(0, y, 0); uv[0] = new Vector2(cx / atlasW, 1f - cy / atlasH);
+        for (int i = 0; i < seg; i++)
+        {
+            float a = i * Mathf.PI * 2 / seg, c = Mathf.Cos(a), s = Mathf.Sin(a);
+            v[i + 1] = new Vector3(c * ChipRadius * .97f, y, s * ChipRadius * .97f);
+            uv[i + 1] = new Vector2((cx + c * radiusPx) / atlasW, 1f - (cy - s * radiusPx) / atlasH);
+            tri[i * 3] = 0; tri[i * 3 + 1] = 1 + (i + 1) % seg; tri[i * 3 + 2] = 1 + i;
+        }
+        return Raw("bj_chip_top_" + color, v, uv, tri);
+    }
+
     /// <summary>チップ 1 枚（足元が原点）。</summary>
     internal const float ChipRadius = .042f, ChipThickness = .013f;
     internal static Mesh BjChip(string color) => Build("bj_chip_" + color, lp =>

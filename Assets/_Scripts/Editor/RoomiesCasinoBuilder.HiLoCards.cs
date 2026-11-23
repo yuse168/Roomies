@@ -71,7 +71,10 @@ internal static partial class RoomiesCasinoBuilder
             Transform visual = Child(pivot, "Visual");
             var chips = new GameObject[count];
             for (int i = 0; i < count; i++)
+            {
                 chips[i] = Art.Place(visual, "Chip_" + (i + 1), Art.BjChip(colors[i % colors.Length]), new Vector3(0, i * Art.ChipThickness, 0), i * 23f, false, false);
+                CardPart(chips[i].transform, "Top", Art.ChipTop(colors[i % colors.Length]), cards);     // 上の面の模様（トランプと同じマテリアル）
+            }
             pivot.gameObject.SetActive(false);
             return chips;
         }

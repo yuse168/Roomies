@@ -93,7 +93,7 @@ internal static partial class RoomiesCasinoArt
         lp.Box(new Vector3(.74f, BjTop + .01f, -.5f), new Vector3(.96f, BjTop + .1f, -.48f), "card");
         lp.Box(new Vector3(-.98f, BjTop + .008f, -.8f), new Vector3(-.76f, BjTop + .1f, -.56f), "red_dark");
         foreach (var (x, z, n, c) in new[] { (-.55f, .42f, 5, "chip_red"), (.3f, .56f, 7, "chip_blue"), (.78f, .3f, 4, "chip_green") })
-            lp.Cyl(new Vector3(x, BjTop + .009f, z), .045f, n * .012f, 8, c, false, "chip_white");
+            lp.ChipStack(new Vector3(x, BjTop + .009f, z), .045f, n, c);
     });
 
     // ================================================================ ルーレットの台（遊ぶ人の側が +Z。遊ぶ人から見て左が +X）

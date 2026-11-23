@@ -34,12 +34,17 @@ internal static partial class RoomiesCasinoBuilder
         string path = $"{SlotArtDir}/{name}.png";
         var importer = AssetImporter.GetAtPath(path) as TextureImporter;
         if (importer == null) { Debug.LogError("[Casino] slot art missing: " + path + "（python ArtSource/Casino/Screen/make_casino_screen_art.py を実行）"); return null; }
+        // 最大サイズは 2048（背景は 768×1120、光は 1024。1024 までにすると、背景が縮められてしまう）。
+        // 画面は少し斜めから見るので、ミップマップ＋トライリニア＋異方性 4。圧縮は高品質（にじみの少ない BC7）。
+        // Alpha Is Transparency：透明な所の色を、となりの色で埋める（ふちの黒ずみを防ぐ）
         if (importer.textureType != TextureImporterType.Sprite || importer.spriteImportMode != SpriteImportMode.Single || !importer.mipmapEnabled
-            || !importer.alphaIsTransparency || importer.wrapMode != TextureWrapMode.Clamp)
+            || !importer.alphaIsTransparency || importer.wrapMode != TextureWrapMode.Clamp || importer.maxTextureSize != 2048
+            || importer.filterMode != FilterMode.Trilinear || importer.anisoLevel != 4 || importer.textureCompression != TextureImporterCompression.CompressedHQ)
         {
             importer.textureType = TextureImporterType.Sprite; importer.spriteImportMode = SpriteImportMode.Single;
             importer.mipmapEnabled = true; importer.alphaIsTransparency = true; importer.wrapMode = TextureWrapMode.Clamp;
-            importer.maxTextureSize = 1024;
+            importer.maxTextureSize = 2048; importer.filterMode = FilterMode.Trilinear; importer.anisoLevel = 4;
+            importer.textureCompression = TextureImporterCompression.CompressedHQ;
             importer.SaveAndReimport();
         }
         return AssetDatabase.LoadAssetAtPath<Sprite>(path);

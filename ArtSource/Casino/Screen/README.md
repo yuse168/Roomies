@@ -16,10 +16,11 @@ python ArtSource/Casino/Screen/make_casino_screen_art.py
 
 | ファイル名 | サイズ | 用途 |
 |---|---|---|
-| `slot_sym_cherry.png` `slot_sym_bell.png` `slot_sym_bar.png` `slot_sym_crown.png` `slot_sym_seven.png` | 512×512・透明 | シンボル。この順が `SlotMachine` の `slotSymbols`（配当の低い順）と同じ |
-| `slot_bg_normal.png` `slot_bg_fever.png` | 768×1120 | 画面の背景（ふだん／フィーバー中） |
-| `slot_fx_sunburst.png` | 1024×1024・透明・白 | 大当たりの後ろで回る光 |
-| `slot_fx_coin.png` `slot_fx_sparkle.png` | 256×256・透明 | コイン、きらめき |
+| `slot_sym_cherry.png` `slot_sym_bell.png` `slot_sym_bar.png` `slot_sym_crown.png` `slot_sym_seven.png` | 1024×1024・透明（512 に縮めて使う） | シンボル。この順が `SlotMachine` の `slotSymbols`（配当の低い順）と同じ |
+| `slot_bg_normal.png` `slot_bg_fever.png` | 1536×2240（768×1120 に縮めて使う） | 画面の背景（ふだん／フィーバー中） |
+| `slot_fx_sunburst.png` | 2048×2048・透明・白（1024 に縮めて使う） | 大当たりの後ろで回る光 |
+| `slot_fx_coin.png` `slot_fx_sparkle.png` | 512×512・透明（256 に縮めて使う） |
+| `chip_top.png` | 512×512・透明・白 | チップを上から見た模様（白 1 色。色はコードで付けて、トランプの絵の 54 番目のマスに 4 色ぶん入れる） | コイン、きらめき |
 | `card_back.png` | 500×700 以上（1000×1400 がよい） | トランプの裏面。角が透明でもよい（ふちの色で埋める） |
 | `card_court_j.png` `card_court_q.png` `card_court_k.png` | 500×700 以上・透明 | 絵札の人物（1 色。赤と黒はコードで付ける） |
 
@@ -31,3 +32,8 @@ python ArtSource/Casino/Screen/make_casino_screen_art.py
 `BlackjackTableView`・`HiLoTableView` が、表の板に出すマスを切り替える（マテリアルは `casino_cards` 1 つ）。
 札の角は、絵ではなく板の形（`RoomiesCasinoArt.Cards.cs` の `CardFace`・`CardBack`）で丸く切る。絵はマスいっぱいに紙の色を敷いてある。
 角の丸みは、スクリプトの `CARD_RADIUS` と、形の `CardCorner` を同じ値にする。
+
+## いま入っている絵（2026/11/24）
+
+`codex/` の 15 枚は、Codex が描いた物（`D:\TK230088\Leica\brain\tmp_roomies_casino_art2_20261124` から写した）。実在のブランド・ロゴは入っていない。
+透明のある絵は、色に透明度を掛けてから縮めている（ふちの黒ずみを防ぐ）。Unity の側は、スプライトの「Alpha Is Transparency」を入れてある。

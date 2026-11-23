@@ -172,6 +172,8 @@
   スロット：画面の部品は `Anchor_Screen` の Canvas の中、筐体のランプは `Anchor_Lamps`（置くのは `RoomiesCasinoBuilder.SlotScreen.cs`）。演出は `SlotScreen`（見た目と音だけ）、
   当たり外れと配当は `SlotMachine`。演出の長さ（リーチ・当たり）は `SlotMachine`・`SlotScreen` のインスペクターにあり、サーバーも同じ長さだけ次の回を待つ。
   スロットの画面の絵とトランプの絵は `ArtSource/Casino/Screen/make_casino_screen_art.py` が作る（`codex/` に絵を置くと差し替わる。説明は同じフォルダの README.md）。
+  トランプの絵は 4096×2048 に 11 列 × 5 段（番号 = スート × 13 + 数字 − 1、52 が裏面、53 がチップの模様）。札の角は、絵ではなく板の形で丸く切る（`RoomiesCasinoArt.Cards.cs` の `CardCorner`）。
+  飾りのチップは `lp.ChipStack`（1 枚ずつ積む）、動くチップの上の面は `Art.ChipTop`（トランプと同じマテリアル）。大きい円（台・受け皿・盤）は、辺の数を多めに指定する（16 以上は自動では増えない）。
   動きの確認は Play Mode で `Roomies/Casino/Demo/Capture Slot Frames`・`Capture Blackjack Frames`（コマ送りの写真を `Temp/RoomiesCasino/frames/` に書く）。
   音は `Assets/Resources/Audio/casino/`（計算で作る。`ArtSource/Casino/Audio/make_casino_sfx.py`）。
   形の決まり（2026/11/24）：カジノの小物・ギミックは、角ばった箱のままにしない。丸みは形を作る道具（`RoomiesCasinoArt.Lp`）がまとめて付ける

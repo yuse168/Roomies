@@ -612,6 +612,20 @@ internal static partial class RoomiesCasinoArt
             => Lathe(rings, sides, _ => color, phase, capTop, capBottom, glow);
 
         /// <summary>円柱（底の中心・半径・高さ）。</summary>
+        /// <summary>積んだチップ（飾り）。1 枚ずつ、色の胴と白いふちに分けて積む（1 本の円柱だと、ただの棒に見える）。</summary>
+        public void ChipStack(Vector3 baseCenter, float radius, int count, string color, float thickness = .012f)
+        {
+            Push(baseCenter);
+            for (int i = 0; i < count; i++)
+            {
+                float y = i * thickness;
+                Lathe(new[] { (radius, y), (radius, y + thickness * .72f) }, 9, color, 0, false, false);
+                Lathe(new[] { (radius * .96f, y + thickness * .72f), (radius * .96f, y + thickness) }, 9, "chip_white", 0, false, false);
+            }
+            Cap(radius * .96f, count * thickness, 9, "chip_white", true);
+            Pop();
+        }
+
         public void Cyl(Vector3 baseCenter, float radius, float height, int sides, string color, bool glow = false, string topColor = null)
         {
             Push(baseCenter);
