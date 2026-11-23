@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
 using UnityEditor;
@@ -334,5 +335,31 @@ public class RoomiesCasinoTests
         args = new object[] { "" + nine + '#', false };
         Assert.That((int)value.Invoke(null, args), Is.EqualTo(9), "伏せ札は数えない");
         Assert.That((bool)args[1], Is.True, "伏せ札があることが分かる");
+    }
+
+    [Test]
+    public void CasinoTextsHaveTheirGlyphs()
+    {
+        // カジノの画面に出す文字が、フォント（予備のフォントも含む）に入っているか。入っていない字は □ になる。
+        // TextMeshPro は、このテストの集まりからは直接参照していないので、リフレクションで呼ぶ
+        Type fontType = AppDomain.CurrentDomain.GetAssemblies()
+            .Select(a => a.GetType("TMPro.TMP_FontAsset")).First(t => t != null);
+        Type settings = fontType.Assembly.GetType("TMPro.TMP_Settings");
+        MethodInfo has = fontType.GetMethod("HasCharacter", new[] { typeof(char), typeof(bool), typeof(bool) });
+        UnityEngine.Object black = AssetDatabase.LoadAssetAtPath("Assets/TextMesh Pro/Resources/Fonts & Materials/MPLUSU-Black SDF.asset", fontType);
+        object fallback = settings.GetProperty("defaultFontAsset", BindingFlags.Static | BindingFlags.Public).GetValue(null);
+        Assert.That(black, Is.Not.Null);
+        Assert.That(fallback, Is.Not.Null);
+        bool Has(object font, char c) => (bool)has.Invoke(font, new object[] { c, true, false });
+
+        const string sample = "鍵階賭金額戻上下同数字外勝負引分枚開始残回目締切置赤黒奇偶ハイローチンチロルーレットエレベーター足りないでがご";
+        foreach (char c in sample)
+        {
+            Assert.That(Has(black, c), "MPLUSU-Black（台の札・看板）に無い字: " + c);
+            Assert.That(Has(fallback, c), "モニター・スロットの画面のフォントに無い字: " + c);
+        }
+        // トランプの印（ハイ＆ローのカードの文字）は、予備のフォントから出る
+        foreach (char c in "♠♥♦♣")
+            Assert.That(Has(black, c), "トランプの印が出ない: " + c);
     }
 }

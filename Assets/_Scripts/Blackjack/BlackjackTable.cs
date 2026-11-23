@@ -90,7 +90,7 @@ public class BlackjackTable : NetworkBehaviour
         NetworkVariableWritePermission.Server);
 
     private readonly NetworkVariable<FixedString128Bytes> resultDisplay = new(
-        new FixedString128Bytes("Eでゲーム開始"),
+        new FixedString128Bytes("[E] ゲーム開始"),
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server);
 
@@ -348,7 +348,7 @@ public class BlackjackTable : NetworkBehaviour
         phase.Value = (int)RoundPhase.PlayerTurn;
         UpdateHandsForClients(false);
         resultDisplay.Value = new FixedString128Bytes(
-            allowDoubleDown ? "HIT / STAND / DOUBLE（賭け金を倍に）" : "EでHIT　RでSTAND");
+            allowDoubleDown ? "HIT / STAND / DOUBLE（賭け金を倍に）" : "[E] HIT   [R] STAND");
 
         int playerTotal = GetHandValue(playerCards);
         int dealerTotal = GetHandValue(dealerCards);
@@ -522,7 +522,7 @@ public class BlackjackTable : NetworkBehaviour
         dealerCards.Clear();
         playerCardsNet.Value = new FixedString32Bytes();
         dealerCardsNet.Value = new FixedString32Bytes();
-        resultDisplay.Value = new FixedString128Bytes("Eでゲーム開始");
+        resultDisplay.Value = new FixedString128Bytes("[E] ゲーム開始");
         resultNetAmount.Value = 0;
         resultKind.Value = (int)ResultKind.None;
         activeBet.Value = 0;
@@ -546,7 +546,7 @@ public class BlackjackTable : NetworkBehaviour
         yield return new WaitForSeconds(1.8f);
         if (phase.Value == (int)RoundPhase.Idle)
         {
-            resultDisplay.Value = new FixedString128Bytes("Eでゲーム開始");
+            resultDisplay.Value = new FixedString128Bytes("[E] ゲーム開始");
             resultKind.Value = (int)ResultKind.None;
         }
         resetCoroutine = null;
