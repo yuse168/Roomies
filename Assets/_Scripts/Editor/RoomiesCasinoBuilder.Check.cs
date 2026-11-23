@@ -591,6 +591,24 @@ internal static partial class RoomiesCasinoBuilder
         Debug.Log("[Casino] " + line);
     }
 
+    // ================================================================ 見た目を画面で確かめるための立ち位置（Play Mode。何も変えない。鍵は確認のために開ける）
+    static void StandAt(Vector3 feet, float yaw)
+    {
+        if (!EditorApplication.isPlaying) return;
+        var cc = Object.FindObjectsByType<CharacterController>().FirstOrDefault(c => c.GetComponentInParent<PlayerMovement>() != null);
+        if (cc == null) return;
+        if (CasinoAccess.Instance != null && CasinoAccess.Instance.IsServer) CasinoAccess.Instance.ServerRestore(2, 2);
+        Teleport(cc, feet);
+        cc.transform.rotation = Quaternion.Euler(0, yaw, 0);
+    }
+
+    [MenuItem("Roomies/Casino/Stand/1F Entrance (Play Mode)")] static void Stand1() => StandAt(new Vector3(7.8f, RoomiesTownRebuild.KFloorY(1), -9.4f), 180);
+    [MenuItem("Roomies/Casino/Stand/1F Slots (Play Mode)")] static void Stand1Slots() => StandAt(new Vector3(14.4f, RoomiesTownRebuild.KFloorY(1), -12.95f), 90);
+    [MenuItem("Roomies/Casino/Stand/1F Clerk (Play Mode)")] static void Stand1Clerk() => StandAt(new Vector3(14.6f, RoomiesTownRebuild.KFloorY(1), -15.6f), 180);
+    [MenuItem("Roomies/Casino/Stand/2F Roulette (Play Mode)")] static void Stand2() => StandAt(new Vector3(8.0f, RoomiesTownRebuild.KFloorY(2), -13.5f), 0);
+    [MenuItem("Roomies/Casino/Stand/3F Lounge (Play Mode)")] static void Stand3() => StandAt(new Vector3(9.5f, RoomiesTownRebuild.KFloorY(3), -15.5f), -35);
+    [MenuItem("Roomies/Casino/Stand/Street (Play Mode)")] static void StandStreet() => StandAt(new Vector3(7.8f, 0f, 3.5f), 180);
+
     static void Finish(CharacterController cc, Vector3 home, MonoBehaviour runner)
     {
         cc.enabled = false; cc.transform.position = home; Physics.SyncTransforms(); cc.enabled = true;

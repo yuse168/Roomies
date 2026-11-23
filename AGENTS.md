@@ -164,7 +164,9 @@
   前からある `Slot.prefab`・`BlackjackTable.prefab` も、ルートに仕組み・`Visual` に見た目（スロットの画面は `Anchor_Screen`）の形に組み直した（`RoomiesCasinoBuilder.Tables.cs`）。
   新しいゲームは `CasinoGame` を継ぐ（`PlayerInteract` は、見ている物の親にこの型があれば、案内・E・R・ホイールを渡すだけ）。
   鍵は `CasinoAccess`（GameRoom に 1 つ。値段は `GameBalance`、買った数と挿した数はセーブに残る）。
-  通し確認は Play Mode で `Town/Walk - Enter GameRoom As Host` → `Roomies/Casino/Check (Play Mode)`
+  通し確認は Play Mode で `Town/Walk - Enter GameRoom As Host` → `Roomies/Casino/Check (Play Mode)`。
+  2 人での確認は `RoomiesCasinoNetTest.cs`（Multiplayer Play Mode の Player 2 を `Roomies/Casino/Net Test/Activate Player 2` で起こし、
+  `Temp/RoomiesCasino/net/run.flag` を置いて Play Mode に入る。その間だけ同じ PC の中でつなぐ。結果は同じフォルダの `host.txt`・`client.txt`。ふだんは何もしない）
 
 組み立てのコードは各クラスの `EditorBuildUI()` に `#if UNITY_EDITOR` で残してある。
 実行中は動かないので、置き直したいときだけ配置ツールから呼ぶ。
