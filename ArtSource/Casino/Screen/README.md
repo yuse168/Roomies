@@ -20,12 +20,14 @@ python ArtSource/Casino/Screen/make_casino_screen_art.py
 | `slot_bg_normal.png` `slot_bg_fever.png` | 768×1120 | 画面の背景（ふだん／フィーバー中） |
 | `slot_fx_sunburst.png` | 1024×1024・透明・白 | 大当たりの後ろで回る光 |
 | `slot_fx_coin.png` `slot_fx_sparkle.png` | 256×256・透明 | コイン、きらめき |
-| `card_back.png` | 500×700 | トランプの裏面 |
-| `card_court_j.png` `card_court_q.png` `card_court_k.png` | 500×700・透明 | 絵札の人物（1 色。赤と黒はコードで付ける） |
+| `card_back.png` | 500×700 以上（1000×1400 がよい） | トランプの裏面。角が透明でもよい（ふちの色で埋める） |
+| `card_court_j.png` `card_court_q.png` `card_court_k.png` | 500×700 以上・透明 | 絵札の人物（1 色。赤と黒はコードで付ける） |
 
 フォントは、プロジェクトに入っている Bangers・Anton・Roboto（`Assets/TextMesh Pro/Examples & Extras/Fonts/`）を使っている。
 
 ## トランプの絵の並び
 
-2048×1024 に、幅 146・高さ 256 のマスを 14 列 × 4 段。1〜13 列が A〜K、段は上から ♠♥♦♣。14 列目のいちばん上が裏面。
-`BlackjackTableView` が、表の板に出すマスを切り替える（マテリアルは `casino_cards` 1 つ）。
+4096×2048 に、幅 372・高さ 409 のマスを 11 列 × 5 段。左上から右へ ♠A〜K、♥A〜K、♦A〜K、♣A〜K の順（番号 = スート × 13 + 数字 − 1）、53 番目（番号 52）が裏面。
+`BlackjackTableView`・`HiLoTableView` が、表の板に出すマスを切り替える（マテリアルは `casino_cards` 1 つ）。
+札の角は、絵ではなく板の形（`RoomiesCasinoArt.Cards.cs` の `CardFace`・`CardBack`）で丸く切る。絵はマスいっぱいに紙の色を敷いてある。
+角の丸みは、スクリプトの `CARD_RADIUS` と、形の `CardCorner` を同じ値にする。

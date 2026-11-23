@@ -44,11 +44,11 @@ public class BlackjackTableView : MonoBehaviour
     [Tooltip("手の位置（Anchor_〇Hand）から見た、1 枚ごとのずらし")]
     [SerializeField] private Vector3 cardStep = new Vector3(0.112f, 0.0012f, -0.014f);
 
-    [Header("カードの絵（1 枚の絵に 14 列 × 4 段。最後の列のいちばん上が裏面）")]
-    [SerializeField, Min(1)] private int atlasColumns = 14;
-    [SerializeField, Min(1)] private int atlasRows = 4;
-    [Tooltip("マスの幅が絵の横幅に占める割合（146 / 2048）")]
-    [SerializeField] private float cellU = 146f / 2048f;
+    [Header("カードの絵（1 枚の絵に 11 列 × 5 段。左上から ♠A〜K・♥・♦・♣、53 番目が裏面）")]
+    [SerializeField, Min(1)] private int atlasColumns = 11;
+    [Tooltip("マスの幅・高さが、絵の横幅・縦幅に占める割合（372 / 4096、409 / 2048）")]
+    [SerializeField] private float cellU = 372f / 4096f;
+    [SerializeField] private float cellV = 409f / 2048f;
 
     [Header("動き（秒）")]
     [SerializeField, Min(0.05f)] private float dealSeconds = 0.32f;
@@ -87,6 +87,16 @@ public class BlackjackTableView : MonoBehaviour
     private Vector3 betHome, doubleHome, payoutHome;
     private bool homesTaken;
     private int betTier;
+
+    /// <summary>絵の中の、裏面のマスの番号（表は スート × 13 + 数字 − 1）。</summary>
+    public const int BackIndex = 52;
+
+    /// <summary>絵の中のマス（左上から右へ数えた番号）を、マテリアルの「絵の中の場所」（_BaseMap_ST）にする。</summary>
+    public static Vector4 CellST(int index, int columns, float cellU, float cellV)
+    {
+        int column = index % Mathf.Max(1, columns), row = index / Mathf.Max(1, columns);
+        return new Vector4(cellU, cellV, column * cellU, 1f - (row + 1) * cellV);
+    }
 
     /// <summary>カード 1 枚の符号（数字 1〜13、スート 0〜3）。</summary>
     public static char Encode(int rank, int suit) => (char)(FirstCard + (rank - 1) * 4 + suit);
@@ -412,12 +422,11 @@ public class BlackjackTableView : MonoBehaviour
     private void SetFace(CardSlot slot, char code)
     {
         if (slot.face == null) return;
-        int column = atlasColumns - 1, row = 0;                     // 伏せ札の間は、表も裏面の絵にしておく
-        if (TryDecode(code, out int rank, out int suit)) { column = rank - 1; row = suit; }
-        float v = 1f / atlasRows;
+        int index = BackIndex;                                      // 伏せ札の間は、表も裏面の絵にしておく
+        if (TryDecode(code, out int rank, out int suit)) index = suit * 13 + rank - 1;
         block ??= new MaterialPropertyBlock();
         slot.face.GetPropertyBlock(block);
-        block.SetVector("_BaseMap_ST", new Vector4(cellU, v, column * cellU, 1f - (row + 1) * v));
+        block.SetVector("_BaseMap_ST", CellST(index, atlasColumns, cellU, cellV));
         slot.face.SetPropertyBlock(block);
     }
 

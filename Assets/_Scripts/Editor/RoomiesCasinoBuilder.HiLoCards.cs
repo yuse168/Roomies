@@ -18,8 +18,8 @@ internal static partial class RoomiesCasinoBuilder
     /// <summary>置いておくカードの枚数：1 枚目 ＋ 続けられる回数（5）。これを超えたら、最後の 1 枚の上に重ねる。</summary>
     const int HiLoCardSlots = 6;
     /// <summary>ブラックジャックと同じカードを、少し大きく見せる（台が広く、カードが主役なので）。</summary>
-    const float HiLoCardScale = 1.35f;
-    static readonly Vector3 HiLoCardStep = new Vector3(.185f, .0012f, 0f);
+    const float HiLoCardScale = Art.HlCardScale;
+    static readonly Vector3 HiLoCardStep = new Vector3(.175f, .0012f, 0f);
 
     static HiLoTableView BuildHiLoCards(GameObject root)
     {
@@ -32,11 +32,17 @@ internal static partial class RoomiesCasinoBuilder
         // 1 枚目は遊ぶ人から見て左＝山のとなり。そこから右へ並ぶ）
         Transform deck = Child(root.transform, "Anchor_Deck", Art.HlDeck);
         Transform discard = Child(root.transform, "Anchor_Discard", Art.HlDeck + new Vector3(0, .01f, 0));
-        Transform row = Child(root.transform, "Anchor_Row", new Vector3(.35f, top, .12f));
+        Transform row = Child(root.transform, "Anchor_Row", new Vector3(.35f, top, Art.HlRowZ));
         row.localRotation = Quaternion.Euler(0, 180, 0);
         Transform tray = Child(root.transform, "Anchor_Tray", Art.HlTray);
-        Transform bet = Child(root.transform, "Anchor_Bet", new Vector3(0, top, .33f));
-        Transform payout = Child(root.transform, "Anchor_Payout", new Vector3(-.16f, top, .33f));
+        Transform bet = Child(root.transform, "Anchor_Bet", new Vector3(0, top, .36f));
+        Transform payout = Child(root.transform, "Anchor_Payout", new Vector3(-.16f, top, .36f));
+
+        // ---- 山のいちばん上：裏面の札（見た目だけ。台の形の「札の束」の上にのせる）
+        Transform deckTop = Child(root.transform.Find("Visual"), "DeckTop", new Vector3(Art.HlDeck.x, Art.HlTop + Art.HlDeckHeight + .0006f, Art.HlDeck.z));
+        deckTop.localRotation = Quaternion.Euler(0, 180, 0);
+        deckTop.localScale = Vector3.one * HiLoCardScale;
+        CardPart(deckTop, "Back", Art.CardBackTop(), cards);
 
         // ---- カード
         var view = root.AddComponent<HiLoTableView>();
@@ -78,8 +84,8 @@ internal static partial class RoomiesCasinoBuilder
         so.FindProperty("anchorRow").objectReferenceValue = row;
         so.FindProperty("cardStep").vector3Value = HiLoCardStep;
         so.FindProperty("atlasColumns").intValue = Art.CardColumns;
-        so.FindProperty("atlasRows").intValue = Art.CardRows;
         so.FindProperty("cellU").floatValue = Art.CardCellU;
+        so.FindProperty("cellV").floatValue = Art.CardCellV;
         so.FindProperty("pivotBet").objectReferenceValue = pivotBet;
         SetObjects(so.FindProperty("betChips"), betChips);
         so.FindProperty("pivotPayout").objectReferenceValue = pivotPayout;

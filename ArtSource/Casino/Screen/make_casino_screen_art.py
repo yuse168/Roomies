@@ -288,8 +288,18 @@ def make_logos():
 
 
 # ---------------------------------------------------------------- トランプ（52 枚＋裏面を 1 枚の絵に）
-CELL_W, CELL_H, COLS, ROWS = 146, 256, 14, 4      # 14 列 × 4 段（最後の列のいちばん上が裏面）
-CW, CH = 360, 504                                   # 1 枚を描く大きさ（縦横比 5:7）。あとでマスの大きさに縮める
+# トランプの絵：4096×2048 に、幅 372・高さ 409 のマスを 11 列 × 5 段（左上から右へ ♠A〜K、♥A〜K、♦A〜K、♣A〜K、53 番目が裏面）。
+# 前は 2048×1024 に 146×256 のマスで、遊ぶ人の目の高さから数字がぼやけていた。マスを横 2.5 倍・縦 1.6 倍にした
+ATLAS_W, ATLAS_H = 4096, 2048
+CELL_W, CELL_H, COLS, ROWS = 372, 409, 11, 5
+K = 2                                               # 描く大きさの倍率（下の数字は、360×504 のときの値）
+CW, CH = 360 * K, 504 * K                           # 1 枚を描く大きさ（縦横比 5:7）。あとでマスの大きさに縮める
+PAPER = (247, 243, 232, 255)
+CARD_RADIUS = .07                                   # 角の丸みの半径（横幅に対する割合）。板の形（RoomiesCasinoArt.Cards.cs の CardCorner）と同じ値にする
+
+
+def k(v):
+    return int(round(v * K))
 
 
 def suit_shape(suit, size, color):
@@ -330,44 +340,51 @@ PIPS = {
 }
 
 
+def card_paper():
+    """札の紙。角は板の形のほうで丸く切るので、絵はマスいっぱいに紙の色を敷き、ふちの線だけ角丸で描く。"""
+    img = Image.new("RGBA", (CW, CH), PAPER)
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle([k(2), k(2), CW - 1 - k(2), CH - 1 - k(2)], radius=round(CW * CARD_RADIUS) - k(2), outline=(196, 186, 170, 255), width=k(3))
+    return img, d
+
+
 def card_face(rank, suit):
     color = CARD_RED if suit in (1, 2) else CARD_BLACK
-    img = Image.new("RGBA", (CW, CH), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    d.rounded_rectangle([0, 0, CW - 1, CH - 1], radius=30, fill=(247, 243, 232, 255), outline=(60, 50, 60, 255), width=5)
+    img, d = card_paper()
     label = {1: "A", 11: "J", 12: "Q", 13: "K"}.get(rank, str(rank))
-    font = ImageFont.truetype(FONT_CARD, 64 if rank != 10 else 54)
-    corner = Image.new("RGBA", (84, 140), (0, 0, 0, 0))
+    # 角の数字とスート：遊ぶ人の目の高さから読めるよう、大きく太く
+    font = ImageFont.truetype(FONT_CARD, k(86 if rank != 10 else 70))
+    corner = Image.new("RGBA", (k(100), k(172)), (0, 0, 0, 0))
     cd = ImageDraw.Draw(corner)
     box = cd.textbbox((0, 0), label, font=font)
-    cd.text((42 - (box[2] + box[0]) / 2, 4 - box[1]), label, font=font, fill=color + (255,))
-    corner.alpha_composite(suit_shape(suit, 46, color), (19, 78))
-    img.alpha_composite(corner, (10, 14))
-    img.alpha_composite(corner.rotate(180), (CW - 94, CH - 154))
+    cd.text((k(50) - (box[2] + box[0]) / 2, k(4) - box[1]), label, font=font, fill=color + (255,), stroke_width=k(1), stroke_fill=color + (255,))
+    corner.alpha_composite(suit_shape(suit, k(56), color), (k(22), k(104)))
+    img.alpha_composite(corner, (k(12), k(14)))
+    img.alpha_composite(corner.rotate(180), (CW - k(112), CH - k(186)))
 
     if rank >= 11:
-        d.rounded_rectangle([108, 96, CW - 108, CH - 96], radius=14, outline=color + (255,), width=5, fill=(255, 250, 236, 255))
+        d.rounded_rectangle([k(116), k(96), CW - k(116), CH - k(96)], radius=k(14), outline=color + (255,), width=k(5), fill=(255, 250, 236, 255))
         court = codex({11: "card_court_j.png", 12: "card_court_q.png", 13: "card_court_k.png"}[rank])
         if court:
-            art = fit(court, (CW - 232, CH - 208))
+            art = fit(court, (CW - k(248), CH - k(208)))
             tint = Image.new("RGBA", art.size, color + (255,))
             tint.putalpha(art.split()[3])
-            img.alpha_composite(tint, (116, 104))
+            img.alpha_composite(tint, (k(124), k(104)))
         else:
-            big = ImageFont.truetype(FONT_BOLD, 190)
+            big = ImageFont.truetype(FONT_BOLD, k(176))
             box = d.textbbox((0, 0), label, font=big)
-            d.text((CW / 2 - (box[2] + box[0]) / 2, CH / 2 - (box[3] + box[1]) / 2 - 16), label, font=big, fill=color + (255,))
-            img.alpha_composite(suit_shape(suit, 58, color), (CW // 2 - 29, CH - 180))
+            d.text((CW / 2 - (box[2] + box[0]) / 2, CH / 2 - (box[3] + box[1]) / 2 - k(16)), label, font=big, fill=color + (255,))
+            img.alpha_composite(suit_shape(suit, k(58), color), (CW // 2 - k(29), CH - k(180)))
     elif rank == 1:
-        img.alpha_composite(suit_shape(suit, 190, color), (CW // 2 - 95, CH // 2 - 95))
+        img.alpha_composite(suit_shape(suit, k(190), color), (CW // 2 - k(95), CH // 2 - k(95)))
     else:
-        size = 68
+        size = k(58)
         for x, y in PIPS[rank]:
             pip = suit_shape(suit, size, color)
             if y > .5:
                 pip = pip.rotate(180)
-            px = CW / 2 + (x - .5) * 300          # 3 列（.3・.5・.7）を、角の数字の内側に並べる
-            py = 96 + (CH - 192) * (y - .2) / .6
+            px = CW / 2 + (x - .5) * k(230)       # 3 列（.3・.5・.7）を、角の数字の内側に並べる
+            py = k(100) + (CH - k(200)) * (y - .2) / .6
             img.alpha_composite(pip, (round(px - size / 2), round(py - size / 2)))
     return img
 
@@ -375,40 +392,44 @@ def card_face(rank, suit):
 def card_back():
     src = codex("card_back.png")
     if src:
-        return src.resize((CW, CH), Image.LANCZOS)
-    img = Image.new("RGBA", (CW, CH), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    d.rounded_rectangle([0, 0, CW - 1, CH - 1], radius=30, fill=(247, 243, 232, 255), outline=(60, 50, 60, 255), width=5)
-    d.rounded_rectangle([22, 22, CW - 23, CH - 23], radius=18, fill=(138, 43, 60, 255))
+        # 届いた絵は角が透明（丸く切ってある）。角は板の形で切るので、透明な所は絵のふちの色で埋める（にじみ防止）
+        src = src.resize((CW, CH), Image.LANCZOS)
+        edge = src.getpixel((CW // 2, k(6)))
+        flat = Image.new("RGBA", (CW, CH), edge[:3] + (255,))
+        flat.alpha_composite(src)
+        return flat
+    img, d = card_paper()
+    d.rounded_rectangle([k(20), k(20), CW - 1 - k(20), CH - 1 - k(20)], radius=k(18), fill=(138, 43, 60, 255))
     pattern = Image.new("RGBA", (CW, CH), (0, 0, 0, 0))
     pd = ImageDraw.Draw(pattern)
     for row in range(-1, 14):
         for col in range(-1, 9):
-            cx, cy = 22 + col * 44 + (22 if row % 2 else 0), 22 + row * 38
-            pd.polygon([(cx, cy - 16), (cx + 14, cy), (cx, cy + 16), (cx - 14, cy)], outline=GOLD + (255,), width=3)
+            cx, cy = k(22 + col * 44 + (22 if row % 2 else 0)), k(22 + row * 38)
+            pd.polygon([(cx, cy - k(16)), (cx + k(14), cy), (cx, cy + k(16)), (cx - k(14), cy)], outline=GOLD + (255,), width=k(3))
     mask = Image.new("L", (CW, CH), 0)
-    ImageDraw.Draw(mask).rounded_rectangle([30, 30, CW - 31, CH - 31], radius=14, fill=255)
+    ImageDraw.Draw(mask).rounded_rectangle([k(30), k(30), CW - 1 - k(30), CH - 1 - k(30)], radius=k(14), fill=255)
     pattern.putalpha(ImageChops.multiply(pattern.split()[3], mask))
     img.alpha_composite(pattern)
     d = ImageDraw.Draw(img)
-    d.rounded_rectangle([30, 30, CW - 31, CH - 31], radius=14, outline=GOLD + (255,), width=4)
-    d.ellipse([CW / 2 - 56, CH / 2 - 56, CW / 2 + 56, CH / 2 + 56], fill=(94, 28, 42, 255), outline=GOLD + (255,), width=5)
-    img.alpha_composite(suit_shape(0, 64, GOLD), (CW // 2 - 32, CH // 2 - 32))
+    d.rounded_rectangle([k(30), k(30), CW - 1 - k(30), CH - 1 - k(30)], radius=k(14), outline=GOLD + (255,), width=k(4))
+    d.ellipse([CW / 2 - k(56), CH / 2 - k(56), CW / 2 + k(56), CH / 2 + k(56)], fill=(94, 28, 42, 255), outline=GOLD + (255,), width=k(5))
+    img.alpha_composite(suit_shape(0, k(64), GOLD), (CW // 2 - k(32), CH // 2 - k(32)))
     return img
 
 
 def make_cards():
-    atlas = Image.new("RGBA", (2048, 1024), (247, 243, 232, 255))
+    atlas = Image.new("RGBA", (ATLAS_W, ATLAS_H), PAPER)
+
+    def put(index, card):
+        cell = card.resize((CELL_W, CELL_H), Image.LANCZOS)
+        flat = Image.new("RGBA", cell.size, PAPER)
+        flat.alpha_composite(cell)
+        atlas.paste(flat, ((index % COLS) * CELL_W, (index // COLS) * CELL_H))
+
     for suit in range(4):
         for rank in range(1, 14):
-            cell = card_face(rank, suit).resize((CELL_W, CELL_H), Image.LANCZOS)
-            flat = Image.new("RGBA", cell.size, (247, 243, 232, 255))
-            flat.alpha_composite(cell)
-            atlas.paste(flat, ((rank - 1) * CELL_W, suit * CELL_H))
-    back = card_back().resize((CELL_W, CELL_H), Image.LANCZOS)
-    flat = Image.new("RGBA", back.size, (247, 243, 232, 255))
-    flat.alpha_composite(back)
-    atlas.paste(flat, (13 * CELL_W, 0))
+            put(suit * 13 + rank - 1, card_face(rank, suit))
+    put(52, card_back())
     atlas.convert("RGB").save(OUT_CARDS)
     print("casino_cards.png", atlas.size)
 

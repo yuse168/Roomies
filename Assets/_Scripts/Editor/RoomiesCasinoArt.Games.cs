@@ -12,7 +12,12 @@ internal static partial class RoomiesCasinoArt
     internal static readonly Vector3 HlCardCenter = new Vector3(0, 1.36f, -.3f);
     internal const float HlCardW = .36f, HlCardH = .5f;
     // 山の上（カードが出てくる所）と、親のチップ入れ（チップが出入りする所）
-    internal static readonly Vector3 HlDeck = new Vector3(.57f, HlTop + .06f, .18f);
+    internal const float HlDeckHeight = .045f;
+    /// <summary>台の上の札の大きさ（ブラックジャックの札の何倍か）。台が広く、札が主役なので少し大きい。</summary>
+    internal const float HlCardScale = 1.25f;
+    /// <summary>札を並べる所・山の、奥行きの位置（遊ぶ人の側が +Z）。めくり途中の立った札が、奥の「手持ちの額」の札に重ならないよう、手前に寄せてある。</summary>
+    internal const float HlRowZ = .185f, HlPlateZ = -.19f;
+    internal static readonly Vector3 HlDeck = new Vector3(.57f, HlTop + HlDeckHeight + .012f, HlRowZ);
     internal static readonly Vector3 HlTray = new Vector3(-.66f, HlTop + .02f, -.14f);
 
     internal static Mesh HiLoTable() => Build("hilo_table", lp =>
@@ -39,12 +44,12 @@ internal static partial class RoomiesCasinoArt
         }
         // 山（札の束）と、親のチップ入れ（黒い受け皿と、積んだチップ）。真ん中は、カードを並べる所なので空けておく
         lp.Prism(Offset(Chamfer(.24f, .3f, .04f), new Vector2(HlTray.x, HlTray.z)), HlTop, HlTop + .012f, "ink", "gold_dark");
-        lp.Box(new Vector3(.5f, HlTop, .08f), new Vector3(.64f, HlTop + .05f, .28f), "card");
-        lp.Box(new Vector3(.5f, HlTop + .05f, .08f), new Vector3(.64f, HlTop + .054f, .28f), "maroon");
+        // 山：札と同じ大きさ（HlCardScale 倍の札）の、角の丸い束。いちばん上の裏面の札は、プレハブの Visual/DeckTop
+        lp.Prism(Offset(Chamfer(CardW * HlCardScale, CardH * HlCardScale, CardW * HlCardScale * CardCorner), new Vector2(HlDeck.x, HlDeck.z)), HlTop, HlTop + HlDeckHeight, "card");
         foreach (var (x, z, n, c) in new[] { (-.7f, -.06f, 6, "chip_red"), (-.61f, -.1f, 4, "chip_blue"), (-.7f, -.2f, 8, "chip_green"), (-.61f, -.22f, 5, "chip_black") })
             lp.Cyl(new Vector3(x, HlTop + .012f, z), .04f, n * .012f, 8, c, false, "chip_white");
         // 手持ちの額の札（手前のふちの上）
-        lp.Prism(Offset(Chamfer(.9f, .05f, .015f), new Vector2(0, -.12f)), HlTop, HlTop + .12f, "ink", "gold_dark");
+        lp.Prism(Offset(Chamfer(.9f, .05f, .015f), new Vector2(0, HlPlateZ)), HlTop, HlTop + .12f, "ink", "gold_dark");
         // 上の小さな看板
         lp.Box(new Vector3(-.03f, HlTop + .16f, -.4f), new Vector3(.03f, 1.74f, -.36f), "gold_dark");
         lp.Prism(Offset(Chamfer(.86f, .06f, .02f), new Vector2(0, -.38f)), 1.72f, 1.94f, "ink", "gold_dark");
@@ -55,13 +60,13 @@ internal static partial class RoomiesCasinoArt
 
     internal static Mesh ChinchiroTable() => Build("chinchiro_table", lp =>
     {
-        lp.Lathe(new[] { (.42f, 0f), (.38f, .05f), (.11f, .1f), (.1f, CcTop - .12f), (.3f, CcTop - .06f) }, 8, "wood_dark", Mathf.PI / 8, false, true);
-        lp.Prism(Ellipse(CcRadius, CcRadius, 12, Mathf.PI / 12), CcTop - .06f, CcTop - .01f, "wood", "wood", true);
-        lp.Prism(Ellipse(CcRadius - .06f, CcRadius - .06f, 12, Mathf.PI / 12), CcTop - .01f, CcTop, "purple_dark", "purple");
+        lp.Lathe(new[] { (.42f, 0f), (.38f, .05f), (.11f, .1f), (.1f, CcTop - .12f), (.3f, CcTop - .06f) }, 24, "wood_dark", 0, false, true);
+        lp.Prism(Ellipse(CcRadius, CcRadius, 36), CcTop - .06f, CcTop - .01f, "wood", "wood", true);
+        lp.Prism(Ellipse(CcRadius - .06f, CcRadius - .06f, 36), CcTop - .01f, CcTop, "purple_dark", "purple");
         // どんぶり：外は黒、内は赤。底は平ら
         lp.Push(new Vector3(0, CcTop, 0));
-        lp.Lathe(new[] { (.12f, 0f), (.25f, .11f), (.27f, .15f), (.255f, .15f), (.13f, CcBowlFloor) }, 10, b => b < 2 ? "ink" : b == 2 ? "gold_dark" : "maroon", 0, false);
-        lp.Cap(.13f, CcBowlFloor, 10, "maroon_dark", true);
+        lp.Lathe(new[] { (.12f, 0f), (.25f, .11f), (.27f, .15f), (.255f, .15f), (.13f, CcBowlFloor) }, 28, b => b < 2 ? "ink" : b == 2 ? "gold_dark" : "maroon", 0, false);
+        lp.Cap(.13f, CcBowlFloor, 28, "maroon_dark", true);
         lp.Pop();
         // 立て札（奥）
         lp.Box(new Vector3(-.03f, CcTop, -.56f), new Vector3(.03f, 1.5f, -.52f), "gold_dark");
@@ -74,7 +79,8 @@ internal static partial class RoomiesCasinoArt
     /// <summary>サイコロ（上=1・下=6・前(+Z)=2・後ろ=5・右(+X)=3・左=4。1 の目だけ赤）。原点は真ん中。</summary>
     internal static Mesh Die() => Build("die", lp =>
     {
-        float h = CcDie / 2, d = CcDie * .24f, p = CcDie * .09f;
+        // 目は、角の丸みにかからないよう、面の平らな所（辺の 56%）の中に収める
+        float h = CcDie / 2, d = CcDie * .17f, p = CcDie * .072f;
         lp.Box(new Vector3(-h, -h, -h), new Vector3(h, h, h), "white");
         // 面ごとの目の位置（面の中の横 a・縦 b）
         Vector2[][] pips =
@@ -99,7 +105,13 @@ internal static partial class RoomiesCasinoArt
                 float s = f.value == 1 ? p * 1.7f : p;
                 Vector3 c = f.n * (h + .0008f) + f.a * q.x + f.b * q.y;
                 Vector2 u = Sw(f.value == 1 ? "chip_red" : "black");
-                lp.Quad(c - f.a * s - f.b * s, c + f.a * s - f.b * s, c + f.a * s + f.b * s, c - f.a * s + f.b * s, u, u, u, u, f.n);
+                // 目は丸く（10 角形）。四角い目は、角ばって見える
+                const int seg = 10;
+                for (int i = 0; i < seg; i++)
+                {
+                    float a0 = i * Mathf.PI * 2 / seg, a1 = (i + 1) * Mathf.PI * 2 / seg;
+                    lp.Tri(c, c + (f.a * Mathf.Cos(a0) + f.b * Mathf.Sin(a0)) * s * 1.12f, c + (f.a * Mathf.Cos(a1) + f.b * Mathf.Sin(a1)) * s * 1.12f, u, u, u, f.n);
+                }
             }
     });
 }

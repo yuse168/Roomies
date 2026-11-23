@@ -45,8 +45,9 @@ internal static class RoomiesCasinoDemo
         return cam;
     }
 
-    static void Shoot(Camera cam, string folder, string name)
+    static void Shoot(Camera cam, string folder, string name, int scale = 1)
     {
+        int Width = RoomiesCasinoDemo.Width * scale, Height = RoomiesCasinoDemo.Height * scale;
         var rt = RenderTexture.GetTemporary(Width, Height, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
         cam.targetTexture = rt;
         cam.Render();
@@ -162,7 +163,7 @@ internal static class RoomiesCasinoDemo
             float w = 0; while (!bj.IsIdle && w < 12f) { yield return new WaitForSeconds(.1f); w += .1f; }
             yield return new WaitForSeconds(.6f);
             string folder = $"bj/round_{round + 1}";
-            float t = 0, nextAct = 2.4f; int frame = 0; bool acted = false, started = false; string hands = "";
+            float t = 0, nextAct = 2.4f; int frame = 0; bool acted = false, started = false, big = false; string hands = "";
             int hits = round == 1 ? 1 : 0;      // 2 回目は 1 枚引く
             while (t < 14f)
             {
@@ -177,6 +178,7 @@ internal static class RoomiesCasinoDemo
                     else { acted = true; bj.Stand(); }
                 }
                 if (view.LandedPlayer.Length > 0) hands = $"player '{view.LandedPlayer}', dealer '{view.LandedDealer}'";
+                if (!big && acted && bj.IsIdle == false && !view.IsBusy && view.LandedDealer.Length >= 2 && !view.LandedDealer.Contains(BlackjackTableView.Hidden)) { big = true; Shoot(cam, "bj", $"big_round_{round + 1}", 2); }
                 if (started && t > 3f && bj.IsIdle) break;
             }
             log.AppendLine($"round {round + 1}: frames {frame}, {hands}");
@@ -221,7 +223,7 @@ internal static class RoomiesCasinoDemo
             float w = 0; while ((!hilo.IsIdle || view.IsBusy) && w < 12f) { yield return new WaitForSeconds(.1f); w += .1f; }
             yield return new WaitForSeconds(.4f);
             string folder = $"hilo/round_{round + 1}";
-            float t = 0, nextAct = 1.6f; int frame = 0, guesses = 0; bool started = false, collected = false;
+            float t = 0, nextAct = 1.6f; int frame = 0, guesses = 0; bool started = false, collected = false, big = false;
             int wantGuesses = round == 5 ? 5 : 1;
             string cards = "";
             while (t < 16f)
@@ -244,6 +246,8 @@ internal static class RoomiesCasinoDemo
                     else if (!collected && hilo.Step > 0) { collected = true; hilo.Tertiary(null, earning); }
                 }
                 if (view.Landed.Length > 0) cards = view.Landed;
+                // 札が 2 枚そろって落ち着いたら、大きい写真（1920×1080）を 1 枚
+                if (!big && view.Landed.Length >= 2 && !view.IsBusy) { big = true; Shoot(cam, "hilo", $"big_round_{round + 1}", 2); }
                 if (started && t > 2f && hilo.IsIdle && !view.IsBusy) break;
             }
             string names = string.Join(" ", cards.Select(c => HiLoRules.RankName((c - 'A') / 4 + 1) + HiLoRules.SuitName((c - 'A') % 4)));

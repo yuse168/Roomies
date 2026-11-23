@@ -103,8 +103,8 @@ internal static partial class RoomiesCasinoBuilder
         so.FindProperty("anchorDealerHand").objectReferenceValue = dealerHand;
         so.FindProperty("cardStep").vector3Value = new Vector3(.112f, .0012f, -.014f);
         so.FindProperty("atlasColumns").intValue = Art.CardColumns;
-        so.FindProperty("atlasRows").intValue = Art.CardRows;
         so.FindProperty("cellU").floatValue = Art.CardCellU;
+        so.FindProperty("cellV").floatValue = Art.CardCellV;
         so.FindProperty("pivotBet").objectReferenceValue = pivotBet;
         SetObjects(so.FindProperty("betChips"), betChips);
         so.FindProperty("pivotDouble").objectReferenceValue = pivotDouble;

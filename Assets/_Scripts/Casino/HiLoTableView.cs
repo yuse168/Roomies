@@ -41,13 +41,13 @@ public class HiLoTableView : MonoBehaviour
     [Tooltip("1 枚目を置く所。2 枚目からは cardStep ずつずらす")]
     [SerializeField] private Transform anchorRow;
     [Tooltip("並べる所（Anchor_Row）から見た、1 枚ごとのずらし")]
-    [SerializeField] private Vector3 cardStep = new Vector3(0.185f, 0.0012f, 0f);
+    [SerializeField] private Vector3 cardStep = new Vector3(0.175f, 0.0012f, 0f);
 
-    [Header("カードの絵（1 枚の絵に 14 列 × 4 段。最後の列のいちばん上が裏面）")]
-    [SerializeField, Min(1)] private int atlasColumns = 14;
-    [SerializeField, Min(1)] private int atlasRows = 4;
-    [Tooltip("マスの幅が絵の横幅に占める割合（146 / 2048）")]
-    [SerializeField] private float cellU = 146f / 2048f;
+    [Header("カードの絵（1 枚の絵に 11 列 × 5 段。左上から ♠A〜K・♥・♦・♣、53 番目が裏面）")]
+    [SerializeField, Min(1)] private int atlasColumns = 11;
+    [Tooltip("マスの幅・高さが、絵の横幅・縦幅に占める割合（372 / 4096、409 / 2048）")]
+    [SerializeField] private float cellU = 372f / 4096f;
+    [SerializeField] private float cellV = 409f / 2048f;
 
     [Header("動き（秒）")]
     [SerializeField, Min(0.05f)] private float dealSeconds = 0.32f;
@@ -58,6 +58,8 @@ public class HiLoTableView : MonoBehaviour
     [SerializeField, Min(0f)] private float clearDelaySeconds = 0.8f;
     [SerializeField, Min(0.05f)] private float clearSeconds = 0.35f;
     [SerializeField, Min(0f)] private float dealArc = 0.06f;
+    [Tooltip("めくるときに浮かせる高さ。高いと、立ったカードが奥の「手持ちの額」の札に重なって見える")]
+    [SerializeField, Min(0f)] private float flipLift = 0.015f;
 
     [Header("チップ（賭け金の山・払い戻しの山。下から順に入れる）")]
     [SerializeField] private Transform pivotBet;
@@ -242,7 +244,7 @@ public class HiLoTableView : MonoBehaviour
             t += Time.deltaTime;
             float u = Mathf.Clamp01(t / flipSeconds);
             slot.pivot.localRotation = Quaternion.Slerp(faceDown, faceUp, u);
-            slot.pivot.localPosition = to + Vector3.up * (Mathf.Sin(u * Mathf.PI) * 0.07f);
+            slot.pivot.localPosition = to + Vector3.up * (Mathf.Sin(u * Mathf.PI) * flipLift);
             if (u >= 0.5f) Shown();      // 半分まで回ると、表が見えはじめる
             yield return null;
         }
@@ -347,12 +349,11 @@ public class HiLoTableView : MonoBehaviour
     private void SetFace(CardSlot slot, char code)
     {
         if (slot.face == null) return;
-        int column = atlasColumns - 1, row = 0;
-        if (TryDecode(code, out int rank, out int suit)) { column = rank - 1; row = suit; }
-        float v = 1f / atlasRows;
+        int index = BlackjackTableView.BackIndex;
+        if (TryDecode(code, out int rank, out int suit)) index = suit * 13 + rank - 1;
         block ??= new MaterialPropertyBlock();
         slot.face.GetPropertyBlock(block);
-        block.SetVector("_BaseMap_ST", new Vector4(cellU, v, column * cellU, 1f - (row + 1) * v));
+        block.SetVector("_BaseMap_ST", BlackjackTableView.CellST(index, atlasColumns, cellU, cellV));
         slot.face.SetPropertyBlock(block);
     }
 }

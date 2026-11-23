@@ -125,7 +125,7 @@ internal static partial class RoomiesCasinoArt
                  new Vector3(RlLayoutX0 - RlLayoutW, y, RlLayoutZ0), new Vector3(RlLayoutX0, y, RlLayoutZ0), r, Vector3.up);
         // 盤の受け皿（回らない外側）
         lp.Push(new Vector3(RlWheelCenter.x, RlTop, RlWheelCenter.z));
-        lp.Lathe(new[] { (.5f, 0f), (.5f, .07f), (.45f, .07f), (.43f, .02f) }, 16, b => b == 2 ? "wood_dark" : "wood", 0, false);
+        lp.Lathe(new[] { (.5f, 0f), (.5f, .07f), (.45f, .07f), (.43f, .02f) }, 40, b => b == 2 ? "wood_dark" : "wood", 0, false);
         lp.Pop();
         // 立て札（盤の奥）
         lp.Box(new Vector3(RlWheelCenter.x - .04f, RlTop, -.72f), new Vector3(RlWheelCenter.x + .04f, 1.42f, -.64f), "gold_dark");
@@ -135,13 +135,13 @@ internal static partial class RoomiesCasinoArt
     /// <summary>回る盤（真上から見た絵を貼った円盤と、真ん中のつまみ）。原点は盤の中心。</summary>
     internal static Mesh RouletteWheel() => Build("roulette_wheel", lp =>
     {
-        var disc = Ellipse(RlWheelRadius, RlWheelRadius, 24);
+        var disc = Ellipse(RlWheelRadius, RlWheelRadius, 48);     // 大きい円は、辺の数を多く（角が見えないように）
         lp.Prism(disc, -.02f, 0, "wood_dark");
         // 絵は「上が +Z（0 のマス）、右が +X」。TopImage は「絵の上が -Z、左が +X」なので、半回転して貼る
         lp.Push(Vector3.zero, new Vector3(0, 180, 0));
         lp.TopImage(disc, .001f, ImageRect(Img.Wheel), new Rect(-RlWheelRadius, -RlWheelRadius, RlWheelRadius * 2, RlWheelRadius * 2));
         lp.Pop();
-        lp.Lathe(new[] { (.09f, 0f), (.07f, .05f), (.025f, .07f), (.025f, .13f), (.045f, .15f), (0f, .17f) }, 8, "gold", 0, false);
+        lp.Lathe(new[] { (.09f, 0f), (.07f, .05f), (.025f, .07f), (.025f, .13f), (.045f, .15f), (0f, .17f) }, 16, "gold", 0, false);
         for (int i = 0; i < 4; i++)
         {
             lp.Push(Vector3.zero, new Vector3(0, i * 90, 0));

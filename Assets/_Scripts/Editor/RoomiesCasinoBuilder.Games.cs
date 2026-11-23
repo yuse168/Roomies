@@ -52,7 +52,7 @@ internal static partial class RoomiesCasinoBuilder
             var view = BuildHiLoCards(root);
 
             var board = Child(root.transform, "Anchor_Board");
-            var pot = Label(board, "Text_Pot", "賭け金 100R", new Vector3(0, Art.HlTop + .06f, -.092f), .62f, new Color(1f, .88f, .62f));
+            var pot = Label(board, "Text_Pot", "賭け金 100R", new Vector3(0, Art.HlTop + .06f, Art.HlPlateZ + .028f), .62f, new Color(1f, .88f, .62f));
             ((RectTransform)pot.transform).sizeDelta = new Vector2(.86f, .1f);
             var hint = Label(board, "Text_Hint", "HIGH & LOW", new Vector3(0, 1.83f, -.348f), .9f, new Color(.97f, .4f, .73f));
             ((RectTransform)hint.transform).sizeDelta = new Vector2(.82f, .2f);

@@ -228,10 +228,13 @@ internal static partial class RoomiesCasinoArt
             AssetDatabase.ImportAsset(AtlasPath, ImportAssetOptions.ForceUpdate);
         }
         var importer = (TextureImporter)AssetImporter.GetAtPath(AtlasPath);
-        if (importer.maxTextureSize != AtlasSize || importer.wrapMode != TextureWrapMode.Clamp || importer.anisoLevel != 4
-            || importer.textureCompression != TextureImporterCompression.CompressedHQ || !importer.mipmapEnabled)
+        // 台の上の絵（賭ける場所の数字など）は、斜めから見る。斜めでもぼけないよう異方性 16、ミップの境目はなめらかに、早めに縮めた絵へ切り替えない（-0.5）
+        if (importer.maxTextureSize != AtlasSize || importer.wrapMode != TextureWrapMode.Clamp || importer.anisoLevel != 16
+            || importer.textureCompression != TextureImporterCompression.CompressedHQ || !importer.mipmapEnabled
+            || importer.filterMode != FilterMode.Trilinear || !Mathf.Approximately(importer.mipMapBias, -.5f))
         {
-            importer.maxTextureSize = AtlasSize; importer.wrapMode = TextureWrapMode.Clamp; importer.anisoLevel = 4;
+            importer.maxTextureSize = AtlasSize; importer.wrapMode = TextureWrapMode.Clamp; importer.anisoLevel = 16;
+            importer.filterMode = FilterMode.Trilinear; importer.mipMapBias = -.5f;
             importer.textureCompression = TextureImporterCompression.CompressedHQ; importer.mipmapEnabled = true;
             importer.SaveAndReimport();
         }
