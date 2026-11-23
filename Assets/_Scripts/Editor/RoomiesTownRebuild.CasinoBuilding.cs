@@ -234,6 +234,7 @@ internal static partial class RoomiesTownRebuild
             Box(g, "Cashier tray", x - .25f, x + .25f, 1.12f, 1.16f, qz1 - .1f, qz1 + .15f, gold);
             Box(g, "Cashier lamp", x - .12f, x + .12f, 2.45f, 2.6f, qz1 - .25f, qz1 - .1f, Mat("casino_green_shade"));
         }
+        Box(g, "Cashier step", qx0, ix1, KFloor, KFloor + KClerkStep, iz0, qz1 - .5f, wood);   // 店の人の踏み台
         Box(g, "Chip racks", qx0 + .3f, ix1 - .3f, 1.12f, 1.3f, qz1 - .45f, qz1 - .3f, black);
         // 窓口は開けておく（店の人が中に立つ。カウンターの高さまでが当たり判定）
         Solid(g, "Cashier collider", new Vector3(qx0 - .12f, 0, qz1 - .5f), new Vector3(ix1, 1.12f, qz1 + .08f));

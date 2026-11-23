@@ -108,6 +108,16 @@ public class GameBalance : ScriptableObject
     [Tooltip("町に出ている荷物と荷台の荷物を合わせた上限（物が増えすぎないように）")]
     [Min(1)] public int deliveryMaxBoxes = 16;
 
+    [Header("カジノ")]
+    [Tooltip("2 階へ上がる鍵の値段（1 階の店の人から買う。買い切り）")]
+    [Min(0)] public int casinoKeyPrice2F = 3000;
+
+    [Tooltip("3 階へ上がる鍵の値段（2 階の店の人から買う。買い切り）")]
+    [Min(0)] public int casinoKeyPrice3F = 10000;
+
+    /// <summary>その階（2 か 3）へ上がる鍵の値段。</summary>
+    public int CasinoKeyPrice(int floor) => floor <= 2 ? casinoKeyPrice2F : casinoKeyPrice3F;
+
     /// <summary>
     /// ぶつかった速さから、減る額を返す（しきい値以下なら 0）。
     /// </summary>

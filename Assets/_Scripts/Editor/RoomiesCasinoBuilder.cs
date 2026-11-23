@@ -9,7 +9,10 @@ using UnityEngine.SceneManagement;
 /// カジノ（3 階建て）の配置ツール。実行時には動かない。何度実行しても同じ結果。
 ///
 ///  1 Build Building        … 建物を作り直す（Roomies/Art/Rebuild/3 Casino と同じ。町のプレハブの Town casino / 2F / 3F）
-///  3 Place In Open Scene   … 開いている GameRoom に「Roomies_Casino」を置き、階ごとの表示の切り替えをつなぐ
+///  2 Build Gimmick Prefabs … エレベーターと店の人のプレハブを作る（RoomiesCasinoBuilder.Gimmicks.cs）
+///  3 Place In Open Scene   … 開いている GameRoom に、鍵の持ち主（CasinoAccess）・エレベーター・店の人 2 人を置き、
+///                            「Roomies_Casino」の階ごとの表示の切り替えをつなぐ
+///  Check (Play Mode)       … 鍵を買う・挿す・上がる・降りるを通しで確かめる（RoomiesCasinoBuilder.Check.cs）
 ///
 /// 置いた物の位置や数値は、シーンビューとインスペクターで直してよい（もう一度実行すると、ここの値に戻る）。
 /// </summary>
@@ -32,6 +35,7 @@ internal static partial class RoomiesCasinoBuilder
 
         Transform root = FindOrCreateRoot(scene, SceneRootName);
         PlaceFloorVisibility(root, env.transform);
+        PlaceGimmicks(scene);
 
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
@@ -58,6 +62,60 @@ internal static partial class RoomiesCasinoBuilder
         }
         go.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
         return go.transform;
+    }
+
+    // 店の人の立つ所（1 階は両替所の中、2 階はその真上のカウンターの中）。正面は通りの側（+Z）
+    static readonly Vector3 ClerkXZ = new Vector3(14.6f, 0f, -17.95f);
+
+    /// <summary>通信する物（鍵の持ち主・エレベーター・店の人）をシーンの直下に置く。</summary>
+    static void PlaceGimmicks(Scene scene)
+    {
+        if (AssetDatabase.LoadAssetAtPath<GameObject>(ElevatorPath) == null ||
+            AssetDatabase.LoadAssetAtPath<GameObject>(ClerkPath) == null) BuildGimmickPrefabs();
+
+        // 鍵の持ち主（お金の係と同じく、シーンに 1 つ置く物）
+        var access = scene.GetRootGameObjects().FirstOrDefault(g => g.name == "CasinoAccess");
+        if (access == null)
+        {
+            access = new GameObject("CasinoAccess");
+            SceneManager.MoveGameObjectToScene(access, scene);
+        }
+        if (access.GetComponent<Unity.Netcode.NetworkObject>() == null) access.AddComponent<Unity.Netcode.NetworkObject>();
+        if (access.GetComponent<CasinoAccess>() == null) access.AddComponent<CasinoAccess>();
+        EditorUtility.SetDirty(access);
+
+        PlacePrefab(scene, ElevatorPath, "CasinoElevator", ElevatorPosition, 0f);
+
+        foreach (var (name, floor, sells) in new[] { ("CasinoClerk_1F", 1, 2), ("CasinoClerk_2F", 2, 3) })
+        {
+            var p = ClerkXZ; p.y = RoomiesTownRebuild.KFloorY(floor) + RoomiesTownRebuild.KClerkStep;   // カウンターの中の踏み台の上
+            var go = PlacePrefab(scene, ClerkPath, name, p, 0f);
+            var so = new SerializedObject(go.GetComponent<CasinoClerk>());
+            so.FindProperty("sellsFloor").intValue = sells;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+    }
+
+    /// <summary>プレハブをシーンの直下に置く（もうあれば位置と向きだけ戻す）。</summary>
+    internal static GameObject PlacePrefab(Scene scene, string prefabPath, string name, Vector3 position, float yaw)
+    {
+        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+        var go = scene.GetRootGameObjects().FirstOrDefault(g => g.name == name);
+        if (go != null && PrefabUtility.GetCorrespondingObjectFromSource(go) != prefab)
+        {
+            Object.DestroyImmediate(go);
+            go = null;
+        }
+        if (go == null)
+        {
+            go = (GameObject)PrefabUtility.InstantiatePrefab(prefab, scene);
+            go.name = name;
+        }
+        go.transform.SetPositionAndRotation(position, Quaternion.Euler(0f, yaw, 0f));
+        // プレハブを作り直すと中の部品の ID が変わるので、もう無い部品への上書きをシーンから消す
+        PrefabUtility.RemoveUnusedOverrides(new[] { go }, InteractionMode.AutomatedAction);
+        EditorUtility.SetDirty(go);
+        return go;
     }
 
     static Transform FindOrCreateChild(Transform parent, string name)

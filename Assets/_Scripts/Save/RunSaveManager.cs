@@ -92,7 +92,8 @@ public class RunSaveManager : MonoBehaviour
         if (data == null) return;
 
         // 中身が変わっていないときは書かない（ディスクを触る回数を減らす）
-        string signature = $"{data.day}/{data.time}/{data.sharedMoney}/{data.rentSurcharge}/{data.furniture.Count}";
+        string signature = $"{data.day}/{data.time}/{data.sharedMoney}/{data.rentSurcharge}/{data.furniture.Count}" +
+                           $"/{data.casinoKeysBought}/{data.casinoKeysUsed}";
         bool forced = forceSaveInterval > 0f && Time.time >= nextForceSaveTime;
         if (signature == lastSignature && !forced) return;
 
@@ -124,6 +125,10 @@ public class RunSaveManager : MonoBehaviour
         SharedMoneyManager money = SharedMoneyManager.Instance;
         if (day == null || !day.IsSpawned || money == null || !money.IsSpawned) return;
 
+        // カジノの鍵の持ち主（シーンにあれば）も準備ができるまで待つ
+        CasinoAccess casino = CasinoAccess.Instance;
+        if (casino != null && !casino.IsSpawned) return;
+
         RoomiesSaveData data = SaveSystem.PendingLoad;
         applied = true;
         nextCheckTime = Time.time + checkInterval;
@@ -140,6 +145,7 @@ public class RunSaveManager : MonoBehaviour
 
         day.ServerApplySavedState(data.day, data.time, data.remainingSeconds, data.rentSurcharge);
         money.ServerRestoreBalance(data.sharedMoney);
+        if (casino != null) casino.ServerRestore(data.casinoKeysBought, data.casinoKeysUsed);
 
         int spawned = 0;
         foreach (SavedFurniture saved in data.furniture)
@@ -216,6 +222,13 @@ public class RunSaveManager : MonoBehaviour
             rentSurcharge = day.RentSurcharge,
             hostName = LocalPlayerName(),
         };
+
+        CasinoAccess casino = CasinoAccess.Instance;
+        if (casino != null && casino.IsSpawned)
+        {
+            data.casinoKeysBought = casino.KeysBought;
+            data.casinoKeysUsed = casino.KeysUsed;
+        }
 
         foreach (NetworkFurniture furniture in FindObjectsByType<NetworkFurniture>(FindObjectsSortMode.None))
         {

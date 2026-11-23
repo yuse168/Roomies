@@ -23,6 +23,8 @@ internal static partial class RoomiesTownRebuild
     internal const float KF2 = 4.9f, KC2 = 8.3f, KF3 = 8.8f, KC3 = 12.6f, KRoofDeck = 13.05f, KRoof = 13.4f;
     // エレベーターが入る所（奥の壁の内側から手前へ）。中身はエレベーターのプレハブの側
     internal const float KEvX0 = 9.5f, KEvX1 = 12.3f, KEvZ1 = -17.1f;
+    // 店の人が立つ踏み台の高さ（カウンターの上に体が出るように）
+    internal const float KClerkStep = .45f;
 
     // 通り側の窓（x の範囲と高さ）。2 階は 4 つ、3 階は夜景の見える大きな窓を 3 つ
     internal static readonly (float x0, float x1)[] KWin2F = { (.6f, 3.0f), (4.6f, 7.0f), (8.6f, 11.0f), (12.6f, 15.0f) };
@@ -142,6 +144,14 @@ internal static partial class RoomiesTownRebuild
             if (!open) { FaceBox(g, "Wall finish", Vector3.back, iz1, a0, a1, f, c, 0, .02f, fabric); continue; }
             FaceBox(g, "Wall finish", Vector3.back, iz1, a0, a1, f, wy0, 0, .02f, fabric);
             FaceBox(g, "Wall finish", Vector3.back, iz1, a0, a1, wy1, c, 0, .02f, fabric);
+        }
+        // 2 階：店の人のカウンター（1 階の両替所の真上。エレベーターの右）
+        if (floor == 2)
+        {
+            Box(g, "Clerk counter", 12.8f, ix1, f, f + 1.05f, -17.4f, -16.9f, wood);
+            Box(g, "Clerk counter top", 12.75f, ix1, f + 1.05f, f + 1.12f, -17.45f, -16.82f, Mat("casino_marble"));
+            Solid(g, "Clerk counter collider", new Vector3(12.75f, f, -17.45f), new Vector3(ix1, f + 1.12f, -16.82f));
+            Box(g, "Clerk step", 12.8f, ix1, f, f + KClerkStep, iz0, -17.4f, wood);
         }
         // 明かり（その階にいるときだけ点く。CasinoFloorVisibility がこのグループごと出し入れする）
         int n = 0;

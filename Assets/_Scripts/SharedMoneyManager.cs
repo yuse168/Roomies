@@ -24,7 +24,8 @@ public enum SharedMoneyReason
     NightLuck,
     DailyRequest,
     FurnitureUse,       // 置いた家具を使う代金（飲み物・コーヒーなど）。家具の購入とは別
-    FoodBill            // 夜の食費（共同口座から払う）
+    FoodBill,           // 夜の食費（共同口座から払う）
+    CasinoKey           // カジノの上の階の鍵（買い切り）
 }
 
 public class SharedMoneyManager : NetworkBehaviour

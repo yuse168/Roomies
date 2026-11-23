@@ -1,5 +1,24 @@
 # PROGRESS.md
 
+## 2026/11/23｜カジノ 段階3：鍵・店の人・エレベーター
+
+- 鍵の持ち主 `CasinoAccess`（GameRoom に 1 つ）：買った鍵の数と挿した鍵の数を全員で共有する。行ける階は 1 + 挿した数。サーバーだけが変える
+- 値段は GameBalance（`casinoKeyPrice2F` 3000、`casinoKeyPrice3F` 10000）。共同口座から `TrySpend`（理由 `CasinoKey`）。同時に 2 回押しても 1 回しか引かれない
+- 店の人 `CasinoClerk`（`Assets/_Prefabs/Casino/CasinoClerk.prefab`）：1 階の両替所（2 階の鍵）と 2 階のカウンター（3 階の鍵）に 1 人ずつ。
+  見て E で買う。ひとことは知らせの帯で出す（会話の画面は作っていない）。見た目は新しい仮のキャラ（Bob の形や素材は使っていない）
+- エレベーター `CasinoElevator`（`CasinoElevator.prefab`）：箱は動かさず、扉を閉めている間（約 3.7 秒）に、箱の中の人を行き先の階の箱の同じ位置へ移す
+  （`PlayerSpawnSync.ServerTeleport`。持っている荷物は一緒に移す）。階ごとに、引き戸 2 枚・外の呼びボタン・中の行き先ボタン 3 つ・鍵穴・階数のランプ
+- ボタン `CasinoElevatorButton`：鍵のない階は「◯階（鍵が必要）」と出て動かない。鍵穴は、挿していない鍵があるときだけ使える。降りるのは自由
+- セーブ：`RoomiesSaveData` に `casinoKeysBought`・`casinoKeysUsed` を足した（版は上げていないので、前のセーブはそのまま読める）。`RunSaveManager` が保存と「続きから」の反映を行う
+- 配置：`Roomies/Casino/2 Build Gimmick Prefabs`、`3 Place In Open Scene`（鍵の持ち主・エレベーター・店の人 2 人をシーンの直下に置く）。
+  建物の側は、店の人の踏み台（高さ 0.45m）と 2 階のカウンターを足した
+- 確認（Play Mode・ホスト 1 人）：`Roomies/Casino/Check (Play Mode)` で 40 項目すべて OK
+  （お金が足りないと買えない → 買う → 2 回押しても 1 回ぶん → 鍵なしでは動かない → 鍵を挿す → 2 階へ → 歩いて出る → 3 階の鍵 → 3 階へ → 窓の壁で止まる →
+  1 階へ降りる → 2 階から呼ぶ → 階ごとの表示の切り替え → セーブに鍵が入る）。`Check - Continue With Keys` で「続きから」に鍵が戻ることも確かめた
+- EditMode：カジノのテスト 5 件は成功。Roomies のテストは前と同じ 13 件の失敗、新しい失敗なし
+- 写真：`D:\TK230088\Leica\brain\tmp_roomies_casino_build_20261123\stage3\`
+- 未確認：2 人以上での通信（途中参加・2 人同時の操作）。エレベーターの音は、いまある扉の音と決定音を仮に使っている
+
 ## 2026/11/23｜カジノ 段階2：3 階ぶんの箱を置く（仮の中身）
 
 - 建物を 3 階建てにした（`RoomiesTownRebuild.CasinoTower.cs`）。幅と奥行きは前のまま（x -1.2〜16.8、z -19.6〜-7.8）。

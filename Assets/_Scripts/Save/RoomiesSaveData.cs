@@ -38,6 +38,13 @@ public class RoomiesSaveData
     /// <summary>次回家賃への上乗せ額（夜イベントなどの積み上がり）。</summary>
     public int rentSurcharge;
 
+    [Header("カジノ")]
+    /// <summary>買った鍵の数（0〜2）。項目を足しただけなので、前のセーブでは 0 になる（版は上げない）。</summary>
+    public int casinoKeysBought;
+
+    /// <summary>エレベーターの鍵穴に挿した鍵の数（0〜2）。行ける階は 1 + この数。</summary>
+    public int casinoKeysUsed;
+
     [Header("置いてある物")]
     public List<SavedFurniture> furniture = new List<SavedFurniture>();
 

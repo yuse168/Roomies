@@ -43,6 +43,52 @@ public class RoomiesCasinoTests
     }
 
     [Test]
+    public void CasinoKeyPricesComeFromGameBalance()
+    {
+        ScriptableObject balance = ScriptableObject.CreateInstance(GameType("GameBalance"));
+        try
+        {
+            balance.GetType().GetField("casinoKeyPrice2F").SetValue(balance, 1234);
+            balance.GetType().GetField("casinoKeyPrice3F").SetValue(balance, 5678);
+            MethodInfo price = balance.GetType().GetMethod("CasinoKeyPrice");
+            Assert.That(price.Invoke(balance, new object[] { 2 }), Is.EqualTo(1234));
+            Assert.That(price.Invoke(balance, new object[] { 3 }), Is.EqualTo(5678));
+        }
+        finally { UnityEngine.Object.DestroyImmediate(balance); }
+    }
+
+    [Test]
+    public void OldSaveWithoutCasinoFieldsLoadsAsNoKeys()
+    {
+        // 鍵の項目を足す前のセーブ（項目が無い JSON）でも読めて、鍵は 0 本になる
+        Type saveType = GameType("RoomiesSaveData");
+        object data = JsonUtility.FromJson("{\"version\":1,\"day\":4,\"sharedMoney\":777}", saveType);
+        Assert.That(saveType.GetField("day").GetValue(data), Is.EqualTo(4));
+        Assert.That(saveType.GetField("casinoKeysBought").GetValue(data), Is.EqualTo(0));
+        Assert.That(saveType.GetField("casinoKeysUsed").GetValue(data), Is.EqualTo(0));
+        Assert.That(saveType.GetField("version").GetValue(data), Is.EqualTo(saveType.GetField("CurrentVersion").GetValue(null)),
+            "鍵の項目を足しても版は上げない（上げると前のセーブが捨てられる）");
+    }
+
+    [Test]
+    public void ElevatorPrefabHasThreeWiredFloors()
+    {
+        Component elevator = LoadComponent("Assets/_Prefabs/Casino/CasinoElevator.prefab", "CasinoElevator");
+        var so = new SerializedObject(elevator);
+        SerializedProperty floors = so.FindProperty("floors");
+        Assert.That(floors.arraySize, Is.EqualTo(3));
+        for (int i = 0; i < floors.arraySize; i++)
+        {
+            SerializedProperty f = floors.GetArrayElementAtIndex(i);
+            Assert.That(f.FindPropertyRelative("cabinAnchor").objectReferenceValue, Is.Not.Null, $"{i + 1}階の Anchor_Cabin");
+            Assert.That(f.FindPropertyRelative("doorLeft").objectReferenceValue, Is.Not.Null, $"{i + 1}階の Pivot_DoorL");
+            Assert.That(f.FindPropertyRelative("doorRight").objectReferenceValue, Is.Not.Null, $"{i + 1}階の Pivot_DoorR");
+        }
+        // ボタンは階ごとに、呼ぶ 1・行き先 3・鍵穴 1
+        Assert.That(elevator.GetComponentsInChildren(GameType("CasinoElevatorButton"), true).Length, Is.EqualTo(15));
+    }
+
+    [Test]
     public void ArcadeMachineReturnsLessThanItsPrice()
     {
         Component gimmick = LoadComponent("Assets/_Prefabs/NetworkFurniture.prefab", "FurnitureGimmick");
