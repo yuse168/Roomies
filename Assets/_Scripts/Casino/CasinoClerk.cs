@@ -151,7 +151,7 @@ public class CasinoClerk : HomeAppliance
     private void NodRpc(bool sold)
     {
         nodUntil = Time.time + nodSeconds;
-        if (sold) GameAudio.PlayAt("ui/confirm", transform.position);
+        if (sold) GameAudio.PlayAt("casino/key_sold", transform.position);
     }
 
     private void Update()

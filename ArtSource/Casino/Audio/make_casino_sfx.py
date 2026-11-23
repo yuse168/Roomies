@@ -137,6 +137,44 @@ def elevator_ding():
     return y
 
 
+def elevator_button():
+    """階のボタン：押し込むカチッ＋短い電子音（ポッ）。"""
+    y = np.zeros(int(SR * 0.2))
+    place(y, click(1500, 0.035, 0.005, 0.55), 0, 0.9)
+    beep = tone(880.0, 0.14, 0.045, [(1, 1.0), (2, 0.18)])
+    beep[: int(SR * 0.004)] *= np.linspace(0, 1, int(SR * 0.004))
+    place(y, beep, 0.018, 0.7)
+    return y
+
+
+# ---------------------------------------------------------------- 店の人・NPC
+def key_sold():
+    """鍵を受け取る：カウンターに置くコトッ → 鍵束がチャリッと鳴る → 明るい 2 音。"""
+    y = np.zeros(int(SR * 0.9))
+    place(y, lowpass(click(420, 0.07, 0.014, 0.3), 2400), 0, 0.8)
+    at = 0.09
+    for i in range(5):
+        f = rng.uniform(4200, 6200)
+        ring = mix(tone(f, 0.16, 0.035, [(1, 1.0), (1.52, 0.5), (2.31, 0.25)]), click(f, 0.02, 0.003, 0.7) * 0.4)
+        place(y, ring, at, rng.uniform(0.45, 0.8))
+        at += rng.uniform(0.028, 0.06)
+    place(y, jingle([987.8, 1318.5], 0.09, 0.13), 0.32, 0.75)                # シ・ミ
+    return y
+
+
+def talk():
+    """NPC が話しはじめる：やわらかい声のような短い音が 3 つ（ポ・ポ・ポ）。吹き出しが出るときに鳴る。"""
+    y = np.zeros(int(SR * 0.42))
+    for i, (f, at) in enumerate(((392.0, 0.0), (466.2, 0.105), (440.0, 0.21))):
+        sec = 0.12
+        x = t(sec)
+        # 声らしさ：基音に、少しゆれる倍音を重ねて、高い所を落とす
+        v = np.sin(2 * np.pi * f * x) + 0.45 * np.sin(2 * np.pi * f * 2 * x + 0.6) + 0.2 * np.sin(2 * np.pi * f * 3 * x)
+        v *= np.sin(np.pi * x / sec) ** 0.7
+        place(y, lowpass(v, 1900), at, 1.0 - i * 0.12)
+    return y
+
+
 # ---------------------------------------------------------------- ルーレット
 def roulette_spin():
     """玉が縁を転がる（約 6 秒）：はじめは速くて高く、だんだん遅く低くなる。終わりのほうで仕切りに当たりはじめる。"""
@@ -403,3 +441,7 @@ if __name__ == "__main__":
     save("slot_coin", slot_coin(), 0.6)
     save("slot_tick", slot_tick(), 0.5)
     save("chips_slide", chips_slide(), 0.7)
+    # ここから下は、あとから足した音。乱数の順が変わると前からある音が変わってしまうので、新しい音はいつも最後に足す
+    save("elevator_button", elevator_button(), 0.7)
+    save("key_sold", key_sold(), 0.8)
+    save("talk", talk(), 0.6)

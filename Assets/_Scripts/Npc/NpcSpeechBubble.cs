@@ -63,7 +63,7 @@ public class NpcSpeechBubble : NetworkBehaviour
         hideAt = Time.time + baseSeconds + secondsPerCharacter * line.Length;
         bubble.gameObject.SetActive(true);
         bubble.localScale = baseScale * 0.01f;
-        GameAudio.PlayAt("ui/emote", bubble.position, 0.5f, 0.1f, 12f);
+        GameAudio.PlayAt("casino/talk", bubble.position, 0.5f, 0.1f, 12f);
     }
 
     private void LateUpdate()

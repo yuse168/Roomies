@@ -191,6 +191,29 @@ public class RoomiesCasinoTests
     }
 
     [Test]
+    public void EveryCasinoSoundUsedInCodeHasAFileAndALevel()
+    {
+        // コードに書いてある "casino/〇〇" の音は、どれも Resources/Audio/casino/ にファイルがあり、音量の表（SfxLevels）にも行がある
+        var keys = new System.Collections.Generic.SortedSet<string>();
+        foreach (string file in System.IO.Directory.GetFiles("Assets/_Scripts", "*.cs", System.IO.SearchOption.AllDirectories))
+        {
+            if (file.Replace(System.IO.Path.DirectorySeparatorChar, '/').Contains("/Editor/")) continue;
+            foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(System.IO.File.ReadAllText(file), "\"(casino/[a-z_0-9]+)\""))
+                keys.Add(m.Groups[1].Value);
+        }
+        Assert.That(keys.Count, Is.GreaterThan(20));
+        string levels = System.IO.File.ReadAllText("Assets/Resources/Audio/SfxLevels.asset");
+        foreach (string key in keys)
+        {
+            Assert.That(Resources.Load<AudioClip>("Audio/" + key), Is.Not.Null, "音のファイルが無い: " + key);
+            Assert.That(levels, Does.Contain(key), "音量の表（SfxLevels）に行が無い: " + key);
+        }
+        // 仮に使っていた音（決定音・エモートの音）を、カジノと NPC のコードが使っていない
+        foreach (string file in new[] { "Assets/_Scripts/Casino/CasinoClerk.cs", "Assets/_Scripts/Casino/CasinoElevatorButton.cs", "Assets/_Scripts/Npc/NpcSpeechBubble.cs" })
+            Assert.That(System.IO.File.ReadAllText(file), Does.Not.Contain("\"ui/"), file);
+    }
+
+    [Test]
     public void ChinchiroHandsAreRecognised()
     {
         Type rules = GameType("ChinchiroRules");

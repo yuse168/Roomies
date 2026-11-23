@@ -63,6 +63,9 @@
 | `casino/elevator_ding` | 到着の「チン」 | 着いて扉が開きはじめるとき |
 | `casino/roulette_spin` | 玉が転がる | 盤が回っている間（約 6 秒。`RouletteTable.spinSeconds` に合わせた長さ） |
 | `casino/roulette_stop` | 玉が止まる | 結果が出た瞬間 |
+| `casino/elevator_button` | 階のボタンを押す | エレベーターのボタン・鍵穴を押したとき（前は `ui/confirm` を仮に使っていた） |
+| `casino/key_sold` | 鍵を受け取る | 店の人から鍵を買えたとき（前は `ui/confirm`） |
+| `casino/talk` | NPC が話しはじめる | 店の人・警察の吹き出しが出るとき（前は `ui/emote`） |
 | `casino/chip` | チップを置く | ルーレットに賭けたとき（賭けた場所から） |
 | `casino/card` | カードをめくる | ハイ＆ローで次のカードが出たとき |
 | `casino/dice` | サイコロがどんぶりで転がる | チンチロでふるたび |

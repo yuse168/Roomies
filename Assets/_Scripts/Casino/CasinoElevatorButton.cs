@@ -95,7 +95,7 @@ public class CasinoElevatorButton : HomeAppliance
     [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
     private void PressedRpc()
     {
-        GameAudio.PlayAt("ui/confirm", transform.position, 0.8f, 0.05f, 10f);
+        GameAudio.PlayAt("casino/elevator_button", transform.position, 0.8f, 0.05f, 10f);
     }
 
     private void Update()
