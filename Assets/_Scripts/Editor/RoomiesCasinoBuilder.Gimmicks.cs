@@ -238,8 +238,11 @@ internal static partial class RoomiesCasinoBuilder
             // 頭の上の吹き出し（全員に見えるひとこと）
             var speech = BuildSpeechBubble(root, 1.95f);
             // カウンターの上の看板（踏み台の上から見て高さ 2.0〜2.6m）より下に、体の横へ出す。
-            // 看板より下に収めておけば、近くからも遠くからも看板に隠れない。顔も隠さない
-            speech.transform.Find("Anchor_Bubble").localPosition = new Vector3(-1.0f, 1.45f, .2f);
+            // 看板より下に収めておけば、近くからも遠くからも看板に隠れない。
+            // 帽子（幅 0.7m）と重ならないよう、少し小さくして（0.85 倍）、体の中心から 1.25m 離す（板の内側の端が、帽子の端から 0.2m 外）
+            var bubbleAnchor = speech.transform.Find("Anchor_Bubble");
+            bubbleAnchor.localPosition = new Vector3(-1.25f, 1.5f, .2f);
+            bubbleAnchor.localScale = Vector3.one * .85f;
             so.FindProperty("bubble").objectReferenceValue = speech;
             so.ApplyModifiedPropertiesWithoutUndo();
 

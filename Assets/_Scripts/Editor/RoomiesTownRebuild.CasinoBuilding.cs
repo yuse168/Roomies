@@ -284,24 +284,27 @@ internal static partial class RoomiesTownRebuild
         foreach (float x in new[] { 2.75f, 4.75f, 11.0f, 13.6f })
             Prop(g, "Banner", Art.Banner(.56f), x, 3.75f, face + .08f);
 
-        // 屋上の段々の冠：角の丸い段を 2 つ積み、その上に看板の板。前のふちは電球。てっぺんに王冠のネオンと星
-        float sy = KRoof + .12f;
-        float t1w = 12.4f, t1d = 2.6f, t1h = .9f, t2w = 8.8f, t2d = 2.2f, t2h = 1.1f, capH = .14f;
-        float t1z = face - t1d / 2 + .1f, t2z = face - t2d / 2 + .12f;
-        PropMat(g, "Casino crown tier", Art.Tier(t1w, t1d, t1h, .6f), 7.8f, sy, t1z, Mat("casino_brick"));
-        Prop(g, "Casino crown tier cap", Art.TierCap(t1w, t1d, .6f, 30), 7.8f, sy + t1h, t1z);
+        // 屋上の段々の冠：角の丸い段を 2 つ積み、その上に看板の板。前のふちは電球。てっぺんに王冠のネオンと星。
+        // 通りから見上げても目立つよう、段は高く、正面の壁より前へ 0.5m 張り出す（軒の出。両隣と道へは出ない：前のひさしは 1.5m）
+        float sy = KRoof + .12f, over = .5f;
+        float t1w = 13.6f, t1d = 3.0f, t1h = 1.5f, t2w = 10.2f, t2d = 2.6f, t2h = 1.8f, capH = .14f;
+        float t1z = face + over - t1d / 2, t2z = face + over - t2d / 2 + .02f;
+        PropMat(g, "Casino crown tier", Art.Tier(t1w, t1d, t1h, .7f), 7.8f, sy, t1z, Mat("casino_brick"));
+        Prop(g, "Casino crown tier cap", Art.TierCap(t1w, t1d, .7f, 32), 7.8f, sy + t1h, t1z);
         float y2 = sy + t1h + capH;
-        PropMat(g, "Casino crown tier", Art.Tier(t2w, t2d, t2h, .5f), 7.8f, y2, t2z, Mat("casino_plaster"));
-        Prop(g, "Casino crown tier cap", Art.TierCap(t2w, t2d, .5f, 22), 7.8f, y2 + t2h, t2z);
-        float y3 = y2 + t2h + capH, signH = 2.0f, signW = 6.8f;
-        PropMat(g, "Rooftop sign board", Art.Tier(signW, .5f, signH, .22f), 7.8f, y3, face - .2f, Mat("casino_timber"));
-        Prop(g, "Rooftop sign cap", Art.TierCap(signW, .5f, .22f, 18), 7.8f, y3 + signH, face - .2f);
-        Art.NeonText(g, "Sign - CASINO", "CASINO", new Vector3(7.8f, y3 + signH / 2 + .02f, face + .07f), 0, 1.25f);
-        Art.NeonSign(g, "Neon sign - rooftop crown", new Vector3(7.8f, y3 + signH + capH + .95f, face - .2f), 0, 2.0f);
-        foreach (float x in new[] { 7.8f - t2w / 2 + .5f, 7.8f + t2w / 2 - .5f })
-            Prop(g, "Casino star", Art.StarFinial(), x, y2 + t2h + capH, face - .5f);
-        foreach (float x in new[] { 7.8f - t1w / 2 + .6f, 7.8f + t1w / 2 - .6f })
-            Prop(g, "Casino star", Art.StarFinial(), x, sy + t1h + capH, face - .5f);
+        PropMat(g, "Casino crown tier", Art.Tier(t2w, t2d, t2h, .6f), 7.8f, y2, t2z, Mat("casino_plaster"));
+        Prop(g, "Casino crown tier cap", Art.TierCap(t2w, t2d, .6f, 26), 7.8f, y2 + t2h, t2z);
+        float y3 = y2 + t2h + capH, signH = 2.9f, signW = 8.6f, signZ = face + over - .3f;
+        PropMat(g, "Rooftop sign board", Art.Tier(signW, .6f, signH, .3f), 7.8f, y3, signZ, Mat("casino_timber"));
+        Prop(g, "Rooftop sign cap", Art.TierCap(signW, .6f, .3f, 22), 7.8f, y3 + signH, signZ);
+        Art.NeonText(g, "Sign - CASINO", "CASINO", new Vector3(7.8f, y3 + signH / 2 + .03f, signZ + .32f), 0, 1.9f);
+        Art.NeonSign(g, "Neon sign - rooftop crown", new Vector3(7.8f, y3 + signH + capH + 1.3f, signZ), 0, 2.8f);
+        foreach (float x in new[] { 7.8f - t2w / 2 + .6f, 7.8f + t2w / 2 - .6f })
+            Prop(g, "Casino star", Art.StarFinial(), x, y2 + t2h + capH, face + over - .6f);
+        foreach (float x in new[] { 7.8f - t1w / 2 + .7f, 7.8f + t1w / 2 - .7f })
+            Prop(g, "Casino star", Art.StarFinial(), x, sy + t1h + capH, face + over - .6f);
+        // 冠を照らす光（夜だけ。名前の頭が Shop light の光は、朝に消える）
+        PointLight(g, "Shop light - CASINO crown", new Vector3(7.8f, y3 + signH / 2, face + over + 2.2f), 3.2f, 11f, KPink);
 
         // 入口の前：紫の敷物、ロープの柵、植木
         Box(g, "Entrance carpet", KEntX0 + .1f, KEntX1 - .1f, 0, .03f, face, face + 1.6f, Mat("casino_carpet"));

@@ -54,6 +54,9 @@ internal static partial class RoomiesTownRebuild
     {
         int parts = 0, made = 0;
         var root = PrefabUtility.LoadPrefabContents(NeighborhoodPrefab);
+        // カジノの小物は「ふつうの面＋光る面」の 2 つの素材を持つ形が多い（照明・電球の列・塔の飾りなど）。
+        // これも素材ごとに分けてまとめる（まとめないと、1 つずつ別に描くことになり、描画回数が増える）
+        combineMultiMaterial = true;
         try
         {
             foreach (var name in names)
@@ -65,7 +68,7 @@ internal static partial class RoomiesTownRebuild
             }
             PrefabUtility.SaveAsPrefabAsset(root, NeighborhoodPrefab);
         }
-        finally { PrefabUtility.UnloadPrefabContents(root); }
+        finally { combineMultiMaterial = false; PrefabUtility.UnloadPrefabContents(root); }
         AssetDatabase.SaveAssets();
         Debug.Log($"[Town] combined {string.Join(", ", names)}: {parts} parts -> {made} meshes");
     }
@@ -92,6 +95,9 @@ internal static partial class RoomiesTownRebuild
         return (parts, made);
     }
 
+    /// <summary>true の間は、素材を 2 つ以上持つ形も、素材ごとに分けてまとめる（CombineGroups の中だけ）。</summary>
+    static bool combineMultiMaterial;
+
     static string Slug(string s) => new string(s.ToLowerInvariant().Select(c => char.IsLetterOrDigit(c) ? c : '_').ToArray());
 
     /// <summary>group の下の見た目だけの部品を、素材・区画・影の有無ごとに1つにまとめる。前にまとめた物もまとめ直す。</summary>
@@ -104,15 +110,20 @@ internal static partial class RoomiesTownRebuild
         foreach (var r in candidates)
         {
             var mf = r.GetComponent<MeshFilter>();
-            var mat = r.sharedMaterial;
             Vector3 c = toLocal.MultiplyPoint3x4(r.bounds.center);
             bool already = r.transform.parent != null && r.transform.parent.name == CombinedName;
-            bool shadow = shadows && (already ? r.shadowCastingMode != ShadowCastingMode.Off : CastsShadow(r, mat));
-            // cell が 0 以下なら区画に分けない（素材と影の有無だけで分ける）
-            var key = cell > 0 ? (mat, Mathf.FloorToInt(c.x / cell), Mathf.FloorToInt(c.z / cell), shadow) : (mat, 0, 0, shadow);
-            if (!buckets.TryGetValue(key, out var list)) buckets[key] = list = new List<CombineInstance>();
-            // まとめ直しのときは、まとめた物を1つの部品として数える（区画は中心で決まるので同じ所に入る）
-            list.Add(new CombineInstance { mesh = mf.sharedMesh, subMeshIndex = 0, transform = toLocal * r.localToWorldMatrix });
+            var mats = r.sharedMaterials;
+            // 素材が 2 つ以上の形は、面の組（サブメッシュ）ごとに、その素材の束へ入れる
+            for (int sub = 0; sub < mats.Length; sub++)
+            {
+                var mat = mats[sub];
+                bool shadow = shadows && (already ? r.shadowCastingMode != ShadowCastingMode.Off : CastsShadow(r, mat));
+                // cell が 0 以下なら区画に分けない（素材と影の有無だけで分ける）
+                var key = cell > 0 ? (mat, Mathf.FloorToInt(c.x / cell), Mathf.FloorToInt(c.z / cell), shadow) : (mat, 0, 0, shadow);
+                if (!buckets.TryGetValue(key, out var list)) buckets[key] = list = new List<CombineInstance>();
+                // まとめ直しのときは、まとめた物を1つの部品として数える（区画は中心で決まるので同じ所に入る）
+                list.Add(new CombineInstance { mesh = mf.sharedMesh, subMeshIndex = sub, transform = toLocal * r.localToWorldMatrix });
+            }
         }
 
         // 新しいメッシュを先に作る（前のアセットのメッシュを読むので、消すのはそのあと）
@@ -164,8 +175,16 @@ internal static partial class RoomiesTownRebuild
     {
         if (RoomiesMaterialFinishBuilder.InMining(r.transform)) return false;
         var mf = r.GetComponent<MeshFilter>();
-        if (mf == null || mf.sharedMesh == null || mf.sharedMesh.subMeshCount != 1) return false;
-        if (r.sharedMaterials.Length != 1 || r.sharedMaterial == null) return false;
+        if (mf == null || mf.sharedMesh == null) return false;
+        if (combineMultiMaterial)
+        {
+            if (r.sharedMaterials.Length != mf.sharedMesh.subMeshCount || r.sharedMaterials.Any(m => m == null)) return false;
+        }
+        else
+        {
+            if (mf.sharedMesh.subMeshCount != 1) return false;
+            if (r.sharedMaterials.Length != 1 || r.sharedMaterial == null) return false;
+        }
         if (!r.enabled || !r.gameObject.activeInHierarchy) return false;
         // LOD の付いた物（木など）と、ほかのプレハブの中身はまとめない（距離で細かさを変えるため）
         if (r.GetComponentInParent<LODGroup>(true) != null || PrefabUtility.IsPartOfPrefabInstance(r)) return false;
@@ -181,7 +200,7 @@ internal static partial class RoomiesTownRebuild
     {
         if (r.shadowCastingMode == ShadowCastingMode.Off) return false;
         string n = mat.name;
-        if (n.Contains("glass") || n.Contains("window") || n.Contains("bulb") || n.Contains("interior")) return false;
+        if (n.Contains("glass") || n.Contains("window") || n.Contains("bulb") || n.Contains("interior") || n.Contains("glow")) return false;
         var s = r.bounds.size;
         return Mathf.Max(s.x, Mathf.Max(s.y, s.z)) >= ShadowMinSize;
     }
