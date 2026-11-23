@@ -1,5 +1,26 @@
 # PROGRESS.md
 
+## 2026/11/24｜テスト：前から失敗していた EditMode の 13 件を直す
+
+ゆせさんの依頼（11/24 06:33）の 3。直したのは `Assets/Tests/Editor/RoomiesRegressionTests.cs` だけ。ゲームのコードは変えていない。
+
+- 13 件とも、ゲームの不具合ではなく、テストの組み立てが EditMode に合っていなかった（10/25 の「失敗 14 件を修正」は、Unity につながらず実行されないままだった）
+- 原因と直し
+  - **11 件：`NetworkObject.Spawn()` で例外**。EditMode では `NetworkManager` の Awake / OnEnable が動かず、`NetworkManager.Singleton` が空のままだった。
+    SetUp で `SetSingleton()` を呼び、TearDown で外す形にした
+  - その先で出てきた物
+    - ゲームの管理役（`SharedMoneyManager`・`DayManager` など）は Awake で `Instance` に自分を入れる。EditMode では動かないので、テストで作った物には Awake を呼ぶ（`Wake`）。
+      `Instance` は TearDown で空に戻す
+    - 鉱石：`NetworkTransform` は補間の入れ物を Awake で作る。テストで作る鉱石は補間を切る
+    - 売る・没収する：NGO が `Object.Destroy` を呼び、EditMode では Unity がエラーのログを出す。そのログを 1 回見込む（`ExpectEditModeDestroyLog`）
+    - 家具・配達の箱：ゲームが自分で Instantiate するので、テストから Awake を呼べない。プレハブを写して補間だけ切った「見本」を渡す（`EditModeTemplate`）。数えるときは、出現した物だけを数える
+  - **2 件：`DeliveryZone` の `maxBoxCount` が無い**。箱の数は `GameBalance`（`deliveryLooseBoxes`・`deliveryMaxBoxes`）で決まる形に変わっていた。
+    テストを、いまのコードの決まり（町に出しておく数。全体の上限は超えない）に合わせた
+- 結果：EditMode 267 件 → 合格 266・失敗 0・スキップ 1（スキップは前から）。2 回続けて同じ結果。テストのあとで、シーンに物は残っていない（ルートの数は同じ・未保存の変更なし）
+- テストのあとに Play Mode で通し確認：133 項目 OK、歩行確認は配達ゾーンの NG 1 件だけ（前と同じ）。セーブは控えを取って戻した（ハッシュ一致）
+- 前の回に 2 回出た歩行確認の「EXPRESS loading dock」の NG は、今回は出なかった（配達の箱の位置は乱数。カジノの変更とは無関係と見てよさそうだが、出る回がある）
+- 残り：これらのテストは EditMode で NGO を動かしているので、「Awake を呼ぶ」「補間を切る」などの手当てに頼っている。NGO を更新したら、また直しが要るかもしれない
+
 ## 2026/11/24｜カジノ：トランプの角と画質／角ばった所の直し／Codex の絵 15 枚の差し替え
 
 ゆせさんの依頼（11/24 06:33）の 1 と 2。確率・配当・勝ち負けの決まりは変えていない。
