@@ -36,12 +36,53 @@ internal static partial class RoomiesCasinoBuilder
 
         Transform root = FindOrCreateRoot(scene, SceneRootName);
         PlaceGimmicks(scene);
-        var looks = PlaceUpperTables(scene);
+        var looks = PlaceTables(scene);
         PlaceFloorVisibility(root, env.transform, looks);
 
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
         Debug.Log("[Casino] placed in " + scene.name);
+    }
+
+    /// <summary>数を数える（確認用。何も変えない）：建物のグループとギミックのプレハブの、描く物・三角形・素材の数を Temp/RoomiesCasino/stats.txt に書く。</summary>
+    [MenuItem("Roomies/Casino/Stats")]
+    static void Stats()
+    {
+        var sb = new System.Text.StringBuilder();
+        var allMats = new System.Collections.Generic.HashSet<Material>();
+        int totalTris = 0, totalRenderers = 0;
+        void Count(string label, GameObject root)
+        {
+            int tris = 0, renderers = 0; var mats = new System.Collections.Generic.HashSet<Material>();
+            foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true))
+            {
+                var r = mf.GetComponent<MeshRenderer>();
+                if (r == null || mf.sharedMesh == null) continue;
+                if (mf.GetComponent<TMPro.TMP_Text>() != null) continue;   // 文字は別
+                tris += (int)(mf.sharedMesh.triangles.Length / 3); renderers++;
+                foreach (var m in r.sharedMaterials) if (m != null) { mats.Add(m); allMats.Add(m); }
+            }
+            int texts = root.GetComponentsInChildren<TMPro.TMP_Text>(true).Length, lights = root.GetComponentsInChildren<Light>(true).Length;
+            sb.AppendLine($"{label,-28} renderers {renderers,4}  tris {tris,7}  materials {mats.Count,2}  texts {texts,2}  lights {lights,2}");
+            totalTris += tris; totalRenderers += renderers;
+        }
+        var town = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Prefabs/Environment/RoomiesNeighborhood.prefab");
+        foreach (string g in new[] { RoomiesTownRebuild.CasinoGroup, RoomiesTownRebuild.CasinoGroup2F, RoomiesTownRebuild.CasinoGroup3F, RoomiesTownRebuild.CasinoWindows2F, RoomiesTownRebuild.CasinoWindows3F })
+        {
+            var t = town.transform.Find(g);
+            if (t != null) Count(g, t.gameObject);
+        }
+        sb.AppendLine($"{"building total",-28} renderers {totalRenderers,4}  tris {totalTris,7}  materials {allMats.Count,2}");
+        sb.AppendLine("materials: " + string.Join(", ", allMats.Select(m => m.name).OrderBy(n => n)));
+        sb.AppendLine();
+        foreach (string path in new[] { SlotBasePath, BlackjackBasePath, RoulettePath, ElevatorPath, ClerkPath })
+        {
+            var p = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            if (p != null) Count(System.IO.Path.GetFileNameWithoutExtension(path) + ".prefab", p);
+        }
+        System.IO.Directory.CreateDirectory("Temp/RoomiesCasino");
+        System.IO.File.WriteAllText("Temp/RoomiesCasino/stats.txt", sb.ToString());
+        Debug.Log("[Casino] stats written: Temp/RoomiesCasino/stats.txt");
     }
 
     internal static Scene GameRoomScene()
@@ -114,6 +155,7 @@ internal static partial class RoomiesCasinoBuilder
             go.name = name;
         }
         go.transform.SetPositionAndRotation(position, Quaternion.Euler(0f, yaw, 0f));
+        go.transform.localScale = Vector3.one;
         // プレハブを作り直すと中の部品の ID が変わるので、もう無い部品への上書きをシーンから消す
         PrefabUtility.RemoveUnusedOverrides(new[] { go }, InteractionMode.AutomatedAction);
         EditorUtility.SetDirty(go);
@@ -144,15 +186,20 @@ internal static partial class RoomiesCasinoBuilder
         var floors = so.FindProperty("floors");
         floors.arraySize = 2;
         SetFloor(floors.GetArrayElementAtIndex(0), "2F", RoomiesTownRebuild.KF2 - .3f, RoomiesTownRebuild.KF3 - .3f,
-            new[] { env.Find(RoomiesTownRebuild.CasinoGroup2F) }.Concat(looks[2].Select(g => g.transform)).ToArray());
+            new[] { env.Find(RoomiesTownRebuild.CasinoGroup2F) }.Concat(looks[2].Select(g => g.transform)).ToArray(), env.Find(RoomiesTownRebuild.CasinoWindows2F));
         SetFloor(floors.GetArrayElementAtIndex(1), "3F", RoomiesTownRebuild.KF3 - .3f, RoomiesTownRebuild.KRoof + 3f,
-            new[] { env.Find(RoomiesTownRebuild.CasinoGroup3F) }.Concat(looks[3].Select(g => g.transform)).ToArray());
+            new[] { env.Find(RoomiesTownRebuild.CasinoGroup3F) }.Concat(looks[3].Select(g => g.transform)).ToArray(), env.Find(RoomiesTownRebuild.CasinoWindows3F));
         so.ApplyModifiedPropertiesWithoutUndo();
         EditorUtility.SetDirty(comp);
     }
 
-    static void SetFloor(SerializedProperty p, string label, float minY, float maxY, params Transform[] here)
+    static void SetFloor(SerializedProperty p, string label, float minY, float maxY, Transform[] here, Transform away)
     {
+        // その階にいないときだけ出す物（外から見た窓の明かり）
+        var awayList = p.FindPropertyRelative("onlyWhenAway");
+        awayList.arraySize = away != null ? 1 : 0;
+        if (away != null) awayList.GetArrayElementAtIndex(0).objectReferenceValue = away.gameObject;
+
         p.FindPropertyRelative("label").stringValue = label;
         p.FindPropertyRelative("minY").floatValue = minY;
         p.FindPropertyRelative("maxY").floatValue = maxY;

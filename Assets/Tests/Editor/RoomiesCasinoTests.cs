@@ -85,7 +85,7 @@ public class RoomiesCasinoTests
     [Test]
     public void RouletteEveryBetReturnsThirtySixOverThirtySeven()
     {
-        foreach (string kind in new[] { "Number", "Red", "Black", "Odd", "Even", "Low", "High", "Dozen1", "Dozen2", "Dozen3" })
+        foreach (string kind in new[] { "Number", "Red", "Black", "Odd", "Even", "Low", "High", "Dozen1", "Dozen2", "Dozen3", "Column1", "Column2", "Column3" })
             Assert.That(RouletteReturn(kind, false), Is.EqualTo(36f / 37f).Within(0.0001f), kind + " は 97.3% のはず");
     }
 
@@ -94,7 +94,7 @@ public class RoomiesCasinoTests
     {
         foreach (string kind in new[] { "Red", "Black", "Odd", "Even", "Low", "High" })
             Assert.That(RouletteReturn(kind, true), Is.EqualTo(1f).Within(0.0001f), kind + " は 0 の返金で 100% になる");
-        foreach (string kind in new[] { "Number", "Dozen1", "Dozen2", "Dozen3" })
+        foreach (string kind in new[] { "Number", "Dozen1", "Dozen2", "Dozen3", "Column1", "Column2", "Column3" })
             Assert.That(RouletteReturn(kind, true), Is.EqualTo(36f / 37f).Within(0.0001f), kind + " は返金なしのまま");
     }
 
@@ -118,7 +118,7 @@ public class RoomiesCasinoTests
         Component third = LoadComponent("Assets/_Prefabs/Casino/RouletteTable_3F.prefab", "RouletteTable");
         var so = new SerializedObject(second);
         SerializedProperty spots = so.FindProperty("spots");
-        Assert.That(spots.arraySize, Is.EqualTo(46), "数字 37 ＋ 外側 9");
+        Assert.That(spots.arraySize, Is.EqualTo(49), "数字 37 ＋ 外側 12（2 倍の賭け 6・3 つ分け 3・列 3）");
         for (int i = 0; i < spots.arraySize; i++)
             Assert.That(spots.GetArrayElementAtIndex(i).objectReferenceValue, Is.Not.Null, "賭ける場所 " + i);
         Assert.That(Field<bool>(second, "zeroRefundsEvenMoney"), Is.False);

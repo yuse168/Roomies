@@ -179,9 +179,9 @@ internal static partial class RoomiesCasinoBuilder
         Expect(ev.CarFloor == 2 && ev.IsInsideCabin(2, cc.transform.position), $"arrived at 3F, player y {cc.transform.position.y:F2}");
         Expect(g2 != null && !g2.gameObject.activeSelf && g3.gameObject.activeSelf, "on 3F: 3F interior shown, 2F interior hidden");
         Expect(Walk(cc, new Vector3(cabin2.position.x, 0, cabin2.position.z + 3.0f)), "walk out of the cabin onto 3F");
-        Expect(Walk(cc, new Vector3(3f, 0, -10f)), $"walk across 3F to the front-left corner (at {cc.transform.position})");
+        Expect(Walk(cc, new Vector3(7.8f, 0, -9.0f)), $"walk across 3F to the front windows (at {cc.transform.position})");
         Expect(Mathf.Abs(cc.transform.position.y - (RoomiesTownRebuild.KF3 + cc.height / 2)) < .3f, $"standing on the 3F floor, y {cc.transform.position.y:F2}");
-        bool stopped = !Walk(cc, new Vector3(3f, 0, -5f));
+        bool stopped = !Walk(cc, new Vector3(7.8f, 0, -5f));
         Expect(stopped && cc.transform.position.z < -8.2f, $"3F front window wall stops the player (z {cc.transform.position.z:F2})");
 
         // ---- 1 階へ降りる（鍵はいらない）
@@ -283,7 +283,7 @@ internal static partial class RoomiesCasinoBuilder
             Expect(hit, "2F slot can be looked at from its front");
             Expect(slot2.CurrentBetLabel == "100 R", $"2F slot lowest bet {slot2.CurrentBetLabel}");
             Expect(Mathf.Abs(slot2.ExpectedReturn() - .978f) < .01f, $"2F slot expected return {slot2.ExpectedReturn() * 100f:F1}% (1F {slot1.ExpectedReturn() * 100f:F1}%)");
-            var cabinet = slot2.transform.Find("Visual/Cabinet");
+            var cabinet = slot2.transform.Find("Visual");
             Expect(cabinet != null && cabinet.gameObject.activeInHierarchy, "on 2F: the 2F slot cabinet is shown");
             int before = money.CurrentMoney;
             slot2.Interact(earning);
@@ -334,9 +334,9 @@ internal static partial class RoomiesCasinoBuilder
             Vector3 stand3 = bj3.transform.position + bj3.transform.forward * 1.5f; stand3.y = f3;
             Teleport(cc, stand3);
             yield return new WaitForSeconds(.4f);
-            var art3 = bj3.transform.Find("Visual/Art");
+            var art3 = bj3.transform.Find("Visual");
             Expect(art3 != null && art3.gameObject.activeInHierarchy, "on 3F: the 3F table is shown");
-            var cab2 = slot2.transform.Find("Visual/Cabinet");
+            var cab2 = slot2.transform.Find("Visual");
             Expect(cab2 != null && !cab2.gameObject.activeInHierarchy, "on 3F: the 2F slot cabinet is hidden");
             int m3 = money.CurrentMoney;
             bj3.Interact(earning);

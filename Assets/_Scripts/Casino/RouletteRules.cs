@@ -12,13 +12,16 @@ public enum RouletteBetKind : byte
     High,       // 19〜36
     Dozen1,     // 1〜12
     Dozen2,     // 13〜24
-    Dozen3      // 25〜36
+    Dozen3,     // 25〜36
+    Column1,    // 列：1・4・7…34（台の絵の「2:1」の、いちばん手前）
+    Column2,    // 列：2・5・8…35
+    Column3     // 列：3・6・9…36
 }
 
 /// <summary>
 /// ルーレットの決まり（0 が 1 つの 37 マス）。通信もシーンも使わない計算だけ。テストから直接呼べる。
 ///
-/// 戻る倍率（賭け金を含む）：数字 36 倍、1〜12 などの 3 つ分け 3 倍、赤・黒・奇数・偶数・前半・後半 2 倍。
+/// 戻る倍率（賭け金を含む）：数字 36 倍、1〜12 などの 3 つ分けと列（2:1）3 倍、赤・黒・奇数・偶数・前半・後半 2 倍。
 /// どれも戻る割合は 97.3%。3 階の台は「0 が出たら、2 倍の賭け（赤・黒など）は賭け金が戻る」ので、その賭けだけ 100% になる。
 /// </summary>
 public static class RouletteRules
@@ -72,6 +75,9 @@ public static class RouletteRules
             case RouletteBetKind.Dozen1: return result <= 12 ? 3 : 0;
             case RouletteBetKind.Dozen2: return result >= 13 && result <= 24 ? 3 : 0;
             case RouletteBetKind.Dozen3: return result >= 25 ? 3 : 0;
+            case RouletteBetKind.Column1: return result % 3 == 1 ? 3 : 0;
+            case RouletteBetKind.Column2: return result % 3 == 2 ? 3 : 0;
+            case RouletteBetKind.Column3: return result % 3 == 0 ? 3 : 0;
             default: return 0;
         }
     }
@@ -105,6 +111,9 @@ public static class RouletteRules
             case RouletteBetKind.Dozen1: return "1〜12";
             case RouletteBetKind.Dozen2: return "13〜24";
             case RouletteBetKind.Dozen3: return "25〜36";
+            case RouletteBetKind.Column1: return "1・4・7…の列";
+            case RouletteBetKind.Column2: return "2・5・8…の列";
+            case RouletteBetKind.Column3: return "3・6・9…の列";
             default: return "";
         }
     }

@@ -118,6 +118,7 @@
   葉と草の揺れは `4 Wind On Leaves And Grass`（シェーダー `Roomies/Foliage Lit`。強さ・速さ・止まる距離は素材のインスペクター）
 - 作り直し2（2026/11/13） … `Roomies/Art/Rebuild/1 Jail`・`2 Main House`・`3 Casino`・`4 Road`（`RoomiesTownRebuild.*.cs`）。
   元の部品の当たり判定・スクリプト・移送先などは残し、見た目だけを外して新しく組む（外した部品は当たり判定だけの空の物として残っている）。
+  （スロットとブラックジャック台の見た目は 2026/11/23 に作り直した。下の「カジノ」を見ること。以下は 11/13 時点の説明）
   スロットの筐体は Slot.prefab の `Visual/Cabinet`（`Rebuild/3b Slot Cabinet`。Visual は伸ばして回した当たり判定の箱で、
   `SlotMachine.interactionCollider` が参照しているので残し、Cabinet で伸ばしを打ち消している）、ブラックジャック台はプレハブの `Visual/Art`。
   メインの家の古い階段の見た目（Demo/pCube12）は表示だけ切っている（当たり判定は使っている）。
@@ -147,13 +148,21 @@
   （`RoomiesDeliveryTruckBuilder`）。トラックは `Assets/_Prefabs/Delivery/DeliveryTruck.prefab`。値段・締め切り・乗る距離は `GameBalance`。
   通し確認は Play Mode で `Town/Walk - Enter GameRoom As Host` → `Roomies/Delivery/Play Test`
 
-- カジノの 3 階建て（2026/11/23。見た目はまだ仮） … `Roomies/Casino/1 Build Building`（＝`Roomies/Art/Rebuild/3 Casino`。`RoomiesTownRebuild.CasinoTower.cs`）・
-  `2 Build Gimmick Prefabs`・`3 Place In Open Scene`（`RoomiesCasinoBuilder*.cs`）。
-  建物は町のプレハブの「Town casino」（外壁・床の板・屋根と 1 階の中）と「Town casino 2F」「Town casino 3F」（上の階の中。その階にいる人の画面でだけ出す：
-  GameRoom の「Roomies_Casino/FloorVisibility」の `CasinoFloorVisibility`）。床の上面は 1 階 0.118・2 階 4.9・3 階 8.8、笠木 13.4。
-  `Rebuild/3 Casino` は建物だけを作り直し、まとめ直すのもカジノの 3 グループだけ（台と筐体は `3c Casino Tables And Slots`）。
+- カジノ（2026/11/23。3 階建て・木とレンガと暖色の明かりの見た目） … `Roomies/Casino/1 Build Building`（＝`Roomies/Art/Rebuild/3 Casino`）・
+  `2 Build Gimmick Prefabs`・`3 Place In Open Scene`・`Stats`（数を数えるだけ）。コードは `RoomiesTownRebuild.Casino*.cs`（建物）・`RoomiesCasinoBuilder*.cs`（プレハブと配置）・
+  `RoomiesCasinoArt*.cs`（形と色）。
+  建物は町のプレハブの「Town casino」（外壁・床の板・屋根・外観と 1 階の中）、「Town casino 2F」「Town casino 3F」（上の階の中。その階にいる人の画面でだけ出す）、
+  「Town casino 2F windows」「3F windows」（外から見た窓の明かり。その階にいないときだけ出す。プレハブでは隠してある）。
+  出し入れは GameRoom の「Roomies_Casino/FloorVisibility」の `CasinoFloorVisibility`。床の上面は 1 階 0.118・2 階 4.9・3 階 8.8、笠木 13.4。
+  `Rebuild/3 Casino` は建物だけを作り直し、まとめ直すのもカジノの 3 グループだけ。位置や寸法を直すときはコードの数字を直して実行し直す（シーンで直した位置は消える）。
+  壁・床・梁は町の素材（`town_casino_*`。レンガの床と敷物は `Textures/Tiles` の `floor_brick`・`carpet_suits`）の箱。
+  小物とギミックの見た目は「物 1 つ = メッシュ 1 つ」（`Assets/_Art/Casino/CasinoMeshes.asset`）で、色と絵はアトラス `Assets/_Art/Casino/casino_atlas.png`
+  （マテリアルは `Assets/_Materials/Casino/` の `casino_atlas`・`casino_atlas_glow`・`casino_neon`・`casino_window_glass`）。
+  元の絵（台の枠線・ルーレットの盤・スロットの飾り・垂れ幕・ネオン）はプロジェクト直下の `ArtSource/Casino/`（取り込まない。`RoomiesCasinoArt.cs` の表で切り出す）。
   ギミックは `Assets/_Prefabs/Casino/`：`CasinoElevator`（箱は動かさず、扉を閉めている間に中の人を行き先の階へ移す）、`CasinoClerk`（鍵を売る店の人。Bob とは別のキャラ）、
-  上の階の台の Variant（`Slot_2F`・`BlackjackTable_2F`・`BlackjackTable_3F`。数値は `RoomiesCasinoBuilder.Rates.cs` の表）。
+  `RouletteTable`（3 階は Variant の `_3F`）、上の階の台の Variant（`Slot_2F`・`BlackjackTable_2F`・`BlackjackTable_3F`。数値は `RoomiesCasinoBuilder.Rates.cs` の表）。
+  前からある `Slot.prefab`・`BlackjackTable.prefab` も、ルートに仕組み・`Visual` に見た目（スロットの画面は `Anchor_Screen`）の形に組み直した（`RoomiesCasinoBuilder.Tables.cs`）。
+  新しいゲームは `CasinoGame` を継ぐ（`PlayerInteract` は、見ている物の親にこの型があれば、案内・E・R・ホイールを渡すだけ）。
   鍵は `CasinoAccess`（GameRoom に 1 つ。値段は `GameBalance`、買った数と挿した数はセーブに残る）。
   通し確認は Play Mode で `Town/Walk - Enter GameRoom As Host` → `Roomies/Casino/Check (Play Mode)`
 

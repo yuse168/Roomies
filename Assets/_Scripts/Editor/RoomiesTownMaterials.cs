@@ -119,6 +119,18 @@ internal static partial class RoomiesMaterialFinishBuilder
             case "bottle_green": return V(Tpl.Emissive, C(.2f, .6f, .3f), v => v.SetColor("_EmissionColor", new Color(.2f, .6f, .3f) * .5f));
             case "bottle_clear": return V(Tpl.Emissive, C(.85f, .9f, .95f), v => v.SetColor("_EmissionColor", new Color(.8f, .9f, 1f) * .5f));
             case "bottle_red": return V(Tpl.Emissive, C(.7f, .1f, .15f), v => v.SetColor("_EmissionColor", new Color(.7f, .1f, .15f) * .5f));
+            // カジノ（3 階建て・木とレンガの見た目。2026/11/23）
+            case "casino_brick": return V(Tpl.Brick, C(.60f, .30f, .22f));
+            case "casino_timber": return V(Tpl.Wood, C(.30f, .20f, .17f));
+            case "casino_wainscot": return V(Tpl.Wood, C(.47f, .31f, .23f));
+            case "casino_plaster": return V(Tpl.Plaster, C(.72f, .66f, .54f));
+            case "casino_ceiling_wood": return V(Tpl.Wood, C(.25f, .17f, .15f));
+            case "casino_purple": return V(Tpl.Fabric, C(.33f, .21f, .50f));
+            case "casino_window_glow": return V(Tpl.Emissive, C(1f, .74f, .46f), v => v.SetColor("_EmissionColor", new Color(1f, .58f, .28f) * .8f));
+            // 描いたタイル（Textures/Tiles）：板の床、レンガの床、トランプの印の敷物（敷物は絵の色のまま）
+            case "casino_plank": { var target = C(.47f, .31f, .23f); return V(Tpl.Wood, target, v => ApplyTile(v, ("floor_wood", 1.4f, .8f, .13f), target)); }
+            case "casino_brick_floor": { var target = C(.56f, .34f, .25f); return V(Tpl.Brick, target, v => ApplyTile(v, ("floor_brick", 1.8f, .8f, .1f), target)); }
+            case "casino_carpet": return V(Tpl.Fabric, Color.white, v => { ApplyTile(v, ("carpet_suits", 1.6f, .5f, -1f), Color.white); v.SetColor("_BaseColor", Color.white); });
             // 留置所（作り直し3）
             case "police_brick": return V(Tpl.Brick, C(.62f, .3f, .24f));
             case "police_stone": return V(Tpl.Concrete, C(.88f, .84f, .74f));

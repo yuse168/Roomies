@@ -12,6 +12,42 @@ PrefabInstance:
       propertyPath: m_Name
       value: Slot_2F
       objectReference: {fileID: 0}
+    - target: {fileID: 3722442807878689022, guid: 2d9b2b9820563c640b7e590e185fdeb2, type: 3}
+      propertyPath: 'betAmounts.Array.data[0]'
+      value: 100
+      objectReference: {fileID: 0}
+    - target: {fileID: 3722442807878689022, guid: 2d9b2b9820563c640b7e590e185fdeb2, type: 3}
+      propertyPath: 'betAmounts.Array.data[1]'
+      value: 500
+      objectReference: {fileID: 0}
+    - target: {fileID: 3722442807878689022, guid: 2d9b2b9820563c640b7e590e185fdeb2, type: 3}
+      propertyPath: 'betAmounts.Array.data[2]'
+      value: 1000
+      objectReference: {fileID: 0}
+    - target: {fileID: 3722442807878689022, guid: 2d9b2b9820563c640b7e590e185fdeb2, type: 3}
+      propertyPath: slotSymbols.Array.data[0].reward
+      value: 100
+      objectReference: {fileID: 0}
+    - target: {fileID: 3722442807878689022, guid: 2d9b2b9820563c640b7e590e185fdeb2, type: 3}
+      propertyPath: slotSymbols.Array.data[1].reward
+      value: 150
+      objectReference: {fileID: 0}
+    - target: {fileID: 3722442807878689022, guid: 2d9b2b9820563c640b7e590e185fdeb2, type: 3}
+      propertyPath: slotSymbols.Array.data[2].reward
+      value: 300
+      objectReference: {fileID: 0}
+    - target: {fileID: 3722442807878689022, guid: 2d9b2b9820563c640b7e590e185fdeb2, type: 3}
+      propertyPath: slotSymbols.Array.data[3].reward
+      value: 500
+      objectReference: {fileID: 0}
+    - target: {fileID: 3722442807878689022, guid: 2d9b2b9820563c640b7e590e185fdeb2, type: 3}
+      propertyPath: slotSymbols.Array.data[3].weight
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 3722442807878689022, guid: 2d9b2b9820563c640b7e590e185fdeb2, type: 3}
+      propertyPath: slotSymbols.Array.data[4].reward
+      value: 1000
+      objectReference: {fileID: 0}
     - target: {fileID: 5481766150674181421, guid: 2d9b2b9820563c640b7e590e185fdeb2, type: 3}
       propertyPath: m_LocalPosition.x
       value: -6.32303
