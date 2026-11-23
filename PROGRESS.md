@@ -1,5 +1,60 @@
 # PROGRESS.md
 
+## 2026/11/23｜カジノ 仕上げ：マテリアル 10 個・照明の白飛び・音・ブラックジャックの画面・同期
+
+ゆせさんの「残りも直す」（11/23 22:56）を受けて、段階 8 の「残っていること」を直した。
+
+### 1. マテリアルを 17 個 → 10 個
+- 模様のいらない箱を、町の素材（三方向から貼る型の子）からアトラスの色見本へ寄せた：腰の板（`wood`）、足元の石と床の板の縁（`stone`）、3 階の壁の布（`wall_purple`）、
+  スロットの上の光る線（`pink`）、外から見た窓の明かり（`window_glow`）。天井の板と屋上の看板の板は、梁と同じ `town_casino_timber` に
+- 作り方：建物を組むときは `Swatch("色")` の目印のマテリアルを付け、最後に `ApplySwatches` が「色見本の UV の箱」（`CasinoMeshes.asset` の `box_色`）と
+  `casino_atlas`（光る物は `casino_atlas_glow`）に替える（`RoomiesTownRebuild.Casino.cs`）
+- 残った 10 個：`casino_atlas`・`casino_atlas_glow`・`casino_neon`・`casino_window_glass`・`town_casino_brick`・`brick_floor`・`carpet`・`plank`・`plaster`・`timber`
+- 使わなくなった町の素材のファイル（`town_casino_wainscot` など）は消していない
+- 変わった所：腰の板の木目がなくなった（1 色になった）。同じ角度の写真では、ほぼ見分けがつかない
+
+### 2. 吊り照明の白飛び
+- 原因は、傘の内側の面のすぐ下（0.2m）に置いた強い明かり。面が近すぎる明かりで真っ白になっていた
+- 明かりを傘の中（内側の面より上）へ移した（`Pendant`）。面は自分の光る色だけになり、暖色のクリーム色に見える。部屋の明るさはほぼ同じ
+- 内側の面の色は、電球より暗い橙（色見本 `lamp_under`）にした
+
+### 3. 音（12 本。`Assets/Resources/Audio/casino/`）
+- すべて計算で作った（`ArtSource/Casino/Audio/make_casino_sfx.py`。録音や外部の素材は使っていない。乱数の種は固定で、何度実行しても同じ音）
+- エレベーター：`elevator_close`・`elevator_open`（扉）、`elevator_move`（動いている間のうなり 2.5 秒）、`elevator_ding`（到着のチン）
+- ルーレット：`roulette_spin`（玉が転がる 6 秒）、`roulette_stop`（玉が止まる）、`chip`（賭けたとき）
+- ハイ＆ロー：`card`（めくる）、`cash`（受け取る）。チンチロ：`dice`（どんぶりの中で転がる）。共通：`win`・`lose`
+- 音量表（`SfxLevelsBuilder.cs`）と `Resources/Audio/README.md` に追記。スロットとブラックジャックは前からの音のまま
+- **耳では聞いていない**（波形の大きさと、ファイルがあることだけ確認。EditMode テスト `CasinoSoundsExist`）
+
+### 4. ブラックジャックの画面
+- 実行時に作るのをやめ、プレハブの `Anchor_Display`（ワールド空間の Canvas）として置いた。参照は `BlackjackTable` のインスペクターに割り当て（名前で探さない）
+- 組み立ては `BlackjackTable.EditorBuildUI()`（`#if UNITY_EDITOR`）。`Roomies/Casino/2 Build Gimmick Prefabs` が呼ぶ
+- 置く所を、遊ぶ人と台の間（台を隠していた）から、親の側の上へ移した（`RoomiesCasinoBuilder.Tables.cs`）
+- 結果の演出の角丸の板は、保存できる絵 `Assets/_Art/UI/RoomiesPanel.png` を使う
+- `2 Build Gimmick Prefabs` のあとは `3 Place In Open Scene` も実行する（しないと、階ごとの出し入れの参照が古いままになる。今回これで 1 回 NG が出た）
+
+### 5. 既知の同期の問題（UI のシーンが 2 つ届く）
+- `HostSceneReady`（`Assets/_Scripts/Network/`）を足した：ホストが本編と、UI のシーン（GameRoomUI）の両方を読み込み終わったときに 1 回だけ知らせる
+- `SteamLobby` は、これを待ってから `GameStarted=1` を出す（前は本編だけ）。UI が来ないときは 15 秒で待つのをやめる（`uiSceneWaitSeconds`）
+- 測った値：ホストの読み込みは 本編 2.3〜2.5 秒、そのあと UI まで約 0.3 秒。クライアントの接続は、同じ PC の中でも 3〜4 秒かかる
+- 直す前の合図（本編だけ読み込んだ時点）でも、今回の環境では失敗を再現できなかった。最初に見つけた失敗は「本編の読み込みの最中」に入ったもので、
+  ふつうの開始の流れでは起きない。直したのは「合図の直後の約 0.3 秒」のすき間
+- **Steam の本当の開始の流れ（ロビー → 開始）では確かめていない**
+
+### 確認
+- 1 人（Play Mode）：`Roomies/Casino/Check` 109 項目すべて OK。歩行確認 28 OK・1 NG（配達ゾーン。前と同じ）。前からある仕組みの確認も通った
+- 2 人（ホスト＋Player 2、同じ PC の中）：ホスト 14・クライアント 18 項目すべて OK（直したあとの合図で。直す前の合図でも OK）
+- EditMode：261 件中 247 成功・13 失敗（前と同じ 13 件）
+- 重さ（カジノ前）：描画 5.82ms、三角形 958,832、描画回数 1,633（段階 7：5.60ms・955,984・1,644）
+- Play Mode の前後で、ホストのセーブは毎回控えを取って戻した（ハッシュ一致）。Player 2 は止めてある
+- 写真：`D:\TK230088\Leica\brain\tmp_roomies_casino_build_20261123\fin_before`（前）・`fin_mat`（マテリアルのあと）・`fin_lamp`（照明のあと）・`fin_final`（最後）
+
+### そのほか
+- main：ゆせさんの指示（11/23 23:16）で、origin/main を段階 8 まで（cd23889）へ早送りした（force なし）。この仕上げの分は作業ブランチだけにある
+- 気づいたこと：スクリプトを読み込み直すたびに、エディタで `TMP_SubMeshUI` の NullReferenceException が 6 件出る。開いている GameRoomUI の `UI_DayScreens` の文字の子（保存されていない物）から出ていて、
+  カジノの物ではない（ブラックジャックの画面の下には無い）。実行には影響しない。直していない
+- 未確認：Steam 経由・3 人以上・ビルドした実行ファイル
+
 ## 2026/11/23｜カジノ 段階8：2 人での確認（ホスト＋クライアント）と仕上げ
 
 - 2 人での確認の道具を足した：`Assets/_Scripts/Editor/RoomiesCasinoNetTest.cs`（エディタ専用）
