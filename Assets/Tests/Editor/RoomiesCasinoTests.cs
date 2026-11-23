@@ -248,4 +248,16 @@ public class RoomiesCasinoTests
             $"アーケードは遊ぶほど増えてはいけない（いま {rtp * 100f:F1}%）");
         Assert.That(rtp, Is.GreaterThan(0.7f), "減りすぎも遊ばれなくなる");
     }
+
+    [Test]
+    public void CasinoSoundsExist()
+    {
+        // スクリプトが鳴らすキーは、すべて Resources/Audio/casino/ に音がある（無いキーは黙って無音になるので、ここで確かめる）
+        foreach (string key in new[]
+                 {
+                     "elevator_open", "elevator_close", "elevator_move", "elevator_ding",
+                     "roulette_spin", "roulette_stop", "chip", "card", "dice", "win", "lose", "cash",
+                 })
+            Assert.That(Resources.Load<AudioClip>("Audio/casino/" + key), Is.Not.Null, "casino/" + key);
+    }
 }

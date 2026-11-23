@@ -78,6 +78,20 @@ internal static class SfxLevelsBuilder
         ("mining/break", 0.60f),
         ("mining/sale", 0.60f),
         ("mining/warning", 0.70f),
+
+        // カジノ（計算で作った音。ArtSource/Casino/Audio/make_casino_sfx.py）
+        ("casino/elevator_open", 0.55f),
+        ("casino/elevator_close", 0.55f),
+        ("casino/elevator_move", 0.45f),
+        ("casino/elevator_ding", 0.55f),
+        ("casino/roulette_spin", 0.60f),
+        ("casino/roulette_stop", 0.70f),
+        ("casino/chip", 0.60f),
+        ("casino/card", 0.60f),
+        ("casino/dice", 0.70f),
+        ("casino/win", 0.55f),
+        ("casino/lose", 0.50f),
+        ("casino/cash", 0.55f),
     };
 
     [MenuItem("Roomies/Audio/Rebuild Sfx Levels")]

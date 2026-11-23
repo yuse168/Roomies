@@ -230,11 +230,11 @@ public class ChinchiroTable : CasinoGame
     // ================================================================ 見た目と音（各クライアント）
 
     [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
-    private void ResultSoundRpc(bool won) => GameAudio.PlayAt(won ? "slot/win" : "slot/lose", transform.position);
+    private void ResultSoundRpc(bool won) => GameAudio.PlayAt(won ? "casino/win" : "casino/lose", transform.position);
 
     private void OnChanged(int oldValue, int newValue) => RefreshTexts();
 
-    private void OnRoll(int oldValue, int newValue) => GameAudio.PlayAt("drop/light", transform.position, 1f, 0.1f);
+    private void OnRoll(int oldValue, int newValue) => GameAudio.PlayAt("casino/dice", transform.position, 1f, 0.06f);
 
     /// <summary>その目が上を向く向き（サイコロの形は 上=1・下=6・前(+Z)=2・後ろ=5・右(+X)=3・左=4）。</summary>
     private static Quaternion FaceUp(int value)

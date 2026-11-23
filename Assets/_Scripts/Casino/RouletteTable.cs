@@ -332,19 +332,19 @@ public class RouletteTable : CasinoGame
     private void ChipSoundRpc(int spot)
     {
         Vector3 at = spot >= 0 && spot < spots.Length && spots[spot] != null ? spots[spot].transform.position : transform.position;
-        GameAudio.PlayAt("furniture/place", at, 0.6f, 0.08f, 10f);
+        GameAudio.PlayAt("casino/chip", at, 1f, 0.08f, 10f);
     }
 
     [Rpc(SendTo.SpecifiedInParams)]
     private void ResultSoundRpc(bool won, RpcParams rpcParams = default)
     {
-        GameAudio.PlayAt(won ? "slot/win" : "slot/lose", transform.position);
+        GameAudio.PlayAt(won ? "casino/win" : "casino/lose", transform.position);
     }
 
     private void OnPhaseChanged(int oldValue, int newValue)
     {
-        if ((Phase)newValue == Phase.Spinning) GameAudio.PlayAt("slot/spin", transform.position);
-        if ((Phase)newValue == Phase.Result) GameAudio.PlayAt("slot/stop", transform.position);
+        if ((Phase)newValue == Phase.Spinning) GameAudio.PlayAt("casino/roulette_spin", transform.position);
+        if ((Phase)newValue == Phase.Result) GameAudio.PlayAt("casino/roulette_stop", transform.position);
         RefreshTexts();
     }
 

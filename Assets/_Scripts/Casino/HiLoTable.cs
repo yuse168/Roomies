@@ -268,9 +268,10 @@ public class HiLoTable : CasinoGame
     [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
     private void ResultRpc(int kind)
     {
-        if (kind == 1) GameAudio.PlayAt("blackjack/win", transform.position);
-        else if (kind == 2) GameAudio.PlayAt("blackjack/lose", transform.position);
-        else GameAudio.PlayAt("money/gain", transform.position);
+        if (kind != 3) GameAudio.PlayAt("casino/card", transform.position);   // カードをめくる音
+        if (kind == 1) GameAudio.PlayAt("casino/win", transform.position);
+        else if (kind == 2) GameAudio.PlayAt("casino/lose", transform.position);
+        else GameAudio.PlayAt("casino/cash", transform.position);
         RefreshTexts();
     }
 

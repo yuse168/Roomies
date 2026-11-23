@@ -51,6 +51,24 @@
 このフォルダにファイルがある。新しいキーを足すときは
 `Roomies/Audio/Rebuild Sfx Levels` で音量表（`SfxLevels.asset`）にも行を足す。
 
+## カジノ（`casino/`）
+
+計算で作った音（録音や外部の素材は使っていない）。作り直すときは、プロジェクト直下で
+`python ArtSource/Casino/Audio/make_casino_sfx.py`（数字を直して実行し直す。何度実行しても同じ音）。
+
+| 置き場所 | 用途 | 鳴るタイミング |
+|---|---|---|
+| `casino/elevator_close` `casino/elevator_open` | エレベーターの扉 | 扉が閉まりはじめる／開きはじめるとき（箱の位置から） |
+| `casino/elevator_move` | 動いている間のうなり | 扉が閉まりきってから着くまで（約 2.5 秒） |
+| `casino/elevator_ding` | 到着の「チン」 | 着いて扉が開きはじめるとき |
+| `casino/roulette_spin` | 玉が転がる | 盤が回っている間（約 6 秒。`RouletteTable.spinSeconds` に合わせた長さ） |
+| `casino/roulette_stop` | 玉が止まる | 結果が出た瞬間 |
+| `casino/chip` | チップを置く | ルーレットに賭けたとき（賭けた場所から） |
+| `casino/card` | カードをめくる | ハイ＆ローで次のカードが出たとき |
+| `casino/dice` | サイコロがどんぶりで転がる | チンチロでふるたび |
+| `casino/win` `casino/lose` | 当たり・外れ | ルーレット（自分の結果だけ）・ハイ＆ロー・チンチロ |
+| `casino/cash` | 手持ちを受け取る | ハイ＆ローで F を押したとき |
+
 ## 足音の材質ごとの違い
 
 足音の素材は1つのまま、`Resources/Audio/FootstepSurfaces.asset` で

@@ -166,14 +166,15 @@ public class CasinoElevator : NetworkBehaviour
         switch ((Phase)newValue)
         {
             case Phase.Closing:
-                GameAudio.PlayAt("door/close", at);
+                GameAudio.PlayAt("casino/elevator_close", at);
                 break;
             case Phase.Moving:
                 moveStartedAt = Time.time;
+                GameAudio.PlayAt("casino/elevator_move", at, 1f, 0f, 12f);
                 break;
             case Phase.Opening:
-                GameAudio.PlayAt("ui/confirm", at, 1f, 0f, 14f);
-                GameAudio.PlayAt("door/open", at);
+                GameAudio.PlayAt("casino/elevator_ding", at, 1f, 0f, 14f);
+                GameAudio.PlayAt("casino/elevator_open", at);
                 break;
         }
     }
