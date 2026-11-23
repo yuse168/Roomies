@@ -17,6 +17,7 @@ public class SmugglingPolicePatrol : NetworkBehaviour
         FakeReverse,
         Surprised,
         Chase,
+        Greet,      // 悪いことをしていない人が近くにいる：立ち止まって、そちらを向く（順番を変えないよう、最後に足した）
     }
 
     private static readonly List<SmugglingPolicePatrol> Officers = new List<SmugglingPolicePatrol>();
@@ -54,6 +55,18 @@ public class SmugglingPolicePatrol : NetworkBehaviour
     [SerializeField] private float escapeDistance = 18f;
     [SerializeField] private float maxChaseSeconds = 18f;
 
+    [Header("声かけ（悪いことをしていない人が近づいたとき）")]
+    [Tooltip("この距離まで近づいた人のほうを向いて、立ち止まる")]
+    [SerializeField, Min(0.5f)] private float greetDistance = 3.2f;
+    [Tooltip("相手がこの距離より離れたら、巡回に戻る")]
+    [SerializeField, Min(0.5f)] private float greetLeaveDistance = 4.6f;
+    [Tooltip("立ち止まっている長さの上限（秒）。過ぎたら巡回に戻る")]
+    [SerializeField, Min(0.5f)] private float greetMaxSeconds = 6f;
+    [Tooltip("巡回に戻ってから、次に立ち止まるまでの間（秒）。同じ人の前で止まり続けないように")]
+    [SerializeField, Min(0f)] private float greetCooldownSeconds = 8f;
+    [Tooltip("話しかけられたあと、その場にいる長さ（秒）")]
+    [SerializeField, Min(0.5f)] private float talkHoldSeconds = 4f;
+
     [Header("表示・当たり判定")]
     [SerializeField] private GameObject visibleRoot;
     [SerializeField] private Collider bodyCollider;
@@ -77,6 +90,12 @@ public class SmugglingPolicePatrol : NetworkBehaviour
     private float patrolTurnSign;
     private Quaternion patrolActionStartRotation;
     private bool fakeReverseOriginalDirection;
+    private SmugglingPlayer greetTarget;
+    private float greetCooldownTimer;
+    private float greetSearchTimer;
+
+    /// <summary>今夜の巡回に出ているか（出ていない警察は見えない）。</summary>
+    public bool IsOnDuty => rosterActive.Value;
 
     public override void OnNetworkSpawn()
     {
@@ -151,6 +170,9 @@ public class SmugglingPolicePatrol : NetworkBehaviour
             case AiState.Chase:
                 Chase();
                 break;
+            case AiState.Greet:
+                UpdateGreet();
+                break;
         }
 
         // 左右確認・後方確認・引き返し中も懐中電灯の向きで発見判定する。
@@ -159,6 +181,8 @@ public class SmugglingPolicePatrol : NetworkBehaviour
 
     private void Patrol()
     {
+        if (TryBeginGreet()) return;
+
         if (point1 != null && point2 != null)
         {
             Vector3 target = movingToPoint2 ? point2Position : point1Position;
@@ -279,9 +303,74 @@ public class SmugglingPolicePatrol : NetworkBehaviour
         ScheduleNextPatrolAction();
     }
 
+    // ================================================================ 声かけ（悪いことをしていない人へ）
+
+    /// <summary>近くに、紙袋を持っていない人がいたら、立ち止まってそちらを向く。</summary>
+    private bool TryBeginGreet()
+    {
+        if (greetCooldownTimer > 0f) { greetCooldownTimer -= Time.deltaTime; return false; }
+        greetSearchTimer -= Time.deltaTime;
+        if (greetSearchTimer > 0f) return false;
+        greetSearchTimer = 0.25f;       // 毎フレームは探さない
+
+        SmugglingPlayer best = null;
+        float bestSqr = greetDistance * greetDistance;
+        foreach (SmugglingPlayer player in FindObjectsByType<SmugglingPlayer>())
+        {
+            if (!CanGreet(player)) continue;
+            float sqr = (player.transform.position - transform.position).sqrMagnitude;
+            if (sqr > bestSqr) continue;
+            best = player; bestSqr = sqr;
+        }
+        if (best == null) return false;
+
+        greetTarget = best;
+        aiState = AiState.Greet;
+        stateTimer = greetMaxSeconds;
+        return true;
+    }
+
+    private static bool CanGreet(SmugglingPlayer player)
+    {
+        return player != null && player.IsSpawned && !player.HasBag && !player.IsJailed;
+    }
+
+    private void UpdateGreet()
+    {
+        stateTimer -= Time.deltaTime;
+        bool leave = stateTimer <= 0f || !CanGreet(greetTarget)
+            || (greetTarget.transform.position - transform.position).sqrMagnitude > greetLeaveDistance * greetLeaveDistance;
+        if (leave)
+        {
+            greetTarget = null;
+            greetCooldownTimer = greetCooldownSeconds;
+            aiState = AiState.Patrol;
+            RandomizePatrolSpeed();
+            ScheduleNextPatrolAction();
+            return;
+        }
+        Face(greetTarget.transform.position);
+    }
+
+    /// <summary>
+    /// 話しかけられた（サーバーのみ）。応じられるときは、立ち止まって相手を向き、true を返す。
+    /// 追いかけている最中・驚いている最中・巡回に出ていないとき・相手が紙袋を持っているときは応じない。
+    /// </summary>
+    public bool ServerTryTalk(SmugglingPlayer who)
+    {
+        if (!IsServer || !rosterActive.Value || !CanGreet(who)) return false;
+        if (aiState == AiState.Surprised || aiState == AiState.Chase) return false;
+
+        greetTarget = who;
+        aiState = AiState.Greet;
+        stateTimer = Mathf.Max(stateTimer, talkHoldSeconds);
+        return true;
+    }
+
     private bool IsUnawareState(AiState stateToCheck)
     {
-        return stateToCheck == AiState.Patrol
+        return stateToCheck == AiState.Greet
+            || stateToCheck == AiState.Patrol
             || stateToCheck == AiState.Scan
             || stateToCheck == AiState.LookBack
             || stateToCheck == AiState.FakeReverse;
@@ -447,6 +536,7 @@ public class SmugglingPolicePatrol : NetworkBehaviour
             previousTarget.ServerSetChasedBy(NetworkObjectId, false);
 
         aiState = AiState.Patrol;
+        greetTarget = null;
         stateTimer = 0f;
         chaseTimer = 0f;
         RandomizePatrolSpeed();

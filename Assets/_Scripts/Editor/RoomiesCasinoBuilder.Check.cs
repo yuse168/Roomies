@@ -82,7 +82,7 @@ internal static partial class RoomiesCasinoBuilder
         var access = CasinoAccess.Instance;
         var ev = Object.FindAnyObjectByType<CasinoElevator>();
         var vis = Object.FindAnyObjectByType<CasinoFloorVisibility>();
-        var clerks = Object.FindObjectsByType<CasinoClerk>().OrderBy(c => c.SellsFloor).ToArray();
+        var clerks = Object.FindObjectsByType<CasinoClerk>().Where(c => c.SellsFloor >= 2).OrderBy(c => c.SellsFloor).ToArray();
         Expect(money != null && access != null && ev != null && vis != null && clerks.Length == 2,
             $"scene has money {money != null}, access {access != null}, elevator {ev != null}, visibility {vis != null}, clerks {clerks.Length}");
         if (money == null || access == null || ev == null || clerks.Length < 2) { Finish(cc, home, runner); yield break; }

@@ -399,6 +399,7 @@ internal static partial class RoomiesTownRebuild
     {
         float fy = KF3, cy = KC3;
         CasinoRoomShell(g, 3, Mat("casino_plank"), WindowOpenings(3));
+        ClerkCounter(g, fy, cy, "HOST");      // 3 階の店の人（鍵は売らない。話すだけ）
         var carpet = Mat("casino_carpet"); var purple = Swatch("wall_purple");
         FillLight(g, fy, cy);
 

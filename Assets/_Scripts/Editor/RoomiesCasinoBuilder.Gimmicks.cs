@@ -235,6 +235,10 @@ internal static partial class RoomiesCasinoBuilder
             var so = new SerializedObject(clerk);
             so.FindProperty("bodyPivot").objectReferenceValue = pivot;
             so.FindProperty("interactDistance").floatValue = 3f;
+            // 頭の上の吹き出し（全員に見えるひとこと）
+            var speech = BuildSpeechBubble(root, 1.95f);
+            speech.transform.Find("Anchor_Bubble").localPosition = new Vector3(0, 1.95f, .55f);   // カウンターの上の看板の手前に出す
+            so.FindProperty("bubble").objectReferenceValue = speech;
             so.ApplyModifiedPropertiesWithoutUndo();
 
             PrefabUtility.SaveAsPrefabAsset(root, ClerkPath);

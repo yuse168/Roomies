@@ -231,5 +231,162 @@ internal static class RoomiesCasinoDemo
         File.WriteAllText(OutDir + "/perf_done.txt", sb.ToString());
         Object.Destroy(runner.gameObject);
     }
+
+    // ================================================================ NPC の会話（店の人・警察）
+    /// <summary>
+    /// 店の人と警察に話しかけて、吹き出しが出るか・警察が立ち止まるか・悪いことをしたときの流れが残っているかを確かめ、写真を撮る。
+    /// 夜にするために、日の進みをその場で夜へ切り替える（確認のときはセーブの控えを取ること）。結果は Temp/RoomiesCasino/npc_check.txt。
+    /// </summary>
+    [MenuItem("Roomies/Casino/Demo/NPC Talk Check (Play Mode)")]
+    static void NpcCheck()
+    {
+        if (!Application.isPlaying) { Debug.LogWarning("[Casino] Play Mode で実行してください"); return; }
+        var runner = NewRunner();
+        runner.StartCoroutine(NpcRoutine(runner));
+    }
+
+    static IEnumerator NpcRoutine(Runner runner)
+    {
+        Directory.CreateDirectory(OutDir);
+        if (Directory.Exists(OutDir + "/npc")) Directory.Delete(OutDir + "/npc", true);
+        File.Delete("Temp/RoomiesCasino/npc_check.txt");
+        var log = new System.Text.StringBuilder();
+        int ok = 0, ng = 0;
+        void Expect(bool good, string what) { if (good) ok++; else ng++; log.AppendLine((good ? "OK  " : "NG  ") + what); }
+        var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        var cc = MyController();
+        Vector3 home = cc.transform.position;
+        // 撮る間は、シェーダーの用意を待ってから描く（待たないと、用意の済んでいない物が水色のべた塗りで写る）
+        bool asyncBefore = ShaderUtil.allowAsyncCompilation;
+        ShaderUtil.allowAsyncCompilation = false;
+
+        // ---- 店の人（3 階：鍵を売らず、話すだけ）
+        foreach (var clerk in Object.FindObjectsByType<CasinoClerk>().OrderBy(c => c.transform.position.y))
+        {
+            int floor = clerk.transform.position.y > RoomiesTownRebuild.KF3 ? 3 : clerk.transform.position.y > RoomiesTownRebuild.KF2 ? 2 : 1;
+            var bubble = clerk.GetComponent<NpcSpeechBubble>();
+            Vector3 feet = clerk.transform.position + clerk.transform.forward * 1.9f; feet.y = RoomiesTownRebuild.KFloorY(floor);
+            Teleport(cc, feet);
+            cc.transform.rotation = Quaternion.LookRotation(-clerk.transform.forward);
+            yield return new WaitForSeconds(.8f);
+            Expect(bubble != null && !bubble.IsShowing, $"clerk {floor}F: no bubble before talking");
+            string label = clerk.Label;
+            var lines = new System.Collections.Generic.HashSet<string>();
+            for (int k = 0; k < 4; k++)
+            {
+                clerk.Interact();
+                yield return new WaitForSeconds(.6f);
+                if (bubble != null && bubble.IsShowing) lines.Add(bubble.CurrentLine);
+                if (k == 0)
+                {
+                    Vector3 head = clerk.transform.position + Vector3.up * 1.7f;
+                    Camera cam = NewCamera(runner.transform, head + clerk.transform.forward * 2.9f + clerk.transform.right * .6f + Vector3.up * .05f, head + Vector3.up * .1f, 50);
+                    yield return new WaitForEndOfFrame();
+                    Shoot(cam, "npc", $"clerk_{floor}f");
+                    Object.Destroy(cam.gameObject);
+                }
+                yield return new WaitForSeconds(.5f);
+            }
+            Expect(lines.Count >= 1, $"clerk {floor}F ('{label}'): a bubble appears when talked to");
+            if (label == "店の人と話す") Expect(lines.Count >= 2, $"clerk {floor}F: the lines vary ({lines.Count} different lines in 4 talks)");
+            log.AppendLine("      " + string.Join(" / ", lines));
+        }
+
+        // ---- 警察：夜にして、巡回に出ている 1 人を使う
+        var dm = DayManager.Instance;
+        if (!dm.IsNight) dm.ServerApplySavedState(dm.CurrentDay, 1, 0, 0);
+        yield return new WaitForSeconds(1.5f);
+        SmugglingPolicePatrol officer = null;
+        float wait = 0;
+        while (officer == null && wait < 8f)
+        {
+            officer = Object.FindObjectsByType<SmugglingPolicePatrol>().FirstOrDefault(o => o.IsOnDuty);
+            yield return new WaitForSeconds(.2f); wait += .2f;
+        }
+        Expect(officer != null, "police: an officer is on patrol at night");
+        if (officer != null)
+        {
+            var talk = officer.GetComponent<PoliceTalk>();
+            var bubble = officer.GetComponent<NpcSpeechBubble>();
+            var stateField = typeof(SmugglingPolicePatrol).GetField("aiState", flags);
+            string State() => stateField.GetValue(officer).ToString();
+            var smuggler = cc.GetComponentInParent<SmugglingPlayer>();
+
+            // 近づくと、立ち止まってこちらを向く
+            Vector3 p0 = officer.transform.position;
+            Teleport(cc, new Vector3(p0.x, p0.y, p0.z) + officer.transform.right * 2.2f - Vector3.up * p0.y + Vector3.up * .05f);
+            yield return new WaitForSeconds(1.2f);
+            Vector3 stop0 = officer.transform.position;
+            yield return new WaitForSeconds(1.0f);
+            float moved = (officer.transform.position - stop0).magnitude;
+            Vector3 toMe = cc.transform.position - officer.transform.position; toMe.y = 0;
+            float angle = Vector3.Angle(officer.transform.forward, toMe);
+            Expect(State() == "Greet" && moved < .05f, $"police: stops when an innocent player comes close (state {State()}, moved {moved:F2}m)");
+            Expect(angle < 25f, $"police: turns to face the player (angle {angle:F0})");
+            Expect(talk != null && talk.CanInteract() && talk.Label == "警察と話す", "police: can be talked to");
+
+            // 話しかけている人の肩ごしに見る（吹き出しは、その人のカメラのほうを向く）
+            Vector3 eye = cc.transform.position + Vector3.up * .75f + toMe.normalized * 1.1f + Vector3.Cross(Vector3.up, toMe.normalized) * .55f;
+            Camera pcam = NewCamera(runner.transform, eye, officer.transform.position + Vector3.up * 1.75f, 60);
+            yield return new WaitForEndOfFrame();
+            Shoot(pcam, "npc", "police_1_stopped");
+
+            var lines = new System.Collections.Generic.HashSet<string>();
+            for (int k = 0; k < 4 && talk != null; k++)
+            {
+                talk.Interact();
+                yield return new WaitForSeconds(.6f);
+                if (bubble.IsShowing) lines.Add(bubble.CurrentLine);
+                if (k == 0) { yield return new WaitForEndOfFrame(); Shoot(pcam, "npc", "police_2_talking"); }
+                yield return new WaitForSeconds(.4f);
+            }
+            Expect(lines.Count >= 2, $"police: says different random lines ({lines.Count} different lines in 4 talks)");
+            log.AppendLine("      " + string.Join(" / ", lines));
+            Expect(smuggler != null && !smuggler.IsJailed && !smuggler.HasBag, "police: talking does not arrest an innocent player");
+
+            // 離れると、巡回に戻る
+            Teleport(cc, home);
+            yield return new WaitForSeconds(1.0f);
+            Vector3 q0 = officer.transform.position;
+            yield return new WaitForSeconds(2.0f);
+            Expect(State() != "Greet" && (officer.transform.position - q0).magnitude > .3f, $"police: goes back to patrol when the player leaves (state {State()}, moved {(officer.transform.position - q0).magnitude:F2}m)");
+
+            // 悪いこと（紙袋を運ぶ）をしているときの流れは、前と同じ：見つけて追いかけ、捕まえる
+            if (smuggler != null)
+            {
+                var jobState = typeof(SmugglingPlayer).GetField("state", flags).GetValue(smuggler);
+                var valueProp = jobState.GetType().GetProperty("Value");
+                valueProp.SetValue(jobState, System.Enum.Parse(valueProp.PropertyType, "CarryingBag"));
+                yield return new WaitForSeconds(.3f);
+                Expect(talk != null && !talk.CanInteract(), "police: no talk prompt while carrying a bag");
+                // 懐中電灯の先に立つ（警察は歩き続けるので、見つかるまで 0.3 秒ごとに前へ立ち直す）
+                var lightField = typeof(SmugglingPolicePatrol).GetField("flashlight", flags);
+                var torch = lightField.GetValue(officer) as Light;
+                float t = 0; bool chased = false; float nextPlace = 0;
+                while (t < 8f && !smuggler.IsJailed)
+                {
+                    if (State() == "Surprised" || State() == "Chase") chased = true;
+                    if (!chased && t >= nextPlace)
+                    {
+                        Vector3 dir = torch != null ? torch.transform.forward : officer.transform.forward; dir.y = 0;
+                        Vector3 front = officer.transform.position + dir.normalized * 4f; front.y = .05f;
+                        Teleport(cc, front);
+                        nextPlace = t + .3f;
+                    }
+                    yield return new WaitForSeconds(.1f); t += .1f;
+                }
+                log.AppendLine($"      flashlight forward {(torch != null ? torch.transform.forward.ToString("F2") : "none")}, officer forward {officer.transform.forward:F2}");
+                Expect(chased || smuggler.IsJailed, $"police: still spots and chases a bag carrier (state {State()}, jailed {smuggler.IsJailed})");
+                t = 0; while (t < 14f && !smuggler.IsJailed) { yield return new WaitForSeconds(.2f); t += .2f; }
+                Expect(smuggler.IsJailed, "police: still arrests the bag carrier");
+            }
+            Object.Destroy(pcam.gameObject);
+        }
+
+        ShaderUtil.allowAsyncCompilation = asyncBefore;
+        File.WriteAllText("Temp/RoomiesCasino/npc_check.txt", $"npc check: ok {ok}, ng {ng}\n" + log);
+        Debug.Log("[Casino] npc check written");
+        Object.Destroy(runner.gameObject);
+    }
 }
 #endif

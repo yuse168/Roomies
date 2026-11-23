@@ -129,14 +129,36 @@ internal static partial class RoomiesCasinoBuilder
 
         PlacePrefab(scene, ElevatorPath, "CasinoElevator", ElevatorPosition, 0f);
 
-        foreach (var (name, floor, sells) in new[] { ("CasinoClerk_1F", 1, 2), ("CasinoClerk_2F", 2, 3) })
+        // 1 階は 2 階の鍵、2 階は 3 階の鍵を売る。3 階の店の人は、鍵を売らずに話すだけ（sells = 0）
+        foreach (var (name, floor, sells) in new[] { ("CasinoClerk_1F", 1, 2), ("CasinoClerk_2F", 2, 3), ("CasinoClerk_3F", 3, 0) })
         {
             var p = ClerkXZ; p.y = RoomiesTownRebuild.KFloorY(floor) + RoomiesTownRebuild.KClerkStep;   // カウンターの中の踏み台の上
             var go = PlacePrefab(scene, ClerkPath, name, p, 0f);
             var so = new SerializedObject(go.GetComponent<CasinoClerk>());
             so.FindProperty("sellsFloor").intValue = sells;
+            if (floor == 3)
+            {
+                so.FindProperty("clerkName").stringValue = "VIP ルームの店員";
+                SetStrings(so.FindProperty("smallTalk"), new[]
+                {
+                    "VIP ルームへようこそ。ここまで来る方は、そう多くありません。",
+                    "この階の台は、お客さまに少しだけ有利ですよ。",
+                    "チンチロは、ピンゾロが出ると 10 倍です。",
+                    "ルーレットで 0 が出ても、赤と黒の賭け金はお返しします。",
+                    "夜景がきれいでしょう。負けたときは、窓の外をどうぞ。",
+                    "ブラックジャックで 21 がそろうと、3 倍でお返しします。",
+                    "勝ちすぎて、下の階の店員ににらまれませんように。",
+                    "お飲み物は、気持ちだけお出ししています。",
+                });
+            }
             so.ApplyModifiedPropertiesWithoutUndo();
         }
+    }
+
+    static void SetStrings(SerializedProperty array, string[] values)
+    {
+        array.arraySize = values.Length;
+        for (int i = 0; i < values.Length; i++) array.GetArrayElementAtIndex(i).stringValue = values[i];
     }
 
     /// <summary>プレハブをシーンの直下に置く（もうあれば位置と向きだけ戻す）。</summary>

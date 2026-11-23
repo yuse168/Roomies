@@ -49,6 +49,8 @@ internal static partial class RoomiesCasinoArt
         ("stone", "707073"), ("wall_purple", "543680"), ("window_glow", "977654"),
         // 吊り照明の傘の内側（光る面。2.6 倍で光らせても白く飛ばない暗さの橙）
         ("lamp_under", "AD854F"),
+        // 吹き出しの板（光る面。夜の外でも読めるように自分で光らせる。2.6 倍で光らせるとクリーム色になる暗さ）
+        ("bubble_glow", "A19C8F"),
     };
     const int SwatchCell = 32, SwatchCols = 16;
     static readonly RectInt SwatchBlock = new RectInt(1036, 1500, 512, 256);   // アトラスの中の場所（左上が原点の px）

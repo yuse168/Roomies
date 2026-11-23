@@ -362,4 +362,32 @@ public class RoomiesCasinoTests
         foreach (char c in "♠♥♦♣")
             Assert.That(Has(black, c), "トランプの印が出ない: " + c);
     }
+
+    [Test]
+    public void NpcTalkIsWiredInThePrefabs()
+    {
+        // 店の人：吹き出しが割り当ててあり、せりふが数種類ある
+        Component clerk = LoadComponent("Assets/_Prefabs/Casino/CasinoClerk.prefab", "CasinoClerk");
+        var cs = new SerializedObject(clerk);
+        Assert.That(cs.FindProperty("bubble").objectReferenceValue, Is.Not.Null, "CasinoClerk.bubble");
+        Assert.That(cs.FindProperty("smallTalk").arraySize, Is.GreaterThanOrEqualTo(5), "店の人のせりふは 5 つ以上");
+
+        // 警察：話しかける仕組みと吹き出しがルートにあり、巡回の部品とつながっている
+        Component talk = LoadComponent("Assets/_Prefabs/Smuggling/Police_Placeholder.prefab", "PoliceTalk");
+        var ts = new SerializedObject(talk);
+        Assert.That(ts.FindProperty("patrol").objectReferenceValue, Is.Not.Null, "PoliceTalk.patrol");
+        Assert.That(ts.FindProperty("bubble").objectReferenceValue, Is.Not.Null, "PoliceTalk.bubble");
+        Assert.That(ts.FindProperty("lines").arraySize, Is.GreaterThanOrEqualTo(5), "警察のせりふは 5 つ以上");
+        Assert.That(talk.transform.parent, Is.Null, "PoliceTalk はプレハブのルートに置く");
+
+        foreach (string path in new[] { "Assets/_Prefabs/Casino/CasinoClerk.prefab", "Assets/_Prefabs/Smuggling/Police_Placeholder.prefab" })
+        {
+            Component bubble = LoadComponent(path, "NpcSpeechBubble");
+            var bs = new SerializedObject(bubble);
+            var anchor = bs.FindProperty("bubble").objectReferenceValue as Transform;
+            Assert.That(anchor, Is.Not.Null, path + " の吹き出し");
+            Assert.That(anchor.gameObject.activeSelf, Is.False, "吹き出しは、ふだんは隠してある");
+            Assert.That(bs.FindProperty("text").objectReferenceValue, Is.Not.Null, path + " の吹き出しの文字");
+        }
+    }
 }

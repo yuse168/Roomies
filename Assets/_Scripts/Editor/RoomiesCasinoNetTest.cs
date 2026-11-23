@@ -260,7 +260,7 @@ internal static class RoomiesCasinoNetTest
 
         var money = SharedMoneyManager.Instance; var access = CasinoAccess.Instance;
         var ev = UnityEngine.Object.FindAnyObjectByType<CasinoElevator>();
-        var clerks = UnityEngine.Object.FindObjectsByType<CasinoClerk>().OrderBy(c => c.SellsFloor).ToArray();
+        var clerks = UnityEngine.Object.FindObjectsByType<CasinoClerk>().Where(c => c.SellsFloor >= 2).OrderBy(c => c.SellsFloor).ToArray();
         var cc = MyController();
         if (DailyRequestManager.Instance != null)
             ((NetworkVariable<bool>)typeof(DailyRequestManager).GetField("done", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).GetValue(DailyRequestManager.Instance)).Value = true;
@@ -404,7 +404,7 @@ internal static class RoomiesCasinoNetTest
 
         var money = SharedMoneyManager.Instance; var access = CasinoAccess.Instance;
         var ev = UnityEngine.Object.FindAnyObjectByType<CasinoElevator>();
-        var clerks = UnityEngine.Object.FindObjectsByType<CasinoClerk>().OrderBy(c => c.SellsFloor).ToArray();
+        var clerks = UnityEngine.Object.FindObjectsByType<CasinoClerk>().Where(c => c.SellsFloor >= 2).OrderBy(c => c.SellsFloor).ToArray();
         var cc = MyController();
         var earning = cc.GetComponentInParent<PlayerEarning>();
         Expect(access.KeysBought == 0 && access.UnlockedFloor == 1, $"client sees no keys at first (keys {access.KeysBought})");
