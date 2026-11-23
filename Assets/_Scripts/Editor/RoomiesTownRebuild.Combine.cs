@@ -11,6 +11,7 @@ using Object = UnityEngine.Object;
 /// <summary>
 /// 町の軽量化（2026/11/13）：見た目だけの部品を、素材ごと・区画ごとに1つのメッシュにまとめる。何度実行しても同じ結果。
 /// ・対象は、町の作り直しで置いた部品（Town facades / houses / rooftops / street props / night lights の灯具）と、
+///   カジノの 2 階・3 階の中身（Town casino 2F / 3F。階ごとに出し入れするので別のグループ）、
 ///   GameRoom の遠景（Roomies_Backdrop の Ground beyond the fence・Outer town・Mountains）。
 /// ・まとめるのは「Transform・MeshFilter・MeshRenderer だけ」の物。光・当たり判定・スクリプトの付いた物、鉱山、電車の高架は触らない。
 /// ・小さな部品（いちばん長い辺が ShadowMinSize 未満、ガラス、光る面）は影を落とさない。遠景は影を落とさない（影の届く 50m の外がほとんど）。
@@ -23,7 +24,7 @@ internal static partial class RoomiesTownRebuild
     const string CombinedDir = "Assets/_Art/Restyle/Town/Combined";
     const string CombinedName = "Combined";
     const float ShadowMinSize = .9f;
-    static readonly string[] PrefabGroups = { FacadeGroup, HouseGroup, RooftopGroup, PropGroup, NightLightGroup, "Town jail", "Town main house", "Town casino", "Town road", EnclosureGroup, FootbridgeGroup };
+    static readonly string[] PrefabGroups = { FacadeGroup, HouseGroup, RooftopGroup, PropGroup, NightLightGroup, "Town jail", "Town main house", "Town casino", CasinoGroup2F, CasinoGroup3F, "Town road", EnclosureGroup, FootbridgeGroup };
     static readonly string[] BackdropGroups = { "Ground beyond the fence", "Outer town", "Mountains" };
 
     [MenuItem("Roomies/Art/Town/9 Combine For Speed")]
@@ -46,6 +47,27 @@ internal static partial class RoomiesTownRebuild
         var (bp, bm) = CombineBackdrop(true);
         AssetDatabase.SaveAssets();
         Debug.Log($"[Town] combined: town {parts} parts -> {made} meshes, backdrop {bp} parts -> {bm} meshes");
+    }
+
+    /// <summary>町のプレハブの、名前を挙げたグループだけをまとめ直す（ほかのグループのメッシュは書き換えない）。</summary>
+    internal static void CombineGroups(params string[] names)
+    {
+        int parts = 0, made = 0;
+        var root = PrefabUtility.LoadPrefabContents(NeighborhoodPrefab);
+        try
+        {
+            foreach (var name in names)
+            {
+                var g = root.transform.Find(name);
+                if (g == null) continue;
+                var (p, m) = CombineUnder(g, Slug(name), 24f, true);
+                parts += p; made += m;
+            }
+            PrefabUtility.SaveAsPrefabAsset(root, NeighborhoodPrefab);
+        }
+        finally { PrefabUtility.UnloadPrefabContents(root); }
+        AssetDatabase.SaveAssets();
+        Debug.Log($"[Town] combined {string.Join(", ", names)}: {parts} parts -> {made} meshes");
     }
 
     /// <summary>遠景をまとめる（遠景の配置ツールの最後にも呼ぶ）。</summary>

@@ -5,7 +5,8 @@ using Object = UnityEngine.Object;
 
 /// <summary>
 /// 作り直し3-1：カジノを1つの建物として0から設計する（2026/11/13 ゆせさんの依頼 20:34）。Rebuild/3 Casino から呼ぶ。
-/// 外形：x -1.2〜16.8、z -19.6〜-7.8、高さ 5.4m（屋上の看板は上へ）。床は Demo/pCube2 の上面（y 0.118）。
+/// 外形：x -1.2〜16.8、z -19.6〜-7.8。床は Demo/pCube2 の上面（y 0.118）。
+/// 2026/11/23 から 3 階建て（外壁・床の板・屋根と 2 階・3 階は RoomiesTownRebuild.CasinoTower.cs。高さ 13.4m）。このファイルは外観の飾りと 1 階の中。
 /// 入口：正面の真ん中の大きな入口（ガラスの扉を開け放した形。いつでも通れる）と、左の通用口（シーンの DoorPivot。通信で開け閉めする扉）。
 /// 中：絨毯・木の腰壁と布張りの壁・金の柱・格天井と間接照明・シャンデリア3つ・バー（左の壁）・両替所（右奥）・
 ///     スロットの列（3台はシーンのまま）・ブラックジャック台のまわり（敷物・ロープ・看板）。
@@ -13,62 +14,14 @@ using Object = UnityEngine.Object;
 /// </summary>
 internal static partial class RoomiesTownRebuild
 {
-    const float KX0 = -1.2f, KX1 = 16.8f, KZ0 = -19.6f, KZ1 = -7.8f, KT = .25f, KFloor = .118f, KCeil = 4.4f, KTop = 5.4f;
+    const float KX0 = -1.2f, KX1 = 16.8f, KZ0 = -19.6f, KZ1 = -7.8f, KT = .25f, KFloor = .118f, KCeil = 4.4f;
     const float KDoorX0 = .76f, KDoorX1 = 1.9f, KEntX0 = 6.3f, KEntX1 = 9.3f, KEntH = 3.0f;
 
     static void BuildCasinoBuilding(Transform g, Transform work)
     {
-        CasinoShell(g);
+        CasinoTowerShell(g);
         CasinoFacade(g, work);
         CasinoInterior(g, work);
-    }
-
-    // ================================================================ 外壁・屋根（当たり判定つき）
-    static void CasinoShell(Transform g)
-    {
-        var wall = Mat("casino_facade"); var cream = Mat("casino_cream"); var gold = Mat("casino_gold"); var black = Mat("casino_black");
-        float ix0 = KX0 + KT, ix1 = KX1 - KT, iz0 = KZ0 + KT, iz1 = KZ1 - KT;
-        // 正面（入口と通用口を空ける）
-        foreach (var (x0, x1) in new[] { (KX0, KDoorX0), (KDoorX1, KEntX0), (KEntX1, KX1) })
-        {
-            Box(g, "Casino front wall", x0, x1, 0, KTop, iz1, KZ1, wall);
-            Solid(g, "Casino wall collider", new Vector3(x0, 0, iz1), new Vector3(x1, KTop, KZ1));
-        }
-        Box(g, "Casino front wall", KDoorX0, KDoorX1, 2.18f, KTop, iz1, KZ1, wall);
-        Box(g, "Casino front wall", KEntX0, KEntX1, KEntH, KTop, iz1, KZ1, wall);
-        Solid(g, "Casino wall collider", new Vector3(KDoorX0, 2.18f, iz1), new Vector3(KDoorX1, KTop, KZ1));
-        Solid(g, "Casino wall collider", new Vector3(KEntX0, KEntH, iz1), new Vector3(KEntX1, KTop, KZ1));
-        // 左・右・奥
-        Box(g, "Casino side wall", KX0, ix0, 0, KTop, KZ0, KZ1, wall);
-        Box(g, "Casino side wall", ix1, KX1, 0, KTop, KZ0, KZ1, wall);
-        Box(g, "Casino back wall", ix0, ix1, 0, KTop, KZ0, iz0, wall);
-        Solid(g, "Casino wall collider", new Vector3(KX0, 0, KZ0), new Vector3(ix0, KTop, KZ1));
-        Solid(g, "Casino wall collider", new Vector3(ix1, 0, KZ0), new Vector3(KX1, KTop, KZ1));
-        Solid(g, "Casino wall collider", new Vector3(ix0, 0, KZ0), new Vector3(ix1, KTop, iz0));
-        // 屋根（天井の上の板と、屋上の防水面・パラペット・笠木）
-        Box(g, "Casino roof slab", KX0, KX1, KCeil, KTop - .35f, KZ0, KZ1, Mat("roof_flat"));
-        Solid(g, "Casino roof collider", new Vector3(KX0, KCeil, KZ0), new Vector3(KX1, KTop - .35f, KZ1));
-        Box(g, "Casino roof deck", KX0 + .2f, KX1 - .2f, KTop - .35f, KTop - .3f, KZ0 + .2f, KZ1 - .2f, Mat("roof_flat"));
-        Box(g, "Casino coping", KX0 - .08f, KX1 + .08f, KTop, KTop + .1f, KZ1 - .2f, KZ1 + .08f, gold);
-        Box(g, "Casino coping", KX0 - .08f, KX1 + .08f, KTop, KTop + .1f, KZ0 - .08f, KZ0 + .2f, cream);
-        Box(g, "Casino coping", KX0 - .08f, KX0 + .2f, KTop, KTop + .1f, KZ0, KZ1, cream);
-        Box(g, "Casino coping", KX1 - .2f, KX1 + .08f, KTop, KTop + .1f, KZ0, KZ1, cream);
-        // 外壁の足元（黒い石）と、側面・裏の帯
-        Box(g, "Casino plinth", KX0 - .03f, KX1 + .03f, 0, .5f, KZ0 - .03f, KZ0 + .02f, black);
-        Box(g, "Casino plinth", KX0 - .03f, KX0 + .02f, 0, .5f, KZ0, KZ1, black);
-        Box(g, "Casino plinth", KX1 - .02f, KX1 + .03f, 0, .5f, KZ0, KZ1, black);
-        foreach (float y in new[] { 3.6f })
-        {
-            Box(g, "Casino band", KX0 - .04f, KX0 + .01f, y, y + .25f, KZ0, KZ1, cream);
-            Box(g, "Casino band", KX1 - .01f, KX1 + .04f, y, y + .25f, KZ0, KZ1, cream);
-            Box(g, "Casino band", KX0, KX1, y, y + .25f, KZ0 - .04f, KZ0 + .01f, cream);
-        }
-        // 屋上の室外機
-        foreach (var (x, z) in new[] { (2.5f, -16.5f), (5.0f, -16.5f), (13.5f, -12f) })
-        {
-            Box(g, "AC unit", x - .7f, x + .7f, KTop - .3f, KTop + .55f, z - .5f, z + .5f, Mat("ac_unit"));
-            Cyl(g, "AC fan", new Vector3(x, KTop + .57f, z), new Vector3(.8f, .02f, .8f), Mat("metal_dark"));
-        }
     }
 
     // ================================================================ 外観：入口・ひさし・看板・ネオン
@@ -134,13 +87,13 @@ internal static partial class RoomiesTownRebuild
         // 看板の文字：AFTER HOURS をひさしの前へ（もとから通りの側から読める向き）
         MoveSign(work, "Sign - AFTER HOURS", new Vector3(7.8f, (my0 + my1) / 2, mz1 + .04f), 180, 1f);
         // 屋上の大きな看板 CASINO（電球の枠）
-        Box(g, "Rooftop sign board", 4.4f, 11.2f, KTop + .1f, KTop + 1.6f, face + .05f, face + .2f, black);
-        Box(g, "Rooftop sign post", 5.0f, 5.15f, KTop, KTop + .2f, face + .2f, face + .9f, Mat("metal_dark"));
-        Box(g, "Rooftop sign post", 10.45f, 10.6f, KTop, KTop + .2f, face + .2f, face + .9f, Mat("metal_dark"));
+        Box(g, "Rooftop sign board", 4.4f, 11.2f, KRoof + .1f, KRoof + 1.6f, face + .05f, face + .2f, black);
+        Box(g, "Rooftop sign post", 5.0f, 5.15f, KRoof, KRoof + .2f, face + .2f, face + .9f, Mat("metal_dark"));
+        Box(g, "Rooftop sign post", 10.45f, 10.6f, KRoof, KRoof + .2f, face + .2f, face + .9f, Mat("metal_dark"));
         for (float x = 4.5f; x < 11.15f; x += .3f)
-            foreach (float y in new[] { KTop + .2f, KTop + 1.5f })
+            foreach (float y in new[] { KRoof + .2f, KRoof + 1.5f })
                 Cyl(g, "Rooftop sign bulb", new Vector3(x, y, face + .22f), new Vector3(.09f, .03f, .09f), bulb).transform.localRotation = Quaternion.Euler(90, 0, 0);
-        NewSign(g, work, "Sign - CASINO", "CASINO", new Vector3(7.8f, KTop + .85f, face + .215f), 180, 2.6f, new Color(1f, .82f, .35f));
+        NewSign(g, work, "Sign - CASINO", "CASINO", new Vector3(7.8f, KRoof + .85f, face + .215f), 180, 2.6f, new Color(1f, .82f, .35f));
         // 壁の光る絵（トランプ・サイコロ・コイン）
         foreach (var (x0, x1, m) in new[] { (2.3f, 3.2f, "poster_cards"), (4.0f, 5.0f, "poster_dice"), (10.4f, 11.5f, "poster_coins"), (12.6f, 13.7f, "poster_cards"), (14.4f, 15.5f, "poster_dice") })
         {
@@ -276,15 +229,15 @@ internal static partial class RoomiesTownRebuild
         Box(g, "Cashier counter top", qx0 - .05f, ix1, 1.05f, 1.12f, qz1 - .5f, qz1 + .08f, Mat("casino_marble"));
         Box(g, "Cashier partition", qx0 - .12f, qx0, KFloor, KCeil - .22f, iz0, qz1, wood);
         Box(g, "Cashier header", qx0, ix1, 2.6f, KCeil - .22f, qz1 - .1f, qz1, Mat("casino_red"));
-        for (float x = qx0 + .1f; x < ix1 - .05f; x += .12f) Cyl(g, "Cashier grille bar", new Vector3(x, 1.86f, qz1 - .05f), new Vector3(.025f, .74f, .025f), gold);
         foreach (float x in new[] { 13.8f, 15.4f })
         {
-            Box(g, "Cashier window", x - .35f, x + .35f, 1.12f, 1.55f, qz1 - .07f, qz1 - .03f, Mat("slot_screen"));
             Box(g, "Cashier tray", x - .25f, x + .25f, 1.12f, 1.16f, qz1 - .1f, qz1 + .15f, gold);
             Box(g, "Cashier lamp", x - .12f, x + .12f, 2.45f, 2.6f, qz1 - .25f, qz1 - .1f, Mat("casino_green_shade"));
         }
         Box(g, "Chip racks", qx0 + .3f, ix1 - .3f, 1.12f, 1.3f, qz1 - .45f, qz1 - .3f, black);
-        Solid(g, "Cashier collider", new Vector3(qx0 - .12f, 0, iz0), new Vector3(ix1, KCeil, qz1 + .08f));
+        // 窓口は開けておく（店の人が中に立つ。カウンターの高さまでが当たり判定）
+        Solid(g, "Cashier collider", new Vector3(qx0 - .12f, 0, qz1 - .5f), new Vector3(ix1, 1.12f, qz1 + .08f));
+        Solid(g, "Cashier partition collider", new Vector3(qx0 - .12f, 0, iz0), new Vector3(qx0, KCeil, qz1));
         NewSign(g, work, "Sign - CASHIER", "CASHIER", new Vector3((qx0 + ix1) / 2, 3.1f, qz1 + .02f), 180, .9f, new Color(1f, .86f, .45f));
 
         // ---- スロットの列：右の壁ぎわ（3台はシーンの台を PlaceSlots で並べ直す）。敷物・スツール・両端の柱・吊り看板
@@ -325,8 +278,8 @@ internal static partial class RoomiesTownRebuild
             }
         }
         HangingSign(g, work, "Sign - BLACKJACK", "BLACKJACK", new Vector3(bj.x, 3.0f, bj.z - 1.6f), 1.0f);
-        // 植木（金の鉢）と、壁ぎわのソファ
-        foreach (var (x, z) in new[] { (ix0 + .5f, iz1 - .5f), (9.6f, iz0 + .5f) })
+        // 植木（金の鉢）。奥の壁ぎわのソファの所にはエレベーターが入る
+        foreach (var (x, z) in new[] { (ix0 + .5f, iz1 - .5f) })
         {
             Cyl(g, "Gold planter", new Vector3(x, KFloor + .3f, z), new Vector3(.5f, .3f, .5f), gold);
             var bush = GameObject.CreatePrimitive(PrimitiveType.Sphere); bush.name = "Planter leaves";
@@ -334,11 +287,6 @@ internal static partial class RoomiesTownRebuild
             bush.transform.localPosition = new Vector3(x, KFloor + 1.0f, z); bush.transform.localScale = new Vector3(.8f, 1.0f, .8f);
             bush.GetComponent<MeshRenderer>().sharedMaterial = Mat("planter_leaf"); bush.isStatic = true;
         }
-        Box(g, "Lounge sofa", 9.2f, 12.4f, KFloor, .5f, iz0 + .05f, iz0 + .9f, Mat("casino_red"));
-        Box(g, "Lounge sofa back", 9.2f, 12.4f, .5f, 1.15f, iz0 + .05f, iz0 + .3f, Mat("casino_red"));
-        Box(g, "Lounge sofa arm", 9.1f, 9.3f, KFloor, .8f, iz0 + .05f, iz0 + .9f, Mat("casino_red"));
-        Box(g, "Lounge sofa arm", 12.3f, 12.5f, KFloor, .8f, iz0 + .05f, iz0 + .9f, Mat("casino_red"));
-        Solid(g, "Lounge sofa collider", new Vector3(9.1f, 0, iz0), new Vector3(12.5f, .8f, iz0 + .9f));
     }
 
     // スロット3台の置き場所：右の壁ぎわ、入口の側から奥へ（台の中心の z）。画面は部屋の中（-x）を向く

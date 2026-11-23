@@ -33,15 +33,23 @@ internal static partial class RoomiesTownRebuild
             var g = Fresh(root.transform, CasinoGroup);
             BuildCasinoBuilding(g, work);
             RoomiesBevelBuilder.ApplyTownUnder(g);
+            // 2 階・3 階の中身は別のグループ（その階にいる人の画面でだけ出す）
+            foreach (int floor in new[] { 2, 3 })
+            {
+                var up = Fresh(root.transform, floor == 2 ? CasinoGroup2F : CasinoGroup3F);
+                CasinoUpperFloor(up, floor);
+                RoomiesBevelBuilder.ApplyTownUnder(up);
+            }
             PrefabUtility.SaveAsPrefabAsset(root, NeighborhoodPrefab);
         }
         finally { PrefabUtility.UnloadPrefabContents(root); }
-        BuildBlackjackArt();
-        BuildSlotCabinets();
-        PlaceSlots();
+        // 台と筐体（プレハブ）は建物を作り直しても変わらないので、ここでは作り直さない（3b・3c で別に実行する）。
+        // まとめ直すのもカジノのグループだけ（町ぜんぶをまとめ直すと、ほかの建物のメッシュまで書き換わる）
         AssetDatabase.SaveAssets();
         RoomiesMaterialFinishBuilder.BuildTimeOfDay();
-        CombineForSpeed();
+        CombineGroups(CasinoGroup, CasinoGroup2F, CasinoGroup3F);
+        // グループを作り直すと、シーンから指している先が切れるので、つなぎ直す
+        RoomiesCasinoBuilder.PlaceInOpenScene();
         Debug.Log("[Rebuild] casino building built");
     }
 
@@ -52,6 +60,16 @@ internal static partial class RoomiesTownRebuild
         foreach (Transform c in work.Cast<Transform>().ToArray())
             if (c.name.StartsWith("Arcade") || (c.name == "bench" && c.position.x > -2f && c.position.x < 17f && c.position.z < -10f))
                 Object.DestroyImmediate(c.gameObject);
+    }
+
+    /// <summary>スロットの筐体・ブラックジャック台・スロットの並べ直しをまとめて行う（建物の作り直しとは別）。</summary>
+    [MenuItem("Roomies/Art/Rebuild/3c Casino Tables And Slots")]
+    internal static void BuildCasinoTables()
+    {
+        BuildBlackjackArt();
+        BuildSlotCabinets();
+        PlaceSlots();
+        AssetDatabase.SaveAssets();
     }
 
     // ================================================================ ブラックジャック台（プレハブの Visual/Art）

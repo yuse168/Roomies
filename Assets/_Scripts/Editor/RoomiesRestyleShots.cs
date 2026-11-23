@@ -15,6 +15,7 @@ using Object = UnityEngine.Object;
 /// 見た目の確認用スクリーンショット（Play しない）。
 /// Temp/RoomiesRestyle/shots.txt の各行を1枚として Docs/restyle_20261113/ に書き出す。
 /// 行の形: 名前|カメラ位置 x y z|見る先 x y z|画角|night か day|ui か noui（ui:名前,名前 でその Canvas だけ）
+/// 「out|フォルダ」と書いた行のあとは、そのフォルダに書き出す（リポジトリの外でもよい）。
 /// 7つ目に nopp と書くと画面の仕上げ（ポストプロセス）なしで撮る。
 /// ui のときは、HUD の数字に見本の値を入れて撮り、撮り終わったら元へ戻す。
 /// シーンには何も残さない（撮影用カメラと一時的な空の設定は撮り終わったら戻す）。
@@ -24,12 +25,14 @@ internal static class RoomiesRestyleShots
     const string SpecPath = "Temp/RoomiesRestyle/shots.txt";
     const string OutDir = "Docs/restyle_20261113";
     const int Width = 1920, Height = 1080;
+    static string outDir = OutDir;
 
     [MenuItem("Roomies/Art/Restyle/Capture Shots")]
     internal static void Capture()
     {
         if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode first.");
         if (!File.Exists(SpecPath)) throw new FileNotFoundException(SpecPath);
+        outDir = OutDir;
         Directory.CreateDirectory(OutDir);
         var inv = CultureInfo.InvariantCulture;
         // 素材の設定を変えた直後は、シェーダーが裏で準備中のまま透明に写ることがある。撮るあいだは待つ
@@ -37,7 +40,7 @@ internal static class RoomiesRestyleShots
         ShaderUtil.allowAsyncCompilation = false;
         try { CaptureAll(inv); }
         finally { ShaderUtil.allowAsyncCompilation = asyncShaders; }
-        Debug.Log("[Roomies Restyle] Shots written to " + OutDir);
+        Debug.Log("[Roomies Restyle] Shots written to " + outDir);
     }
 
     static void CaptureAll(CultureInfo inv)
@@ -47,6 +50,7 @@ internal static class RoomiesRestyleShots
             string line = raw.Trim();
             if (line.Length == 0 || line.StartsWith("#")) continue;
             string[] p = line.Split('|');
+            if (p[0].Trim() == "out") { outDir = p[1].Trim(); Directory.CreateDirectory(outDir); continue; }
             Vector3 pos, target; float fov;
             if (p[1].Trim() == "menu")
             {
@@ -210,7 +214,7 @@ internal static class RoomiesRestyleShots
             RenderTexture.active = result;
             tex.ReadPixels(new Rect(0, 0, Width, Height), 0, 0);
             tex.Apply();
-            File.WriteAllBytes($"{OutDir}/{name}.png", tex.EncodeToPNG());
+            File.WriteAllBytes($"{outDir}/{name}.png", tex.EncodeToPNG());
         }
         finally
         {
