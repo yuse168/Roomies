@@ -92,6 +92,15 @@ internal static partial class RoomiesCasinoBuilder
             box.center = new Vector3(0, .48f, .05f);
             box.size = new Vector3(Art.BjWidth + .1f, .96f, Art.BjFrontZ - Art.BjBackZ + .05f);
 
+            // カードと結果の画面（Anchor_Display）。前は実行時に作っていた物を、プレハブに実体として置く
+            // 置く所：親（奥）の側の上。遊ぶ人と台の間に置くと、台のフェルトとチップが隠れる
+            var table = root.GetComponent<BlackjackTable>();
+            var so = new SerializedObject(table);
+            so.FindProperty("displayLocalPosition").vector3Value = new Vector3(0, 1.72f, Art.BjBackZ - .06f);
+            so.FindProperty("displayScale").floatValue = .0018f;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            table.EditorBuildUI();
+
             PrefabUtility.SaveAsPrefabAsset(root, BlackjackBasePath);
         }
         finally { PrefabUtility.UnloadPrefabContents(root); }

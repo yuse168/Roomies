@@ -27,5 +27,5 @@
 - `BlackjackTable`
 - `BoxCollider`
 
-見た目は `Visual/Art`。`Visual` 直下の古い部品（表示を切ってある）は台の当たり判定を持っているので、消さない。
-画面（`RuntimeDisplay`）は、いまは `BlackjackTable` が実行時に作っている（AGENTS.md の「実行時に作らない」に合っていない。カジノの見た目の作り直しでプレハブに置く形に直す予定）。
+見た目は `Visual/Table`（台 1 つのメッシュ。`RoomiesCasinoArt.BlackjackTable()`）。台の当たり判定はルートの `BoxCollider` 1 つ。
+画面は、プレハブの `Anchor_Display`（ワールド空間の Canvas。カードの文字・結果の帯・結果の演出）。実行時には作らない。`BlackjackTable` のインスペクターの「画面」に割り当ててある。置き直すときは `Roomies/Casino/2 Build Gimmick Prefabs`（`BlackjackTable.EditorBuildUI()`）。位置や大きさは、プレハブの中で `Anchor_Display` を直接直してよい（置き直すと、インスペクターの displayLocalPosition・displaySize・displayScale の値に戻る）。

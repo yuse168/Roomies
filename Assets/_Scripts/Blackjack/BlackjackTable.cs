@@ -104,18 +104,21 @@ public class BlackjackTable : NetworkBehaviour
     private readonly List<Card> dealerCards = new();
 
     private int currentBetIndex;
-    private TextMeshProUGUI displayText;
-    private Image displayPanel;
-    private Image resultBanner;
-    private TextMeshProUGUI resultBannerText;
-    private RectTransform resultBannerRect;
-    private CanvasGroup resultOverlayGroup;
-    private Image resultOverlayBackground;
-    private RectTransform resultOverlayRect;
-    private TextMeshProUGUI resultHeadlineText;
-    private TextMeshProUGUI resultMessageText;
-    private TextMeshProUGUI resultAmountText;
-    private TextMeshProUGUI resultOutcomeText;
+
+    [Header("画面（プレハブの Anchor_Display の中。配置ツール Roomies/Casino/2 Build Gimmick Prefabs が置いて割り当てる）")]
+    [SerializeField] private TextMeshProUGUI displayText;
+    [SerializeField] private Image displayPanel;
+    [SerializeField] private Image resultBanner;
+    [SerializeField] private TextMeshProUGUI resultBannerText;
+    [SerializeField] private RectTransform resultBannerRect;
+    [SerializeField] private CanvasGroup resultOverlayGroup;
+    [SerializeField] private Image resultOverlayBackground;
+    [SerializeField] private RectTransform resultOverlayRect;
+    [SerializeField] private TextMeshProUGUI resultHeadlineText;
+    [SerializeField] private TextMeshProUGUI resultMessageText;
+    [SerializeField] private TextMeshProUGUI resultAmountText;
+    [SerializeField] private TextMeshProUGUI resultOutcomeText;
+
     private Coroutine resetCoroutine;
     private Coroutine resultAnimationCoroutine;
 
@@ -138,7 +141,9 @@ public class BlackjackTable : NetworkBehaviour
 
     private void Awake()
     {
-        BuildDisplayIfNeeded();
+        // 画面はプレハブに置いてある（実行時には作らない）。割り当てが無いときは、配置ツールを実行し直す
+        if (displayText == null)
+            Debug.LogWarning("[Blackjack] 画面（Anchor_Display）が割り当てられていません。Roomies/Casino/2 Build Gimmick Prefabs を実行してください。", this);
         RefreshDisplay();
     }
 
@@ -669,41 +674,21 @@ public class BlackjackTable : NetworkBehaviour
         }
     }
 
-    private void BuildDisplayIfNeeded()
+#if UNITY_EDITOR
+    /// <summary>
+    /// 画面（Anchor_Display）を組み立てて、参照を割り当てる。配置ツールがプレハブに対して呼ぶ。実行中は呼ばない。
+    /// 位置・大きさは上の displayLocalPosition / displaySize / displayScale。置いたあとは、プレハブの中で直接直してよい。
+    /// </summary>
+    public void EditorBuildUI()
     {
-        Transform existing = transform.Find("RuntimeDisplay");
-        if (existing != null)
+        foreach (string old in new[] { "RuntimeDisplay", "Anchor_Display" })
         {
-            Transform panel = existing.Find("Panel");
-            Transform text = panel != null ? panel.Find("BlackjackText") : null;
-            Transform banner = panel != null ? panel.Find("ResultBanner") : null;
-            Transform overlay = panel != null ? panel.Find("ResultOverlay") : null;
-
-            displayPanel = panel != null ? panel.GetComponent<Image>() : null;
-            displayText = text != null ? text.GetComponent<TextMeshProUGUI>() : null;
-            resultBanner = banner != null ? banner.GetComponent<Image>() : null;
-            resultBannerRect = banner != null ? banner.GetComponent<RectTransform>() : null;
-            resultBannerText = banner != null
-                ? banner.GetComponentInChildren<TextMeshProUGUI>(true)
-                : null;
-            resultOverlayRect = overlay != null ? overlay.GetComponent<RectTransform>() : null;
-            resultOverlayGroup = overlay != null ? overlay.GetComponent<CanvasGroup>() : null;
-            resultOverlayBackground = overlay != null ? overlay.GetComponent<Image>() : null;
-            resultHeadlineText = FindOverlayText(overlay, "Headline");
-            resultMessageText = FindOverlayText(overlay, "Message");
-            resultAmountText = FindOverlayText(overlay, "Amount");
-            resultOutcomeText = FindOverlayText(overlay, "Outcome");
-
-            if (displayText != null && resultBannerText != null && panel != null)
-            {
-                if (resultOverlayGroup == null || resultHeadlineText == null)
-                    BuildResultOverlay(panel);
-                return;
-            }
+            Transform existing = transform.Find(old);
+            if (existing != null) DestroyImmediate(existing.gameObject);
         }
 
         GameObject canvasObject = new GameObject(
-            "RuntimeDisplay",
+            "Anchor_Display",
             typeof(RectTransform),
             typeof(Canvas),
             typeof(CanvasScaler));
@@ -793,6 +778,13 @@ public class BlackjackTable : NetworkBehaviour
         resultBannerText.raycastTarget = false;
 
         BuildResultOverlay(panelObject.transform);
+        // 再生しなくても、シーンビューで待機中の画面が見えるようにしておく。
+        // ここでは英数字だけにする：日本語を入れると、予備のフォント用の子（TMP_SubMeshUI）ができてプレハブに残り、開くたびにエラーが出る
+        displayText.text = "<size=115%><b><color=#FFD34E>BLACKJACK</color></b></size>\n<size=72%><color=#FF8C99>DEALER</color></size>\n-\n<size=72%><color=#74E0B5>PLAYER</color></size>\n-";
+        resultBanner.color = new Color(0.09f, 0.18f, 0.24f, 0.96f);
+        resultBannerText.text = "PRESS E";
+        foreach (TMP_SubMeshUI sub in canvasObject.GetComponentsInChildren<TMP_SubMeshUI>(true))
+            DestroyImmediate(sub.gameObject);
     }
 
     private void BuildResultOverlay(Transform parent)
@@ -813,10 +805,10 @@ public class BlackjackTable : NetworkBehaviour
         resultOverlayRect.offsetMax = new Vector2(-14f, -14f);
 
         resultOverlayBackground = overlayObject.GetComponent<Image>();
-        resultOverlayBackground.sprite = UITheme.PanelSprite;
+        // 角丸の板は、保存できる絵（アセット）を使う。UITheme.PanelSprite は実行中に作る絵なので、プレハブには残せない
+        resultOverlayBackground.sprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/_Art/UI/RoomiesPanel.png");
         resultOverlayBackground.type = Image.Type.Sliced;
         resultOverlayBackground.raycastTarget = false;
-        UITheme.AddSurfaceDetail(resultOverlayBackground, UITheme.Accent);
 
         Outline outline = overlayObject.GetComponent<Outline>();
         outline.effectColor = new Color(1f, 0.83f, 0.31f, 0.9f);
@@ -901,13 +893,7 @@ public class BlackjackTable : NetworkBehaviour
         outline.useGraphicAlpha = true;
         return text;
     }
-
-    private static TextMeshProUGUI FindOverlayText(Transform overlay, string childName)
-    {
-        if (overlay == null) return null;
-        Transform child = overlay.Find(childName);
-        return child != null ? child.GetComponent<TextMeshProUGUI>() : null;
-    }
+#endif
 
     private void RefreshDisplay()
     {

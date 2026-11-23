@@ -334,7 +334,7 @@ internal static partial class RoomiesCasinoBuilder
             yield return WaitIdle(bj2);
             Vector3 stand3 = bj3.transform.position + bj3.transform.forward * 1.5f; stand3.y = f3;
             Teleport(cc, stand3);
-            yield return new WaitForSeconds(.4f);
+            yield return new WaitForSeconds(1f);   // 階の出し入れは一定の間隔で見直すので、少し待つ
             var art3 = bj3.transform.Find("Visual");
             Expect(art3 != null && art3.gameObject.activeInHierarchy, "on 3F: the 3F table is shown");
             var cab2 = slot2.transform.Find("Visual");
