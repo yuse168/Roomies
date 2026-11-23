@@ -92,6 +92,21 @@ internal static class SfxLevelsBuilder
         ("casino/win", 0.55f),
         ("casino/lose", 0.50f),
         ("casino/cash", 0.55f),
+        ("casino/slot_start", 0.55f),
+        ("casino/slot_reel", 0.35f),
+        ("casino/slot_stopa", 0.60f),
+        ("casino/slot_stopb", 0.60f),
+        ("casino/slot_stopc", 0.65f),
+        ("casino/slot_reach", 0.65f),
+        ("casino/slot_reach_miss", 0.50f),
+        ("casino/slot_lose", 0.35f),
+        ("casino/slot_win_small", 0.50f),
+        ("casino/slot_win_mid", 0.60f),
+        ("casino/slot_win_big", 0.75f),
+        ("casino/slot_jackpot", 0.85f),
+        ("casino/slot_coin", 0.45f),
+        ("casino/slot_tick", 0.35f),
+        ("casino/chips_slide", 0.55f),
     };
 
     [MenuItem("Roomies/Audio/Rebuild Sfx Levels")]

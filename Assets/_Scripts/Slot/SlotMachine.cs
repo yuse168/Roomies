@@ -1,9 +1,7 @@
 using System.Collections;
-using System.Collections.Generic;
 using TMPro;
 using Unity.Netcode;
 using UnityEngine;
-using UnityEngine.UI;
 
 public class SlotMachine : NetworkBehaviour
 {
@@ -50,43 +48,23 @@ public class SlotMachine : NetworkBehaviour
     [Tooltip("距離判定は筐体のColliderを基準にする。インポート由来の親原点は使用しない。")]
     [SerializeField] private Collider interactionCollider;
 
-    [Header("UI")]
-    [SerializeField] private TextMeshProUGUI reelText1;
-    [SerializeField] private TextMeshProUGUI reelText2;
-    [SerializeField] private TextMeshProUGUI reelText3;
+    [Header("画面の文字（プレハブの Anchor_Screen の中。配置ツールが割り当てる）")]
     [SerializeField] private TextMeshProUGUI resultText;
     [SerializeField] private TextMeshProUGUI feverText;
     [SerializeField] private TextMeshProUGUI betText;
-    [SerializeField] private Sprite[] symbolSprites = new Sprite[5];
-    [SerializeField] private Sprite panelSprite;
 
-    [Header("演出")]
+    [Header("画面とランプの演出（見た目と音だけ。当たり外れには関係しない）")]
+    [SerializeField] private SlotScreen screen;
+
+    [Header("演出の長さ（秒）。サーバーも同じ長さだけ、配当と次の回を待つ")]
+    [Tooltip("回りはじめてから、左のリールが止まるまで")]
     [SerializeField] private float spinDuration = 0.8f;
-    [SerializeField] private float spinInterval = 0.05f;
-
-    [Tooltip("回転音を鳴らし直す間隔（秒）。音源の長さに合わせる")]
-    [SerializeField, Min(0.1f)] private float reelLoopInterval = 2.5f;
+    [Tooltip("左 → 中、中 → 右の間")]
     [SerializeField] private float reelStopDelay = 0.28f;
-    [SerializeField] private float stopPulseScale = 1.2f;
+    [Tooltip("リーチ（左と中がそろったとき）：右のリールが止まるまでに足す秒数")]
+    [SerializeField, Min(0f)] private float reachSeconds = 1.8f;
+    [Tooltip("右のリールが止まってから、結果を出すまで")]
     [SerializeField] private float stopPulseDuration = 0.15f;
-
-    private static readonly string[] SymbolFaces =
-    {
-        "<color=#FF4D6D>CHERRY</color>",
-        "<color=#FFD166>STAR</color>",
-        "<color=#73E2A7>BAR</color>",
-        "<color=#70B7FF>GEM</color>",
-        "<color=#FF3B30>7</color>"
-    };
-
-    private static readonly string[] SymbolLabels =
-    {
-        "CHERRY",
-        "STAR",
-        "BAR",
-        "GEM",
-        "7"
-    };
 
     private NetworkVariable<int> feverSpinCount =
         new NetworkVariable<int>(
@@ -107,20 +85,13 @@ public class SlotMachine : NetworkBehaviour
     private int feverBetCost;
 
     private Coroutine spinCoroutine;
-    private Coroutine reelLoopCoroutine;
-    private readonly Dictionary<TextMeshProUGUI, ReelImages> reelImages = new();
-
-    private sealed class ReelImages
-    {
-        public Image previous;
-        public Image current;
-        public Image next;
-    }
 
     private void Start()
     {
         feverSpinCount.OnValueChanged += OnFeverChanged;
-        RefreshPresentation();
+        if (resultText != null) resultText.text = "<color=#ADCAC7>READY TO PLAY</color>";
+        UpdateFeverUI();
+        UpdateBetUI();
     }
 
     public string CurrentBetLabel => CurrentBet + " R";
@@ -273,9 +244,11 @@ public class SlotMachine : NetworkBehaviour
             }
         }
 
-        SpinClientRpc(r1, r2, r3, resultMessage);
+        int tier = isMiss ? 0 : TierOf(r1);
+        SpinClientRpc(r1, r2, r3, resultMessage, reward, tier);
 
-        StartCoroutine(ApplyRewardAfterSpin(reward, addFever, playerNetworkObjectId, cost, isFeverSpin ? 0 : cost));
+        StartCoroutine(ApplyRewardAfterSpin(reward, addFever, playerNetworkObjectId, cost, isFeverSpin ? 0 : cost,
+            GetSpinAnimationDuration(IsReach(r1, r2)), screen != null ? screen.CelebrateSeconds((SlotScreen.Tier)tier) : 0f));
     }
 
     /// <summary>
@@ -325,14 +298,32 @@ public class SlotMachine : NetworkBehaviour
         return (closest - playerPosition).sqrMagnitude <= serverInteractDistance * serverInteractDistance;
     }
 
-    private float GetSpinAnimationDuration()
+    /// <summary>当たりの演出の段（1 小・2 中・3 大・4 = 7 ぞろい）。配当の低い絵から順に並んでいる前提で、並びの位置で決める。</summary>
+    private int TierOf(int symbolIndex)
     {
-        return spinDuration + reelStopDelay * 2f + stopPulseDuration;
+        if (slotSymbols[symbolIndex].isFeverSymbol) return (int)SlotScreen.Tier.Jackpot;
+        float k = slotSymbols.Length > 1 ? (float)symbolIndex / (slotSymbols.Length - 1) : 0f;
+        return k < 0.4f ? (int)SlotScreen.Tier.Small : k < 0.7f ? (int)SlotScreen.Tier.Mid : (int)SlotScreen.Tier.Big;
     }
 
-    private IEnumerator ApplyRewardAfterSpin(int reward, bool addFever, ulong playerNetworkObjectId, int cost, int paid)
+    /// <summary>
+    /// リーチにするか：左と中がそろい、その絵が「中」以上の当たりの絵のとき。
+    /// 小さい当たりの絵（配当の低い 2 つ）は、そろっても普通の速さで止める（毎回じらすと遊ぶテンポが落ちるため）。
+    /// </summary>
+    private bool IsReach(int r1, int r2)
     {
-        yield return new WaitForSeconds(GetSpinAnimationDuration());
+        return r1 == r2 && TierOf(r1) >= (int)SlotScreen.Tier.Mid;
+    }
+
+    /// <summary>回りはじめてから結果が出るまでの秒数（リーチのときは長い）。サーバーと各自の画面が同じ式を使う。</summary>
+    private float GetSpinAnimationDuration(bool reach)
+    {
+        return spinDuration + reelStopDelay * 2f + (reach ? reachSeconds : 0f) + stopPulseDuration;
+    }
+
+    private IEnumerator ApplyRewardAfterSpin(int reward, bool addFever, ulong playerNetworkObjectId, int cost, int paid, float spinSeconds, float celebrateSeconds)
+    {
+        yield return new WaitForSeconds(spinSeconds);
 
         if (reward > 0)
         {
@@ -363,6 +354,9 @@ public class SlotMachine : NetworkBehaviour
             if (feverSpinCount.Value <= 0) feverBetCost = cost;
             feverSpinCount.Value += feverFreeSpins;
         }
+
+        // 当たりの演出が終わるまで、次の回を待つ
+        if (celebrateSeconds > 0f) yield return new WaitForSeconds(celebrateSeconds);
 
         isSpinning.Value = false;
     }
@@ -410,7 +404,7 @@ public class SlotMachine : NetworkBehaviour
     }
 
     [ClientRpc]
-    private void SpinClientRpc(int r1, int r2, int r3, string resultMessage)
+    private void SpinClientRpc(int r1, int r2, int r3, string resultMessage, int reward, int tier)
     {
         if (spinCoroutine != null)
         {
@@ -418,94 +412,47 @@ public class SlotMachine : NetworkBehaviour
         }
 
         spinCoroutine = StartCoroutine(
-            SpinRoutine(r1, r2, r3, resultMessage)
+            SpinRoutine(r1, r2, r3, resultMessage, reward, tier)
         );
     }
 
-    private IEnumerator SpinRoutine(int r1, int r2, int r3, string resultMessage)
+    /// <summary>各自の画面：リールと演出は SlotScreen に任せ、ここでは下の文字（結果・フィーバー）だけを合わせる。</summary>
+    private IEnumerator SpinRoutine(int r1, int r2, int r3, string resultMessage, int reward, int tier)
     {
+        bool reach = IsReach(r1, r2);
         if (resultText != null)
         {
             resultText.text = "<color=#FFD34E>GOOD LUCK!</color>";
             resultText.color = Color.white;
         }
 
-        // 筐体の位置から鳴らす（遠くの人には聞こえない）
-        GameAudio.PlayAt("slot/spin", transform.position);
-
-        // 回っている間はリールの音を鳴らし続ける（重ならないよう同じ口を使い回す）
-        if (reelLoopCoroutine != null) StopCoroutine(reelLoopCoroutine);
-        reelLoopCoroutine = StartCoroutine(ReelLoopRoutine());
-
-        float elapsed = 0f;
         float[] stopTimes =
         {
             spinDuration,
             spinDuration + reelStopDelay,
-            spinDuration + reelStopDelay * 2f
+            spinDuration + reelStopDelay * 2f + (reach ? reachSeconds : 0f)
         };
-        float[] nextTicks = { 0f, 0f, 0f };
-        int[] shown =
+        if (screen != null) screen.Play(r1, r2, r3, stopTimes, reach, (SlotScreen.Tier)tier, reward);
+
+        if (reach)
         {
-            Random.Range(0, slotSymbols.Length),
-            Random.Range(0, slotSymbols.Length),
-            Random.Range(0, slotSymbols.Length)
-        };
-        int[] targets = { r1, r2, r3 };
-        TextMeshProUGUI[] reels = { reelText1, reelText2, reelText3 };
-        bool[] stopped = { false, false, false };
-
-        while (elapsed < stopTimes[2])
-        {
-            elapsed += Time.deltaTime;
-
-            for (int i = 0; i < reels.Length; i++)
-            {
-                if (stopped[i]) continue;
-
-                if (elapsed >= stopTimes[i])
-                {
-                    stopped[i] = true;
-                    shown[i] = targets[i];
-                    SetReel(reels[i], shown[i]);
-                    StartCoroutine(PulseReel(reels[i]));
-                    GameAudio.PlayAt("slot/stop", transform.position, 1f, 0.05f);
-
-                    if (i == 1 && targets[0] == targets[1] && targets[2] != targets[1] && resultText != null)
-                    {
-                        resultText.text = "<color=#FF8A3D>ONE MORE...</color>";
-                    }
-                    continue;
-                }
-
-                if (elapsed >= nextTicks[i])
-                {
-                    shown[i] = (shown[i] + 1) % slotSymbols.Length;
-                    SetReel(reels[i], shown[i]);
-
-                    float progress = Mathf.Clamp01(elapsed / stopTimes[i]);
-                    float slowDown = Mathf.InverseLerp(0.58f, 1f, progress);
-                    float interval = Mathf.Lerp(spinInterval, spinInterval * 4.5f, slowDown * slowDown);
-                    nextTicks[i] = elapsed + interval;
-                }
-            }
-
-            yield return null;
+            yield return new WaitForSeconds(stopTimes[1]);
+            if (resultText != null) resultText.text = "<color=#FF8A3D>REACH!</color>";
+            yield return new WaitForSeconds(stopTimes[2] - stopTimes[1]);
         }
-
-        SetReels(r1, r2, r3);
+        else yield return new WaitForSeconds(stopTimes[2]);
 
         if (resultText != null)
         {
             resultText.text = resultMessage;
 
-            if (resultMessage.Contains("FEVER WIN"))
+            if (resultMessage.Contains("FEVER WIN") || resultMessage.StartsWith("FEVER +"))
             {
                 resultText.color = new Color(1f, 0.8f, 0.2f);
             }
             else if (resultMessage.Contains("WIN"))
             {
-                resultText.color = Color.green;
+                resultText.color = new Color(0.55f, 1f, 0.6f);
             }
             else if (resultMessage.Contains("FEVER MISS"))
             {
@@ -518,244 +465,7 @@ public class SlotMachine : NetworkBehaviour
         }
 
         UpdateFeverUI();
-
-        // 結果ごとに音を変える
-        if (resultMessage.Contains("FEVER WIN"))
-            GameAudio.PlayAt("slot/fever", transform.position, 1.2f);
-        else if (resultMessage.Contains("WIN"))
-            GameAudio.PlayAt("slot/win", transform.position);
-        else if (resultMessage.Contains("MISS"))
-            GameAudio.PlayAt("slot/lose", transform.position);
-
         spinCoroutine = null;
-    }
-
-    // リールが回っている間、短い回転音を繋いで鳴らす。
-    // `slot/reel` が未入荷なら何も鳴らない（音が無くても動く）。
-    private IEnumerator ReelLoopRoutine()
-    {
-        string channel = "slot/reel#" + GetInstanceID();
-
-        while (isSpinning.Value || spinCoroutine != null)
-        {
-            GameAudio.PlayExclusiveAt("slot/reel", channel, transform.position, 1f, 1f);
-            yield return new WaitForSeconds(reelLoopInterval);
-        }
-
-        reelLoopCoroutine = null;
-    }
-
-    private IEnumerator PulseReel(TextMeshProUGUI reel)
-    {
-        if (reel == null) yield break;
-
-        Vector3 originalScale = reel.transform.localScale;
-        Vector3 bigScale = originalScale * stopPulseScale;
-        float half = stopPulseDuration / 2f;
-
-        reel.transform.localScale = bigScale;
-        yield return new WaitForSeconds(half);
-        reel.transform.localScale = originalScale;
-    }
-
-    private void SetReels(int r1, int r2, int r3)
-    {
-        SetReel(reelText1, r1);
-        SetReel(reelText2, r2);
-        SetReel(reelText3, r3);
-    }
-
-    private void SetReel(TextMeshProUGUI reel, int symbolIndex)
-    {
-        if (reel == null || slotSymbols == null || slotSymbols.Length == 0) return;
-
-        symbolIndex = Mathf.Clamp(symbolIndex, 0, slotSymbols.Length - 1);
-        int previous = (symbolIndex - 1 + slotSymbols.Length) % slotSymbols.Length;
-        int next = (symbolIndex + 1) % slotSymbols.Length;
-
-        if (reelImages.TryGetValue(reel, out ReelImages images) && HasSpriteSet())
-        {
-            images.previous.sprite = symbolSprites[previous];
-            images.current.sprite = symbolSprites[symbolIndex];
-            images.next.sprite = symbolSprites[next];
-            reel.text = "";
-            reel.enabled = false;
-            return;
-        }
-
-        reel.enabled = true;
-        reel.text =
-            "<size=48%><color=#596274>" + GetSymbolLabel(previous) + "</color></size>\n" +
-            "<size=100%><b>" + GetSymbolFace(symbolIndex) + "</b></size>\n" +
-            "<size=48%><color=#596274>" + GetSymbolLabel(next) + "</color></size>";
-    }
-
-    private string GetSymbolFace(int index)
-    {
-        if (index >= 0 && index < SymbolFaces.Length) return SymbolFaces[index];
-        return slotSymbols[index].symbol;
-    }
-
-    private string GetSymbolLabel(int index)
-    {
-        if (index >= 0 && index < SymbolLabels.Length) return SymbolLabels[index];
-        return slotSymbols[index].symbol;
-    }
-
-    private void PreparePresentation()
-    {
-        if (reelText1 == null) return;
-        Transform face = reelText1.transform.parent;
-        FacePanel(face, "FaceBackground", Vector2.zero, new Vector2(520,760), new Color(.045f,.1f,.14f));
-        FacePanel(face, "HeaderAccent", new Vector2(0,330), new Vector2(440,4), new Color(.91f,.68f,.35f));
-        FaceLabel(face, "CabinetTitle", "LUCKY ROOM", new Vector2(0,278), new Vector2(450,78), 48, new Color(.97f,.87f,.65f));
-        FaceLabel(face, "CabinetCaption", "THREE OF A KIND", new Vector2(0,219), new Vector2(430,32), 20, new Color(.57f,.75f,.75f));
-        LayoutText(reelText1, new Vector2(-148,57), new Vector2(124,228), 46);
-        LayoutText(reelText2, new Vector2(0,57), new Vector2(124,228), 46);
-        LayoutText(reelText3, new Vector2(148,57), new Vector2(124,228), 46);
-        PrepareReel(reelText1, new Color(.94f,.91f,.82f));
-        PrepareReel(reelText2, new Color(.98f,.95f,.86f));
-        PrepareReel(reelText3, new Color(.94f,.91f,.82f));
-        LayoutText(betText, new Vector2(0,-134), new Vector2(420,60), 39);
-        LayoutText(resultText, new Vector2(0,-210), new Vector2(430,58), 30);
-        LayoutText(feverText, new Vector2(0,-262), new Vector2(430,34), 22);
-        FaceLabel(face, "ControlHint", "[ E ]  SPIN   /   SCROLL  BET", new Vector2(0,-325), new Vector2(450,36), 20, new Color(.66f,.82f,.8f));
-
-        if (reelText2 != null)
-        {
-            Transform parent = reelText2.transform.parent;
-            Transform existing = parent.Find("WinLine");
-            if (existing == null)
-            {
-                GameObject lineObject = new GameObject("WinLine", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-                RectTransform line = lineObject.GetComponent<RectTransform>();
-                line.SetParent(parent, false);
-                line.SetSiblingIndex(0);
-                line.anchoredPosition = new Vector2(0,57);
-                line.sizeDelta = new Vector2(470f, 3f);
-                lineObject.GetComponent<Image>().color = new Color(1f, 0.75f, 0.12f, 0.75f);
-                lineObject.GetComponent<Image>().raycastTarget = false;
-            }
-            else existing.gameObject.SetActive(false);
-        }
-
-        if (resultText != null)
-        {
-            resultText.fontStyle = FontStyles.Bold;
-            resultText.text = "<color=#ADCAC7>READY TO PLAY</color>";
-        }
-    }
-
-    [ContextMenu("Refresh Slot Presentation")]
-    public void RefreshPresentation()
-    {
-        PreparePresentation();
-        SetReels(0, 1, Mathf.Min(4, slotSymbols.Length - 1));
-        UpdateFeverUI();
-        UpdateBetUI();
-    }
-
-    private static void LayoutText(TMP_Text label, Vector2 position, Vector2 size, float fontSize)
-    {
-        if (label == null) return;
-        var rect = label.rectTransform;
-        rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(.5f,.5f);
-        rect.anchoredPosition = position; rect.sizeDelta = size; rect.localScale = Vector3.one;
-        label.fontSize = fontSize; label.enableAutoSizing = true; label.fontSizeMin = fontSize*.7f; label.fontSizeMax = fontSize;
-        label.alignment = TextAlignmentOptions.Center; label.raycastTarget = false;
-        label.textWrappingMode = TextWrappingModes.NoWrap;
-    }
-
-    private void FaceLabel(Transform parent, string name, string text, Vector2 position, Vector2 size, float fontSize, Color color)
-    {
-        var child=parent.Find(name);
-        var label=child!=null?child.GetComponent<TextMeshProUGUI>():UITheme.Label(parent,name,text,fontSize,color,TextAlignmentOptions.Center,true);
-        label.text=text; label.color=color;
-        LayoutText(label,position,size,fontSize);
-    }
-
-    private void FacePanel(Transform parent, string name, Vector2 position, Vector2 size, Color color)
-    {
-        var existing=parent.Find(name);
-        var go=existing!=null?existing.gameObject:new GameObject(name,typeof(RectTransform),typeof(Image));
-        if(existing==null)go.transform.SetParent(parent,false);
-        var image=go.GetComponent<Image>(); image.sprite=panelSprite!=null?panelSprite:UITheme.RoundedSprite;
-        image.type=Image.Type.Sliced; image.color=color; image.raycastTarget=false;
-        var rect=image.rectTransform; rect.anchorMin=rect.anchorMax=rect.pivot=new Vector2(.5f,.5f);
-        rect.anchoredPosition=position;rect.sizeDelta=size;if(name=="FaceBackground")rect.SetAsFirstSibling();
-    }
-
-    private void PrepareReel(TextMeshProUGUI reel, Color glowColor)
-    {
-        if (reel == null) return;
-
-        RectTransform rect = reel.rectTransform;
-        rect.sizeDelta = new Vector2(124f, 228f);
-        reel.fontSize = 46f;
-        reel.alignment = TextAlignmentOptions.Center;
-        reel.textWrappingMode = TextWrappingModes.NoWrap;
-        reel.raycastTarget = false;
-        reel.lineSpacing = -28f;
-
-        ReelImages images = new ReelImages
-        {
-            previous = GetOrCreateSymbolImage(reel.transform, "PreviousEmoji", new Vector2(0f, 77f), 43f, 0.24f),
-            current = GetOrCreateSymbolImage(reel.transform, "CurrentEmoji", Vector2.zero, 91f, 1f),
-            next = GetOrCreateSymbolImage(reel.transform, "NextEmoji", new Vector2(0f, -77f), 43f, 0.24f)
-        };
-        reelImages[reel] = images;
-        reel.enabled = !HasSpriteSet();
-
-        Transform parent = reel.transform.parent;
-        string glowName = reel.gameObject.name + "Glow";
-        Transform existing = parent.Find(glowName);
-        GameObject glowObject = existing != null ? existing.gameObject : new GameObject(glowName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        RectTransform glow = glowObject.GetComponent<RectTransform>();
-        glow.SetParent(parent, false);
-        glow.anchorMin = rect.anchorMin;
-        glow.anchorMax = rect.anchorMax;
-        glow.pivot = rect.pivot;
-        glow.anchoredPosition = rect.anchoredPosition;
-        glow.sizeDelta = rect.sizeDelta + new Vector2(16f, 8f);
-        glow.SetAsLastSibling();
-        reel.transform.SetAsLastSibling();
-        var panel = glowObject.GetComponent<Image>(); panel.color = glowColor;
-        panel.sprite = panelSprite != null ? panelSprite : UITheme.RoundedSprite;
-        panel.type = Image.Type.Sliced; panel.raycastTarget = false;
-    }
-
-    private Image GetOrCreateSymbolImage(Transform parent, string objectName, Vector2 position, float size, float alpha)
-    {
-        Transform existing = parent.Find(objectName);
-        GameObject imageObject = existing != null
-            ? existing.gameObject
-            : new GameObject(objectName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-
-        RectTransform rect = imageObject.GetComponent<RectTransform>();
-        if (existing == null) rect.SetParent(parent, false);
-        rect.anchorMin = new Vector2(0.5f, 0.5f);
-        rect.anchorMax = new Vector2(0.5f, 0.5f);
-        rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.anchoredPosition = position;
-        rect.sizeDelta = new Vector2(size, size);
-
-        Image image = imageObject.GetComponent<Image>();
-        image.preserveAspect = true;
-        image.raycastTarget = false;
-        image.color = new Color(1f, 1f, 1f, alpha);
-        return image;
-    }
-
-    private bool HasSpriteSet()
-    {
-        if (symbolSprites == null || symbolSprites.Length < slotSymbols.Length) return false;
-
-        for (int i = 0; i < slotSymbols.Length; i++)
-        {
-            if (symbolSprites[i] == null) return false;
-        }
-
-        return true;
     }
 
     private void OnFeverChanged(int oldValue, int newValue)
@@ -767,6 +477,7 @@ public class SlotMachine : NetworkBehaviour
 
     private void UpdateFeverUI()
     {
+        if (screen != null) screen.SetFever(feverSpinCount.Value > 0);
         if (feverText == null) return;
 
         if (feverSpinCount.Value > 0)

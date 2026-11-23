@@ -89,33 +89,9 @@ internal static class RoomiesPlayabilityPolish
         }
         var importer=(TextureImporter)AssetImporter.GetAtPath(spritePath);importer.textureType=TextureImporterType.Sprite;importer.spriteImportMode=SpriteImportMode.Single;
         importer.spriteBorder=new Vector4(17,17,17,17);importer.mipmapEnabled=false;importer.textureCompression=TextureImporterCompression.Uncompressed;importer.SaveAndReimport();
-        var prefab=PrefabUtility.LoadPrefabContents("Assets/_Prefabs/Slot.prefab");
-        try
-        {
-            var slot=prefab.GetComponentInChildren<SlotMachine>();
-            var model=slot.GetComponentsInChildren<Transform>(true).First(t=>t.name=="Visual"||t.name=="Model");
-            var collider=model.GetComponent<Collider>();
-            if(collider==null)throw new InvalidOperationException("Slot cabinet collider missing.");
-            if(collider is BoxCollider cabinet){cabinet.size=Vector3.one;cabinet.center=Vector3.zero;}
-            Physics.SyncTransforms();
-            var so=new SerializedObject(slot);so.FindProperty("interactionCollider").objectReferenceValue=collider;
-            so.FindProperty("panelSprite").objectReferenceValue=AssetDatabase.LoadAssetAtPath<Sprite>(spritePath);
-            string[] symbols={"cherry","star","clover","gem","seven"};
-            var array=so.FindProperty("symbolSprites");array.arraySize=5;
-            for(int i=0;i<5;i++)array.GetArrayElementAtIndex(i).objectReferenceValue=AssetDatabase.LoadAssetAtPath<Sprite>($"Assets/_Art/UI/SlotEmoji/{symbols[i]}.png");
-            so.ApplyModifiedPropertiesWithoutUndo();
-            var canvas=slot.GetComponentInChildren<Canvas>();var rect=(RectTransform)canvas.transform;
-            Vector3 normal=model.TransformDirection(Vector3.right).normalized;
-            float depth=Vector3.Dot(collider.bounds.extents,new Vector3(Mathf.Abs(normal.x),Mathf.Abs(normal.y),Mathf.Abs(normal.z)));
-            rect.SetParent(slot.transform,false);
-            rect.position=collider.bounds.center+normal*(depth+.055f)+V(0,.13f,0);
-            rect.rotation=Quaternion.LookRotation(-normal,Vector3.up);
-            Vector3 scale=slot.transform.lossyScale;rect.localScale=V(.00155f/scale.x,.00155f/scale.y,.00155f/scale.z);
-            rect.sizeDelta=new Vector2(520,760);canvas.renderMode=RenderMode.WorldSpace;
-            slot.RefreshPresentation();
-            PrefabUtility.SaveAsPrefabAsset(prefab,"Assets/_Prefabs/Slot.prefab");
-        }
-        finally{PrefabUtility.UnloadPrefabContents(prefab);}
+        // スロットのプレハブは、いまは Roomies/Casino/2 Build Gimmick Prefabs が組み立てる（RoomiesCasinoBuilder.Tables.cs・SlotScreen.cs）。
+        // ここでは、角丸の板の絵を用意するだけにする
+        Debug.Log("[Polish] Slot.prefab is built by Roomies/Casino/2 Build Gimmick Prefabs");
     }
     static Transform NewGroup(Transform parent,string name){var go=new GameObject(name);go.transform.SetParent(parent,false);return go.transform;}
     static void Box(Transform parent,string name,Vector3 position,Vector3 size,string material,bool solid=false)

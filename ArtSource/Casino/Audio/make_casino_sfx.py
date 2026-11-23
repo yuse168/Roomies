@@ -239,6 +239,142 @@ def dice():
     return y
 
 
+# ---------------------------------------------------------------- スロット（演出に合わせて強弱を付ける）
+def note(freq, seconds, tau, kind="bell", gain=1.0):
+    """1 音。bell = やわらかい鐘、brass = 明るく太い音（ファンファーレ用）。"""
+    x = t(seconds)
+    if kind == "brass":
+        y = sum(np.sin(2 * np.pi * freq * h * x) / h for h in range(1, 9))
+        y = lowpass(y, 2600) * (1 - np.exp(-x / 0.012)) * np.exp(-x / tau)
+    else:
+        y = tone(freq, seconds, tau, [(1, 1.0), (2, 0.3), (3, 0.12), (4.2, 0.08)])
+        y[: int(SR * 0.004)] *= np.linspace(0, 1, int(SR * 0.004))
+    return y * gain
+
+
+def melody(notes, kind="bell", tail=0.5):
+    """notes = [(時刻, 周波数, 長さ, 音量)]。和音は同じ時刻に並べる。"""
+    end = max(at + length for at, _, length, _ in notes) + tail
+    y = np.zeros(int(SR * end))
+    for at, freq, length, gain in notes:
+        place(y, note(freq, length + tail, length * 0.9 if kind == "brass" else length * 0.6, kind), at, gain)
+    return y
+
+
+C5, D5, E5, F5, G5, A5, B5, C6, D6, E6, G6 = 523.25, 587.33, 659.25, 698.46, 783.99, 880.0, 987.77, 1046.5, 1174.66, 1318.51, 1567.98
+
+
+def slot_start():
+    """レバーを引く：ガチャン＋リールが回りだす低いうなり。"""
+    y = np.zeros(int(SR * 0.45))
+    place(y, mix(click(240, 0.09, 0.02, 0.4), tone(110, 0.12, 0.03)), 0, 1.0)
+    place(y, click(900, 0.05, 0.008, 0.6), 0.07, 0.6)
+    x = t(0.38)
+    whirr = lowpass(noise(0.38), 300 + 1800 * x / 0.38) * (x / 0.38) * 0.5
+    place(y, whirr * env(len(x), 0.02, 0.08), 0.06, 0.8)
+    return y
+
+
+def slot_reel():
+    """回っている間（0.9 秒ごとに鳴らし直す）：カラカラという細かい音。"""
+    sec = 1.0
+    y = lowpass(noise(sec), 1200) * 0.25
+    at = 0.0
+    while at < sec - 0.03:
+        place(y, click(rng.uniform(1400, 1900), 0.03, 0.004, 0.5), at, rng.uniform(0.25, 0.4))
+        at += 0.045
+    return y * env(len(y), 0.03, 0.12)
+
+
+def slot_stop(pitch):
+    """リールが止まる：ドン（左・中・右で少しずつ高くする）。"""
+    y = mix(tone(150 * pitch, 0.18, 0.04), tone(300 * pitch, 0.1, 0.02) * 0.5, click(700 * pitch, 0.05, 0.008, 0.4) * 0.8)
+    return y
+
+
+def slot_reach():
+    """リーチ：じわじわ上がる音＋速くなる鼓動（約 1.8 秒）。"""
+    sec = 1.8
+    x = t(sec)
+    k = x / sec
+    freq = 220 * 2 ** (k * 1.6)
+    rise = np.sin(2 * np.pi * np.cumsum(freq) / SR) + 0.5 * np.sin(2 * np.pi * np.cumsum(freq * 1.5) / SR)
+    rise *= (0.25 + 0.75 * k) * (0.6 + 0.4 * np.sin(2 * np.pi * (8 + 14 * k) * x))
+    y = lowpass(rise, 3000) * 0.6
+    at, gap = 0.0, 0.3
+    while at < sec - 0.1:
+        place(y, tone(70, 0.16, 0.05), at, 0.9)
+        place(y, tone(60, 0.14, 0.04), at + gap * 0.3, 0.6)
+        gap = max(0.12, gap * 0.86)
+        at += gap
+    return y * env(len(x), 0.05, 0.06)
+
+
+def slot_reach_miss():
+    """リーチが外れる：下がっていく「あぁ…」。"""
+    sec = 0.7
+    x = t(sec)
+    freq = 330 * 2 ** (-x / sec * 1.3)
+    y = np.sin(2 * np.pi * np.cumsum(freq) / SR) + 0.4 * np.sin(2 * np.pi * np.cumsum(freq * 0.5) / SR)
+    return lowpass(y, 1500) * np.exp(-x / 0.3)
+
+
+def slot_lose():
+    """外れ：小さく短い音（毎回鳴るので控えめに）。"""
+    return lowpass(tone(196, 0.2, 0.06) + tone(147, 0.2, 0.08) * 0.6, 900)
+
+
+def slot_win_small():
+    return melody([(0, E5, 0.12, 1), (0.09, G5, 0.2, 1)])
+
+
+def slot_win_mid():
+    return melody([(0, C5, 0.1, 1), (0.08, E5, 0.1, 1), (0.16, G5, 0.1, 1), (0.24, C6, 0.3, 1), (0.24, E5, 0.3, 0.5)])
+
+
+def slot_win_big():
+    """大当たり：ファンファーレ（約 1.8 秒）。"""
+    n = [(0, C5, 0.12, 1), (0.12, C5, 0.12, 1), (0.24, C5, 0.12, 1), (0.36, E5, 0.24, 1), (0.36, G5, 0.24, 0.6),
+         (0.62, D5, 0.14, 1), (0.78, E5, 0.14, 1), (0.94, G5, 0.7, 1), (0.94, C6, 0.7, 0.8), (0.94, E5, 0.7, 0.6)]
+    y = melody(n, "brass", 0.3)
+    place(y, melody([(0.94 + i * 0.06, f, 0.1, 0.5) for i, f in enumerate([C6, E6, G6, E6, C6, E6, G6])]), 0, 0.6)
+    return y
+
+
+def slot_jackpot():
+    """7 ぞろい：長いファンファーレ＋サイレンのように上下する音（約 3.2 秒）。"""
+    n = [(0, G5, 0.1, 1), (0.1, G5, 0.1, 1), (0.2, G5, 0.1, 1), (0.3, C6, 0.3, 1), (0.3, E5, 0.3, 0.6),
+         (0.66, G5, 0.1, 1), (0.76, C6, 0.1, 1), (0.86, E6, 0.4, 1), (0.86, G5, 0.4, 0.6),
+         (1.32, D6, 0.12, 1), (1.46, E6, 0.12, 1), (1.6, G6, 1.2, 1), (1.6, C6, 1.2, 0.8), (1.6, E6, 1.2, 0.7), (1.6, G5, 1.2, 0.6)]
+    y = melody(n, "brass", 0.4)
+    x = t(len(y) / SR)[: len(y)]
+    siren = np.sin(2 * np.pi * np.cumsum(900 + 300 * np.sin(2 * np.pi * 3.2 * x)) / SR) * 0.18 * env(len(x), 0.2, 0.6)
+    y += siren
+    place(y, melody([(1.6 + i * 0.07, f, 0.1, 0.5) for i, f in enumerate([C6, E6, G6, E6] * 4)]), 0, 0.6)
+    return y
+
+
+def slot_coin():
+    """コイン 1 枚（噴き出すたびに鳴らす）。"""
+    f = 3600
+    return mix(tone(f, 0.18, 0.045, [(1, 1.0), (1.48, 0.6), (2.2, 0.3)]), click(f, 0.03, 0.004, 0.6) * 0.5)
+
+
+def slot_tick():
+    """数字が回る音（1 目盛り）。"""
+    return click(2400, 0.03, 0.005, 0.3)
+
+
+def chips_slide():
+    """チップの山が台の上を滑ってくる：こすれる音＋最後にカチャカチャ。"""
+    sec = 0.5
+    x = t(sec)
+    y = highpass(lowpass(noise(sec), 3500), 600) * np.sin(np.pi * np.clip(x / 0.35, 0, 1)) * 0.5
+    for at in (0.3, 0.34, 0.39, 0.43):
+        place(y, click(rng.uniform(2800, 3600), 0.05, 0.007, 0.35), at, rng.uniform(0.6, 1.0))
+    return y
+
+
 if __name__ == "__main__":
     save("elevator_open", elevator_door(True), 0.7)
     save("elevator_close", elevator_door(False), 0.7)
@@ -252,3 +388,18 @@ if __name__ == "__main__":
     save("lose", lose(), 0.8)
     save("cash", cash(), 0.8)
     save("dice", dice(), 0.85)
+    save("slot_start", slot_start(), 0.75)
+    save("slot_reel", slot_reel(), 0.45)
+    save("slot_stopa", slot_stop(1.0), 0.8)
+    save("slot_stopb", slot_stop(1.12), 0.8)
+    save("slot_stopc", slot_stop(1.26), 0.85)
+    save("slot_reach", slot_reach(), 0.8)
+    save("slot_reach_miss", slot_reach_miss(), 0.6)
+    save("slot_lose", slot_lose(), 0.4)
+    save("slot_win_small", slot_win_small(), 0.6)
+    save("slot_win_mid", slot_win_mid(), 0.75)
+    save("slot_win_big", slot_win_big(), 0.9)
+    save("slot_jackpot", slot_jackpot(), 0.95)
+    save("slot_coin", slot_coin(), 0.6)
+    save("slot_tick", slot_tick(), 0.5)
+    save("chips_slide", chips_slide(), 0.7)
