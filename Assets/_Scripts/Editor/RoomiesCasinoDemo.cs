@@ -260,6 +260,36 @@ internal static class RoomiesCasinoDemo
         bool asyncBefore = ShaderUtil.allowAsyncCompilation;
         ShaderUtil.allowAsyncCompilation = false;
 
+        // ---- 外観の飾りが、近くから見ても消えないこと（まとめた部品の「描く範囲」がおかしいと、近いときに画面の外と判定されて消える）
+        {
+            var facade = Object.FindObjectsByType<MeshRenderer>()
+                .Where(r => r.name.StartsWith("Combined - casino_atlas") && r.transform.parent != null && r.transform.parent.parent != null && r.transform.parent.parent.name == "Town casino")
+                .ToArray();
+            Expect(facade.Length >= 4, $"facade: combined decoration renderers found in the scene ({facade.Length})");
+            var views = new (string name, Vector3 eye, Vector3 look)[]
+            {
+                ("facade_near_1_front", new Vector3(7.8f, 1.62f, -2.5f), new Vector3(7.8f, 6f, -8f)),
+                ("facade_near_2_under_entrance", new Vector3(7.8f, 1.62f, -5.6f), new Vector3(7.8f, 6f, -7.4f)),
+                ("facade_near_3_left_sidewalk", new Vector3(-2.5f, 1.62f, -5.6f), new Vector3(4f, 6f, -8f)),
+                ("facade_near_4_right_sidewalk", new Vector3(18f, 1.62f, -5.6f), new Vector3(11f, 7f, -8f)),
+                ("facade_near_5_entrance_level", new Vector3(5.2f, 1.62f, -5.2f), new Vector3(9.5f, 2.6f, -7.6f)),
+            };
+            foreach (var v in views)
+            {
+                Teleport(cc, new Vector3(v.eye.x, .05f, v.eye.z));
+                yield return new WaitForSeconds(.4f);
+                Camera fcam = NewCamera(runner.transform, v.eye, v.look, 70);
+                yield return new WaitForEndOfFrame();
+                Shoot(fcam, "npc", v.name);
+                var planes = GeometryUtility.CalculateFrustumPlanes(fcam);
+                // 画面に入るはずの物（範囲が視界と重なる物）のうち、実際に描かれた物の数
+                var inView = facade.Where(r => GeometryUtility.TestPlanesAABB(planes, r.bounds)).ToArray();
+                int drawn = inView.Count(r => r.isVisible && r.enabled && r.gameObject.activeInHierarchy);
+                Expect(inView.Length >= 3 && drawn == inView.Length, $"facade: decorations are drawn from close up - {v.name} (in view {inView.Length}, drawn {drawn})");
+                Object.Destroy(fcam.gameObject);
+            }
+        }
+
         // ---- 入口の右の配達の箱の値札：遊んでいる人の目からは、正しい向きで読める（値札は、見ている人のほうを向く）
         var box = Object.FindObjectsByType<DeliveryItem>().OrderBy(d => (d.transform.position - new Vector3(13f, 0, -7f)).sqrMagnitude).FirstOrDefault();
         if (box != null)
@@ -336,7 +366,11 @@ internal static class RoomiesCasinoDemo
             // 近づくと、立ち止まってこちらを向く
             Vector3 p0 = officer.transform.position;
             Teleport(cc, new Vector3(p0.x, p0.y, p0.z) + officer.transform.right * 2.2f - Vector3.up * p0.y + Vector3.up * .05f);
-            yield return new WaitForSeconds(1.2f);
+            // 声かけは 0.25 秒おきに探すので、立ち止まる（Greet になる）まで待ってから、動いていないことを測る
+            // （決まった秒数だけ待って測ると、立ち止まる前に歩いた分が混ざって、ときどき NG になっていた）
+            float waited = 0f;
+            while (State() != "Greet" && waited < 3f) { yield return null; waited += Time.deltaTime; }
+            yield return new WaitForSeconds(.2f);
             Vector3 stop0 = officer.transform.position;
             yield return new WaitForSeconds(1.0f);
             float moved = (officer.transform.position - stop0).magnitude;

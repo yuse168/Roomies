@@ -75,6 +75,36 @@ internal static partial class RoomiesCasinoBuilder
         sb.AppendLine($"{"building total",-28} renderers {totalRenderers,4}  tris {totalTris,7}  materials {allMats.Count,2}");
         sb.AppendLine("materials: " + string.Join(", ", allMats.Select(m => m.name).OrderBy(n => n)));
         sb.AppendLine();
+        // 描く範囲（bounds）の確認：メッシュに書いてある範囲が、頂点から計算し直した範囲と同じか。
+        // ずれていると、カメラが近いときに「画面の外」と判定されて、描かれなくなる。距離で消す仕組み（LODGroup）が付いていないかも数える
+        int boundsBad = 0, boundsChecked = 0, lodGroups = 0, shadowTris = 0;
+        foreach (string g in new[] { RoomiesTownRebuild.CasinoGroup, RoomiesTownRebuild.CasinoGroup2F, RoomiesTownRebuild.CasinoGroup3F, RoomiesTownRebuild.CasinoWindows2F, RoomiesTownRebuild.CasinoWindows3F })
+        {
+            var t = town.transform.Find(g);
+            if (t == null) continue;
+            lodGroups += t.GetComponentsInChildren<LODGroup>(true).Length;
+            foreach (var mf in t.GetComponentsInChildren<MeshFilter>(true))
+            {
+                var r = mf.GetComponent<MeshRenderer>();
+                if (r == null || mf.sharedMesh == null || mf.GetComponent<TMPro.TMP_Text>() != null) continue;
+                var verts = mf.sharedMesh.vertices;
+                if (verts.Length == 0) continue;
+                var real = new Bounds(verts[0], Vector3.zero);
+                foreach (var v in verts) real.Encapsulate(v);
+                var stored = mf.sharedMesh.bounds;
+                boundsChecked++;
+                bool bad = (stored.min - real.min).magnitude > .001f || (stored.max - real.max).magnitude > .001f;
+                if (bad) { boundsBad++; sb.AppendLine($"BOUNDS NG  {g}/{mf.name}: stored {stored.min}..{stored.max}, real {real.min}..{real.max}"); }
+                if (r.shadowCastingMode != UnityEngine.Rendering.ShadowCastingMode.Off) shadowTris += mf.sharedMesh.triangles.Length / 3;
+                if (mf.transform.parent != null && mf.transform.parent.name == "Combined")
+                {
+                    var wb = r.bounds;
+                    sb.AppendLine($"  {g}/{mf.name,-44} tris {mf.sharedMesh.triangles.Length / 3,6}  shadow {(r.shadowCastingMode != UnityEngine.Rendering.ShadowCastingMode.Off ? "on " : "off")}  x {wb.min.x:F1}..{wb.max.x:F1}  y {wb.min.y:F1}..{wb.max.y:F1}  z {wb.min.z:F1}..{wb.max.z:F1}");
+                }
+            }
+        }
+        sb.AppendLine($"bounds: checked {boundsChecked}, wrong {boundsBad}.  LODGroups in the building: {lodGroups}.  shadow-casting tris: {shadowTris}");
+        sb.AppendLine();
         foreach (string path in new[] { SlotBasePath, BlackjackBasePath, RoulettePath, ElevatorPath, ClerkPath })
         {
             var p = AssetDatabase.LoadAssetAtPath<GameObject>(path);
