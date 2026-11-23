@@ -165,7 +165,12 @@
   新しいゲームは `CasinoGame` を継ぐ（`PlayerInteract` は、見ている物の親にこの型があれば、案内・E・R・ホイールを渡すだけ）。
   鍵は `CasinoAccess`（GameRoom に 1 つ。値段は `GameBalance`、買った数と挿した数はセーブに残る）。
   建物の箱のうち、模様のいらない物（腰の板・足元の石・壁の布・光る板）は `Swatch("色")` でアトラスの色見本を使う（町の素材を増やさない。建物のマテリアルは 10 個）。
-  ブラックジャックの画面は、プレハブの `Anchor_Display`（`BlackjackTable.EditorBuildUI()` が置く。実行時には作らない）。
+  ブラックジャック：カード・チップ・点数の札は台の上の実物（`BlackjackTableView` が動かす。`Pivot_Card_〇`・`Pivot_Chips_〇`・`Anchor_Score_〇`。置くのは `RoomiesCasinoBuilder.BlackjackCards.cs`）。
+  カードの並びは `BlackjackTable` が NetworkVariable で全員に配る。上のモニター `Anchor_Display` は賭け金と結果だけの補助（`BlackjackTable.EditorBuildUI()` が置く。実行時には作らない）。
+  スロット：画面の部品は `Anchor_Screen` の Canvas の中、筐体のランプは `Anchor_Lamps`（置くのは `RoomiesCasinoBuilder.SlotScreen.cs`）。演出は `SlotScreen`（見た目と音だけ）、
+  当たり外れと配当は `SlotMachine`。演出の長さ（リーチ・当たり）は `SlotMachine`・`SlotScreen` のインスペクターにあり、サーバーも同じ長さだけ次の回を待つ。
+  スロットの画面の絵とトランプの絵は `ArtSource/Casino/Screen/make_casino_screen_art.py` が作る（`codex/` に絵を置くと差し替わる。説明は同じフォルダの README.md）。
+  動きの確認は Play Mode で `Roomies/Casino/Demo/Capture Slot Frames`・`Capture Blackjack Frames`（コマ送りの写真を `Temp/RoomiesCasino/frames/` に書く）。
   音は `Assets/Resources/Audio/casino/`（計算で作る。`ArtSource/Casino/Audio/make_casino_sfx.py`）。
   `2 Build Gimmick Prefabs` を実行したら、続けて `3 Place In Open Scene` も実行する（階ごとの出し入れの参照をつなぎ直すため）。
   通し確認は Play Mode で `Town/Walk - Enter GameRoom As Host` → `Roomies/Casino/Check (Play Mode)`。

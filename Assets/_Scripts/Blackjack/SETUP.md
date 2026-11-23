@@ -28,4 +28,5 @@
 - `BoxCollider`
 
 見た目は `Visual/Table`（台 1 つのメッシュ。`RoomiesCasinoArt.BlackjackTable()`）。台の当たり判定はルートの `BoxCollider` 1 つ。
-画面は、プレハブの `Anchor_Display`（ワールド空間の Canvas。カードの文字・結果の帯・結果の演出）。実行時には作らない。`BlackjackTable` のインスペクターの「画面」に割り当ててある。置き直すときは `Roomies/Casino/2 Build Gimmick Prefabs`（`BlackjackTable.EditorBuildUI()`）。位置や大きさは、プレハブの中で `Anchor_Display` を直接直してよい（置き直すと、インスペクターの displayLocalPosition・displaySize・displayScale の値に戻る）。
+カード・チップ・点数の札は、台の上の実物（ルートの直下の `Pivot_Card_P1〜8`・`Pivot_Card_D1〜8`・`Pivot_Chips_Bet / Double / Payout`・`Anchor_Score_Player / Dealer` と、位置の `Anchor_Shoe`・`Anchor_Discard`・`Anchor_PlayerHand`・`Anchor_DealerHand`・`Anchor_Bet`・`Anchor_Payout`・`Anchor_Tray`）。`BlackjackTableView` が動かす。実行時には作らない。
+上のモニターは `Anchor_Display`（賭け金と結果だけの補助）。どちらも `Roomies/Casino/2 Build Gimmick Prefabs` が置く（そのあと `3 Place In Open Scene` も実行する）。位置は、プレハブの中で直接直してよい（置き直すと配置ツールの値に戻る）。
