@@ -157,7 +157,7 @@ public class PlayerInteract : NetworkBehaviour
             {
                 DropObject();
             }
-            else
+            else if (!TryDoubleBlackjack())
             {
                 TryPickup();
             }
@@ -411,6 +411,21 @@ public class PlayerInteract : NetworkBehaviour
         if (blackjack == null || !blackjack.CanLocalPlayerStand(OwnerClientId)) return;
 
         blackjack.Stand();
+    }
+
+    /// <summary>ブラックジャックの台を見ていて、ダブルダウンできるときだけ、持つキーで賭け金を倍にする。</summary>
+    private bool TryDoubleBlackjack()
+    {
+        if (cameraTransform == null) return false;
+
+        Ray ray = new Ray(cameraTransform.position, cameraTransform.forward);
+        if (!Physics.Raycast(ray, out RaycastHit hit, interactDistance)) return false;
+
+        BlackjackTable blackjack = hit.collider.GetComponentInParent<BlackjackTable>();
+        if (blackjack == null || !blackjack.CanLocalPlayerDouble(OwnerClientId)) return false;
+
+        blackjack.DoubleDown();
+        return true;
     }
 
     // A carried ore sits in front of the camera. Do not let it occlude the sell/lift button.

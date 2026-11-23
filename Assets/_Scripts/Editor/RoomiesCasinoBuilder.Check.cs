@@ -208,7 +208,140 @@ internal static partial class RoomiesCasinoBuilder
         Expect(saved != null && saved.casinoKeysBought == 2 && saved.casinoKeysUsed == 2,
             $"save file has keys bought {(saved != null ? saved.casinoKeysBought : -1)}, used {(saved != null ? saved.casinoKeysUsed : -1)}");
 
+        yield return CheckRates(cc, money, vis);
+
         Finish(cc, home, runner);
+    }
+
+    // ================================================================ 階ごとのレート（段階 4）
+    static Vector3 SlotFront(SlotMachine slot, float floorY, out Vector3 screen)
+    {
+        var canvas = slot.GetComponentInChildren<Canvas>(true);
+        var corners = new Vector3[4]; ((RectTransform)canvas.transform).GetWorldCorners(corners);
+        screen = (corners[0] + corners[2]) / 2;
+        var faceDir = Vector3.ProjectOnPlane(-canvas.transform.forward, Vector3.up).normalized;
+        Vector3 stand = screen + faceDir * 1.1f; stand.y = floorY;
+        return stand;
+    }
+
+    static IEnumerator WaitIdle(BlackjackTable bj)
+    {
+        float t = 0; while (!bj.IsIdle && t < 10f) { yield return new WaitForSeconds(.1f); t += .1f; }
+    }
+
+    static IEnumerator CheckRates(CharacterController cc, SharedMoneyManager money, CasinoFloorVisibility vis)
+    {
+        var earning = cc.GetComponentInParent<PlayerEarning>();
+        ulong me = cc.GetComponentInParent<Unity.Netcode.NetworkObject>().OwnerClientId;
+        money.TryAdd(30000, SharedMoneyReason.DebugGrant, "casino check");
+        float f1 = RoomiesTownRebuild.KFloorY(1), f2 = RoomiesTownRebuild.KFloorY(2), f3 = RoomiesTownRebuild.KFloorY(3);
+        var slots = Object.FindObjectsByType<SlotMachine>().OrderBy(s => s.GetComponentInChildren<Canvas>(true).transform.position.y).ToArray();
+        var slot1 = slots.First();
+        var slot2 = slots.Last();
+        Expect(slots.Length == 5 && slot2.GetComponentInChildren<Canvas>(true).transform.position.y > f2, $"slots in scene {slots.Length} (3 on 1F, 2 on 2F)");
+
+        // ---- 1 階のスロット：フィーバーの無料の回は、始まった回の賭け金（10）で配当が決まる。途中で 100 に上げても増えない
+        {
+            Teleport(cc, SlotFront(slot1, f1, out _));
+            yield return null;
+            var so = new SerializedObject(slot1);
+            int oldMiss = so.FindProperty("missPercent").intValue;
+            var symbols = so.FindProperty("slotSymbols");
+            var oldWeights = Enumerable.Range(0, symbols.arraySize).Select(i => symbols.GetArrayElementAtIndex(i).FindPropertyRelative("weight").intValue).ToArray();
+            so.FindProperty("missPercent").intValue = 0;                       // 必ず当たる
+            for (int i = 0; i < symbols.arraySize; i++) symbols.GetArrayElementAtIndex(i).FindPropertyRelative("weight").intValue = i == 0 ? 100 : 0;   // いつもチェリー（10）
+            so.ApplyModifiedPropertiesWithoutUndo();
+            var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+            typeof(SlotMachine).GetField("feverBetCost", flags).SetValue(slot1, 10);
+            ((Unity.Netcode.NetworkVariable<int>)typeof(SlotMachine).GetField("feverSpinCount", flags).GetValue(slot1)).Value = 1;
+            while (slot1.CurrentBetLabel != "100 R") slot1.ChangeBet(1);
+            int before = money.CurrentMoney;
+            slot1.Interact(earning);
+            yield return new WaitForSeconds(3.0f);
+            Expect(money.CurrentMoney == before + 20, $"fever free spin after switching the bet to 100: money {before} -> {money.CurrentMoney} (+20 expected: cherry 10 x fever 2 at the 10 bet; +200 would mean the bet switch still pays)");
+            so.FindProperty("missPercent").intValue = oldMiss;
+            for (int i = 0; i < symbols.arraySize; i++) symbols.GetArrayElementAtIndex(i).FindPropertyRelative("weight").intValue = oldWeights[i];
+            so.ApplyModifiedPropertiesWithoutUndo();
+            while (slot1.CurrentBetLabel != "10 R") slot1.ChangeBet(1);
+        }
+
+        // ---- 2 階のスロット：賭け金 100 から
+        {
+            Vector3 stand = SlotFront(slot2, f2, out Vector3 screen);
+            Teleport(cc, stand);
+            yield return new WaitForSeconds(.4f);
+            Vector3 eye = cc.transform.position + Vector3.up * .6f;
+            bool hit = Physics.Raycast(eye, (screen - eye).normalized, out var h, 3f) && h.collider.GetComponentInParent<SlotMachine>() == slot2;
+            Expect(hit, "2F slot can be looked at from its front");
+            Expect(slot2.CurrentBetLabel == "100 R", $"2F slot lowest bet {slot2.CurrentBetLabel}");
+            Expect(Mathf.Abs(slot2.ExpectedReturn() - .978f) < .01f, $"2F slot expected return {slot2.ExpectedReturn() * 100f:F1}% (1F {slot1.ExpectedReturn() * 100f:F1}%)");
+            var cabinet = slot2.transform.Find("Visual/Cabinet");
+            Expect(cabinet != null && cabinet.gameObject.activeInHierarchy, "on 2F: the 2F slot cabinet is shown");
+            int before = money.CurrentMoney;
+            slot2.Interact(earning);
+            yield return new WaitForSeconds(.3f);
+            Expect(money.CurrentMoney == before - 100, $"2F slot spin costs 100: money {before} -> {money.CurrentMoney}");
+            yield return new WaitForSeconds(3.0f);
+        }
+
+        // ---- ブラックジャック：2 階はダブルダウンあり、3 階はさらにブラックジャックが 3 倍戻し
+        var tables = Object.FindObjectsByType<BlackjackTable>().OrderBy(b => b.transform.position.y).ToArray();
+        Expect(tables.Length == 3, $"blackjack tables in scene {tables.Length}");
+        if (tables.Length == 3)
+        {
+            var bj1 = tables[0]; var bj2 = tables[1]; var bj3 = tables[2];
+            Expect(!bj1.AllowsDoubleDown && bj1.BetAmounts[0] == 10, "1F table: bets from 10, no double down");
+            Expect(bj2.AllowsDoubleDown && bj2.BetAmounts[0] == 100 && Mathf.Approximately(bj2.BlackjackReturnMultiplier, 2.5f), "2F table: bets from 100, double down, blackjack returns 2.5x");
+            Expect(bj3.AllowsDoubleDown && bj3.BetAmounts[0] == 500 && Mathf.Approximately(bj3.BlackjackReturnMultiplier, 3f), "3F table: bets from 500, double down, blackjack returns 3x");
+
+            // 2 階：ダブルダウンできる回が来るまで（配られてすぐ終わる回もある）
+            Vector3 stand2 = bj2.transform.position + bj2.transform.forward * 1.5f; stand2.y = f2;
+            Teleport(cc, stand2);
+            yield return null;
+            Vector3 eye = cc.transform.position + Vector3.up * .6f;
+            Vector3 aim = bj2.transform.position + Vector3.up * .95f;
+            Expect(Physics.Raycast(eye, (aim - eye).normalized, out var h2, 3f) && h2.collider.GetComponentInParent<BlackjackTable>() == bj2, "2F blackjack table can be looked at");
+            bool doubled = false;
+            for (int round = 0; round < 10 && !doubled; round++)
+            {
+                yield return WaitIdle(bj2);
+                int start = money.CurrentMoney;
+                bj2.Interact(earning);
+                yield return new WaitForSeconds(.8f);
+                if (!bj2.CanLocalPlayerDouble(me)) { if (bj2.CanLocalPlayerStand(me)) bj2.Stand(); continue; }
+                Expect(bj2.GetInteractionLabel(me).Contains("DOUBLE"), "2F table offers double down in its label");
+                Expect(money.CurrentMoney == start - 100, $"2F table first bet 100: money {start} -> {money.CurrentMoney}");
+                bj2.DoubleDown();
+                yield return new WaitForSeconds(.4f);
+                Expect(!bj2.CanLocalPlayerDouble(me) && !bj2.CanLocalPlayerStand(me), "after double down the hand is over (one card only)");
+                yield return WaitIdle(bj2);
+                int diff = money.CurrentMoney - start;
+                Expect(diff == -200 || diff == 0 || diff == 200, $"double down result is -200 / 0 / +200: {diff:+0;-0;0}");
+                doubled = true;
+            }
+            Expect(doubled, "played a double down on the 2F table");
+
+            // 3 階：500 から。1 回遊ぶ
+            yield return WaitIdle(bj2);
+            Vector3 stand3 = bj3.transform.position + bj3.transform.forward * 1.5f; stand3.y = f3;
+            Teleport(cc, stand3);
+            yield return new WaitForSeconds(.4f);
+            var art3 = bj3.transform.Find("Visual/Art");
+            Expect(art3 != null && art3.gameObject.activeInHierarchy, "on 3F: the 3F table is shown");
+            var cab2 = slot2.transform.Find("Visual/Cabinet");
+            Expect(cab2 != null && !cab2.gameObject.activeInHierarchy, "on 3F: the 2F slot cabinet is hidden");
+            int m3 = money.CurrentMoney;
+            bj3.Interact(earning);
+            yield return new WaitForSeconds(.8f);
+            if (bj3.CanLocalPlayerStand(me))
+            {
+                Expect(money.CurrentMoney == m3 - 500, $"3F table bet 500: money {m3} -> {money.CurrentMoney}");
+                bj3.Stand();
+            }
+            yield return WaitIdle(bj3);
+            int d3 = money.CurrentMoney - m3;
+            Expect(d3 == -500 || d3 == 0 || d3 == 500 || d3 == 1000, $"3F table result is -500 / 0 / +500 / +1000 (blackjack): {d3:+0;-0;0}");
+        }
     }
 
     /// <summary>

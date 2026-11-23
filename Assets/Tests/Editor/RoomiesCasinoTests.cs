@@ -43,6 +43,37 @@ public class RoomiesCasinoTests
     }
 
     [Test]
+    public void SecondFloorSlotReturnsMoreThanFirstFloorButLessThanTheBet()
+    {
+        float first = SlotReturn("Assets/_Prefabs/Slot.prefab");
+        float second = SlotReturn("Assets/_Prefabs/Casino/Slot_2F.prefab");
+        Assert.That(second, Is.GreaterThan(first), "上の階ほど戻る割合が高い");
+        Assert.That(second, Is.InRange(0.97f, 0.995f),
+            $"2 階のスロットの戻る割合は 98% 前後のはず（いま {second * 100f:F1}%）");
+    }
+
+    [Test]
+    public void UpperFloorBlackjackTablesHaveHigherStakesAndBetterRules()
+    {
+        Component first = LoadComponent("Assets/_Prefabs/BlackjackTable.prefab", "BlackjackTable");
+        Component second = LoadComponent("Assets/_Prefabs/Casino/BlackjackTable_2F.prefab", "BlackjackTable");
+        Component third = LoadComponent("Assets/_Prefabs/Casino/BlackjackTable_3F.prefab", "BlackjackTable");
+
+        Assert.That(Field<bool>(first, "allowDoubleDown"), Is.False, "1 階はダブルダウンなし");
+        Assert.That(Field<bool>(second, "allowDoubleDown"), Is.True);
+        Assert.That(Field<bool>(third, "allowDoubleDown"), Is.True);
+
+        Assert.That(Field<float>(first, "blackjackReturnMultiplier"), Is.EqualTo(2.5f).Within(0.001f));
+        Assert.That(Field<float>(second, "blackjackReturnMultiplier"), Is.EqualTo(2.5f).Within(0.001f));
+        Assert.That(Field<float>(third, "blackjackReturnMultiplier"), Is.EqualTo(3f).Within(0.001f),
+            "3 階はブラックジャックで賭け金の 3 倍が戻る");
+
+        Assert.That(Field<int[]>(first, "betAmounts"), Is.EqualTo(new[] { 10, 50, 100 }));
+        Assert.That(Field<int[]>(second, "betAmounts"), Is.EqualTo(new[] { 100, 500, 1000 }));
+        Assert.That(Field<int[]>(third, "betAmounts"), Is.EqualTo(new[] { 500, 2000, 5000 }));
+    }
+
+    [Test]
     public void CasinoKeyPricesComeFromGameBalance()
     {
         ScriptableObject balance = ScriptableObject.CreateInstance(GameType("GameBalance"));

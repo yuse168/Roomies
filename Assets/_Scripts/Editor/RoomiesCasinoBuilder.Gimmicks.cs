@@ -47,6 +47,7 @@ internal static partial class RoomiesCasinoBuilder
         if (!AssetDatabase.IsValidFolder(CasinoFolder)) AssetDatabase.CreateFolder("Assets/_Prefabs", "Casino");
         BuildElevatorPrefab();
         BuildClerkPrefab();
+        BuildRateVariants();
         AssetDatabase.SaveAssets();
         Debug.Log("[Casino] gimmick prefabs built");
     }

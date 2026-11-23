@@ -9,8 +9,9 @@ using UnityEngine.SceneManagement;
 /// カジノ（3 階建て）の配置ツール。実行時には動かない。何度実行しても同じ結果。
 ///
 ///  1 Build Building        … 建物を作り直す（Roomies/Art/Rebuild/3 Casino と同じ。町のプレハブの Town casino / 2F / 3F）
-///  2 Build Gimmick Prefabs … エレベーターと店の人のプレハブを作る（RoomiesCasinoBuilder.Gimmicks.cs）
-///  3 Place In Open Scene   … 開いている GameRoom に、鍵の持ち主（CasinoAccess）・エレベーター・店の人 2 人を置き、
+///  2 Build Gimmick Prefabs … エレベーターと店の人のプレハブ（RoomiesCasinoBuilder.Gimmicks.cs）と、
+///                            上の階の台の Variant（数値だけ違う。RoomiesCasinoBuilder.Rates.cs）を作る
+///  3 Place In Open Scene   … 開いている GameRoom に、鍵の持ち主（CasinoAccess）・エレベーター・店の人 2 人・上の階の台を置き、
 ///                            「Roomies_Casino」の階ごとの表示の切り替えをつなぐ
 ///  Check (Play Mode)       … 鍵を買う・挿す・上がる・降りるを通しで確かめる（RoomiesCasinoBuilder.Check.cs）
 ///
@@ -34,8 +35,9 @@ internal static partial class RoomiesCasinoBuilder
         if (env == null) { Debug.LogWarning("[Casino] " + EnvironmentRoot + " がない"); return; }
 
         Transform root = FindOrCreateRoot(scene, SceneRootName);
-        PlaceFloorVisibility(root, env.transform);
         PlaceGimmicks(scene);
+        var looks = PlaceUpperTables(scene);
+        PlaceFloorVisibility(root, env.transform, looks);
 
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
@@ -130,7 +132,7 @@ internal static partial class RoomiesCasinoBuilder
     }
 
     /// <summary>階ごとの表示の切り替え：2 階・3 階の中身（町のプレハブのグループ）を、その階にいるときだけ出す。</summary>
-    static void PlaceFloorVisibility(Transform root, Transform env)
+    static void PlaceFloorVisibility(Transform root, Transform env, System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<GameObject>> looks)
     {
         var vis = FindOrCreateChild(root, "FloorVisibility").gameObject;
         var comp = vis.GetComponent<CasinoFloorVisibility>();
@@ -142,9 +144,9 @@ internal static partial class RoomiesCasinoBuilder
         var floors = so.FindProperty("floors");
         floors.arraySize = 2;
         SetFloor(floors.GetArrayElementAtIndex(0), "2F", RoomiesTownRebuild.KF2 - .3f, RoomiesTownRebuild.KF3 - .3f,
-            env.Find(RoomiesTownRebuild.CasinoGroup2F), root.Find("Floor_2F"));
+            new[] { env.Find(RoomiesTownRebuild.CasinoGroup2F) }.Concat(looks[2].Select(g => g.transform)).ToArray());
         SetFloor(floors.GetArrayElementAtIndex(1), "3F", RoomiesTownRebuild.KF3 - .3f, RoomiesTownRebuild.KRoof + 3f,
-            env.Find(RoomiesTownRebuild.CasinoGroup3F), root.Find("Floor_3F"));
+            new[] { env.Find(RoomiesTownRebuild.CasinoGroup3F) }.Concat(looks[3].Select(g => g.transform)).ToArray());
         so.ApplyModifiedPropertiesWithoutUndo();
         EditorUtility.SetDirty(comp);
     }

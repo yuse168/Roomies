@@ -147,6 +147,16 @@
   （`RoomiesDeliveryTruckBuilder`）。トラックは `Assets/_Prefabs/Delivery/DeliveryTruck.prefab`。値段・締め切り・乗る距離は `GameBalance`。
   通し確認は Play Mode で `Town/Walk - Enter GameRoom As Host` → `Roomies/Delivery/Play Test`
 
+- カジノの 3 階建て（2026/11/23。見た目はまだ仮） … `Roomies/Casino/1 Build Building`（＝`Roomies/Art/Rebuild/3 Casino`。`RoomiesTownRebuild.CasinoTower.cs`）・
+  `2 Build Gimmick Prefabs`・`3 Place In Open Scene`（`RoomiesCasinoBuilder*.cs`）。
+  建物は町のプレハブの「Town casino」（外壁・床の板・屋根と 1 階の中）と「Town casino 2F」「Town casino 3F」（上の階の中。その階にいる人の画面でだけ出す：
+  GameRoom の「Roomies_Casino/FloorVisibility」の `CasinoFloorVisibility`）。床の上面は 1 階 0.118・2 階 4.9・3 階 8.8、笠木 13.4。
+  `Rebuild/3 Casino` は建物だけを作り直し、まとめ直すのもカジノの 3 グループだけ（台と筐体は `3c Casino Tables And Slots`）。
+  ギミックは `Assets/_Prefabs/Casino/`：`CasinoElevator`（箱は動かさず、扉を閉めている間に中の人を行き先の階へ移す）、`CasinoClerk`（鍵を売る店の人。Bob とは別のキャラ）、
+  上の階の台の Variant（`Slot_2F`・`BlackjackTable_2F`・`BlackjackTable_3F`。数値は `RoomiesCasinoBuilder.Rates.cs` の表）。
+  鍵は `CasinoAccess`（GameRoom に 1 つ。値段は `GameBalance`、買った数と挿した数はセーブに残る）。
+  通し確認は Play Mode で `Town/Walk - Enter GameRoom As Host` → `Roomies/Casino/Check (Play Mode)`
+
 組み立てのコードは各クラスの `EditorBuildUI()` に `#if UNITY_EDITOR` で残してある。
 実行中は動かないので、置き直したいときだけ配置ツールから呼ぶ。
 参照は `[SerializeField]` でシーンに保存される。

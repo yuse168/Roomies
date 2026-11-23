@@ -36,6 +36,10 @@ public class BlackjackTable : NetworkBehaviour
     [SerializeField, Min(1f)] private float normalWinReturnMultiplier = 2f;
     [SerializeField, Min(1f)] private float blackjackReturnMultiplier = 2.5f;
 
+    [Header("ダブルダウン（上の階の台）")]
+    [Tooltip("最初の 2 枚のときだけ、賭け金を倍にして 1 枚だけ引ける。1 階の台は切っておく")]
+    [SerializeField] private bool allowDoubleDown;
+
     [Header("Server検証")]
     [SerializeField, Min(0.1f)] private float serverInteractDistance = 4f;
 
@@ -87,6 +91,12 @@ public class BlackjackTable : NetworkBehaviour
 
     private readonly NetworkVariable<int> resultKind = new(
         (int)ResultKind.None,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server);
+
+    // いまダブルダウンできるか（最初の 2 枚で、まだ何もしていないとき。サーバーが決める）
+    private readonly NetworkVariable<bool> canDouble = new(
+        false,
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server);
 
@@ -172,7 +182,10 @@ public class BlackjackTable : NetworkBehaviour
             return "DEAL   <color=#FFA31F>WHEEL</color> BET " + CurrentBetLabel;
 
         if (currentPhase == RoundPhase.PlayerTurn && roundOwnerClientId.Value == clientId)
-            return "HIT   <color=#FFA31F>R</color> STAND";
+            return "HIT   <color=#FFA31F>R</color> STAND" +
+                   (canDouble.Value
+                       ? "   <color=#FFA31F>" + GameSettings.GetKeyLabel(GameAction.Carry) + "</color> DOUBLE"
+                       : "");
 
         return "ゲーム中…";
     }
@@ -214,6 +227,25 @@ public class BlackjackTable : NetworkBehaviour
         if (!IsSpawned) return;
         StandServerRpc();
     }
+
+    /// <summary>自分の番で、いまダブルダウンできるか（操作の案内とキーの受け付けに使う）。</summary>
+    public bool CanLocalPlayerDouble(ulong clientId)
+    {
+        return canDouble.Value &&
+               phase.Value == (int)RoundPhase.PlayerTurn &&
+               roundOwnerClientId.Value == clientId;
+    }
+
+    public void DoubleDown()
+    {
+        if (!IsSpawned) return;
+        DoubleServerRpc();
+    }
+
+    /// <summary>勝ったとき・ブラックジャックのときに戻る倍率（確認の道具用）。</summary>
+    public float BlackjackReturnMultiplier => blackjackReturnMultiplier;
+    public bool AllowsDoubleDown => allowDoubleDown;
+    public int[] BetAmounts => betAmounts;
 
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
     private void StartRoundServerRpc(
@@ -269,9 +301,11 @@ public class BlackjackTable : NetworkBehaviour
         dealerCards.Add(DrawCard());
 
         resultKind.Value = (int)ResultKind.None;
+        canDouble.Value = allowDoubleDown;
         phase.Value = (int)RoundPhase.PlayerTurn;
         UpdateHandsForClients(false);
-        resultDisplay.Value = new FixedString128Bytes("EでHIT　RでSTAND");
+        resultDisplay.Value = new FixedString128Bytes(
+            allowDoubleDown ? "HIT / STAND / DOUBLE（賭け金を倍に）" : "EでHIT　RでSTAND");
 
         int playerTotal = GetHandValue(playerCards);
         int dealerTotal = GetHandValue(dealerCards);
@@ -295,6 +329,7 @@ public class BlackjackTable : NetworkBehaviour
     {
         if (!IsValidRoundOwner(rpcParams.Receive.SenderClientId)) return;
 
+        canDouble.Value = false;
         playerCards.Add(DrawCard());
         UpdateHandsForClients(false);
 
@@ -320,8 +355,43 @@ public class BlackjackTable : NetworkBehaviour
         PlayDealerTurn();
     }
 
+    /// <summary>
+    /// ダブルダウン：最初の 2 枚のときだけ。賭け金と同じ額をもう一度払い、1 枚だけ引いて親の番へ進む。
+    /// 払えないときは何も変えない（そのままヒットかスタンドを選べる）。
+    /// </summary>
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    private void DoubleServerRpc(RpcParams rpcParams = default)
+    {
+        if (!IsValidRoundOwner(rpcParams.Receive.SenderClientId)) return;
+        if (!allowDoubleDown || !canDouble.Value || playerCards.Count != 2) return;
+
+        int extra = activeBet.Value;
+        if (SharedMoneyManager.Instance == null ||
+            !SharedMoneyManager.Instance.TrySpend(
+                extra,
+                SharedMoneyReason.BlackjackBet,
+                $"double client={rpcParams.Receive.SenderClientId}"))
+        {
+            resultDisplay.Value = new FixedString128Bytes("お金が足りません（HIT か STAND）");
+            return;
+        }
+
+        if (TryGetRoundPlayer(out PlayerEarning playerEarning)) playerEarning.SpendEarning(extra);
+
+        canDouble.Value = false;
+        activeBet.Value = extra * 2;
+        playerCards.Add(DrawCard());
+        UpdateHandsForClients(false);
+
+        if (GetHandValue(playerCards) > 21)
+            FinishRound("バースト！ 負け…", 0, ResultKind.Lose);
+        else
+            PlayDealerTurn();
+    }
+
     private void PlayDealerTurn()
     {
+        canDouble.Value = false;
         while (GetHandValue(dealerCards) < 17)
             dealerCards.Add(DrawCard());
 
@@ -346,6 +416,7 @@ public class BlackjackTable : NetworkBehaviour
 
     private void FinishRound(string message, int returnAmount, ResultKind kind)
     {
+        canDouble.Value = false;
         UpdateHandsForClients(true);
 
         if (returnAmount > 0)

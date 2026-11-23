@@ -39,7 +39,8 @@ internal static partial class RoomiesTownRebuild
         Log($"money at start {(money != null ? money.CurrentMoney : -1)}");
 
         // ---- スロット
-        foreach (var slot in Object.FindObjectsByType<SlotMachine>().OrderBy(s => s.transform.position.x))
+        // 1 階の台だけを見る（2 階・3 階の台は Roomies/Casino/Check で確かめる）
+        foreach (var slot in Object.FindObjectsByType<SlotMachine>().Where(s => s.GetComponentInChildren<Canvas>(true).transform.position.y < 3f).OrderBy(s => s.transform.position.x))
         {
             var canvas = slot.GetComponentInChildren<Canvas>(true);
             var corners = new Vector3[4]; ((RectTransform)canvas.transform).GetWorldCorners(corners);
@@ -60,7 +61,7 @@ internal static partial class RoomiesTownRebuild
         }
 
         // ---- ブラックジャック
-        var bj = Object.FindAnyObjectByType<BlackjackTable>();
+        var bj = Object.FindObjectsByType<BlackjackTable>().OrderBy(b => b.transform.position.y).FirstOrDefault();
         if (bj != null)
         {
             Vector3 stand = bj.transform.position + bj.transform.forward * 1.5f;
