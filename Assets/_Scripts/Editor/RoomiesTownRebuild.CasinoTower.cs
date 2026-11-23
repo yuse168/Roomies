@@ -75,7 +75,8 @@ internal static partial class RoomiesTownRebuild
 
         // 外の木組み：四隅の柱、階の境の帯、笠木。足元は石
         float o = .07f;
-        foreach (var (x, z) in new[] { (KX0, KZ0), (KX1, KZ0), (KX0, KZ1), (KX1, KZ1) })
+        // 奥の 2 つの角は木の柱。正面の 2 つの角は、丸い塔（CasinoFacade）
+        foreach (var (x, z) in new[] { (KX0, KZ0), (KX1, KZ0) })
             Box(g, "Casino corner post", x - .2f, x + .2f, 0, KRoof, z - .2f, z + .2f, timber);
         foreach (float y in new[] { KF2 - .32f, KF3 - .32f, KRoof - .3f })
         {

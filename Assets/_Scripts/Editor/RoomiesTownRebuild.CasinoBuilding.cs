@@ -21,6 +21,14 @@ internal static partial class RoomiesTownRebuild
     static GameObject Prop(Transform g, string name, Mesh mesh, float x, float y, float z, float yaw = 0)
         => Art.Place(g, name, mesh, new Vector3(x, y, z), yaw, true);
 
+    /// <summary>形を置いて、町の素材（レンガ・塗り壁など。三方向から貼るので、どんな形にも模様が合う）に替える。</summary>
+    static GameObject PropMat(Transform g, string name, Mesh mesh, float x, float y, float z, Material material)
+    {
+        var go = Prop(g, name, mesh, x, y, z);
+        go.GetComponent<MeshRenderer>().sharedMaterial = material;
+        return go;
+    }
+
     /// <summary>吊り照明（傘と電球）と、その明かり。</summary>
     static void Pendant(Transform g, float x, float ceilY, float z, float drop, float intensity = 6.5f, float range = 9.5f)
     {
@@ -197,8 +205,19 @@ internal static partial class RoomiesTownRebuild
         // 足元の石（開口は空ける）と、正面の柱
         foreach (var (x0, x1) in new[] { (KX0 - .04f, KDoorX0), (KDoorX1, KEntX0), (KEntX1, KX1 + .04f) })
             Box(g, "Casino plinth", x0, x1, 0, .45f, face, face + .05f, stone);
-        foreach (float x in new[] { 3.6f, 12.0f })
-            Box(g, "Casino front post", x - .16f, x + .16f, .45f, KRoof, face, face + .09f, timber);
+        // 正面の付け柱（白い柱に金の柱頭）。入口の両わきと、その外
+        foreach (float x in new[] { 3.6f, 5.3f, 10.3f, 12.0f })
+            Prop(g, "Casino pilaster", Art.Pilaster(KRoof - .3f), x, 0, face);
+
+        // 正面の 2 つの角：丸い塔（胴はレンガ、帯と丸屋根は金）。建物の幅からは出さず、前へ 0.45m だけ張り出す
+        float turretHeight = KRoof + .5f;
+        foreach (float x in new[] { KX0 + Art.TurretRadius - .12f, KX1 - Art.TurretRadius + .12f })
+        {
+            float tz = face - Art.TurretRadius + .45f;
+            PropMat(g, "Casino turret", Art.TurretBody(turretHeight), x, 0, tz, Mat("casino_brick"));
+            Prop(g, "Casino turret trim", Art.TurretTrim(turretHeight, new[] { KF2 - .34f, KF3 - .34f }), x, 0, tz);
+            Solid(g, "Casino turret collider", new Vector3(x - .8f, 0, face), new Vector3(x + .8f, KRoof, face + .45f));
+        }
 
         // 入口：木の額縁、開け放した扉（木枠とガラス。当たり判定なし）
         Box(g, "Entrance portal", KEntX0 - .28f, KEntX0, 0, KEntH + .28f, face - .02f, face + .16f, timber);
@@ -221,33 +240,55 @@ internal static partial class RoomiesTownRebuild
         Box(g, "Side door frame", KDoorX0 - .12f, KDoorX1 + .12f, KDoorH, KDoorH + .12f, face, face + .1f, timber);
         Prop(g, "Side door lantern", Art.Lantern(), 2.25f, 2.1f, face + .01f);
 
-        // ひさし：木の屋根と柱 2 本、前の板に看板の文字（AFTER HOURS）、下に電球の列
-        float cz1 = face + 1.5f, cx0 = 5.1f, cx1 = 10.5f, cyTop = 3.5f;
-        Box(g, "Canopy roof", cx0, cx1, cyTop - .14f, cyTop, face, cz1, timber);
-        Box(g, "Canopy fascia", cx0 - .04f, cx1 + .04f, cyTop - .5f, cyTop + .04f, cz1 - .08f, cz1, Swatch("wood"));
-        foreach (float x in new[] { cx0 + .18f, cx1 - .18f })
-        {
-            Box(g, "Canopy post", x - .1f, x + .1f, 0, cyTop - .14f, cz1 - .3f, cz1 - .1f, timber);
-            Box(g, "Canopy post base", x - .16f, x + .16f, 0, .3f, cz1 - .36f, cz1 - .04f, stone);
-        }
-        MoveSign(work, "Sign - AFTER HOURS", new Vector3(7.8f, cyTop - .23f, cz1 + .012f), 180, .78f);
-        Prop(g, "Canopy bulbs", Art.BulbString(cx1 - cx0 - .3f, 12), cx0 + .15f, cyTop - .52f, cz1 - .02f);
+        // 入口：半円に張り出すひさし（ふちに電球、下の面が光る）と、その上に立つ金のアーチ（中に AFTER HOURS の看板）
+        float marqueeY = 3.35f;
+        Prop(g, "Casino marquee", Art.Marquee(), 7.8f, marqueeY, face);
+        float archY = marqueeY + Art.MarqueeThickness + .08f;
+        Prop(g, "Casino entrance arch", Art.EntranceArch(), 7.8f, archY, face);
+        MoveSign(work, "Sign - AFTER HOURS", new Vector3(7.8f, archY + .62f, face + .14f), 180, .62f);
         Prop(g, "Canopy lantern", Art.Lantern(), KEntX0 - .5f, 2.2f, face + .16f);
         Prop(g, "Canopy lantern", Art.Lantern(), KEntX1 + .5f, 2.2f, face + .16f);
+
+        // 2 階の窓の日よけ（えんじと白のしま）
+        foreach (var (x0, x1) in KWin2F)
+            Prop(g, "Casino awning", Art.Awning(x1 - x0 + .3f), (x0 + x1) / 2, KWin2Y1 + .12f, face + .08f);
+
+        // 軒の縁取り：屋上のふちと、2 階・3 階の境に、電球の列
+        foreach (float y in new[] { KRoof + .02f, KF3 - .17f, KF2 - .17f })
+        {
+            float x0 = KX0 + 2f * Art.TurretRadius - .1f, x1 = KX1 - 2f * Art.TurretRadius + .1f;
+            if (y < KF3 - 1f)
+            {
+                // 2 階の境は、入口のアーチの左右に分ける
+                Prop(g, "Casino bulb row", Art.BulbRow(7.8f - Art.ArchOuter - .2f - x0, 12), x0, y, face + .1f);
+                Prop(g, "Casino bulb row", Art.BulbRow(x1 - (7.8f + Art.ArchOuter + .2f), 12), 7.8f + Art.ArchOuter + .2f, y, face + .1f);
+            }
+            else Prop(g, "Casino bulb row", Art.BulbRow(x1 - x0, 36), x0, y, face + .1f);
+        }
 
         // 2 階の窓の間：王冠のネオン。1 階の壁：紫の垂れ幕 4 本
         Art.NeonSign(g, "Neon sign - crown", new Vector3(7.8f, (KWin2Y0 + KWin2Y1) / 2 + .05f, face + .1f), 0, 1.5f);
         foreach (float x in new[] { 2.75f, 4.75f, 11.0f, 13.6f })
             Prop(g, "Banner", Art.Banner(.56f), x, 3.75f, face + .08f);
 
-        // 屋上の看板：木の枠にネオンの文字
+        // 屋上の段々の冠：角の丸い段を 2 つ積み、その上に看板の板。前のふちは電球。てっぺんに王冠のネオンと星
         float sy = KRoof + .12f;
-        Box(g, "Rooftop sign board", 4.3f, 11.3f, sy + .2f, sy + 1.9f, face - .1f, face, Mat("casino_timber"));
-        Box(g, "Rooftop sign frame", 4.2f, 11.4f, sy + 1.9f, sy + 2.02f, face - .14f, face + .06f, timber);
-        Box(g, "Rooftop sign frame", 4.2f, 11.4f, sy + .1f, sy + .22f, face - .14f, face + .06f, timber);
-        foreach (float x in new[] { 4.2f, 11.28f }) Box(g, "Rooftop sign frame", x, x + .12f, sy, sy + 2.02f, face - .14f, face + .06f, timber);
-        Art.NeonText(g, "Sign - CASINO", "CASINO", new Vector3(7.8f, sy + 1.05f, face + .02f), 0, 1.25f);
-        Prop(g, "Rooftop bulbs", Art.BulbString(6.8f, 14), 4.4f, sy + 2.2f, face + .04f);
+        float t1w = 12.4f, t1d = 2.6f, t1h = .9f, t2w = 8.8f, t2d = 2.2f, t2h = 1.1f, capH = .14f;
+        float t1z = face - t1d / 2 + .1f, t2z = face - t2d / 2 + .12f;
+        PropMat(g, "Casino crown tier", Art.Tier(t1w, t1d, t1h, .6f), 7.8f, sy, t1z, Mat("casino_brick"));
+        Prop(g, "Casino crown tier cap", Art.TierCap(t1w, t1d, .6f, 30), 7.8f, sy + t1h, t1z);
+        float y2 = sy + t1h + capH;
+        PropMat(g, "Casino crown tier", Art.Tier(t2w, t2d, t2h, .5f), 7.8f, y2, t2z, Mat("casino_plaster"));
+        Prop(g, "Casino crown tier cap", Art.TierCap(t2w, t2d, .5f, 22), 7.8f, y2 + t2h, t2z);
+        float y3 = y2 + t2h + capH, signH = 2.0f, signW = 6.8f;
+        PropMat(g, "Rooftop sign board", Art.Tier(signW, .5f, signH, .22f), 7.8f, y3, face - .2f, Mat("casino_timber"));
+        Prop(g, "Rooftop sign cap", Art.TierCap(signW, .5f, .22f, 18), 7.8f, y3 + signH, face - .2f);
+        Art.NeonText(g, "Sign - CASINO", "CASINO", new Vector3(7.8f, y3 + signH / 2 + .02f, face + .07f), 0, 1.25f);
+        Art.NeonSign(g, "Neon sign - rooftop crown", new Vector3(7.8f, y3 + signH + capH + .95f, face - .2f), 0, 2.0f);
+        foreach (float x in new[] { 7.8f - t2w / 2 + .5f, 7.8f + t2w / 2 - .5f })
+            Prop(g, "Casino star", Art.StarFinial(), x, y2 + t2h + capH, face - .5f);
+        foreach (float x in new[] { 7.8f - t1w / 2 + .6f, 7.8f + t1w / 2 - .6f })
+            Prop(g, "Casino star", Art.StarFinial(), x, sy + t1h + capH, face - .5f);
 
         // 入口の前：紫の敷物、ロープの柵、植木
         Box(g, "Entrance carpet", KEntX0 + .1f, KEntX1 - .1f, 0, .03f, face, face + 1.6f, Mat("casino_carpet"));
