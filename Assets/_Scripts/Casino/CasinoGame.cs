@@ -3,7 +3,7 @@ using UnityEngine;
 
 /// <summary>
 /// カジノの新しいゲーム（ルーレット・ハイ＆ロー・チンチロ）の共通の形。
-/// プレイヤーの操作は、いまあるものだけを使う：見て E（決める）、R（2 つ目の操作）、ホイール／←→（賭け金）。
+/// プレイヤーの操作は、いまあるものだけを使う：見て E（決める）、R（2 つ目の操作）、F（3 つ目の操作）、ホイール／←→（賭け金）。
 /// `PlayerInteract` は、見ている当たり判定の親にこの型があれば、ここへ渡すだけ。
 ///
 /// 規約（AGENTS.md）：
@@ -26,6 +26,9 @@ public abstract class CasinoGame : NetworkBehaviour
 
     /// <summary>R を押した（取り消す・降りる など）。使わないゲームは何もしない。</summary>
     public virtual void Secondary(Collider lookedAt, PlayerEarning earning) { }
+
+    /// <summary>F（持つキー）を押した（受け取る など）。使わないゲームは何もしない。</summary>
+    public virtual void Tertiary(Collider lookedAt, PlayerEarning earning) { }
 
     /// <summary>ホイール／←→で賭け金を変えた（+1 か -1）。自分の画面の中だけの値。</summary>
     public virtual void ChangeBet(int direction) { }

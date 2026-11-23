@@ -216,6 +216,7 @@ internal static partial class RoomiesCasinoBuilder
 
         yield return CheckRates(cc, money, vis);
         yield return CheckRoulette(cc, money);
+        yield return CheckHiLoAndChinchiro(cc, money);
         CheckDailyRequestCountsOnlyWinnings(money);
 
         Finish(cc, home, runner);
@@ -450,6 +451,90 @@ internal static partial class RoomiesCasinoBuilder
         int r3 = t3.LastResult;
         int back3 = 500 * RouletteRules.ReturnMultiplier(RouletteBetKind.Black, 0, r3, true);
         Expect(money.CurrentMoney == s3 - 500 + back3, $"3F payout: result {r3}, back {back3}, money {money.CurrentMoney}");
+    }
+
+    // ================================================================ ハイ＆ローとチンチロ（段階 7）
+    static bool LooksAtGame(CharacterController cc, CasinoGame game, Vector3 aim, out Collider collider)
+    {
+        collider = null;
+        Vector3 eye = cc.transform.position + Vector3.up * .6f;
+        if (!Physics.Raycast(eye, (aim - eye).normalized, out var hit, 3f)) return false;
+        collider = hit.collider;
+        return hit.collider.GetComponentInParent<CasinoGame>() == game;
+    }
+
+    static IEnumerator CheckHiLoAndChinchiro(CharacterController cc, SharedMoneyManager money)
+    {
+        var earning = cc.GetComponentInParent<PlayerEarning>();
+        ulong me = cc.GetComponentInParent<Unity.Netcode.NetworkObject>().OwnerClientId;
+
+        // ---- ハイ＆ロー（2 階）
+        var hilo = Object.FindAnyObjectByType<HiLoTable>();
+        Expect(hilo != null && hilo.IsSpawned, "hi-lo table present and spawned");
+        if (hilo != null)
+        {
+            Teleport(cc, hilo.transform.TransformPoint(new Vector3(0, 0, 1.15f)));
+            yield return new WaitForSeconds(.4f);
+            Expect(LooksAtGame(cc, hilo, hilo.transform.position + Vector3.up * .9f, out var col), "hi-lo table can be looked at from the player side");
+            Expect(hilo.IsIdle && hilo.GetLabel(col, me).Contains("100"), "hi-lo: idle label shows the 100 bet");
+            bool wonOnce = false, lostOnce = false;
+            for (int round = 0; round < 12 && !(wonOnce && lostOnce); round++)
+            {
+                float t0 = 0; while (!hilo.IsIdle && t0 < 6f) { yield return new WaitForSeconds(.1f); t0 += .1f; }
+                int start = money.CurrentMoney;
+                hilo.Interact(col, earning);
+                yield return new WaitForSeconds(.4f);
+                if (round == 0) Expect(money.CurrentMoney == start - 100 && hilo.IsGuessing(me) && hilo.Pot == 100, $"hi-lo: start costs 100 (money {start} -> {money.CurrentMoney}), card {hilo.Card}");
+                // 1 回目は当たりやすい向き、外れを見るまでは当たりにくい向きも試す
+                int card = hilo.Card;
+                bool high = wonOnce ? card > 7 : card <= 7;
+                float mult = HiLoRules.Multiplier(card, high, hilo.StepReturnRate);
+                if (high) hilo.Interact(col, earning); else hilo.Secondary(col, earning);
+                yield return new WaitForSeconds(1.9f);
+                int next = hilo.Card;
+                bool won = high ? next > card : next < card;
+                if (won)
+                {
+                    int expectPot = Mathf.FloorToInt(100 * mult);
+                    if (!wonOnce) Expect(hilo.IsGuessing(me) && hilo.Pot == expectPot && hilo.Step == 1, $"hi-lo: {card} -> {next} won, pot {hilo.Pot} (expected {expectPot})");
+                    if (!wonOnce) Expect(hilo.GetLabel(col, me).Contains(expectPot.ToString("N0")), "hi-lo: label offers to collect the pot");
+                    hilo.Tertiary(col, earning);
+                    yield return new WaitForSeconds(.4f);
+                    if (!wonOnce) Expect(hilo.IsIdle && money.CurrentMoney == start - 100 + expectPot, $"hi-lo: collected, money {start} -> {money.CurrentMoney}");
+                    wonOnce = true;
+                }
+                else
+                {
+                    if (!lostOnce) Expect(hilo.IsIdle && money.CurrentMoney == start - 100, $"hi-lo: {card} -> {next} lost, money {start} -> {money.CurrentMoney}, table idle again");
+                    lostOnce = true;
+                }
+            }
+            Expect(wonOnce && lostOnce, $"hi-lo: saw a win ({wonOnce}) and a loss ({lostOnce})");
+        }
+
+        // ---- チンチロ（3 階）
+        var cc3 = Object.FindAnyObjectByType<ChinchiroTable>();
+        Expect(cc3 != null && cc3.IsSpawned, "chinchiro table present and spawned");
+        if (cc3 != null)
+        {
+            Teleport(cc, cc3.transform.TransformPoint(new Vector3(0, 0, 1.25f)));
+            yield return new WaitForSeconds(.4f);
+            Expect(LooksAtGame(cc, cc3, cc3.transform.position + Vector3.up * .8f, out var col), "chinchiro table can be looked at");
+            Expect(Mathf.Abs(cc3.ExpectedReturn() - 1.0066f) < .003f, $"chinchiro expected return {cc3.ExpectedReturn() * 100f:F1}%");
+            for (int round = 0; round < 2; round++)
+            {
+                int start = money.CurrentMoney;
+                cc3.Interact(col, earning);
+                yield return new WaitForSeconds(.4f);
+                Expect(money.CurrentMoney == start - 500 && !cc3.IsIdle, $"chinchiro: roll costs 500 (money {start} -> {money.CurrentMoney})");
+                cc3.Interact(col, earning);   // ふっている間は押しても何も起きない
+                float t = 0; while (!cc3.IsIdle && t < 14f) { yield return new WaitForSeconds(.2f); t += .2f; }
+                int d = cc3.LastDice;
+                var hand = ChinchiroRules.Evaluate(d / 100, d / 10 % 10, d % 10, out int point);
+                int back = Mathf.RoundToInt(500 * cc3.ReturnFor(hand, point));
+                Expect(cc3.IsIdle && money.CurrentMoney == start - 500 + back, $"chinchiro: dice {d} = {hand} {point}, back {back}, money {start} -> {money.CurrentMoney} after {t:F0}s");
+            }
+        }
     }
 
     // ================================================================ 今日のおねがい：賭け金を引いた差だけを数える

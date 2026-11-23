@@ -48,6 +48,7 @@ internal static partial class RoomiesCasinoBuilder
         RebuildBlackjackPrefab();
         BuildRateVariants();
         BuildRoulettePrefabs();
+        BuildGamePrefabs();
         Art.End();
         Debug.Log("[Casino] gimmick prefabs built");
     }

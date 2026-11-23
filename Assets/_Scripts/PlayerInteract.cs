@@ -158,7 +158,7 @@ public class PlayerInteract : NetworkBehaviour
             {
                 DropObject();
             }
-            else if (!TryDoubleBlackjack())
+            else if (!TryDoubleBlackjack() && !TryCasinoGameTertiary())
             {
                 TryPickup();
             }
@@ -430,6 +430,21 @@ public class PlayerInteract : NetworkBehaviour
 
         CasinoGame game = hit.collider.GetComponentInParent<CasinoGame>();
         if (game != null) game.ChangeBet(next ? 1 : -1);
+    }
+
+    // カジノの新しいゲーム：3 つ目の操作（F）。台を見ていなければ false（ふつうの「持つ」へ進む）
+    private bool TryCasinoGameTertiary()
+    {
+        if (cameraTransform == null) return false;
+
+        Ray ray = new Ray(cameraTransform.position, cameraTransform.forward);
+        if (!Physics.Raycast(ray, out RaycastHit hit, interactDistance)) return false;
+
+        CasinoGame game = hit.collider.GetComponentInParent<CasinoGame>();
+        if (game == null) return false;
+
+        game.Tertiary(hit.collider, playerEarning);
+        return true;
     }
 
     // カジノの新しいゲーム：2 つ目の操作（R）。台を見ていなければ false

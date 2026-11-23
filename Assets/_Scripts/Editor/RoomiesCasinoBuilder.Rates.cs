@@ -105,6 +105,9 @@ internal static partial class RoomiesCasinoBuilder
     static readonly Vector3 Blackjack3FXZ = new Vector3(4.2f, 0f, -16.8f);
     static readonly Vector3 Roulette2FXZ = new Vector3(7.6f, 0f, -12.0f);
     static readonly Vector3 Roulette3FXZ = new Vector3(6.4f, 0f, -12.2f);
+    // ハイ＆ロー（2 階）とチンチロ（3 階）：右寄り。遊ぶ人は奥の側に立つ
+    static readonly Vector3 HiLo2FXZ = new Vector3(12.2f, 0f, -10.3f);
+    static readonly Vector3 Chinchiro3FXZ = new Vector3(12.8f, 0f, -13.4f);
 
     /// <summary>台を置く（1 階の前からある台は場所だけ直す）。階ごとの表示の切り替えに入れる見た目を返す。</summary>
     static Dictionary<int, List<GameObject>> PlaceTables(Scene scene)
@@ -150,6 +153,18 @@ internal static partial class RoomiesCasinoBuilder
             var p = xz; p.y = RoomiesTownRebuild.KFloorY(floor);
             var go = PlacePrefab(scene, path, name, p, 180f);
             foreach (string part in new[] { "Visual", "Pivot_Wheel", "Spots", "Anchor_Board" }) AddLook(looks[floor], go.transform.Find(part));
+        }
+        // ---- ハイ＆ロー（2 階）とチンチロ（3 階）
+        if (AssetDatabase.LoadAssetAtPath<GameObject>(HiLoPath) == null) BuildGamePrefabs();
+        {
+            var p = HiLo2FXZ; p.y = RoomiesTownRebuild.KFloorY(2);
+            var go = PlacePrefab(scene, HiLoPath, "HiLoTable_2F", p, 180f);
+            foreach (string part in new[] { "Visual", "Anchor_Card", "Anchor_Board" }) AddLook(looks[2], go.transform.Find(part));
+        }
+        {
+            var p = Chinchiro3FXZ; p.y = RoomiesTownRebuild.KFloorY(3);
+            var go = PlacePrefab(scene, ChinchiroPath, "ChinchiroTable_3F", p, 180f);
+            foreach (string part in new[] { "Visual", "Anchor_Board", "Pivot_Die_1", "Pivot_Die_2", "Pivot_Die_3" }) AddLook(looks[3], go.transform.Find(part));
         }
         return looks;
     }

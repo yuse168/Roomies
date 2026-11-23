@@ -127,6 +127,64 @@ public class RoomiesCasinoTests
         Assert.That(Field<int[]>(third, "betAmounts"), Is.EqualTo(new[] { 500, 2000, 5000 }));
     }
 
+    // ---- ハイ＆ロー・チンチロ ----
+
+    [Test]
+    public void HiLoEveryGuessReturnsTheSameRate()
+    {
+        Type rules = GameType("HiLoRules");
+        MethodInfo winning = rules.GetMethod("WinningRanks"), multiplier = rules.GetMethod("Multiplier");
+        for (int card = 1; card <= 13; card++)
+            foreach (bool high in new[] { true, false })
+            {
+                int k = (int)winning.Invoke(null, new object[] { card, high });
+                float m = (float)multiplier.Invoke(null, new object[] { card, high, 0.995f });
+                if (k == 0) { Assert.That(m, Is.EqualTo(0f), "出ない向きには賭けられない"); continue; }
+                Assert.That(k / 13f * m, Is.EqualTo(0.995f).Within(0.0001f), $"カード {card} の{(high ? "上" : "下")}");
+            }
+    }
+
+    [Test]
+    public void HiLoPrefabStepRateIsJustUnderOne()
+    {
+        Component table = LoadComponent("Assets/_Prefabs/Casino/HiLoTable.prefab", "HiLoTable");
+        float rate = Field<float>(table, "stepReturnRate");
+        int steps = Field<int>(table, "maxSteps");
+        Assert.That(rate, Is.InRange(0.98f, 1.0f), "1 回ごとの戻る割合");
+        Assert.That(Mathf.Pow(rate, steps), Is.GreaterThan(0.96f), "最後まで続けても 96% を下回らない");
+        Assert.That(Field<int[]>(table, "betAmounts"), Is.EqualTo(new[] { 100, 500, 1000 }));
+    }
+
+    [Test]
+    public void ChinchiroHandsAreRecognised()
+    {
+        Type rules = GameType("ChinchiroRules");
+        MethodInfo evaluate = rules.GetMethod("Evaluate");
+        string Hand(int a, int b, int c, out int point)
+        {
+            object[] args = { a, b, c, 0 };
+            string name = evaluate.Invoke(null, args).ToString();
+            point = (int)args[3];
+            return name;
+        }
+        Assert.That(Hand(1, 1, 1, out _), Is.EqualTo("Pinzoro"));
+        Assert.That(Hand(4, 4, 4, out _), Is.EqualTo("Triple"));
+        Assert.That(Hand(6, 4, 5, out _), Is.EqualTo("Shigoro"));
+        Assert.That(Hand(2, 3, 1, out _), Is.EqualTo("Hifumi"));
+        Assert.That(Hand(3, 6, 3, out int p), Is.EqualTo("Point")); Assert.That(p, Is.EqualTo(6));
+        Assert.That(Hand(2, 2, 5, out p), Is.EqualTo("Point")); Assert.That(p, Is.EqualTo(5));
+        Assert.That(Hand(1, 3, 5, out _), Is.EqualTo("None"));
+    }
+
+    [Test]
+    public void ChinchiroReturnsSlightlyMoreThanTheBet()
+    {
+        Component table = LoadComponent("Assets/_Prefabs/Casino/ChinchiroTable.prefab", "ChinchiroTable");
+        float rtp = (float)table.GetType().GetMethod("ExpectedReturn").Invoke(table, null);
+        Assert.That(rtp, Is.InRange(1.0f, 1.012f), $"3 階のチンチロの戻る割合は 100〜101% のはず（いま {rtp * 100f:F1}%）");
+        Assert.That(Field<int[]>(table, "betAmounts"), Is.EqualTo(new[] { 500, 2000, 5000 }));
+    }
+
     [Test]
     public void CasinoKeyPricesComeFromGameBalance()
     {

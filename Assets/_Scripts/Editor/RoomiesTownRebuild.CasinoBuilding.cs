@@ -348,8 +348,8 @@ internal static partial class RoomiesTownRebuild
 
         // ---- ルーレット（真ん中。台はシーンに置いてある）：大きな敷物と吊り照明 2 つ
         Box(g, "Roulette rug", 4.9f, 10.3f, fy + .012f, fy + .028f, -14.3f, -10.3f, carpet);
-        Pendant(g, 6.5f, cy - .03f, -12.0f, 1.25f, 5.0f, 8f);
-        Pendant(g, 8.7f, cy - .03f, -12.0f, 1.25f, 0f);
+        Pendant(g, 6.5f, cy - .03f, -12.0f, .85f, 5.0f, 8f);
+        Pendant(g, 8.7f, cy - .03f, -12.0f, .85f, 0f);
 
         // ---- ブラックジャック（奥の左）と、奥の壁のネオンの文字
         BlackjackCorner(g, fy, cy, 4.2f, -16.6f);
@@ -360,7 +360,11 @@ internal static partial class RoomiesTownRebuild
 
         // ---- スロット 2 台（右の壁ぎわ）
         SlotCorner(g, fy, new[] { -10.9f, -12.95f }, "SLOTS");
-        Pendant(g, 14.2f, cy - .03f, -11.9f, 1.2f, 3.8f, 6.5f);
+        Pendant(g, 14.2f, cy - .03f, -11.9f, .85f, 3.8f, 6.5f);
+
+        // ---- ハイ＆ロー（右寄り。台はシーンに置いてある）：敷物と吊り照明
+        Box(g, "HiLo rug", 10.9f, 13.5f, fy + .012f, fy + .028f, -11.9f, -9.2f, carpet);
+        Pendant(g, 12.2f, cy - .03f, -10.3f, .85f, 4.2f, 7f);
 
         // ---- 店の人のカウンター（3 階の鍵）
         ClerkCounter(g, fy, cy, "VIP KEY");
@@ -373,7 +377,7 @@ internal static partial class RoomiesTownRebuild
         SofaAt(g, 2.0f, "maroon", "maroon_dark", 11.6f, fy, KIZ1 - .5f, 180);
         PlanterAt(g, KIX0 + .45f, fy, KIZ1 - .45f);
         PlanterAt(g, 7.8f, fy, KIZ1 - .45f, 30);
-        Pendant(g, 2.6f, cy - .03f, KIZ1 - 1.3f, 1.25f, 3.6f, 6f);
+        Pendant(g, 2.6f, cy - .03f, KIZ1 - 1.3f, .85f, 3.6f, 6f);
         PointLight(g, "Casino light - window", new Vector3(9.8f, fy + 1.9f, KIZ1 - .7f), 1.1f, 6f, KNight);
 
         // ---- 左の壁：飲み物の棚と額
@@ -402,8 +406,8 @@ internal static partial class RoomiesTownRebuild
 
         // ---- 真ん中の大きな敷物、ルーレット（台はシーン）の吊り照明
         Box(g, "VIP rug", 3.2f, 12.8f, fy + .012f, fy + .028f, -14.6f, -9.9f, carpet);
-        Pendant(g, 5.3f, cy - .03f, -12.2f, 1.6f, 5.0f, 8f);
-        Pendant(g, 7.5f, cy - .03f, -12.2f, 1.6f, 0f);
+        Pendant(g, 5.3f, cy - .03f, -12.2f, 1.2f, 5.0f, 8f);
+        Pendant(g, 7.5f, cy - .03f, -12.2f, 1.2f, 0f);
 
         // ---- ブラックジャック（奥の左）と、奥の壁の王冠のネオン
         BlackjackCorner(g, fy, cy, 4.2f, -16.8f);
@@ -427,10 +431,13 @@ internal static partial class RoomiesTownRebuild
         PlanterAt(g, KIX0 + .45f, fy, -15.0f, 15);
         PointLight(g, "Casino light - window", new Vector3(4.0f, fy + 2.0f, KIZ1 - .8f), 1.3f, 7f, KNight);
         PointLight(g, "Casino light - window", new Vector3(11.6f, fy + 2.0f, KIZ1 - .8f), 1.3f, 7f, KNight);
-        Pendant(g, 2.6f, cy - .03f, KIZ1 - 1.3f, 1.7f, 3.4f, 6f);
-        Pendant(g, 13.0f, cy - .03f, KIZ1 - 1.3f, 1.7f, 3.4f, 6f);
+        Pendant(g, 2.6f, cy - .03f, KIZ1 - 1.3f, 1.2f, 3.4f, 6f);
+        Pendant(g, 13.0f, cy - .03f, KIZ1 - 1.3f, 1.2f, 3.4f, 6f);
 
-        // ---- 右の壁ぎわ：丸い机と腰かけ（のちにチンチロの台を置く所の手前）
+        // ---- チンチロ（右寄り。台はシーンに置いてある）：吊り照明
+        Pendant(g, 12.8f, cy - .03f, -13.4f, 1.2f, 4.6f, 7f);
+
+        // ---- 右の壁ぎわ：丸い机と腰かけ
         RoundTableAt(g, 15.2f, fy, -10.6f);
         Prop(g, "Round table stool", Art.Stool("purple"), 14.5f, fy, -10.3f);
         Prop(g, "Table glass", Art.Glass(), 15.25f, fy + 1.05f, -10.55f);
