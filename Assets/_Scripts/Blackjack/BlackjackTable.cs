@@ -8,7 +8,8 @@ using UnityEngine.UI;
 
 /// <summary>
 /// シーンへPrefabを配置するだけで動作する、Server権限のブラックジャック台。
-/// 見た目とワールドスペースUIは仮素材としてランタイム生成する。
+/// カード・チップ・点数の札は台の上の実物（BlackjackTableView が動かす）。上のモニター（Anchor_Display）は賭け金と結果だけの補助。
+/// 親の番は、カードをめくって配る動きのぶんだけサーバーが待ってから、結果とお金を確定する。
 /// </summary>
 public class BlackjackTable : NetworkBehaviour
 {
@@ -16,7 +17,8 @@ public class BlackjackTable : NetworkBehaviour
     {
         Idle,
         PlayerTurn,
-        Result
+        Result,
+        DealerTurn      // 親がめくって引いている間（だれも操作できない）。順番を変えないよう、最後に足した
     }
 
     private enum ResultKind
@@ -49,6 +51,13 @@ public class BlackjackTable : NetworkBehaviour
     [SerializeField, Min(0.0001f)] private float displayScale = 0.0025f;
     [SerializeField, Min(0.1f)] private float resultDisplaySeconds = 3.5f;
 
+    [Header("台の上のカードとチップ（見た目）")]
+    [SerializeField] private BlackjackTableView view;
+    [Tooltip("カード 1 枚を配る・めくる動きの長さ（秒）。サーバーが、動きが終わるまで結果を待つのに使う。BlackjackTableView の値と合わせる")]
+    [SerializeField, Min(0.05f)] private float cardSeconds = 0.34f;
+    [Tooltip("親の札がそろってから、結果を出すまでの間（秒）")]
+    [SerializeField, Min(0f)] private float settleSeconds = 0.35f;
+
     private readonly NetworkVariable<int> phase = new(
         (int)RoundPhase.Idle,
         NetworkVariableReadPermission.Everyone,
@@ -69,13 +78,14 @@ public class BlackjackTable : NetworkBehaviour
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server);
 
-    private readonly NetworkVariable<FixedString512Bytes> playerHandDisplay = new(
-        new FixedString512Bytes("-"),
+    // 台の上のカードの並び（1 枚 1 文字。BlackjackTableView.Encode。親の伏せ札は '#'）。全員に同じ物が届く
+    private readonly NetworkVariable<FixedString32Bytes> playerCardsNet = new(
+        new FixedString32Bytes(),
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server);
 
-    private readonly NetworkVariable<FixedString512Bytes> dealerHandDisplay = new(
-        new FixedString512Bytes("-"),
+    private readonly NetworkVariable<FixedString32Bytes> dealerCardsNet = new(
+        new FixedString32Bytes(),
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server);
 
@@ -121,6 +131,7 @@ public class BlackjackTable : NetworkBehaviour
 
     private Coroutine resetCoroutine;
     private Coroutine resultAnimationCoroutine;
+    private Coroutine finishCoroutine;
 
     private struct Card
     {
@@ -152,12 +163,37 @@ public class BlackjackTable : NetworkBehaviour
         phase.OnValueChanged += OnStateChanged;
         roundOwnerClientId.OnValueChanged += OnStateChanged;
         activeBet.OnValueChanged += OnStateChanged;
-        playerHandDisplay.OnValueChanged += OnTextChanged;
-        dealerHandDisplay.OnValueChanged += OnTextChanged;
+        activeBet.OnValueChanged += OnBetChanged;
+        playerCardsNet.OnValueChanged += OnCardsChanged;
+        dealerCardsNet.OnValueChanged += OnCardsChanged;
         resultDisplay.OnValueChanged += OnTextChanged;
         resultNetAmount.OnValueChanged += OnStateChanged;
         resultKind.OnValueChanged += OnResultKindChanged;
         RefreshDisplay();
+        SnapView();
+    }
+
+    private void OnEnable()
+    {
+        // 階の出し入れで表示が戻ったとき：台の上を、いまの並びにそろえ直す
+        if (IsSpawned) SnapView();
+    }
+
+    private void SnapView()
+    {
+        if (view == null) return;
+        int bet = activeBet.Value;
+        bool doubled = false;
+        int index = BetIndexOf(bet);
+        if (index < 0 && bet % 2 == 0) { index = BetIndexOf(bet / 2); doubled = index >= 0; }
+        view.Snap(playerCardsNet.Value.ToString(), dealerCardsNet.Value.ToString(), Mathf.Max(0, index), doubled);
+    }
+
+    private int BetIndexOf(int amount)
+    {
+        if (betAmounts == null) return -1;
+        for (int i = 0; i < betAmounts.Length; i++) if (betAmounts[i] == amount) return i;
+        return -1;
     }
 
     public override void OnNetworkDespawn()
@@ -165,8 +201,9 @@ public class BlackjackTable : NetworkBehaviour
         phase.OnValueChanged -= OnStateChanged;
         roundOwnerClientId.OnValueChanged -= OnStateChanged;
         activeBet.OnValueChanged -= OnStateChanged;
-        playerHandDisplay.OnValueChanged -= OnTextChanged;
-        dealerHandDisplay.OnValueChanged -= OnTextChanged;
+        activeBet.OnValueChanged -= OnBetChanged;
+        playerCardsNet.OnValueChanged -= OnCardsChanged;
+        dealerCardsNet.OnValueChanged -= OnCardsChanged;
         resultDisplay.OnValueChanged -= OnTextChanged;
         resultNetAmount.OnValueChanged -= OnStateChanged;
         resultKind.OnValueChanged -= OnResultKindChanged;
@@ -177,6 +214,7 @@ public class BlackjackTable : NetworkBehaviour
         base.OnDestroy();
         if (resetCoroutine != null) StopCoroutine(resetCoroutine);
         if (resultAnimationCoroutine != null) StopCoroutine(resultAnimationCoroutine);
+        if (finishCoroutine != null) StopCoroutine(finishCoroutine);
     }
 
     public string GetInteractionLabel(ulong clientId)
@@ -317,15 +355,17 @@ public class BlackjackTable : NetworkBehaviour
 
         if (playerTotal == 21 || dealerTotal == 21)
         {
+            // 4 枚が配られるのを待ってから、伏せ札をめくって結果を出す
+            float deal = cardSeconds * 4f;
             if (playerTotal == 21 && dealerTotal == 21)
-                FinishRound("引き分け！", wager, ResultKind.Push);
+                FinishAfter(deal, 0, "引き分け！", wager, ResultKind.Push);
             else if (playerTotal == 21)
-                FinishRound(
+                FinishAfter(deal, 0,
                     "ブラックジャック！ 大勝利！",
                     CalculateReturn(wager, blackjackReturnMultiplier),
                     ResultKind.Blackjack);
             else
-                FinishRound("ディーラーのブラックジャック…", 0, ResultKind.Lose);
+                FinishAfter(deal, 0, "ディーラーのブラックジャック…", 0, ResultKind.Lose);
         }
     }
 
@@ -341,11 +381,11 @@ public class BlackjackTable : NetworkBehaviour
         int total = GetHandValue(playerCards);
         if (total > 21)
         {
-            FinishRound("バースト！ 負け…", 0, ResultKind.Lose);
+            FinishAfter(cardSeconds, 0, "バースト！ 負け…", 0, ResultKind.Lose);
         }
         else if (total == 21)
         {
-            PlayDealerTurn();
+            PlayDealerTurn(cardSeconds);
         }
         else
         {
@@ -389,34 +429,60 @@ public class BlackjackTable : NetworkBehaviour
         UpdateHandsForClients(false);
 
         if (GetHandValue(playerCards) > 21)
-            FinishRound("バースト！ 負け…", 0, ResultKind.Lose);
+            FinishAfter(cardSeconds, 0, "バースト！ 負け…", 0, ResultKind.Lose);
         else
-            PlayDealerTurn();
+            PlayDealerTurn(cardSeconds);
     }
 
-    private void PlayDealerTurn()
+    /// <summary>親の番。waitBefore：その前に配った札（ヒット・ダブルダウンの 1 枚）が置かれるのを待つ秒数。</summary>
+    private void PlayDealerTurn(float waitBefore = 0f)
     {
         canDouble.Value = false;
+        int before = dealerCards.Count;
         while (GetHandValue(dealerCards) < 17)
             dealerCards.Add(DrawCard());
+        int drawn = dealerCards.Count - before;
 
         int playerTotal = GetHandValue(playerCards);
         int dealerTotal = GetHandValue(dealerCards);
 
         if (dealerTotal > 21)
-            FinishRound(
+            FinishAfter(waitBefore, drawn,
                 "ディーラーがバースト！ 勝ち！",
                 CalculateReturn(activeBet.Value, normalWinReturnMultiplier),
                 ResultKind.Win);
         else if (playerTotal > dealerTotal)
-            FinishRound(
+            FinishAfter(waitBefore, drawn,
                 "勝ち！",
                 CalculateReturn(activeBet.Value, normalWinReturnMultiplier),
                 ResultKind.Win);
         else if (playerTotal == dealerTotal)
-            FinishRound("引き分け！", activeBet.Value, ResultKind.Push);
+            FinishAfter(waitBefore, drawn, "引き分け！", activeBet.Value, ResultKind.Push);
         else
-            FinishRound("負け…", 0, ResultKind.Lose);
+            FinishAfter(waitBefore, drawn, "負け…", 0, ResultKind.Lose);
+    }
+
+    /// <summary>
+    /// 結果を、台の上の動きが終わるのを待ってから確定する（勝ち負けと額は、呼んだ時点で決まっている）。
+    /// waitBefore 秒（配っている札が置かれるまで）→ 伏せ札をめくり、親が引いた dealerDrawn 枚を配る → 結果とお金。
+    /// その間は DealerTurn で、だれも操作できない。
+    /// </summary>
+    private void FinishAfter(float waitBefore, int dealerDrawn, string message, int returnAmount, ResultKind kind)
+    {
+        canDouble.Value = false;
+        phase.Value = (int)RoundPhase.DealerTurn;
+        resultDisplay.Value = new FixedString128Bytes("…");
+        if (finishCoroutine != null) StopCoroutine(finishCoroutine);
+        finishCoroutine = StartCoroutine(FinishRoutine(waitBefore, dealerDrawn, message, returnAmount, kind));
+    }
+
+    private IEnumerator FinishRoutine(float waitBefore, int dealerDrawn, string message, int returnAmount, ResultKind kind)
+    {
+        if (waitBefore > 0f) yield return new WaitForSeconds(waitBefore);
+        UpdateHandsForClients(true);
+        yield return new WaitForSeconds(cardSeconds * (1 + dealerDrawn) + settleSeconds);
+        finishCoroutine = null;
+        FinishRound(message, returnAmount, kind);
     }
 
     private void FinishRound(string message, int returnAmount, ResultKind kind)
@@ -454,8 +520,8 @@ public class BlackjackTable : NetworkBehaviour
 
         playerCards.Clear();
         dealerCards.Clear();
-        playerHandDisplay.Value = new FixedString512Bytes("-");
-        dealerHandDisplay.Value = new FixedString512Bytes("-");
+        playerCardsNet.Value = new FixedString32Bytes();
+        dealerCardsNet.Value = new FixedString32Bytes();
         resultDisplay.Value = new FixedString128Bytes("Eでゲーム開始");
         resultNetAmount.Value = 0;
         resultKind.Value = (int)ResultKind.None;
@@ -527,20 +593,17 @@ public class BlackjackTable : NetworkBehaviour
 
     private void UpdateHandsForClients(bool revealDealer)
     {
-        int playerTotal = GetHandValue(playerCards);
-        playerHandDisplay.Value = new FixedString512Bytes(
-            FormatHand(playerCards, false) + "  = " + playerTotal);
+        playerCardsNet.Value = new FixedString32Bytes(EncodeHand(playerCards, false));
+        dealerCardsNet.Value = new FixedString32Bytes(EncodeHand(dealerCards, !revealDealer));
+    }
 
-        if (revealDealer)
-        {
-            dealerHandDisplay.Value = new FixedString512Bytes(
-                FormatHand(dealerCards, false) + "  = " + GetHandValue(dealerCards));
-        }
-        else
-        {
-            dealerHandDisplay.Value = new FixedString512Bytes(
-                FormatHand(dealerCards, true) + "  = ?");
-        }
+    /// <summary>カードの並びを文字にする（1 枚 1 文字）。hideSecond のときは 2 枚目を伏せ札にする。</summary>
+    private static string EncodeHand(List<Card> cards, bool hideSecond)
+    {
+        var text = new System.Text.StringBuilder(cards.Count);
+        for (int i = 0; i < cards.Count && i < 28; i++)
+            text.Append(hideSecond && i == 1 ? BlackjackTableView.Hidden : BlackjackTableView.Encode(cards[i].rank, cards[i].suit));
+        return text.ToString();
     }
 
     private static Card DrawCard()
@@ -579,44 +642,6 @@ public class BlackjackTable : NetworkBehaviour
         return total;
     }
 
-    private static string FormatHand(List<Card> cards, bool hideSecondCard)
-    {
-        if (cards.Count == 0) return "-";
-
-        string text = "";
-        for (int i = 0; i < cards.Count; i++)
-        {
-            if (i > 0) text += "  ";
-            text += hideSecondCard && i == 1 ? "??" : FormatCard(cards[i]);
-        }
-
-        return text;
-    }
-
-    private static string FormatCard(Card card)
-    {
-        string rank = card.rank switch
-        {
-            1 => "A",
-            11 => "J",
-            12 => "Q",
-            13 => "K",
-            _ => card.rank.ToString()
-        };
-
-        string suit = card.suit switch
-        {
-            0 => "♠",
-            1 => "♥",
-            2 => "♦",
-            _ => "♣"
-        };
-
-        bool isRed = card.suit == 1 || card.suit == 2;
-        string color = isRed ? "#D93452" : "#102027";
-        return "<mark=#FFF7E8><color=" + color + ">[" + rank + suit + "]</color></mark>";
-    }
-
     private static int CalculateReturn(int wager, float multiplier)
     {
         return Mathf.Max(0, Mathf.RoundToInt(wager * multiplier));
@@ -625,10 +650,6 @@ public class BlackjackTable : NetworkBehaviour
     private void OnStateChanged(int oldValue, int newValue)
     {
         RefreshDisplay();
-
-        // 配り始めの音
-        if (oldValue == (int)RoundPhase.Idle && newValue == (int)RoundPhase.PlayerTurn)
-            GameAudio.PlayAt("blackjack/deal", transform.position);
     }
 
     private void OnStateChanged(ulong oldValue, ulong newValue)
@@ -641,9 +662,17 @@ public class BlackjackTable : NetworkBehaviour
         RefreshDisplay();
     }
 
-    private void OnTextChanged(FixedString512Bytes oldValue, FixedString512Bytes newValue)
+    private void OnCardsChanged(FixedString32Bytes oldValue, FixedString32Bytes newValue)
     {
-        RefreshDisplay();
+        if (view != null) view.SetHands(playerCardsNet.Value.ToString(), dealerCardsNet.Value.ToString());
+    }
+
+    /// <summary>賭け金が決まった・倍になった：台の上にチップを置く。</summary>
+    private void OnBetChanged(int oldValue, int newValue)
+    {
+        if (view == null || newValue <= 0) return;
+        if (oldValue == 0) view.PlaceBet(Mathf.Max(0, BetIndexOf(newValue)));
+        else if (newValue == oldValue * 2) view.PlaceDouble();
     }
 
     private void OnResultKindChanged(int oldValue, int newValue)
@@ -666,6 +695,12 @@ public class BlackjackTable : NetworkBehaviour
                 GameAudio.PlayAt("blackjack/push", transform.position);
                 break;
         }
+
+        if (view != null && newValue != (int)ResultKind.None && newValue != (int)ResultKind.Error)
+            view.ShowResult(
+                newValue == (int)ResultKind.Win || newValue == (int)ResultKind.Blackjack,
+                newValue == (int)ResultKind.Lose,
+                newValue == (int)ResultKind.Blackjack);
 
         if (newValue != (int)ResultKind.None && isActiveAndEnabled)
         {
@@ -780,7 +815,7 @@ public class BlackjackTable : NetworkBehaviour
         BuildResultOverlay(panelObject.transform);
         // 再生しなくても、シーンビューで待機中の画面が見えるようにしておく。
         // ここでは英数字だけにする：日本語を入れると、予備のフォント用の子（TMP_SubMeshUI）ができてプレハブに残り、開くたびにエラーが出る
-        displayText.text = "<size=115%><b><color=#FFD34E>BLACKJACK</color></b></size>\n<size=72%><color=#FF8C99>DEALER</color></size>\n-\n<size=72%><color=#74E0B5>PLAYER</color></size>\n-";
+        displayText.text = "<size=115%><b><color=#FFD34E>BLACKJACK</color></b></size>\n<size=85%><color=#FFD34E>BET</color></size>";
         resultBanner.color = new Color(0.09f, 0.18f, 0.24f, 0.96f);
         resultBannerText.text = "PRESS E";
         foreach (TMP_SubMeshUI sub in canvasObject.GetComponentsInChildren<TMP_SubMeshUI>(true))
@@ -903,14 +938,10 @@ public class BlackjackTable : NetworkBehaviour
             ? "BET  " + CurrentBetLabel
             : "BET  " + activeBet.Value + " R";
 
+        // モニターは補助：題字と賭け金だけ（カードと点数は台の上）。結果は下の帯と、結果の演出に出る
         displayText.text =
-            "<size=115%><b><color=#FFD34E>BLACKJACK</color></b></size>\n" +
-            "<size=72%><color=#FF8C99>▼ DEALER ▼</color></size>\n" +
-            "<size=115%><b>" + dealerHandDisplay.Value + "</b></size>\n" +
-            "<color=#526970>━━━━━━━━━━━━</color>\n" +
-            "<size=72%><color=#74E0B5>▲ PLAYER ▲</color></size>\n" +
-            "<size=115%><b>" + playerHandDisplay.Value + "</b></size>\n" +
-            "<size=78%><color=#FFD34E>" + betLine + "</color></size>";
+            "<size=120%><b><color=#FFD34E>BLACKJACK</color></b></size>\n" +
+            "<size=85%><color=#FFD34E>" + betLine + "</color></size>";
 
         ResultKind kind = (ResultKind)resultKind.Value;
         Color bannerColor;

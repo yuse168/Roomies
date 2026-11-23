@@ -195,6 +195,15 @@ internal static class RoomiesCasinoNetTest
         return -1;
     }
 
+    /// <summary>スロットの真ん中の段に止まっている絵（左・中・右）と、結果の文字。</summary>
+    static string SlotLine(SlotMachine slot)
+    {
+        var cells = slot.GetComponentsInChildren<UnityEngine.UI.Image>(true).Where(i => i.name == "Cell_2").OrderBy(i => i.transform.parent.name)
+            .Select(i => i.sprite != null ? i.sprite.name : "?");
+        var result = slot.GetComponentsInChildren<TMPro.TextMeshProUGUI>(true).FirstOrDefault(x => x.name == "ResultText");
+        return string.Join(",", cells) + " / " + (result != null ? result.text : "?");
+    }
+
     static IEnumerator WaitWorld()
     {
         // GameRoom に入り、自分のプレイヤーとカジノの物がそろうまで
@@ -309,6 +318,39 @@ internal static class RoomiesCasinoNetTest
         Expect(money.CurrentMoney == r0 - 200 + back, $"roulette result {result}: paid back {back} in total, money {money.CurrentMoney}");
         yield return WaitFile("c4");
 
+        // ---- 4b. ブラックジャック：ホストが遊ぶ。台の上のカードが、クライアントの画面でも同じ
+        var bj2 = UnityEngine.Object.FindObjectsByType<BlackjackTable>().OrderBy(b => b.transform.position.y).ElementAt(1);
+        var view2 = bj2.GetComponent<BlackjackTableView>();
+        Teleport(cc, bj2.transform.position + bj2.transform.forward * 1.5f - Vector3.up * bj2.transform.position.y + Vector3.up * RoomiesTownRebuild.KFloorY(2));
+        yield return new WaitForSecondsRealtime(.5f);
+        yield return Until(() => bj2.IsIdle, 10f);
+        bj2.Interact(cc.GetComponentInParent<PlayerEarning>());
+        yield return Until(() => view2.LandedPlayer.Length >= 2 && view2.LandedDealer.Length >= 2 && !view2.IsBusy, 6f);
+        File.WriteAllText($"{Dir}/bj_deal", view2.LandedPlayer + "|" + view2.LandedDealer);
+        Expect(view2.LandedPlayer.Length >= 2 && view2.LandedDealer.Length >= 2, $"blackjack: host sees the deal on the table (player '{view2.LandedPlayer}', dealer '{view2.LandedDealer}')");
+        Mark("s4b");
+        yield return WaitFile("c4b", 30f);
+        if (bj2.CanLocalPlayerStand(nm.LocalClientId)) bj2.Stand();
+        yield return Until(() => !view2.LandedDealer.Contains(BlackjackTableView.Hidden) && !view2.IsBusy, 8f);
+        File.WriteAllText($"{Dir}/bj_final", view2.LandedPlayer + "|" + view2.LandedDealer);
+        Mark("s4c");
+        yield return WaitFile("c4c", 30f);
+        yield return Until(() => bj2.IsIdle, 12f);
+
+        // ---- 4d. スロット：ホストが回す。止まった絵が、クライアントの画面でも同じ
+        var slot2 = UnityEngine.Object.FindObjectsByType<SlotMachine>().OrderByDescending(s2 => s2.transform.position.y).ThenBy(s2 => s2.name).First();
+        Teleport(cc, slot2.transform.position + slot2.transform.forward * 1.3f);
+        yield return new WaitForSecondsRealtime(.5f);
+        var spinning = (NetworkVariable<bool>)typeof(SlotMachine).GetField("isSpinning", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).GetValue(slot2);
+        slot2.Interact(cc.GetComponentInParent<PlayerEarning>());
+        yield return new WaitForSecondsRealtime(.6f);
+        yield return Until(() => !spinning.Value, 12f);
+        yield return new WaitForSecondsRealtime(.3f);
+        File.WriteAllText($"{Dir}/slot_result", SlotLine(slot2));
+        Note($"slot: host sees '{SlotLine(slot2)}'");
+        Mark("s4d");
+        yield return WaitFile("c4d", 30f);
+
         // ---- 5. クライアントだけが 3 階の鍵を買って上がる。ホストは 2 階の広間に残る
         Teleport(cc, Cabin(ev, 1).position + new Vector3(0, 0, 3f));
         float hostY = cc.transform.position.y;
@@ -416,6 +458,32 @@ internal static class RoomiesCasinoNetTest
         yield return Until(() => t2.IsIdle, 20f);
         Expect(t2.LastResult >= 0 && t2.TotalOn(red) == 0, $"client sees the result {t2.LastResult} and a cleared table");
         Mark("c4");
+
+        // ---- 4b. ブラックジャック：ホストが配ったカードが、同じ並びで台の上に見える
+        yield return WaitFile("s4b", 60f);
+        var bj2 = UnityEngine.Object.FindObjectsByType<BlackjackTable>().OrderBy(b => b.transform.position.y).ElementAt(1);
+        var view2 = bj2.GetComponent<BlackjackTableView>();
+        yield return Until(() => view2.LandedPlayer.Length >= 2 && view2.LandedDealer.Length >= 2 && !view2.IsBusy, 6f);
+        string deal = File.ReadAllText($"{Dir}/bj_deal");
+        Expect(view2.LandedPlayer + "|" + view2.LandedDealer == deal, $"blackjack: client sees the same deal as the host ('{view2.LandedPlayer}|{view2.LandedDealer}' vs '{deal}')");
+        int shown = bj2.transform.Cast<Transform>().Count(c => c.name.StartsWith("Pivot_Card_") && c.gameObject.activeSelf);
+        Expect(shown == deal.Length - 1, $"blackjack: client has {shown} cards on the table (expected {deal.Length - 1})");
+        Expect(bj2.GetInteractionLabel(nm.LocalClientId).Contains("ゲーム中"), "blackjack: client cannot play the host's hand");
+        Mark("c4b");
+        yield return WaitFile("s4c", 30f);
+        yield return Until(() => !view2.LandedDealer.Contains(BlackjackTableView.Hidden) && !view2.IsBusy, 8f);
+        yield return new WaitForSecondsRealtime(.3f);
+        string final = File.ReadAllText($"{Dir}/bj_final");
+        Expect(view2.LandedPlayer + "|" + view2.LandedDealer == final, $"blackjack: client sees the same final cards ('{view2.LandedPlayer}|{view2.LandedDealer}' vs '{final}')");
+        Mark("c4c");
+
+        // ---- 4d. スロット：ホストが回した結果が、同じ絵で止まる
+        yield return WaitFile("s4d", 60f);
+        var slot2 = UnityEngine.Object.FindObjectsByType<SlotMachine>().OrderByDescending(s2 => s2.transform.position.y).ThenBy(s2 => s2.name).First();
+        yield return new WaitForSecondsRealtime(.5f);
+        string hostLine = File.ReadAllText($"{Dir}/slot_result");
+        Expect(SlotLine(slot2) == hostLine, $"slot: client sees the same stopped reels ('{SlotLine(slot2)}' vs '{hostLine}')");
+        Mark("c4d");
 
         // ---- 5. クライアントだけ 3 階へ
         yield return WaitFile("s5");

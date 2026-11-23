@@ -257,7 +257,82 @@ public class RoomiesCasinoTests
                  {
                      "elevator_open", "elevator_close", "elevator_move", "elevator_ding",
                      "roulette_spin", "roulette_stop", "chip", "card", "dice", "win", "lose", "cash",
+                     "slot_start", "slot_reel", "slot_stopa", "slot_stopb", "slot_stopc", "slot_reach", "slot_reach_miss", "slot_lose",
+                     "slot_win_small", "slot_win_mid", "slot_win_big", "slot_jackpot", "slot_coin", "slot_tick", "chips_slide",
                  })
             Assert.That(Resources.Load<AudioClip>("Audio/casino/" + key), Is.Not.Null, "casino/" + key);
+    }
+
+    [Test]
+    public void SlotScreenIsWiredInThePrefab()
+    {
+        // 画面の部品はプレハブに置いてあり、実行時には作らない。割り当てが切れていないかを確かめる
+        Component screen = LoadComponent("Assets/_Prefabs/Slot.prefab", "SlotScreen");
+        var so = new SerializedObject(screen);
+        Assert.That(so.FindProperty("symbolSprites").arraySize, Is.EqualTo(5), "シンボルの絵は 5 つ（SlotMachine の slotSymbols と同じ数）");
+        Assert.That(so.FindProperty("blurSprites").arraySize, Is.EqualTo(5));
+        Assert.That(so.FindProperty("reelCells").arraySize, Is.EqualTo(15), "リール 3 本 × マス 5 つ");
+        for (int i = 0; i < 15; i++)
+            Assert.That(so.FindProperty("reelCells").GetArrayElementAtIndex(i).objectReferenceValue, Is.Not.Null, "reelCells[" + i + "]");
+        foreach (string name in new[] { "winLine", "flash", "sunburst", "logo", "reachFrame", "sweep", "winCounter", "feverBackground", "lampLight" })
+            Assert.That(so.FindProperty(name).objectReferenceValue, Is.Not.Null, name);
+        int strip = so.FindProperty("reelStrips").arraySize;
+        Assert.That(strip % 3 == 0 && strip >= 15, "リールの並びは 3 本ぶん");
+        // どのリールにも、5 つの絵がすべて入っている（入っていない絵は、そのリールで止められない）
+        for (int reel = 0; reel < 3; reel++)
+            for (int symbol = 0; symbol < 5; symbol++)
+            {
+                bool found = false;
+                for (int k = 0; k < strip / 3; k++)
+                    if (so.FindProperty("reelStrips").GetArrayElementAtIndex(reel * (strip / 3) + k).intValue == symbol) found = true;
+                Assert.That(found, $"リール {reel + 1} に絵 {symbol} が無い");
+            }
+
+        Component machine = LoadComponent("Assets/_Prefabs/Slot.prefab", "SlotMachine");
+        var ms = new SerializedObject(machine);
+        foreach (string name in new[] { "screen", "resultText", "feverText", "betText" })
+            Assert.That(ms.FindProperty(name).objectReferenceValue, Is.Not.Null, name);
+    }
+
+    [Test]
+    public void BlackjackCardsAreWiredInThePrefab()
+    {
+        Component table = LoadComponent("Assets/_Prefabs/BlackjackTable.prefab", "BlackjackTable");
+        Assert.That(new SerializedObject(table).FindProperty("view").objectReferenceValue, Is.Not.Null, "BlackjackTable.view");
+
+        Component view = LoadComponent("Assets/_Prefabs/BlackjackTable.prefab", "BlackjackTableView");
+        var so = new SerializedObject(view);
+        foreach (string hand in new[] { "playerCards", "dealerCards" })
+        {
+            var cards = so.FindProperty(hand);
+            Assert.That(cards.arraySize, Is.GreaterThanOrEqualTo(6), hand + "：6 枚以上（21 を超えない手の多くが収まる数）");
+            for (int i = 0; i < cards.arraySize; i++)
+            {
+                Assert.That(cards.GetArrayElementAtIndex(i).FindPropertyRelative("pivot").objectReferenceValue, Is.Not.Null, $"{hand}[{i}].pivot");
+                Assert.That(cards.GetArrayElementAtIndex(i).FindPropertyRelative("face").objectReferenceValue, Is.Not.Null, $"{hand}[{i}].face");
+            }
+        }
+        foreach (string name in new[] { "anchorShoe", "anchorDiscard", "anchorPlayerHand", "anchorDealerHand", "pivotBet", "pivotDouble", "pivotPayout",
+                     "anchorTray", "anchorBet", "anchorPayout", "playerScoreText", "dealerScoreText" })
+            Assert.That(so.FindProperty(name).objectReferenceValue, Is.Not.Null, name);
+    }
+
+    [Test]
+    public void BlackjackViewCountsVisibleCardsOnly()
+    {
+        Type view = GameType("BlackjackTableView");
+        MethodInfo encode = view.GetMethod("Encode"), value = view.GetMethod("HandValue");
+        char ace = (char)encode.Invoke(null, new object[] { 1, 0 }), king = (char)encode.Invoke(null, new object[] { 13, 2 }), nine = (char)encode.Invoke(null, new object[] { 9, 1 });
+
+        object[] args = { "" + ace + king, false };
+        Assert.That((int)value.Invoke(null, args), Is.EqualTo(21), "A + K = 21");
+        Assert.That((bool)args[1], Is.False);
+
+        args = new object[] { "" + ace + nine + king, false };
+        Assert.That((int)value.Invoke(null, args), Is.EqualTo(20), "A + 9 + K = 20（A は 1 に数え直す）");
+
+        args = new object[] { "" + nine + '#', false };
+        Assert.That((int)value.Invoke(null, args), Is.EqualTo(9), "伏せ札は数えない");
+        Assert.That((bool)args[1], Is.True, "伏せ札があることが分かる");
     }
 }

@@ -73,6 +73,9 @@ internal static partial class RoomiesCasinoBuilder
             so.FindProperty("interactionCollider").objectReferenceValue = box;
             so.ApplyModifiedPropertiesWithoutUndo();
 
+            // 画面の中身（リール・演出の部品）と筐体のランプ
+            BuildSlotScreen(root, machine, canvas);
+
             PrefabUtility.SaveAsPrefabAsset(root, SlotBasePath);
         }
         finally { PrefabUtility.UnloadPrefabContents(root); }
@@ -98,8 +101,12 @@ internal static partial class RoomiesCasinoBuilder
             var so = new SerializedObject(table);
             so.FindProperty("displayLocalPosition").vector3Value = new Vector3(0, 1.72f, Art.BjBackZ - .06f);
             so.FindProperty("displayScale").floatValue = .0018f;
+            so.FindProperty("displaySize").vector2Value = new Vector2(700, 300);   // 補助の表示（賭け金と結果）だけなので低くする
             so.ApplyModifiedPropertiesWithoutUndo();
             table.EditorBuildUI();
+
+            // 台の上の実物：カード・チップ・点数の札
+            BuildBlackjackCards(root, table);
 
             PrefabUtility.SaveAsPrefabAsset(root, BlackjackBasePath);
         }

@@ -217,6 +217,7 @@ internal static partial class RoomiesCasinoBuilder
         yield return CheckRates(cc, money, vis);
         yield return CheckRoulette(cc, money);
         yield return CheckHiLoAndChinchiro(cc, money);
+        yield return CheckTableLooks(cc, money);
         CheckDailyRequestCountsOnlyWinnings(money);
 
         Finish(cc, home, runner);
@@ -373,6 +374,84 @@ internal static partial class RoomiesCasinoBuilder
         if (!Physics.Raycast(eye, (aim - eye).normalized, out var hit, 3f)) return false;
         collider = hit.collider;
         return hit.collider.GetComponentInParent<RouletteSpot>() == table.SpotAt(spot) && hit.collider.GetComponentInParent<CasinoGame>() == table;
+    }
+
+    /// <summary>台の上の実物（ブラックジャックのカード・チップ・点数の札）と、スロットの画面の演出が、決まりどおりに出るか。</summary>
+    static IEnumerator CheckTableLooks(CharacterController cc, SharedMoneyManager money)
+    {
+        var earning = cc.GetComponentInParent<PlayerEarning>();
+        ulong me = cc.GetComponentInParent<Unity.Netcode.NetworkObject>().OwnerClientId;
+        var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+
+        // ---- ブラックジャック（1 階）：配ると、台の上にカードが 2 枚ずつ並ぶ。親の 2 枚目は伏せ札
+        var bj = Object.FindObjectsByType<BlackjackTable>().OrderBy(b => b.transform.position.y).First();
+        var view = bj.GetComponent<BlackjackTableView>();
+        Expect(view != null, "blackjack: the table has its card view");
+        if (view != null)
+        {
+            yield return WaitIdle(bj);
+            yield return new WaitForSeconds(.6f);
+            Vector3 stand = bj.transform.position + bj.transform.forward * 1.5f; stand.y = RoomiesTownRebuild.KFloorY(1);
+            Teleport(cc, stand);
+            yield return new WaitForSeconds(.4f);
+            int Cards(string prefix) => bj.transform.Cast<Transform>().Count(t => t.name.StartsWith("Pivot_Card_" + prefix) && t.gameObject.activeSelf);
+            Expect(Cards("P") == 0 && Cards("D") == 0, "blackjack: no cards on the table while idle");
+            int before = money.CurrentMoney;
+            bj.Interact(earning);
+            float t = 0; while (t < 4f && (view.IsBusy || view.LandedPlayer.Length < 2)) { yield return new WaitForSeconds(.1f); t += .1f; }
+            yield return new WaitForSeconds(.2f);
+            bool natural = bj.IsIdle || !bj.CanLocalPlayerStand(me);
+            Expect(Cards("P") >= 2 && Cards("D") >= 2, $"blackjack: cards are on the table after the deal (player {Cards("P")}, dealer {Cards("D")})");
+            Expect(view.LandedPlayer.Length >= 2 && !view.LandedPlayer.Contains(BlackjackTableView.Hidden), $"blackjack: the player's cards are face up ('{view.LandedPlayer}')");
+            if (!natural)
+                Expect(view.LandedDealer.Length == 2 && view.LandedDealer[1] == BlackjackTableView.Hidden && view.LandedDealer[0] != BlackjackTableView.Hidden,
+                    $"blackjack: the dealer's second card is face down ('{view.LandedDealer}')");
+            var betStack = bj.transform.Find("Pivot_Chips_Bet");
+            Expect(betStack != null && betStack.gameObject.activeSelf, "blackjack: the bet chips are on the table");
+            var score = bj.transform.Find("Anchor_Score_Player");
+            var scoreText = score != null ? score.GetComponentInChildren<TMPro.TMP_Text>(true) : null;
+            int total = BlackjackTableView.HandValue(view.LandedPlayer, out _);
+            Expect(score != null && score.gameObject.activeSelf && scoreText != null && (scoreText.text == total.ToString() || scoreText.text == "BJ"),
+                $"blackjack: the score plate shows the player's total ({(scoreText != null ? scoreText.text : "?")} for {total})");
+            if (bj.CanLocalPlayerStand(me)) bj.Stand();
+            // 親の番：伏せ札がめくられ、結果が出るまで操作できない
+            t = 0; while (t < 6f && view.LandedDealer.Contains(BlackjackTableView.Hidden)) { yield return new WaitForSeconds(.1f); t += .1f; }
+            Expect(!view.LandedDealer.Contains(BlackjackTableView.Hidden) && view.LandedDealer.Length >= 2, $"blackjack: the dealer's hidden card is turned over ('{view.LandedDealer}')");
+            int dealerTotal = BlackjackTableView.HandValue(view.LandedDealer, out _);
+            t = 0; while (t < 12f && !bj.IsIdle) { yield return new WaitForSeconds(.1f); t += .1f; }
+            yield return new WaitForSeconds(.8f);
+            int diff = money.CurrentMoney - before;
+            int bet = bj.BetAmounts[0];
+            bool consistent = total > 21 ? diff == -bet
+                : dealerTotal > 21 || total > dealerTotal ? diff > 0
+                : total == dealerTotal ? diff == 0 : diff == -bet;
+            Expect(consistent, $"blackjack: the money matches the cards on the table (player {total}, dealer {dealerTotal}, money {diff:+0;-0;0})");
+            Expect(bj.IsIdle && Cards("P") == 0 && Cards("D") == 0, "blackjack: the cards are cleared after the round");
+        }
+
+        // ---- スロット（1 階）：画面の部品がそろっていて、回している間はリールの絵が動く
+        var slot = Object.FindObjectsByType<SlotMachine>().OrderBy(s => s.GetComponentInChildren<Canvas>(true).transform.position.y).First();
+        var screen = slot.GetComponent<SlotScreen>();
+        Expect(screen != null, "slot: the cabinet has its screen component");
+        if (screen != null)
+        {
+            Vector3 front = slot.transform.position + slot.transform.forward * 1.3f; front.y = RoomiesTownRebuild.KFloorY(1);
+            Teleport(cc, front);
+            var spinning = (Unity.Netcode.NetworkVariable<bool>)typeof(SlotMachine).GetField("isSpinning", flags).GetValue(slot);
+            float t = 0; while (t < 8f && spinning.Value) { yield return new WaitForSeconds(.1f); t += .1f; }
+            var cell = slot.GetComponentsInChildren<UnityEngine.UI.Image>(true).First(i => i.name == "Cell_2" && i.transform.parent.name == "Reel_1");
+            float y0 = cell.rectTransform.anchoredPosition.y;
+            int m0 = money.CurrentMoney;
+            slot.Interact(earning);
+            yield return new WaitForSeconds(.35f);
+            Expect(spinning.Value && Mathf.Abs(cell.rectTransform.anchoredPosition.y - y0) > .5f || !Mathf.Approximately(cell.rectTransform.anchoredPosition.y, y0),
+                "slot: the reels move while spinning");
+            t = 0; while (t < 10f && spinning.Value) { yield return new WaitForSeconds(.1f); t += .1f; }
+            Expect(!spinning.Value && Mathf.Abs(cell.rectTransform.anchoredPosition.y) < .5f, $"slot: the reels stop on the line (offset {cell.rectTransform.anchoredPosition.y:F1})");
+            var lamps = slot.transform.Find("Anchor_Lamps");
+            Expect(lamps != null && lamps.GetComponentsInChildren<Light>(true).Length == 1, "slot: the cabinet has its lamps");
+            Expect(money.CurrentMoney >= m0 - 10, $"slot: one spin costs the bet at most (money {m0} -> {money.CurrentMoney})");
+        }
     }
 
     static IEnumerator CheckRoulette(CharacterController cc, SharedMoneyManager money)
