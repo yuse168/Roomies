@@ -407,7 +407,8 @@ internal static partial class RoomiesCasinoBuilder
                 Expect(view.LandedDealer.Length == 2 && view.LandedDealer[1] == BlackjackTableView.Hidden && view.LandedDealer[0] != BlackjackTableView.Hidden,
                     $"blackjack: the dealer's second card is face down ('{view.LandedDealer}')");
             var betStack = bj.transform.Find("Pivot_Chips_Bet");
-            Expect(betStack != null && betStack.gameObject.activeSelf, "blackjack: the bet chips are on the table");
+            // 配った時点で 21（その場で結果が出る回）は、チップがもう動いたあとなので見ない
+            if (!natural) Expect(betStack != null && betStack.gameObject.activeSelf, "blackjack: the bet chips are on the table");
             var score = bj.transform.Find("Anchor_Score_Player");
             var scoreText = score != null ? score.GetComponentInChildren<TMPro.TMP_Text>(true) : null;
             int total = BlackjackTableView.HandValue(view.LandedPlayer, out _);
@@ -415,10 +416,28 @@ internal static partial class RoomiesCasinoBuilder
                 $"blackjack: the score plate shows the player's total ({(scoreText != null ? scoreText.text : "?")} for {total})");
             if (bj.CanLocalPlayerStand(me)) bj.Stand();
             // 親の番：伏せ札がめくられ、結果が出るまで操作できない
-            t = 0; while (t < 6f && view.LandedDealer.Contains(BlackjackTableView.Hidden)) { yield return new WaitForSeconds(.1f); t += .1f; }
+            // めくっている間、毎フレーム見る：伏せ札の表が上を向いているのに、点数の札がまだ「?」のままのフレームが無いこと
+            var hole = bj.transform.Find("Pivot_Card_D2");
+            int mismatched = 0, frames = 0;
+            t = 0;
+            while (t < 6f && view.LandedDealer.Contains(BlackjackTableView.Hidden))
+            {
+                yield return null;
+                t += Time.deltaTime; frames++;
+                bool faceUp = hole != null && Vector3.Dot(hole.up, Vector3.up) > .1f;
+                if (faceUp && view.LandedDealer.Contains(BlackjackTableView.Hidden)) mismatched++;
+            }
+            if (!natural) Expect(mismatched == 0, $"blackjack: the score plate changes as soon as the hidden card shows its face ({mismatched} of {frames} frames out of step)");
             Expect(!view.LandedDealer.Contains(BlackjackTableView.Hidden) && view.LandedDealer.Length >= 2, $"blackjack: the dealer's hidden card is turned over ('{view.LandedDealer}')");
-            int dealerTotal = BlackjackTableView.HandValue(view.LandedDealer, out _);
-            t = 0; while (t < 12f && !bj.IsIdle) { yield return new WaitForSeconds(.1f); t += .1f; }
+            // 親が引き終わったあとの点で比べる（めくった直後は、まだ引く前のことがある）。片付く前の、最後の並びを覚えておく
+            string dealerFinal = view.LandedDealer;
+            t = 0;
+            while (t < 12f && !bj.IsIdle)
+            {
+                if (view.LandedDealer.Length >= dealerFinal.Length && !view.IsBusy) dealerFinal = view.LandedDealer;
+                yield return new WaitForSeconds(.05f); t += .05f;
+            }
+            int dealerTotal = BlackjackTableView.HandValue(dealerFinal, out _);
             yield return new WaitForSeconds(.8f);
             int diff = money.CurrentMoney - before;
             int bet = bj.BetAmounts[0];

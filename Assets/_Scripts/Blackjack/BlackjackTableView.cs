@@ -255,6 +255,7 @@ public class BlackjackTableView : MonoBehaviour
         GameAudio.PlayAt("casino/card", transform.position, 0.9f, 0.08f, 12f);
 
         float t = 0f;
+        bool counted = false;
         while (t < dealSeconds)
         {
             t += Time.deltaTime;
@@ -263,11 +264,19 @@ public class BlackjackTableView : MonoBehaviour
             p.y += Mathf.Sin(u * Mathf.PI) * dealArc;
             slot.pivot.localPosition = p;
             // 表向きに置く札は、滑ってくる途中の後ろ半分でめくる
-            slot.pivot.localRotation = Quaternion.Slerp(faceDown, end, Mathf.InverseLerp(0.45f, 1f, u));
+            float turn = Mathf.InverseLerp(0.45f, 1f, u);
+            slot.pivot.localRotation = Quaternion.Slerp(faceDown, end, turn);
+            // 表が見えはじめた瞬間（半分まで回ったとき）に、点数の札へ足す。伏せ札は、置き終わったときに足す
+            if (!counted && code != Hidden && turn >= 0.5f) { counted = true; CountDealt(code, toPlayer); }
             yield return null;
         }
         slot.pivot.localPosition = to;
         slot.pivot.localRotation = end;
+        if (!counted) CountDealt(code, toPlayer);
+    }
+
+    private void CountDealt(char code, bool toPlayer)
+    {
         if (toPlayer) landedPlayer += code; else landedDealer += code;
         RefreshScores();
     }
@@ -281,16 +290,24 @@ public class BlackjackTableView : MonoBehaviour
         Vector3 home = slot.pivot.localPosition;
         GameAudio.PlayAt("casino/card", transform.position, 1f, 0.05f, 12f);
         float t = 0f;
+        bool counted = false;
         while (t < flipSeconds)
         {
             t += Time.deltaTime;
             float u = Mathf.Clamp01(t / flipSeconds);
             slot.pivot.localRotation = Quaternion.Slerp(from, to, u);
             slot.pivot.localPosition = home + Vector3.up * (Mathf.Sin(u * Mathf.PI) * 0.07f);
+            // 半分まで回ると表が見えはじめる。その瞬間に点数の札も数え直す（めくり終わるまで待つと、表が見えているのに「?」のままの間ができる）
+            if (!counted && u >= 0.5f) { counted = true; CountFlipped(index, code, isPlayer); }
             yield return null;
         }
         slot.pivot.localRotation = to;
         slot.pivot.localPosition = home;
+        if (!counted) CountFlipped(index, code, isPlayer);
+    }
+
+    private void CountFlipped(int index, char code, bool isPlayer)
+    {
         if (isPlayer) landedPlayer = ReplaceAt(landedPlayer, index, code); else landedDealer = ReplaceAt(landedDealer, index, code);
         RefreshScores();
     }
