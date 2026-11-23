@@ -90,7 +90,7 @@ internal static partial class RoomiesTownRebuild
             string[] parts = m.name.Split('@');   // "@色" か "@色@glow"
             string color = parts[1]; bool glow = parts.Length > 2;
             var mesh = RoomiesCasinoArt.Build("box_" + color + (glow ? "_glow" : ""),
-                lp => lp.Box(new Vector3(-.5f, -.5f, -.5f), new Vector3(.5f, .5f, .5f), color, glow));
+                lp => { lp.Sharp = true; lp.Box(new Vector3(-.5f, -.5f, -.5f), new Vector3(.5f, .5f, .5f), color, glow); });   // 伸ばして使うので、角は丸めない
             r.GetComponent<MeshFilter>().sharedMesh = mesh;
             r.sharedMaterials = RoomiesCasinoArt.MaterialsFor(mesh);
         }

@@ -24,55 +24,72 @@ internal static partial class RoomiesCasinoArt
         lp.Lathe(new[] { (0f, -drop - .05f), (.09f, -drop + .02f), (.09f, -drop + .1f) }, 6, "warm", 0, false, false, true);
     });
 
-    // ================================================================ 腰かけ
+    // ================================================================ 腰かけ（丸い座面はふっくら、脚は上下で太さを変える）
     internal static Mesh Stool(string seat) => Build("stool_" + seat, lp =>
     {
-        lp.Lathe(new[] { (.2f, 0f), (.18f, .03f), (.05f, .06f), (.04f, .56f), (.1f, .6f) }, 8, b => b < 2 ? "gold_dark" : "metal", Mathf.PI / 8, false, true);
-        lp.Prism(Ellipse(.21f, .21f, 8, Mathf.PI / 8), .6f, .7f, seat, null, true);
-        lp.Ring(Ellipse(.15f, .15f, 8, Mathf.PI / 8), Ellipse(.13f, .13f, 8, Mathf.PI / 8), .24f, .27f, "gold_dark");
+        lp.Lathe(new[] { (.2f, 0f), (.19f, .025f), (.07f, .05f), (.035f, .12f), (.03f, .5f), (.06f, .57f), (.12f, .6f) }, 8, b => b < 2 ? "gold_dark" : "metal", Mathf.PI / 8, false, true);
+        lp.Lathe(new[] { (.17f, .6f), (.215f, .625f), (.22f, .665f), (.19f, .7f), (.1f, .715f), (0f, .72f) }, 8, seat, Mathf.PI / 8, false, true);
+        lp.Lathe(new[] { (.15f, .24f), (.162f, .255f), (.15f, .27f) }, 8, "gold_dark", Mathf.PI / 8, false, false);
     });
 
-    /// <summary>ひじ掛けのない、背もたれつきの椅子（台のまわり）。正面（座る人の向く方）が +Z。</summary>
+    /// <summary>
+    /// ひじ掛けのない、背もたれつきの椅子（台のまわり）。正面（座る人の向く方）が +Z。
+    /// 脚は下へ向けて細く、座面はふっくら、背もたれは上へ向けて少しすぼまり、後ろへ反る。
+    /// </summary>
     internal static Mesh Chair(string cloth, string clothDark) => Build("chair_" + cloth, lp =>
     {
-        foreach (var (x, z) in new[] { (-.2f, -.2f), (.2f, -.2f), (-.2f, .2f), (.2f, .2f) })
-            lp.Box(new Vector3(x - .035f, 0, z - .035f), new Vector3(x + .035f, .42f, z + .035f), "wood_dark");
-        lp.Prism(Chamfer(.56f, .54f, .07f), .42f, .56f, cloth, null, true);
-        lp.Push(new Vector3(0, .56f, -.24f), new Vector3(-8, 0, 0));
-        lp.Prism(Offset(Chamfer(.56f, .12f, .04f), Vector2.zero), 0, .56f, clothDark, cloth);
+        foreach (var (x, z) in new[] { (-.21f, -.2f), (.21f, -.2f), (-.21f, .2f), (.21f, .2f) })
+        {
+            lp.Push(new Vector3(x, 0, z));
+            lp.Lathe(new[] { (.02f, 0f), (.024f, .02f), (.03f, .3f), (.036f, .42f) }, 6, b => b == 0 ? "gold_dark" : "wood_dark", 0, false, true);
+            lp.Pop();
+        }
+        lp.Prism(Chamfer(.54f, .52f, .1f), .4f, .44f, "wood_dark", null, true);                     // 座面の下の枠
+        lp.Cushion(Chamfer(.56f, .54f, .14f), .44f, .58f, cloth);                                    // 座面
+        lp.Push(new Vector3(0, .5f, -.25f), new Vector3(-10, 0, 0));
+        lp.Loft(Chamfer(.5f, .09f, .04f), new[] { (0f, .86f), (.14f, 1f), (.42f, 1.04f), (.56f, .98f), (.64f, .8f) }, clothDark, cloth, true, .03f);   // 背もたれ
         lp.Pop();
     });
 
-    /// <summary>ソファ（幅を決められる）。背が -Z、座る人の向く方が +Z。</summary>
+    /// <summary>ソファ（幅を決められる）。背が -Z、座る人の向く方が +Z。座面と背はふっくら、ひじ掛けは上が丸く太い。</summary>
     internal static Mesh Sofa(float width, string cloth, string clothDark) => Build($"sofa_{Mathf.RoundToInt(width * 100)}_{cloth}", lp =>
     {
         float hw = width / 2;
-        lp.Prism(Chamfer(width, .9f, .08f), .08f, .34f, clothDark, null, true);
+        lp.Loft(Chamfer(width, .9f, .12f), new[] { (.08f, .96f), (.14f, 1f), (.34f, 1f) }, clothDark, null, true);
         foreach (float x in new[] { -hw + .12f, hw - .12f })
             foreach (float z in new[] { -.34f, .34f })
-                lp.Box(new Vector3(x - .05f, 0, z - .05f), new Vector3(x + .05f, .08f, z + .05f), "wood_dark");
-        // 背もたれ・ひじ掛け・座面のクッション
-        lp.Prism(Offset(Chamfer(width, .26f, .07f), new Vector2(0, -.32f)), .34f, .92f, cloth);
+            {
+                lp.Push(new Vector3(x, 0, z));
+                lp.Lathe(new[] { (.03f, 0f), (.045f, .08f) }, 6, "wood_dark", 0, false, true);
+                lp.Pop();
+            }
+        // 背もたれ（上へ向けて丸く）・ひじ掛け（上が太い）・座面のクッション
+        lp.Loft(Offset(Chamfer(width, .26f, .1f), new Vector2(0, -.32f)), new[] { (.34f, 1f), (.7f, 1f), (.86f, .97f), (.94f, .86f) }, cloth, null, false, .03f);
         foreach (float s in new[] { -1f, 1f })
-            lp.Prism(Offset(Chamfer(.22f, .78f, .07f), new Vector2(s * (hw - .11f), .04f)), .34f, .66f, cloth);
+            lp.Loft(Offset(Chamfer(.22f, .78f, .09f), new Vector2(s * (hw - .11f), .04f)), new[] { (.34f, .92f), (.5f, .96f), (.6f, 1.08f), (.67f, 1.02f), (.7f, .8f) }, cloth, null, false, .015f);
         int cushions = Mathf.Max(1, Mathf.RoundToInt((width - .44f) / .75f));
         float cw = (width - .44f) / cushions;
         for (int i = 0; i < cushions; i++)
-            lp.Prism(Offset(Chamfer(cw - .03f, .62f, .06f), new Vector2(-hw + .22f + cw * (i + .5f), .1f)), .34f, .48f, cloth, null, false, .92f);
+            lp.Cushion(Offset(Chamfer(cw - .03f, .62f, .1f), new Vector2(-hw + .22f + cw * (i + .5f), .1f)), .34f, .5f, cloth);
     });
 
     internal static Mesh RoundTable(float radius, float height) => Build($"round_table_{Mathf.RoundToInt(radius * 100)}_{Mathf.RoundToInt(height * 100)}", lp =>
     {
-        lp.Lathe(new[] { (radius * .55f, 0f), (radius * .5f, .04f), (.06f, .08f), (.05f, height - .08f), (radius * .3f, height - .05f) }, 8, "wood_dark", Mathf.PI / 8, false, true);
+        // 脚は、足元で広がり、真ん中で細く、天板の下でまた広がる
+        lp.Lathe(new[] { (radius * .58f, 0f), (radius * .55f, .03f), (radius * .2f, .07f), (.06f, .16f), (.045f, height * .5f), (.06f, height - .14f), (radius * .32f, height - .05f) }, 8, "wood_dark", Mathf.PI / 8, false, true);
         lp.Prism(Ellipse(radius, radius, 10, Mathf.PI / 10), height - .05f, height, "wood", "wood_light", true);
     });
 
     internal static Mesh LowTable(float width, float depth) => Build($"low_table_{Mathf.RoundToInt(width * 100)}_{Mathf.RoundToInt(depth * 100)}", lp =>
     {
-        float hw = width / 2 - .08f, hd = depth / 2 - .08f;
+        float hw = width / 2 - .09f, hd = depth / 2 - .09f;
         foreach (var (x, z) in new[] { (-hw, -hd), (hw, -hd), (-hw, hd), (hw, hd) })
-            lp.Box(new Vector3(x - .04f, 0, z - .04f), new Vector3(x + .04f, .36f, z + .04f), "wood_dark");
-        lp.Prism(Chamfer(width, depth, .05f), .36f, .43f, "wood", "wood_light", true);
+        {
+            lp.Push(new Vector3(x, 0, z));
+            lp.Lathe(new[] { (.025f, 0f), (.03f, .03f), (.045f, .36f) }, 6, "wood_dark", 0, false, true);
+            lp.Pop();
+        }
+        lp.Prism(Chamfer(width, depth, .09f), .36f, .43f, "wood", "wood_light", true);
     });
 
     // ================================================================ ロープの柵（柱 1 本）とロープ

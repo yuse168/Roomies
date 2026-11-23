@@ -63,7 +63,7 @@ internal static partial class RoomiesCasinoArt
         var p = new List<Vector2>();
         float hw = BjWidth / 2 - inset, back = BjBackZ + inset, arcZ = -.3f, rz = BjFrontZ - inset - arcZ;
         p.Add(new Vector2(hw, back));
-        const int n = 10;
+        const int n = 24;
         for (int i = 0; i <= n; i++) { float a = Mathf.PI * i / n; p.Add(new Vector2(Mathf.Cos(a) * hw, arcZ + Mathf.Sin(a) * rz)); }
         p.Add(new Vector2(-hw, back));
         return p.ToArray();

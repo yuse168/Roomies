@@ -329,22 +329,41 @@ internal static partial class RoomiesCasinoArt
     internal static int Triangles(Mesh mesh) => mesh.triangles.Length / 3;
 
     // ================================================================ 多角形（XZ 平面。上から見て反時計回り）
+    // ================================================================ 丸み（2026/11/24 ゆせさんの依頼：角ばったローポリをやめる）
+    // 形の決まり（2026/11/13 のベベルの決まりと同じ考え方。強・中・弱）：
+    //  ・丸い物（円柱・回転体・丸い天板）は、辺の数を倍にして、面をなめらかにつなぐ
+    //  ・四角い物は、角を丸める。幅は「短い辺 × 比率」で、上限つき（大きい箱は丸めすぎない）
+    //  ・天板・座面・ふち（多角形の柱）は、上の角に丸みを付ける
+    // 形を作るコード（各 RoomiesCasinoArt.*.cs）は寸法と色だけを書き、丸みはここでまとめて付ける。
+    /// <summary>丸い物の辺の数：5〜15 は倍に（最低 12）。4 以下（四角い柱）と 16 以上はそのまま。</summary>
+    internal static int RoundSides(int sides) => sides <= 4 || sides >= 16 ? sides : Mathf.Max(12, sides * 2);
+    /// <summary>角丸 1 つあたりの分割。</summary>
+    const int CornerSegments = 4;
+    /// <summary>なめらかにつなぐ角度（これより急な折れは、角として残す）。</summary>
+    const float SmoothAngle = 50f;
+
     internal static Vector2[] Ellipse(float rx, float rz, int sides, float phase = 0)
     {
+        sides = RoundSides(sides);
         var p = new Vector2[sides];
         for (int i = 0; i < sides; i++) { float a = phase + i * Mathf.PI * 2 / sides; p[i] = new Vector2(Mathf.Cos(a) * rx, Mathf.Sin(a) * rz); }
         return p;
     }
 
-    /// <summary>角を落とした四角（8 角形）。中心が原点。</summary>
+    /// <summary>角を丸めた四角（角 1 つを CornerSegments に分ける）。中心が原点。cut は角の丸みの半径。</summary>
     internal static Vector2[] Chamfer(float width, float depth, float cut)
     {
         float x = width / 2, z = depth / 2; cut = Mathf.Min(cut, Mathf.Min(x, z) * .95f);
-        return new[]
-        {
-            new Vector2(x, -z + cut), new Vector2(x, z - cut), new Vector2(x - cut, z), new Vector2(-x + cut, z),
-            new Vector2(-x, z - cut), new Vector2(-x, -z + cut), new Vector2(-x + cut, -z), new Vector2(x - cut, -z),
-        };
+        var p = new List<Vector2>();
+        // 右下の角から、上から見て反時計回り
+        var centers = new[] { new Vector2(x - cut, -z + cut), new Vector2(x - cut, z - cut), new Vector2(-x + cut, z - cut), new Vector2(-x + cut, -z + cut) };
+        for (int c = 0; c < 4; c++)
+            for (int k = 0; k <= CornerSegments; k++)
+            {
+                float a = (-90f + c * 90f + 90f * k / CornerSegments) * Mathf.Deg2Rad;
+                p.Add(centers[c] + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * cut);
+            }
+        return p.ToArray();
     }
 
     internal static Vector2[] Offset(Vector2[] poly, Vector2 by) => poly.Select(p => p + by).ToArray();
@@ -357,6 +376,9 @@ internal static partial class RoomiesCasinoArt
         readonly List<int>[] tris = { new List<int>(), new List<int>() };   // 0 = ふつうの面、1 = 光る面
         readonly Stack<Matrix4x4> stack = new Stack<Matrix4x4>();
         Matrix4x4 m = Matrix4x4.identity;
+
+        /// <summary>true の間は、箱の角を丸めず、柱の上の角も落とさない（伸ばして使う箱・薄い板・絵を貼る面のまわり用）。</summary>
+        public bool Sharp;
 
         /// <summary>このあと置く形を、移して回す（Pop で戻す）。入れ子にできる。</summary>
         public void Push(Vector3 position, Vector3 euler = default, Vector3? scale = null)
@@ -390,17 +412,67 @@ internal static partial class RoomiesCasinoArt
         public void Box(Vector3 min, Vector3 max, string color, bool glow = false)
             => Box((min + max) / 2, max - min, Quaternion.identity, color, glow);
 
-        /// <summary>向きのある箱（中心・大きさ・回転）。</summary>
+        /// <summary>
+        /// 向きのある箱（中心・大きさ・回転）。角は丸める：幅は短い辺の 22%（上限 2.5cm）。
+        /// 短い辺が 1.2cm より薄い板と、Sharp の間は、角を立てたまま。
+        /// </summary>
         public void Box(Vector3 center, Vector3 size, Quaternion rot, string color, bool glow = false)
         {
             Vector2 u = Sw(color);
-            Vector3 h = size * .5f;
-            Vector3 P(Vector3 k) => center + rot * Vector3.Scale(k, h);
-            foreach (var f in new[] { Vector3.right, Vector3.left, Vector3.up, Vector3.down, Vector3.forward, Vector3.back })
+            Vector3 h = new Vector3(Mathf.Abs(size.x), Mathf.Abs(size.y), Mathf.Abs(size.z)) * .5f;
+            float shortest = Mathf.Min(h.x, Mathf.Min(h.y, h.z)) * 2f;
+            float r = Sharp || shortest < .012f ? 0f : Mathf.Min(shortest * .22f, .025f);
+            Vector3 W(Vector3 local) => center + rot * local;
+
+            if (r <= 0f)
             {
-                Vector3 a = Mathf.Abs(f.x) > 0 ? Vector3.up : Vector3.right, b = Vector3.Cross(f, a);
-                Quad(P(f + a + b), P(f + a - b), P(f - a - b), P(f - a + b), u, u, u, u, rot * f, glow);
+                Vector3 P(Vector3 k) => W(Vector3.Scale(k, h));
+                foreach (var f in new[] { Vector3.right, Vector3.left, Vector3.up, Vector3.down, Vector3.forward, Vector3.back })
+                {
+                    Vector3 a = Mathf.Abs(f.x) > 0 ? Vector3.up : Vector3.right, b = Vector3.Cross(f, a);
+                    Quad(P(f + a + b), P(f + a - b), P(f - a - b), P(f - a + b), u, u, u, u, rot * f, glow);
+                }
+                return;
             }
+
+            // 角を丸めた箱：面 6（内側へ r だけ縮める）＋辺 12（面取り）＋角 8（三角）。面取りは Fill でなめらかにつながる
+            Vector3 inner = h - Vector3.one * r;
+            Vector3[] axes = { Vector3.right, Vector3.up, Vector3.forward };
+            Vector3 Corner(Vector3 sign, int flatAxis)
+            {
+                // sign の角で、flatAxis の向きの面にのっている点
+                Vector3 q = Vector3.Scale(sign, inner);
+                q[flatAxis] = sign[flatAxis] * h[flatAxis];
+                return W(q);
+            }
+            // 面
+            for (int ax = 0; ax < 3; ax++)
+                foreach (float s in new[] { 1f, -1f })
+                {
+                    int b1 = (ax + 1) % 3, b2 = (ax + 2) % 3;
+                    Vector3 S(float s1, float s2) { Vector3 g = Vector3.zero; g[ax] = s; g[b1] = s1; g[b2] = s2; return g; }
+                    Quad(Corner(S(1, 1), ax), Corner(S(1, -1), ax), Corner(S(-1, -1), ax), Corner(S(-1, 1), ax), u, u, u, u, rot * (axes[ax] * s), glow);
+                }
+            // 辺（2 つの面のあいだ）
+            for (int ax = 0; ax < 3; ax++)
+            {
+                int b1 = (ax + 1) % 3, b2 = (ax + 2) % 3;
+                foreach (float s1 in new[] { 1f, -1f })
+                    foreach (float s2 in new[] { 1f, -1f })
+                    {
+                        Vector3 S(float along) { Vector3 g = Vector3.zero; g[ax] = along; g[b1] = s1; g[b2] = s2; return g; }
+                        Vector3 outward = Vector3.zero; outward[b1] = s1; outward[b2] = s2;
+                        Quad(Corner(S(1), b1), Corner(S(-1), b1), Corner(S(-1), b2), Corner(S(1), b2), u, u, u, u, rot * outward, glow);
+                    }
+            }
+            // 角（3 つの面のあいだ）
+            foreach (float sx in new[] { 1f, -1f })
+                foreach (float sy in new[] { 1f, -1f })
+                    foreach (float sz in new[] { 1f, -1f })
+                    {
+                        var sign = new Vector3(sx, sy, sz);
+                        Tri(Corner(sign, 0), Corner(sign, 1), Corner(sign, 2), u, u, u, rot * sign, glow);
+                    }
         }
 
         /// <summary>多角形の柱（凸の多角形を y0〜y1 に立てる）。topColor を変えると天面だけ別の色。上の輪を縮めたり広げたりもできる（topScale）。</summary>
@@ -411,14 +483,71 @@ internal static partial class RoomiesCasinoArt
             Vector3 Lo(Vector2 p) => new Vector3(p.x, y0, p.y);
             Vector3 Hi(Vector2 p) { Vector2 q = c2 + (p - c2) * topScale + topShift; return new Vector3(q.x, y1, q.y); }
             int n = poly.Length;
+            // 上の角の丸み：高さの 30%・いちばん近い辺までの 25% のうち小さいほう（上限 2cm）。薄い板・すぼまる形・Sharp の間は付けない
+            float reach = float.MaxValue;
+            foreach (var p in poly) reach = Mathf.Min(reach, (p - c2).magnitude);
+            float height = Mathf.Abs(y1 - y0);
+            float bevel = Sharp || !Mathf.Approximately(topScale, 1f) || height < .015f ? 0f : Mathf.Min(.02f, Mathf.Min(height * .3f, reach * .25f));
+            float inset = bevel > 0f ? 1f - bevel / Mathf.Max(reach, 1e-4f) : 1f;
+            float yEdge = y1 - Mathf.Sign(y1 - y0) * bevel;
+            Vector3 Edge(Vector2 p) => new Vector3(p.x + topShift.x, yEdge, p.y + topShift.y);
+            Vector3 Top(Vector2 p) { Vector2 q = c2 + (p - c2) * inset + topShift; return new Vector3(q.x, y1, q.y); }
             for (int i = 0; i < n; i++)
             {
                 Vector2 p = poly[i], q = poly[(i + 1) % n];
                 Vector2 mid = (p + q) / 2 - c2;
-                Quad(Lo(p), Lo(q), Hi(q), Hi(p), u, u, u, u, new Vector3(mid.x, 0, mid.y), glow);
-                Tri(Hi(c2), Hi(p), Hi(q), ut, ut, ut, Vector3.up, glow);
+                var side = new Vector3(mid.x, 0, mid.y);
+                if (bevel > 0f)
+                {
+                    Quad(Lo(p), Lo(q), Edge(q), Edge(p), u, u, u, u, side, glow);
+                    Quad(Edge(p), Edge(q), Top(q), Top(p), u, u, u, u, side.normalized + Vector3.up, glow);
+                    Tri(Top(c2), Top(p), Top(q), ut, ut, ut, Vector3.up, glow);
+                }
+                else
+                {
+                    Quad(Lo(p), Lo(q), Hi(q), Hi(p), u, u, u, u, side, glow);
+                    Tri(Hi(c2), Hi(p), Hi(q), ut, ut, ut, Vector3.up, glow);
+                }
                 if (bottom) Tri(Lo(c2), Lo(p), Lo(q), u, u, u, Vector3.down, glow);
             }
+        }
+
+        /// <summary>
+        /// 多角形を、高さごとに大きさを変えながら積む（クッション・背もたれ・脚など、ふくらみや絞りのある形）。
+        /// rings は下から (高さ, 大きさの倍率)。いちばん上はふたをする（dome を足すと、真ん中がその高さだけ盛り上がる）。
+        /// </summary>
+        public void Loft(Vector2[] poly, (float y, float scale)[] rings, string color, string topColor = null, bool bottom = false, float dome = 0f, bool glow = false)
+        {
+            Vector2 u = Sw(color), ut = Sw(topColor ?? color);
+            Vector2 c2 = Vector2.zero; foreach (var p in poly) c2 += p; c2 /= poly.Length;
+            Vector3 At(Vector2 p, (float y, float scale) ring) { Vector2 q = c2 + (p - c2) * ring.scale; return new Vector3(q.x, ring.y, q.y); }
+            int n = poly.Length;
+            for (int b = 0; b < rings.Length - 1; b++)
+            {
+                float lean = Mathf.Sign(rings[b].scale - rings[b + 1].scale) * .6f * (rings[b + 1].y >= rings[b].y ? 1f : -1f);
+                for (int i = 0; i < n; i++)
+                {
+                    Vector2 p = poly[i], q = poly[(i + 1) % n];
+                    Vector2 mid = (p + q) / 2 - c2;
+                    Vector3 outward = new Vector3(mid.x, 0, mid.y).normalized + Vector3.up * lean;
+                    Quad(At(p, rings[b]), At(q, rings[b]), At(q, rings[b + 1]), At(p, rings[b + 1]), u, u, u, u, outward, glow);
+                }
+            }
+            var top = rings[rings.Length - 1];
+            var peak = new Vector3(c2.x, top.y + dome, c2.y);
+            for (int i = 0; i < n; i++)
+            {
+                Vector2 p = poly[i], q = poly[(i + 1) % n];
+                Tri(peak, At(p, top), At(q, top), ut, ut, ut, Vector3.up, glow);
+                if (bottom) Tri(new Vector3(c2.x, rings[0].y, c2.y), At(p, rings[0]), At(q, rings[0]), u, u, u, Vector3.down, glow);
+            }
+        }
+
+        /// <summary>ふっくらしたクッション（下は少し絞り、上の角は大きく丸め、真ん中が盛り上がる）。</summary>
+        public void Cushion(Vector2[] poly, float y0, float y1, string color, string topColor = null, bool bottom = false)
+        {
+            float h = y1 - y0;
+            Loft(poly, new[] { (y0, .94f), (y0 + h * .2f, 1f), (y0 + h * .55f, 1f), (y0 + h * .82f, .95f), (y1, .8f) }, color, topColor, bottom, h * .12f);
         }
 
         /// <summary>輪（外の多角形と内の多角形のあいだ）。2 つの多角形は同じ数の点で、同じ順に並んでいること。ふち・枠用。</summary>
@@ -454,6 +583,8 @@ internal static partial class RoomiesCasinoArt
         /// <summary>回転体（y 軸のまわり）。rings は下から (半径, 高さ)。色は帯ごとに決められる。</summary>
         public void Lathe((float r, float y)[] rings, int sides, Func<int, string> colorOfBand, float phase = 0, bool capTop = true, bool capBottom = false, bool glow = false)
         {
+            int capSides = sides;                 // ふたは Cap の中で同じ数に増える
+            sides = RoundSides(sides);
             Vector3 R(float r, float y, float a) => new Vector3(Mathf.Cos(a) * r, y, Mathf.Sin(a) * r);
             for (int b = 0; b < rings.Length - 1; b++)
             {
@@ -468,8 +599,8 @@ internal static partial class RoomiesCasinoArt
                     Quad(R(r0.r, r0.y, a0), R(r0.r, r0.y, a1), R(r1.r, r1.y, a1), R(r1.r, r1.y, a0), u, u, u, u, outward, glow);
                 }
             }
-            if (capTop) Cap(rings[rings.Length - 1].r, rings[rings.Length - 1].y, sides, colorOfBand(rings.Length - 2), true, phase, glow);
-            if (capBottom) Cap(rings[0].r, rings[0].y, sides, colorOfBand(0), false, phase, glow);
+            if (capTop) Cap(rings[rings.Length - 1].r, rings[rings.Length - 1].y, capSides, colorOfBand(rings.Length - 2), true, phase, glow);
+            if (capBottom) Cap(rings[0].r, rings[0].y, capSides, colorOfBand(0), false, phase, glow);
         }
 
         public void Lathe((float r, float y)[] rings, int sides, string color, float phase = 0, bool capTop = true, bool capBottom = false, bool glow = false)
@@ -487,6 +618,7 @@ internal static partial class RoomiesCasinoArt
         public void Cap(float r, float y, int sides, string color, bool up, float phase = 0, bool glow = false)
         {
             if (r <= 1e-5f) return;
+            sides = RoundSides(sides);
             Vector2 u = Sw(color);
             var c = new Vector3(0, y, 0);
             for (int k = 0; k < sides; k++)
@@ -512,7 +644,45 @@ internal static partial class RoomiesCasinoArt
             bool hasBase = tris[0].Count > 0, hasGlow = tris[1].Count > 0;
             if (hasBase && hasGlow) { mesh.subMeshCount = 2; mesh.SetTriangles(tris[0], 0); mesh.SetTriangles(tris[1], 1); }
             else { mesh.subMeshCount = 1; mesh.SetTriangles(hasGlow ? tris[1] : tris[0], 0); }
-            mesh.RecalculateNormals(); mesh.RecalculateTangents(); mesh.RecalculateBounds();
+            mesh.SetNormals(SmoothNormals());
+            mesh.RecalculateTangents(); mesh.RecalculateBounds();
+        }
+
+        /// <summary>
+        /// 面の向きを、となりの面となめらかにつなぐ（同じ位置の頂点どうしで、向きの差が SmoothAngle より小さい面だけを混ぜる）。
+        /// 丸い面はなめらかに、箱の面と面取りはやわらかくつながり、直角の折れは角のまま残る。光る面とふつうの面は混ぜない。
+        /// </summary>
+        List<Vector3> SmoothNormals()
+        {
+            int triCount = v.Count / 3;
+            var faceNormal = new Vector3[triCount];
+            var faceGlow = new bool[triCount];
+            foreach (int i in tris[1]) faceGlow[i / 3] = true;
+            for (int t = 0; t < triCount; t++)
+            {
+                Vector3 n = Vector3.Cross(v[t * 3 + 1] - v[t * 3], v[t * 3 + 2] - v[t * 3]);
+                faceNormal[t] = n;     // 長さ＝面積の 2 倍（大きい面ほど効く）
+            }
+            var at = new Dictionary<Vector3Int, List<int>>();
+            Vector3Int Key(Vector3 p) => new Vector3Int(Mathf.RoundToInt(p.x * 20000f), Mathf.RoundToInt(p.y * 20000f), Mathf.RoundToInt(p.z * 20000f));
+            for (int i = 0; i < v.Count; i++)
+            {
+                var key = Key(v[i]);
+                if (!at.TryGetValue(key, out var list)) at[key] = list = new List<int>();
+                list.Add(i / 3);
+            }
+            float cos = Mathf.Cos(SmoothAngle * Mathf.Deg2Rad);
+            var normals = new List<Vector3>(v.Count);
+            for (int i = 0; i < v.Count; i++)
+            {
+                int t = i / 3;
+                Vector3 own = faceNormal[t].normalized, sum = Vector3.zero;
+                foreach (int other in at[Key(v[i])])
+                    if (faceGlow[other] == faceGlow[t] && faceNormal[other].sqrMagnitude > 1e-16f && Vector3.Dot(own, faceNormal[other].normalized) >= cos)
+                        sum += faceNormal[other];
+                normals.Add(sum.sqrMagnitude > 1e-16f ? sum.normalized : own);
+            }
+            return normals;
         }
     }
 }
