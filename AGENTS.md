@@ -172,6 +172,12 @@
   スロットの画面の絵とトランプの絵は `ArtSource/Casino/Screen/make_casino_screen_art.py` が作る（`codex/` に絵を置くと差し替わる。説明は同じフォルダの README.md）。
   動きの確認は Play Mode で `Roomies/Casino/Demo/Capture Slot Frames`・`Capture Blackjack Frames`（コマ送りの写真を `Temp/RoomiesCasino/frames/` に書く）。
   音は `Assets/Resources/Audio/casino/`（計算で作る。`ArtSource/Casino/Audio/make_casino_sfx.py`）。
+  形の決まり（2026/11/24）：カジノの小物・ギミックは、角ばった箱のままにしない。丸みは形を作る道具（`RoomiesCasinoArt.Lp`）がまとめて付ける
+  （箱の角は短い辺の 22%・上限 2.5cm、丸い物は辺の数を倍、天板や座面は上の角を丸める）。椅子やソファのようなやわらかい物は `lp.Loft`・`lp.Cushion` でふくらみと絞りを付ける。
+  伸ばして使う箱や、角のままにしたい物だけ `lp.Sharp = true`。
+  外観の飾り（丸い塔・ひさし・アーチ・段々の冠・電球の列）は `RoomiesCasinoArt.Facade.cs`。レンガや塗り壁にしたい形は、置いたあとで町の素材に替える（`PropMat`）。
+  NPC の会話：吹き出しは `NpcSpeechBubble`（プレハブの `Anchor_Bubble`。サーバーがせりふを決めて全員に出す）。店の人は `CasinoClerk`（せりふはインスペクターの `smallTalk`）、
+  警察は `PoliceTalk` と `SmugglingPolicePatrol` の「声かけ」（配置ツール `Roomies/NPC/Build Police Talk`）。確認は Play Mode で `Roomies/Casino/Demo/NPC Talk Check`。
   `2 Build Gimmick Prefabs` を実行したら、続けて `3 Place In Open Scene` も実行する（階ごとの出し入れの参照をつなぎ直すため）。
   通し確認は Play Mode で `Town/Walk - Enter GameRoom As Host` → `Roomies/Casino/Check (Play Mode)`。
   2 人での確認は `RoomiesCasinoNetTest.cs`（Multiplayer Play Mode の Player 2 を `Roomies/Casino/Net Test/Activate Player 2` で起こし、
