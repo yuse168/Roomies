@@ -19,7 +19,8 @@ internal static partial class RoomiesCasinoArt
         lp.Box(new Vector3(-.012f, -drop + .42f, -.012f), new Vector3(.012f, -.04f, .012f), "ink");
         // 傘（外は橙、内側と電球が光る）
         lp.Lathe(new[] { (.36f, -drop), (.33f, -drop + .12f), (.16f, -drop + .34f), (.09f, -drop + .42f) }, 8, b => b == 0 ? "lamp_shade_dark" : "lamp_shade", Mathf.PI / 8, true);
-        lp.Cap(.345f, -drop + .01f, 8, "warm", false, Mathf.PI / 8, true);
+        // 傘の内側の面は広いので、電球より暗い色で光らせる（"warm" のままだと、下から見上げたとき真っ白に飛ぶ）
+        lp.Cap(.345f, -drop + .01f, 8, "lamp_under", false, Mathf.PI / 8, true);
         lp.Lathe(new[] { (0f, -drop - .05f), (.09f, -drop + .02f), (.09f, -drop + .1f) }, 6, "warm", 0, false, false, true);
     });
 

@@ -41,7 +41,7 @@ internal static partial class RoomiesTownRebuild
     // ================================================================ 外壁・床の板・屋根（当たり判定つき）
     static void CasinoTowerShell(Transform g)
     {
-        var wall = Mat("casino_brick"); var timber = Mat("casino_timber"); var stone = Mat("plinth");
+        var wall = Mat("casino_brick"); var timber = Mat("casino_timber"); var stone = Swatch("stone");
 
         // 正面の 1 階（入口と通用口を空ける）
         foreach (var (x0, x1) in new[] { (KX0, KDoorX0), (KDoorX1, KEntX0), (KEntX1, KX1) })
@@ -69,7 +69,7 @@ internal static partial class RoomiesTownRebuild
         // 床の板（下の階の天井の上〜上の階の床）と屋根
         foreach (var (y0, y1, name) in new[] { (KCeil, KF2, "2F"), (KC2, KF3, "3F"), (KC3, KRoofDeck, "roof") })
         {
-            Box(g, "Casino slab " + name, KIX0, KIX1, y0, y1, KIZ0, KIZ1, Mat("roof_flat"));
+            Box(g, "Casino slab " + name, KIX0, KIX1, y0, y1, KIZ0, KIZ1, Swatch("stone"));
             Solid(g, "Casino slab collider " + name, new Vector3(KX0, y0, KZ0), new Vector3(KX1, y1, KZ1));
         }
 
@@ -85,7 +85,7 @@ internal static partial class RoomiesTownRebuild
             Box(g, "Casino band", KX1, KX1 + o, y, y + .3f, KZ0, KZ1, timber);
         }
         Box(g, "Casino coping", KX0 - .12f, KX1 + .12f, KRoof, KRoof + .12f, KZ0 - .12f, KZ1 + .12f, timber);
-        Box(g, "Casino roof deck", KX0 + .3f, KX1 - .3f, KRoofDeck, KRoofDeck + .02f, KZ0 + .3f, KZ1 - .3f, Mat("roof_flat"));
+        Box(g, "Casino roof deck", KX0 + .3f, KX1 - .3f, KRoofDeck, KRoofDeck + .02f, KZ0 + .3f, KZ1 - .3f, Swatch("stone"));
         Box(g, "Casino plinth", KX0 - .04f, KX1 + .04f, 0, .45f, KZ0 - .04f, KZ0, stone);
         Box(g, "Casino plinth", KX0 - .04f, KX0, 0, .45f, KZ0, KZ1, stone);
         Box(g, "Casino plinth", KX1, KX1 + .04f, 0, .45f, KZ0, KZ1, stone);
@@ -137,7 +137,7 @@ internal static partial class RoomiesTownRebuild
     /// <summary>外から見た窓の明かり（その階にいないときだけ出す）。窓のすぐ内側の、暖色に光る板。</summary>
     static void CasinoWindowGlow(Transform g, int floor)
     {
-        var glow = Mat("casino_window_glow");
+        var glow = Swatch("window_glow", true);
         foreach (var (x0, x1) in KWindows(floor))
             Box(g, "Window glow", x0, x1, KWinY0(floor), KWinY1(floor), KIZ1 - .05f, KIZ1 - .03f, glow);
     }

@@ -25,7 +25,11 @@ internal static partial class RoomiesTownRebuild
     static void Pendant(Transform g, float x, float ceilY, float z, float drop, float intensity = 6.5f, float range = 9.5f)
     {
         Prop(g, "Pendant lamp", Art.PendantLamp(drop), x, ceilY, z);
-        if (intensity > 0f) PointLight(g, "Casino light - pendant", new Vector3(x, ceilY - drop - .2f, z), intensity, range, KWarm);
+        if (intensity > 0f) 
+        {
+            // 明かりは傘の中（内側の面より上）に置く。面のすぐ下に置くと、内側の面が近すぎる明かりで真っ白に飛ぶ
+            PointLight(g, "Casino light - pendant", new Vector3(x, ceilY - drop + .12f, z), intensity, range, KWarm);
+        }
     }
 
     /// <summary>ソファ（通れない）。yaw は座る人の向く方（0 = +Z、90 = +X、180 = -Z）。</summary>
@@ -86,10 +90,10 @@ internal static partial class RoomiesTownRebuild
     static void CasinoRoomShell(Transform g, int floor, Material floorMat, (float x0, float x1, float y0, float y1)[] frontOpenings)
     {
         float fy = KFloorY(floor), cy = KCeilY(floor);
-        var timber = Mat("casino_timber"); var wain = Mat("casino_wainscot"); var plaster = Mat("casino_plaster");
+        var timber = Mat("casino_timber"); var wain = Swatch("wood"); var plaster = Mat("casino_plaster");
 
         Box(g, "Floor finish", KIX0, KIX1, fy, fy + .012f, KIZ0, KIZ1, floorMat);
-        Box(g, "Ceiling boards", KIX0, KIX1, cy - .03f, cy, KIZ0, KIZ1, Mat("casino_ceiling_wood"));
+        Box(g, "Ceiling boards", KIX0, KIX1, cy - .03f, cy, KIZ0, KIZ1, Mat("casino_timber"));
         // 梁：奥行きの向きに 3 本（太い）、幅の向きに 2 本
         foreach (float x in new[] { 3.4f, 7.8f, 12.2f }) Box(g, "Ceiling beam", x - .15f, x + .15f, cy - .36f, cy - .03f, KIZ0, KIZ1, timber);
         foreach (float z in new[] { -15.7f, -12.1f }) Box(g, "Ceiling beam", KIX0, KIX1, cy - .27f, cy - .03f, z - .11f, z + .11f, timber);
@@ -149,7 +153,7 @@ internal static partial class RoomiesTownRebuild
         float z0 = zs[zs.Length - 1] - 1.0f, z1 = zs[0] + 1.0f;
         Box(g, "Slot rug", 13.3f, KIX1 - .02f, fy + .012f, fy + .028f, z0, z1, Mat("casino_carpet"));
         foreach (float z in zs) Prop(g, "Slot stool", Art.Stool("maroon"), 15.02f, fy, z);
-        Box(g, "Slot neon line", KIX1 - .05f, KIX1 - .02f, fy + 2.62f, fy + 2.68f, z0 + .1f, z1 - .1f, Mat("neon_pink"));
+        Box(g, "Slot neon line", KIX1 - .05f, KIX1 - .02f, fy + 2.62f, fy + 2.68f, z0 + .1f, z1 - .1f, Swatch("pink", true));
         Art.NeonText(g, "Sign - " + sign, sign, new Vector3(KIX1 - .06f, fy + 3.02f, (z0 + z1) / 2), 270, .42f);
         PointLight(g, "Casino light - slot neon", new Vector3(14.9f, fy + 2.4f, (z0 + z1) / 2), 1.5f, 6f, KPink);
     }
@@ -168,7 +172,7 @@ internal static partial class RoomiesTownRebuild
     static void ClerkCounter(Transform g, float fy, float cy, string sign)
     {
         float x0 = 12.7f, z1 = -16.9f;
-        var wain = Mat("casino_wainscot"); var timber = Mat("casino_timber");
+        var wain = Swatch("wood"); var timber = Mat("casino_timber");
         Box(g, "Clerk counter", x0, KIX1, fy, fy + 1.05f, z1 - .5f, z1, wain);
         Box(g, "Clerk counter top", x0 - .06f, KIX1, fy + 1.05f, fy + 1.12f, z1 - .56f, z1 + .08f, timber);
         Box(g, "Clerk counter kick", x0, KIX1, fy, fy + .12f, z1, z1 + .02f, timber);
@@ -188,7 +192,7 @@ internal static partial class RoomiesTownRebuild
     // ================================================================ 外観：入口・ひさし・ネオン・垂れ幕・屋上の看板
     static void CasinoFacade(Transform g, Transform work)
     {
-        var timber = Mat("casino_timber"); var stone = Mat("plinth");
+        var timber = Mat("casino_timber"); var stone = Swatch("stone");
         float face = KZ1;
         // 足元の石（開口は空ける）と、正面の柱
         foreach (var (x0, x1) in new[] { (KX0 - .04f, KDoorX0), (KDoorX1, KEntX0), (KEntX1, KX1 + .04f) })
@@ -220,7 +224,7 @@ internal static partial class RoomiesTownRebuild
         // ひさし：木の屋根と柱 2 本、前の板に看板の文字（AFTER HOURS）、下に電球の列
         float cz1 = face + 1.5f, cx0 = 5.1f, cx1 = 10.5f, cyTop = 3.5f;
         Box(g, "Canopy roof", cx0, cx1, cyTop - .14f, cyTop, face, cz1, timber);
-        Box(g, "Canopy fascia", cx0 - .04f, cx1 + .04f, cyTop - .5f, cyTop + .04f, cz1 - .08f, cz1, Mat("casino_wainscot"));
+        Box(g, "Canopy fascia", cx0 - .04f, cx1 + .04f, cyTop - .5f, cyTop + .04f, cz1 - .08f, cz1, Swatch("wood"));
         foreach (float x in new[] { cx0 + .18f, cx1 - .18f })
         {
             Box(g, "Canopy post", x - .1f, x + .1f, 0, cyTop - .14f, cz1 - .3f, cz1 - .1f, timber);
@@ -238,7 +242,7 @@ internal static partial class RoomiesTownRebuild
 
         // 屋上の看板：木の枠にネオンの文字
         float sy = KRoof + .12f;
-        Box(g, "Rooftop sign board", 4.3f, 11.3f, sy + .2f, sy + 1.9f, face - .1f, face, Mat("casino_ceiling_wood"));
+        Box(g, "Rooftop sign board", 4.3f, 11.3f, sy + .2f, sy + 1.9f, face - .1f, face, Mat("casino_timber"));
         Box(g, "Rooftop sign frame", 4.2f, 11.4f, sy + 1.9f, sy + 2.02f, face - .14f, face + .06f, timber);
         Box(g, "Rooftop sign frame", 4.2f, 11.4f, sy + .1f, sy + .22f, face - .14f, face + .06f, timber);
         foreach (float x in new[] { 4.2f, 11.28f }) Box(g, "Rooftop sign frame", x, x + .12f, sy, sy + 2.02f, face - .14f, face + .06f, timber);
@@ -263,7 +267,7 @@ internal static partial class RoomiesTownRebuild
     {
         float fy = KFloor, cy = KCeil;
         CasinoRoomShell(g, 1, Mat("casino_brick_floor"), new[] { (KDoorX0 - .12f, KDoorX1 + .12f, 0f, KDoorH + .12f), (KEntX0 - .28f, KEntX1 + .28f, 0f, KEntH + .28f) });
-        var carpet = Mat("casino_carpet"); var wain = Mat("casino_wainscot"); var timber = Mat("casino_timber");
+        var carpet = Mat("casino_carpet"); var wain = Swatch("wood"); var timber = Mat("casino_timber");
         FillLight(g, fy, cy);
 
         // 入口から奥への敷物、入口の内側の植木
@@ -343,7 +347,7 @@ internal static partial class RoomiesTownRebuild
     {
         float fy = KF2, cy = KC2;
         CasinoRoomShell(g, 2, Mat("casino_plank"), WindowOpenings(2));
-        var carpet = Mat("casino_carpet"); var timber = Mat("casino_timber"); var wain = Mat("casino_wainscot");
+        var carpet = Mat("casino_carpet"); var timber = Mat("casino_timber"); var wain = Swatch("wood");
         FillLight(g, fy, cy);
 
         // ---- ルーレット（真ん中。台はシーンに置いてある）：大きな敷物と吊り照明 2 つ
@@ -395,7 +399,7 @@ internal static partial class RoomiesTownRebuild
     {
         float fy = KF3, cy = KC3;
         CasinoRoomShell(g, 3, Mat("casino_plank"), WindowOpenings(3));
-        var carpet = Mat("casino_carpet"); var purple = Mat("casino_purple");
+        var carpet = Mat("casino_carpet"); var purple = Swatch("wall_purple");
         FillLight(g, fy, cy);
 
         // 奥と左右の壁の上のほうは紫の布張り（VIP の階だけ）

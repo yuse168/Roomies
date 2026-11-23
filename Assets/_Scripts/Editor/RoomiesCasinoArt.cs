@@ -45,6 +45,10 @@ internal static partial class RoomiesCasinoArt
         ("chip_red", "D9363E"), ("chip_blue", "3D6BD9"), ("chip_green", "3FA35A"), ("chip_black", "22222A"), ("chip_white", "F2EEE0"),
         ("glass_dark", "0E1420"), ("cyan", "7FF2FF"), ("card", "F7F3E8"), ("popcorn", "F6E3A0"), ("soil", "3B2A22"),
         ("terracotta", "B8623F"), ("brick", "9A4A32"),
+        // 建物の箱に使う色（前は町の素材だった物をアトラスへ寄せた）：足元の石、3 階の壁の布、外から見た窓の明かり
+        ("stone", "707073"), ("wall_purple", "543680"), ("window_glow", "977654"),
+        // 吊り照明の傘の内側（光る面。2.6 倍で光らせても白く飛ばない暗さの橙）
+        ("lamp_under", "AD854F"),
     };
     const int SwatchCell = 32, SwatchCols = 16;
     static readonly RectInt SwatchBlock = new RectInt(1036, 1500, 512, 256);   // アトラスの中の場所（左上が原点の px）

@@ -51,6 +51,8 @@ internal static partial class RoomiesTownRebuild
                 glow.gameObject.SetActive(false);
             }
 
+            foreach (string name in new[] { CasinoGroup, CasinoGroup2F, CasinoGroup3F, CasinoWindows2F, CasinoWindows3F })
+                ApplySwatches(root.transform.Find(name));
             PrefabUtility.SaveAsPrefabAsset(root, NeighborhoodPrefab);
         }
         finally { PrefabUtility.UnloadPrefabContents(root); }
@@ -63,6 +65,35 @@ internal static partial class RoomiesTownRebuild
         // グループを作り直すと、シーンから指している先が切れるので、つなぎ直す
         RoomiesCasinoBuilder.PlaceInOpenScene();
         Debug.Log("[Rebuild] casino building built");
+    }
+
+    // ================================================================ アトラスの色の箱
+    // 模様のいらない箱（足元の石・腰の板・壁の布・光る板）は、町の素材ではなくアトラスの色見本で塗る（マテリアルを増やさないため）。
+    // 組むときは目印のマテリアルを付けておき、最後にまとめて「色見本の UV の箱」と casino_atlas（光る物は casino_atlas_glow）に替える。
+    static readonly System.Collections.Generic.Dictionary<string, Material> swatchMarkers = new System.Collections.Generic.Dictionary<string, Material>();
+
+    static Material Swatch(string color, bool glow = false)
+    {
+        string key = "@" + color + (glow ? "@glow" : "");
+        if (!swatchMarkers.TryGetValue(key, out var m) || m == null)
+            swatchMarkers[key] = m = new Material(Shader.Find("Universal Render Pipeline/Lit")) { name = key, hideFlags = HideFlags.HideAndDontSave };
+        return m;
+    }
+
+    static void ApplySwatches(Transform group)
+    {
+        if (group == null) return;
+        foreach (var r in group.GetComponentsInChildren<MeshRenderer>(true))
+        {
+            var m = r.sharedMaterial;
+            if (m == null || !m.name.StartsWith("@")) continue;
+            string[] parts = m.name.Split('@');   // "@色" か "@色@glow"
+            string color = parts[1]; bool glow = parts.Length > 2;
+            var mesh = RoomiesCasinoArt.Build("box_" + color + (glow ? "_glow" : ""),
+                lp => lp.Box(new Vector3(-.5f, -.5f, -.5f), new Vector3(.5f, .5f, .5f), color, glow));
+            r.GetComponent<MeshFilter>().sharedMesh = mesh;
+            r.sharedMaterials = RoomiesCasinoArt.MaterialsFor(mesh);
+        }
     }
 
     /// <summary>元の屋根付きの「Arcade」：当たり判定（屋根・柱・奥の壁）とベンチを外す（建物の壁・屋根に置き換える）。</summary>
