@@ -157,6 +157,40 @@ public class RoomiesCasinoTests
     }
 
     [Test]
+    public void HiLoPrefabHasCardsAndChipsOnTheTable()
+    {
+        Component table = LoadComponent("Assets/_Prefabs/Casino/HiLoTable.prefab", "HiLoTable");
+        var view = Field<Component>(table, "view");
+        Assert.That(view, Is.Not.Null, "HiLoTable.view");
+        Assert.That(view.gameObject, Is.SameAs(table.gameObject), "台の上の実物を動かす部品は、ルートに置く");
+        int steps = Field<int>(table, "maxSteps");
+        var cards = Field<Array>(view, "cards");
+        Assert.That(cards.Length, Is.GreaterThanOrEqualTo(steps + 1), "1 枚目 ＋ 続けられる回数ぶんのカードが置いてある");
+        foreach (object slot in cards)
+        {
+            var pivot = (Transform)slot.GetType().GetField("pivot").GetValue(slot);
+            var face = (Renderer)slot.GetType().GetField("face").GetValue(slot);
+            Assert.That(pivot, Is.Not.Null); Assert.That(face, Is.Not.Null);
+            Assert.That(pivot.name, Does.StartWith("Pivot_Card_"));
+            Assert.That(pivot.parent, Is.SameAs(table.transform), "カードの軸は、ルートの直下（Visual の外）");
+            Assert.That(pivot.gameObject.activeSelf, Is.False, "ふだんは隠してある");
+            Assert.That(face.transform.parent.name, Is.EqualTo("Visual"), "見た目は、軸の中の Visual");
+        }
+        foreach (string name in new[] { "anchorDeck", "anchorDiscard", "anchorRow", "anchorTray", "anchorBet", "anchorPayout", "pivotBet", "pivotPayout" })
+            Assert.That(Field<Transform>(view, name), Is.Not.Null, name);
+        Assert.That(Field<GameObject[]>(view, "betChips").Length, Is.GreaterThanOrEqualTo(3));
+        Assert.That(Field<GameObject[]>(view, "payoutChips").Length, Is.GreaterThanOrEqualTo(3));
+        // ブラックジャックと同じトランプのマテリアル
+        Component bj = LoadComponent("Assets/_Prefabs/BlackjackTable.prefab", "BlackjackTableView");
+        var bjCards = Field<Array>(bj, "playerCards");
+        object bjSlot = bjCards.GetValue(0), hlSlot = cards.GetValue(0);
+        var bjFace = (Renderer)bjSlot.GetType().GetField("face").GetValue(bjSlot);
+        var hlFace = (Renderer)hlSlot.GetType().GetField("face").GetValue(hlSlot);
+        Assert.That(hlFace.sharedMaterial, Is.SameAs(bjFace.sharedMaterial), "トランプの絵は、ブラックジャックと同じマテリアル");
+        Assert.That(Field<Component>(table, "oddsText"), Is.Not.Null, "立て札の倍率の文字");
+    }
+
+    [Test]
     public void ChinchiroHandsAreRecognised()
     {
         Type rules = GameType("ChinchiroRules");

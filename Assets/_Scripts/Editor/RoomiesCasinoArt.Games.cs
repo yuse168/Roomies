@@ -8,9 +8,12 @@ internal static partial class RoomiesCasinoArt
 {
     // ================================================================ ハイ＆ローの台
     internal const float HlLength = 1.7f, HlDepth = .95f, HlTop = .92f;
-    // 立てたカードの真ん中（文字を置く所）と、その大きさ
+    // 立て札（上と下の倍率を出す板）の真ん中と、その大きさ
     internal static readonly Vector3 HlCardCenter = new Vector3(0, 1.36f, -.3f);
     internal const float HlCardW = .36f, HlCardH = .5f;
+    // 山の上（カードが出てくる所）と、親のチップ入れ（チップが出入りする所）
+    internal static readonly Vector3 HlDeck = new Vector3(.57f, HlTop + .06f, .18f);
+    internal static readonly Vector3 HlTray = new Vector3(-.66f, HlTop + .02f, -.14f);
 
     internal static Mesh HiLoTable() => Build("hilo_table", lp =>
     {
@@ -19,11 +22,11 @@ internal static partial class RoomiesCasinoArt
         lp.Prism(Chamfer(HlLength - .12f, HlDepth - .12f, .1f), .6f, .84f, "wood", null, true);
         lp.Ring(Chamfer(HlLength, HlDepth, .12f), Chamfer(HlLength - .14f, HlDepth - .14f, .08f), .84f, HlTop + .03f, "maroon", "maroon_dark");
         lp.Prism(Chamfer(HlLength - .14f, HlDepth - .14f, .08f), .84f, HlTop, "felt_dark", "felt");
-        // カードを立てる台と、立てたカード（文字はプレハブの Anchor_Card に置く）
+        // 立て札の台と、立て札（黒い板。倍率の文字はプレハブの Anchor_Odds に置く。カードそのものは、台の上の実物）
         lp.Prism(Offset(Chamfer(.56f, .16f, .04f), new Vector2(0, -.3f)), HlTop, HlTop + .16f, "wood_dark", "gold_dark");
         lp.Push(new Vector3(HlCardCenter.x, HlCardCenter.y, HlCardCenter.z - .012f));
         lp.Box(new Vector3(-HlCardW / 2 - .02f, -HlCardH / 2 - .02f, -.014f), new Vector3(HlCardW / 2 + .02f, HlCardH / 2 + .02f, 0), "gold_dark");
-        lp.Box(new Vector3(-HlCardW / 2, -HlCardH / 2, 0), new Vector3(HlCardW / 2, HlCardH / 2, .01f), "card");
+        lp.Box(new Vector3(-HlCardW / 2, -HlCardH / 2, 0), new Vector3(HlCardW / 2, HlCardH / 2, .01f), "ink");
         lp.Pop();
         // 上（ピンク）と下（水色）の矢印：カードの左右で光る
         foreach (var (x, up, c) in new[] { (.42f, true, "pink"), (-.42f, false, "cyan") })
@@ -34,11 +37,12 @@ internal static partial class RoomiesCasinoArt
             lp.Tri(tip, l, r, u, u, u, Vector3.forward, true);
             lp.Box(new Vector3(x - .04f, Mathf.Min(y - s * .04f, y - s * .16f), z - .005f), new Vector3(x + .04f, Mathf.Max(y - s * .04f, y - s * .16f), z + .005f), c, true);
         }
-        // 札の束とチップ
+        // 山（札の束）と、親のチップ入れ（黒い受け皿と、積んだチップ）。真ん中は、カードを並べる所なので空けておく
+        lp.Prism(Offset(Chamfer(.24f, .3f, .04f), new Vector2(HlTray.x, HlTray.z)), HlTop, HlTop + .012f, "ink", "gold_dark");
         lp.Box(new Vector3(.5f, HlTop, .08f), new Vector3(.64f, HlTop + .05f, .28f), "card");
         lp.Box(new Vector3(.5f, HlTop + .05f, .08f), new Vector3(.64f, HlTop + .054f, .28f), "maroon");
-        foreach (var (x, z, n, c) in new[] { (-.56f, .16f, 6, "chip_red"), (-.44f, .2f, 4, "chip_blue"), (-.5f, .06f, 8, "chip_green") })
-            lp.Cyl(new Vector3(x, HlTop, z), .04f, n * .012f, 8, c, false, "chip_white");
+        foreach (var (x, z, n, c) in new[] { (-.7f, -.06f, 6, "chip_red"), (-.61f, -.1f, 4, "chip_blue"), (-.7f, -.2f, 8, "chip_green"), (-.61f, -.22f, 5, "chip_black") })
+            lp.Cyl(new Vector3(x, HlTop + .012f, z), .04f, n * .012f, 8, c, false, "chip_white");
         // 手持ちの額の札（手前のふちの上）
         lp.Prism(Offset(Chamfer(.9f, .05f, .015f), new Vector2(0, -.12f)), HlTop, HlTop + .12f, "ink", "gold_dark");
         // 上の小さな看板

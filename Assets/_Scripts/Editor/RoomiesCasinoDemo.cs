@@ -186,6 +186,75 @@ internal static class RoomiesCasinoDemo
         Object.Destroy(runner.gameObject);
     }
 
+    // ================================================================ ハイ＆ロー
+    [MenuItem("Roomies/Casino/Demo/Capture HiLo Frames (Play Mode)")]
+    static void CaptureHiLo()
+    {
+        if (!Application.isPlaying) { Debug.LogWarning("[Casino] Play Mode で実行してください"); return; }
+        var runner = NewRunner();
+        runner.StartCoroutine(HiLoRoutine(runner));
+    }
+
+    /// <summary>本当に 6 回遊んで撮る（お金が動く）。3 回目：当たりにくい向き（外れやすい）／6 回目：行ける所まで続ける／ほか：当たりやすい向きで 1 回当てて受け取る。</summary>
+    static IEnumerator HiLoRoutine(Runner runner)
+    {
+        Directory.CreateDirectory(OutDir);
+        if (Directory.Exists(OutDir + "/hilo")) Directory.Delete(OutDir + "/hilo", true);
+        File.Delete(OutDir + "/hilo_done.txt");
+        var hilo = Object.FindAnyObjectByType<HiLoTable>();
+        var view = hilo.View;
+        var cc = MyController();
+        Teleport(cc, hilo.transform.TransformPoint(new Vector3(.9f, 0, 1.5f)));
+        yield return new WaitForSeconds(.5f);
+        var earning = cc.GetComponentInParent<PlayerEarning>();
+        ulong me = cc.GetComponentInParent<Unity.Netcode.NetworkObject>().OwnerClientId;
+        bool asyncBefore = ShaderUtil.allowAsyncCompilation;
+        ShaderUtil.allowAsyncCompilation = false;
+
+        // 遊ぶ人の目の高さから、台を見下ろす
+        Vector3 eye = hilo.transform.TransformPoint(new Vector3(0, 1.64f, 1.12f)), look = hilo.transform.TransformPoint(new Vector3(0, 1.1f, -.05f));
+        Camera cam = NewCamera(runner.transform, eye, look, 58);
+        var log = new System.Text.StringBuilder();
+
+        for (int round = 0; round < 6; round++)
+        {
+            float w = 0; while ((!hilo.IsIdle || view.IsBusy) && w < 12f) { yield return new WaitForSeconds(.1f); w += .1f; }
+            yield return new WaitForSeconds(.4f);
+            string folder = $"hilo/round_{round + 1}";
+            float t = 0, nextAct = 1.6f; int frame = 0, guesses = 0; bool started = false, collected = false;
+            int wantGuesses = round == 5 ? 5 : 1;
+            string cards = "";
+            while (t < 16f)
+            {
+                yield return new WaitForEndOfFrame();
+                if (t >= frame * .15f) { Shoot(cam, folder, $"f_{frame:D3}"); frame++; }
+                t += Time.deltaTime;
+                if (!started && t > .3f) { started = true; hilo.Interact(null, earning); }
+                if (started && t > nextAct && hilo.IsGuessing(me) && !view.IsBusy)
+                {
+                    int card = hilo.Card;
+                    if (guesses < wantGuesses)
+                    {
+                        bool high = card <= 7;
+                        if (round == 2) high = !high;       // 3 回目は、当たりにくい向き
+                        if (HiLoRules.Multiplier(card, high, hilo.StepReturnRate) <= 0f) high = !high;
+                        if (high) hilo.Interact(null, earning); else hilo.Secondary(null, earning);
+                        guesses++; nextAct = t + 2.2f;
+                    }
+                    else if (!collected && hilo.Step > 0) { collected = true; hilo.Tertiary(null, earning); }
+                }
+                if (view.Landed.Length > 0) cards = view.Landed;
+                if (started && t > 2f && hilo.IsIdle && !view.IsBusy) break;
+            }
+            string names = string.Join(" ", cards.Select(c => HiLoRules.RankName((c - 'A') / 4 + 1) + HiLoRules.SuitName((c - 'A') % 4)));
+            log.AppendLine($"round {round + 1}: frames {frame}, guesses {guesses}, collected {collected}, cards {names}");
+        }
+        ShaderUtil.allowAsyncCompilation = asyncBefore;
+        File.WriteAllText(OutDir + "/hilo_done.txt", log.ToString());
+        Debug.Log("[Casino] hi-lo frames written");
+        Object.Destroy(runner.gameObject);
+    }
+
     // ================================================================ 重さ：スロットの画面・ランプを切ったときとの比べ
     [MenuItem("Roomies/Casino/Demo/Perf - Slot Screen Cost (Play Mode)")]
     static void PerfSlot()

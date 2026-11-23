@@ -8,7 +8,9 @@ using Art = RoomiesCasinoArt;
 /// <summary>
 /// ハイ＆ロー（2 階）とチンチロ（3 階）の台のプレハブを作る（Roomies/Casino/2 Build Gimmick Prefabs）。
 ///
-///  HiLoTable.prefab      … ルート：NetworkObject・HiLoTable・台の当たり判定。Visual：台。Anchor_Card：カードの文字。Anchor_Board：手持ちの額と案内の文字
+///  HiLoTable.prefab      … ルート：NetworkObject・HiLoTable・HiLoTableView・台の当たり判定。Visual：台。
+///                           Pivot_Card_〇・Pivot_Chips_〇：台の上のカードとチップ（RoomiesCasinoBuilder.HiLoCards.cs）。
+///                           Anchor_Odds：立て札の倍率の文字。Anchor_Board：手持ちの額と案内の文字
 ///  ChinchiroTable.prefab … ルート：NetworkObject・ChinchiroTable・台の当たり判定。Visual：台とどんぶり。
 ///                           Pivot_Die_1〜3：サイコロの軸（中の Visual が見た目）。Anchor_Board：出目と賭け金の文字
 /// どちらも、足元が原点で、遊ぶ人の立つ側が +Z。数値（賭け金・倍率）はプレハブのインスペクターで直せる。
@@ -39,9 +41,15 @@ internal static partial class RoomiesCasinoBuilder
 
             Art.Place(Child(root.transform, "Visual"), "Table", Art.HiLoTable());
 
-            var cardAnchor = Child(root.transform, "Anchor_Card", Art.HlCardCenter);
-            var card = Label(cardAnchor, "Text_Card", "？", new Vector3(0, 0, .002f), 2.6f, new Color(.1f, .1f, .14f));
-            ((RectTransform)card.transform).sizeDelta = new Vector2(Art.HlCardW, Art.HlCardH);
+            // 立て札：上と下の倍率（カードそのものは、台の上の実物）
+            var oddsAnchor = Child(root.transform, "Anchor_Odds", Art.HlCardCenter);
+            var odds = Label(oddsAnchor, "Text_Odds", "上か\n下か", new Vector3(0, 0, .002f), .6f, new Color(1f, .88f, .62f));
+            ((RectTransform)odds.transform).sizeDelta = new Vector2(Art.HlCardW - .02f, Art.HlCardH - .04f);
+            odds.fontStyle = FontStyles.Bold;
+            odds.lineSpacing = 18f;
+
+            // 台の上のカードとチップ
+            var view = BuildHiLoCards(root);
 
             var board = Child(root.transform, "Anchor_Board");
             var pot = Label(board, "Text_Pot", "賭け金 100R", new Vector3(0, Art.HlTop + .06f, -.092f), .62f, new Color(1f, .88f, .62f));
@@ -53,7 +61,8 @@ internal static partial class RoomiesCasinoBuilder
             so.FindProperty("bodyCollider").objectReferenceValue = body;
             so.FindProperty("serverInteractDistance").floatValue = 3.5f;
             SetIntArray(so.FindProperty("betAmounts"), HiLoBets);
-            so.FindProperty("cardText").objectReferenceValue = card;
+            so.FindProperty("oddsText").objectReferenceValue = odds;
+            so.FindProperty("view").objectReferenceValue = view;
             so.FindProperty("potText").objectReferenceValue = pot;
             so.FindProperty("hintText").objectReferenceValue = hint;
             so.ApplyModifiedPropertiesWithoutUndo();

@@ -1,5 +1,6 @@
 using System.Collections;
 using TMPro;
+using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -44,7 +45,10 @@ public static class HiLoRules
 /// 最大 maxSteps 回まで続けられる（最後は自動で受け取る）。外れたら手持ちは 0。同じ数字は外れ。
 /// しばらく何もしないと、その時点の手持ちを自動で受け取る（台がふさがったままにならないように）。
 ///
-/// プレハブ：Assets/_Prefabs/Casino/HiLoTable.prefab（ルート：NetworkObject・このスクリプト・台の当たり判定／Visual：台／Anchor_Card・Anchor_Board：文字）
+/// プレハブ：Assets/_Prefabs/Casino/HiLoTable.prefab（ルート：NetworkObject・このスクリプト・HiLoTableView・台の当たり判定／Visual：台／
+/// Pivot_Card_〇・Pivot_Chips_〇：台の上のカードとチップ／Anchor_Odds・Anchor_Board：文字）
+/// カードは台の上の実物（HiLoTableView が動かす）。カードの並びは、サーバーが決めて全員に同じ物を配る。
+/// 立て札（Anchor_Odds）は、上と下の倍率を出すだけの補助。
 /// お金と勝ち負けはサーバーだけが決める。
 /// </summary>
 public class HiLoTable : CasinoGame
@@ -65,10 +69,16 @@ public class HiLoTable : CasinoGame
     [Tooltip("自分の番でこの秒数なにもしないと、その時点の手持ちを受け取って終わる")]
     [SerializeField, Min(5f)] private float idleTimeoutSeconds = 25f;
 
+    [Header("台の上の実物（カードとチップ）")]
+    [SerializeField] private HiLoTableView view;
+
     [Header("文字（置いてある物に書き込むだけ）")]
-    [SerializeField] private TextMeshPro cardText;
+    [Tooltip("立て札：上と下の倍率")]
+    [SerializeField] private TextMeshPro oddsText;
     [SerializeField] private TextMeshPro potText;
     [SerializeField] private TextMeshPro hintText;
+    [SerializeField] private Color upColor = new Color(1f, 0.56f, 0.8f);
+    [SerializeField] private Color downColor = new Color(0.45f, 0.86f, 0.95f);
 
     private readonly NetworkVariable<int> phase = new((int)Phase.Idle);
     private readonly NetworkVariable<ulong> ownerClientId = new(ulong.MaxValue);
@@ -76,11 +86,21 @@ public class HiLoTable : CasinoGame
     private readonly NetworkVariable<int> suit = new(0);
     private readonly NetworkVariable<int> pot = new(0);         // 手持ち（受け取れる額）
     private readonly NetworkVariable<int> step = new(0);        // 当てた回数
+    // 台の上のカードの並び（1 枚目から順に。符号は BlackjackTableView.Encode）。全員に同じ物が届く。あとから入った人は、これで台の上をそろえる
+    private readonly NetworkVariable<FixedString32Bytes> cardsNet = new(new FixedString32Bytes());
+    private readonly NetworkVariable<int> betIndexNet = new(0);
 
     private ulong ownerPlayerObjectId = ulong.MaxValue;   // サーバーだけ
     private int activeBet;                                 // サーバーだけ
     private double deadline;                               // サーバーだけ
     private int currentBetIndex;
+
+    // 台の上でカードがめくれるまで、文字（手持ちの額・倍率）は前の値のままにしておく（めくる前に結果が読めてしまわないように）
+    private bool holdTexts;
+    private int shownCard, shownPot, shownStep;
+
+    public HiLoTableView View => view;
+    public string CardsOnTable => cardsNet.Value.ToString();
 
     public int[] BetAmounts => betAmounts;
     public float StepReturnRate => stepReturnRate;
@@ -96,13 +116,27 @@ public class HiLoTable : CasinoGame
     {
         phase.OnValueChanged += OnChanged; card.OnValueChanged += OnChanged; pot.OnValueChanged += OnChanged;
         step.OnValueChanged += OnChanged;
+        phase.OnValueChanged += OnPhaseChanged;
         RefreshTexts();
+        SnapView();
+    }
+
+    private void OnEnable()
+    {
+        // 階の出し入れで表示が戻ったとき：台の上を、いまの並びにそろえ直す
+        if (IsSpawned) { holdTexts = false; RefreshTexts(); SnapView(); }
+    }
+
+    private void SnapView()
+    {
+        if (view != null) view.Snap(cardsNet.Value.ToString(), betIndexNet.Value);
     }
 
     public override void OnNetworkDespawn()
     {
         phase.OnValueChanged -= OnChanged; card.OnValueChanged -= OnChanged; pot.OnValueChanged -= OnChanged;
         step.OnValueChanged -= OnChanged;
+        phase.OnValueChanged -= OnPhaseChanged;
     }
 
     // ================================================================ 操作（各クライアント）
@@ -176,6 +210,11 @@ public class HiLoTable : CasinoGame
         // 最初のカードは、上にも下にも賭けられる数字（2〜Q）にする
         card.Value = Random.Range(2, HiLoRules.Ranks);
         suit.Value = Random.Range(0, 4);
+        int index = Mathf.Clamp(betIndex, 0, betAmounts.Length - 1);
+        char first = BlackjackTableView.Encode(card.Value, suit.Value);
+        betIndexNet.Value = index;
+        cardsNet.Value = new FixedString32Bytes(first.ToString());
+        StartedRpc((byte)first, index);
         deadline = ServerNow + idleTimeoutSeconds;
         phase.Value = (int)Phase.Guess;
     }
@@ -189,7 +228,12 @@ public class HiLoTable : CasinoGame
 
         int next = Random.Range(1, HiLoRules.Ranks + 1);
         bool won = high ? next > card.Value : next < card.Value;
-        suit.Value = Random.Range(0, 4);
+        int nextSuit = Random.Range(0, 4);
+        // 先に「次のカード」を全員へ知らせる（台の上でめくれるまで、文字は前の値のままにするため。値を変えるのは、そのあと）
+        char code = BlackjackTableView.Encode(next, nextSuit);
+        RevealRpc((byte)code, won);
+        AppendCard(code);
+        suit.Value = nextSuit;
         card.Value = next;
         if (won)
         {
@@ -198,7 +242,6 @@ public class HiLoTable : CasinoGame
         }
         else pot.Value = 0;
 
-        ResultRpc(won ? 1 : 2);
         phase.Value = (int)Phase.Reveal;
         StartCoroutine(ServerAfterReveal(won));
     }
@@ -240,7 +283,7 @@ public class HiLoTable : CasinoGame
         int net = amount - activeBet;
         if (net > 0) Tell(client, "ハイ＆ロー", $"{step.Value} 回当てて ¥{net:N0} の勝ち！", NightEventManager.StyleFun);
         else Tell(client, "ハイ＆ロー", "賭け金が戻った。");
-        ResultRpc(3);
+        CollectedRpc(step.Value);
         ServerReset();
     }
 
@@ -251,7 +294,17 @@ public class HiLoTable : CasinoGame
         activeBet = 0;
         pot.Value = 0;
         step.Value = 0;
+        cardsNet.Value = new FixedString32Bytes();
         phase.Value = (int)Phase.Idle;
+    }
+
+    /// <summary>台の上の並びに 1 枚足す（入りきらなくなったら、足さない。台の上の動きは RevealRpc で届く）。</summary>
+    private void AppendCard(char code)
+    {
+        FixedString32Bytes value = cardsNet.Value;
+        if (value.Length + 1 > value.Capacity) return;
+        value.Append(code);
+        cardsNet.Value = value;
     }
 
     private void Update()
@@ -264,27 +317,66 @@ public class HiLoTable : CasinoGame
 
     private void OnChanged(int oldValue, int newValue) => RefreshTexts();
 
-    /// <summary>結果の音（1 = 当たり、2 = 外れ、3 = 受け取った）。</summary>
-    [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
-    private void ResultRpc(int kind)
+    private void OnPhaseChanged(int oldValue, int newValue)
     {
-        if (kind != 3) GameAudio.PlayAt("casino/card", transform.position);   // カードをめくる音
-        if (kind == 1) GameAudio.PlayAt("casino/win", transform.position);
-        else if (kind == 2) GameAudio.PlayAt("casino/lose", transform.position);
-        else GameAudio.PlayAt("casino/cash", transform.position);
+        // 終わった（外れ・受け取り・時間切れ）：少し見せてから、台の上を片付ける
+        if (newValue == (int)Phase.Idle && oldValue != (int)Phase.Idle)
+        {
+            if (view != null) view.Clear();
+        }
+        // 次の番になったら、文字は必ずいまの値にする（めくる動きが届かなかった場合の備え）
+        if (newValue == (int)Phase.Guess) { holdTexts = false; RefreshTexts(); }
+    }
+
+    /// <summary>はじまった：賭け金のチップを置き、1 枚目を配る。</summary>
+    [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
+    private void StartedRpc(byte first, int betIndex)
+    {
+        holdTexts = false;
+        if (view != null) view.Begin(betIndex, (char)first);
+        else GameAudio.PlayAt("casino/card", transform.position);
         RefreshTexts();
+    }
+
+    /// <summary>次のカードが出た：台の上で、山から滑ってきてめくれる。めくれた瞬間に、文字と音を合わせる。</summary>
+    [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
+    private void RevealRpc(byte code, bool won)
+    {
+        if (view == null)
+        {
+            GameAudio.PlayAt("casino/card", transform.position);
+            GameAudio.PlayAt(won ? "casino/win" : "casino/lose", transform.position);
+            return;
+        }
+        holdTexts = true;
+        view.Reveal((char)code, won, () => { holdTexts = false; RefreshTexts(); });
+    }
+
+    /// <summary>受け取った：払い戻しのチップが滑ってくる。</summary>
+    [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
+    private void CollectedRpc(int steps)
+    {
+        if (view != null) view.Collect(steps);
+        else GameAudio.PlayAt("casino/cash", transform.position);
     }
 
     private void RefreshTexts()
     {
         bool playing = phase.Value != (int)Phase.Idle;
-        if (cardText != null)
+        if (!holdTexts) { shownCard = card.Value; shownPot = pot.Value; shownStep = step.Value; }
+        if (oddsText != null)
         {
-            cardText.text = card.Value > 0 ? HiLoRules.RankName(card.Value) + HiLoRules.SuitName(suit.Value) : "？";
-            cardText.color = card.Value > 0 && HiLoRules.IsRedSuit(suit.Value) ? new Color(.78f, .16f, .22f) : new Color(.1f, .1f, .14f);
+            if (playing && shownCard > 0)
+            {
+                float up = HiLoRules.Multiplier(shownCard, true, stepReturnRate), down = HiLoRules.Multiplier(shownCard, false, stepReturnRate);
+                string upLine = up > 0 ? $"<color=#{ColorUtility.ToHtmlStringRGB(upColor)}>上 ×{up:F2}</color>" : "<color=#777777>上 ―</color>";
+                string downLine = down > 0 ? $"<color=#{ColorUtility.ToHtmlStringRGB(downColor)}>下 ×{down:F2}</color>" : "<color=#777777>下 ―</color>";
+                oddsText.text = upLine + "\n" + downLine;
+            }
+            else oddsText.text = "上か\n下か";
         }
         if (potText != null)
-            potText.text = playing ? $"手持ち {pot.Value:N0}R（{step.Value}/{maxSteps}）" : $"賭け金 {CurrentBet:N0}R";
+            potText.text = playing ? $"手持ち {shownPot:N0}R（{shownStep}/{maxSteps}）" : $"賭け金 {CurrentBet:N0}R";
         if (hintText != null)
             hintText.text = playing ? "上か下か　同じ数字は外れ" : "HIGH & LOW";
     }

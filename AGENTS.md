@@ -167,6 +167,8 @@
   建物の箱のうち、模様のいらない物（腰の板・足元の石・壁の布・光る板）は `Swatch("色")` でアトラスの色見本を使う（町の素材を増やさない。建物のマテリアルは 10 個）。
   ブラックジャック：カード・チップ・点数の札は台の上の実物（`BlackjackTableView` が動かす。`Pivot_Card_〇`・`Pivot_Chips_〇`・`Anchor_Score_〇`。置くのは `RoomiesCasinoBuilder.BlackjackCards.cs`）。
   カードの並びは `BlackjackTable` が NetworkVariable で全員に配る。上のモニター `Anchor_Display` は賭け金と結果だけの補助（`BlackjackTable.EditorBuildUI()` が置く。実行時には作らない）。
+  ハイ＆ロー：カードとチップも台の上の実物（`HiLoTableView` が動かす。`Pivot_Card_〇`・`Pivot_Chips_〇`・`Anchor_Deck`・`Anchor_Row`・`Anchor_Tray`。置くのは `RoomiesCasinoBuilder.HiLoCards.cs`。
+  トランプの絵とマテリアルはブラックジャックと同じ物）。カードの並びは `HiLoTable` が全員に配る。立て札 `Anchor_Odds` は上と下の倍率だけの補助。コマ送りの確認は `Roomies/Casino/Demo/Capture HiLo Frames`。
   スロット：画面の部品は `Anchor_Screen` の Canvas の中、筐体のランプは `Anchor_Lamps`（置くのは `RoomiesCasinoBuilder.SlotScreen.cs`）。演出は `SlotScreen`（見た目と音だけ）、
   当たり外れと配当は `SlotMachine`。演出の長さ（リーチ・当たり）は `SlotMachine`・`SlotScreen` のインスペクターにあり、サーバーも同じ長さだけ次の回を待つ。
   スロットの画面の絵とトランプの絵は `ArtSource/Casino/Screen/make_casino_screen_art.py` が作る（`codex/` に絵を置くと差し替わる。説明は同じフォルダの README.md）。
