@@ -220,12 +220,28 @@ internal static class RoomiesCasinoNetTest
         nm.OnClientDisconnectCallback += id => Note($"host: client {id} disconnected ({nm.DisconnectReason})");
         bool started = nm.IsListening || nm.StartHost();
         Note($"host started {started}: host {nm.IsHost}, transport {nm.NetworkConfig.NetworkTransport?.GetType().Name}");
+        // クライアントを呼ぶ合図は、本当のゲーム（SteamLobby）と同じ道具で出す：本編と UI のシーンを読み込み終わった瞬間。
+        // run.flag に early と書いてあるときは、直す前と同じく「本編を読み込み終わった瞬間」に出す（UI の読み込み中に入るとどうなるかを見る）
+        bool early = File.ReadAllText(Dir + "/run.flag").Trim() == "early";
+        float loadStart = Time.realtimeSinceStartup;
+        if (early)
+        {
+            NetworkSceneManager.OnLoadCompleteDelegateHandler once = null;
+            once = (id, scene, mode) =>
+            {
+                if (id != nm.LocalClientId || scene != "GameRoom") return;
+                nm.SceneManager.OnLoadComplete -= once;
+                Mark("host_started"); Note($"signal (early: GameRoom only) at {Time.realtimeSinceStartup - loadStart:F2}s");
+            };
+            nm.SceneManager.OnLoadComplete += once;
+        }
+        else
+            HostSceneReady.WhenLoaded(nm, runner, "GameRoom", 15f, () => { Mark("host_started"); Note($"signal (GameRoom and UI loaded) at {Time.realtimeSinceStartup - loadStart:F2}s"); });
+        nm.SceneManager.OnLoadComplete += (id, scene, mode) => { if (id == nm.LocalClientId) Note($"host loaded {scene} at {Time.realtimeSinceStartup - loadStart:F2}s"); };
         nm.SceneManager.LoadScene("GameRoom", LoadSceneMode.Single);
         yield return WaitWorld();
         Expect(MyController() != null, "host is in GameRoom with its player");
-        // ホストが町に入りきってから呼ぶ（＝途中参加）。読み込みの最中に入ると、UI のシーンが 2 回届いて同期が止まる
-        yield return new WaitForSecondsRealtime(3f);
-        Mark("host_started");
+        yield return WaitFile("host_started", 60f);
 
         yield return Until(() => nm.ConnectedClientsList.Count >= 2 && nm.ConnectedClientsList.All(c => c.PlayerObject != null), 300f);
         Expect(nm.ConnectedClientsList.Count >= 2, $"client joined (connected {nm.ConnectedClientsList.Count})");
@@ -325,10 +341,11 @@ internal static class RoomiesCasinoNetTest
     static IEnumerator ClientRun(MonoBehaviour runner)
     {
         log.Clear(); ok = ng = 0;
-        yield return WaitFile("host_started", 300f);
+        // 先に用意を済ませ、ホストの合図が出た瞬間につなぐ（合図と接続のあいだを空けない）
         yield return Until(() => NetworkManager.Singleton != null, 60f);
         var nm = NetworkManager.Singleton;
         yield return new WaitForSecondsRealtime(4f);
+        yield return WaitFile("host_started", 300f);
         Note($"before start: listening {nm.IsListening}, approval {nm.NetworkConfig.ConnectionApproval}, transport {nm.NetworkConfig.NetworkTransport?.GetType().Name}");
         UseLocalTransport(nm);
         nm.NetworkConfig.ConnectionApproval = false;

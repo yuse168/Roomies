@@ -18,6 +18,8 @@ public class SteamLobby : MonoBehaviour
     [SerializeField] private string gameSceneName = "GameRoom";
     [SerializeField] private string menuSceneName = "MainMenuSteam";
     [SerializeField] private int maxMembers = 5;
+    [Tooltip("ホストが本編を読み込んだあと、ゲーム中の UI のシーンの読み込みを待つ上限（秒）。過ぎたら待たずに開始を知らせる。")]
+    [SerializeField, Min(1f)] private float uiSceneWaitSeconds = 15f;
 
     // ----- Steamコールバック -----
     private CallResult<LobbyCreated_t>    m_crLobbyCreated;
@@ -304,8 +306,11 @@ public class SteamLobby : MonoBehaviour
         nm.OnClientDisconnectCallback -= OnHostSawClientDisconnected;
         if (nm.SceneManager == null) return;
         nm.SceneManager.OnSceneEvent -= OnSceneEventDiag;
-        nm.SceneManager.OnLoadComplete -= OnHostSceneLoaded;
+        cancelHostSceneReady?.Invoke();
+        cancelHostSceneReady = null;
     }
+
+    private System.Action cancelHostSceneReady;
 
     private void FailStart(string reason)
     {
@@ -614,8 +619,10 @@ public class SteamLobby : MonoBehaviour
             // ホストがGameRoomを「完全に読み込んでから」クライアントへ通知する。
             // 読み込み中にクライアントが接続するとホストのPollEventが走らず
             // P2P接続要求を取りこぼすため。
-            nm.SceneManager.OnLoadComplete   -= OnHostSceneLoaded;
-            nm.SceneManager.OnLoadComplete   += OnHostSceneLoaded;
+            // ゲーム中のUIのシーン（GameRoomUI）も読み込み終わるのを待つ：その途中でクライアントがつながると、
+            // クライアントでUIのシーンが2つ読み込まれて同期が止まる（HostSceneReady の説明を参照）。
+            cancelHostSceneReady?.Invoke();
+            cancelHostSceneReady = HostSceneReady.WhenLoaded(nm, this, gameSceneName, uiSceneWaitSeconds, OnHostScenesReady);
         }
 
         Debug.Log("[SteamLobby] GameRoomを読み込み開始（読み込み完了後にクライアントへ通知）");
@@ -627,24 +634,17 @@ public class SteamLobby : MonoBehaviour
     }
 
     /// <summary>
-    /// ホストのGameRoom読み込み完了時に、初めてクライアントへゲーム開始を通知する。
+    /// ホストが GameRoom と UI のシーンを読み込み終わったときに、初めてクライアントへゲーム開始を通知する。
     /// </summary>
-    private void OnHostSceneLoaded(ulong clientId, string sceneName, LoadSceneMode mode)
+    private void OnHostScenesReady()
     {
-        if (sceneName != gameSceneName) return;
-
-        var nm = NetworkManager.Singleton;
-        if (nm == null) return;
-
-        // ホスト自身の読み込み完了のみを対象にする
-        if (clientId != nm.LocalClientId) return;
-
-        nm.SceneManager.OnLoadComplete -= OnHostSceneLoaded;
+        cancelHostSceneReady = null;
+        if (NetworkManager.Singleton == null) return;
 
         if (IsHost && LobbyID != 0 && SteamManager.Initialized)
         {
             SteamMatchmaking.SetLobbyData(new CSteamID(LobbyID), KeyGameStarted, "1");
-            Debug.Log("[SteamLobby] ホストGameRoom読み込み完了 → GameStarted=1 を通知");
+            Debug.Log("[SteamLobby] ホストGameRoomとUIの読み込み完了 → GameStarted=1 を通知");
         }
     }
 
