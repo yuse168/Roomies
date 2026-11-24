@@ -69,7 +69,12 @@ internal static partial class RoomiesCasinoArt
     static readonly RectInt SwatchBlock = new RectInt(1036, 1500, 512, 256);   // アトラスの中の場所（左上が原点の px）
 
     // ================================================================ 絵（元の絵の切り出し → アトラスの中の場所。どちらも左上が原点の px）
-    internal enum Img { Betting, Wheel, Felt, SlotTop, SlotBottom, Banner }
+    internal enum Img
+    {
+        Betting, Wheel, Felt, SlotTop, SlotBottom, Banner,
+        // コンビニ（2026/11/24。Codex の絵を ArtSource/Store/make_store_art.py で縮めた物）
+        StoreLabelSnack1, StoreLabelSnack2, StoreLabelSnack3, StoreLabelSnack4, StoreLidBento1, StoreLidBento2, StoreLabelMilk, StoreLabelOnigiri, StoreLabelDrink1, StoreLabelDrink2, StoreLabelDrink3, StoreLabelDrink4, StoreLabelDrink5, StoreLabelDrink6, StoreLabelCup1, StoreLabelCup2, StoreLabelCup3, StoreLabelBread1, StoreLabelBread2, StoreStoreLogo, StorePoster1, StorePoster2, StoreNobori1, StoreNobori2,
+    }
     static readonly Dictionary<Img, (string file, RectInt src, RectInt dst)> Images = new Dictionary<Img, (string, RectInt, RectInt)>
     {
         // ルーレットの賭ける場所（まわりの飾りの線は外す）
@@ -83,6 +88,31 @@ internal static partial class RoomiesCasinoArt
         [Img.SlotBottom] = ("slot_face_albedo.png", new RectInt(0, 836, 1024, 188), new RectInt(1036, 1230, 768, 141)),
         // 垂れ幕（真ん中の細長い所）
         [Img.Banner] = ("banner_diamond_albedo.png", new RectInt(318, 0, 388, 1024), new RectInt(1816, 1016, 194, 512)),
+        // ---- コンビニの絵（ArtSource/Store/atlas/。縮める大きさは make_store_art.py の SIZES と同じ。アトラスの左下と右下の空いている所）
+        [Img.StoreLabelSnack1] = ("../Store/atlas/label_snack_1.png", new RectInt(0, 0, 128, 160), new RectInt(4, 1564, 128, 160)),
+        [Img.StoreLabelSnack2] = ("../Store/atlas/label_snack_2.png", new RectInt(0, 0, 128, 160), new RectInt(136, 1564, 128, 160)),
+        [Img.StoreLabelSnack3] = ("../Store/atlas/label_snack_3.png", new RectInt(0, 0, 128, 160), new RectInt(268, 1564, 128, 160)),
+        [Img.StoreLabelSnack4] = ("../Store/atlas/label_snack_4.png", new RectInt(0, 0, 128, 160), new RectInt(400, 1564, 128, 160)),
+        [Img.StoreLidBento1] = ("../Store/atlas/lid_bento_1.png", new RectInt(0, 0, 160, 120), new RectInt(536, 1564, 160, 120)),
+        [Img.StoreLidBento2] = ("../Store/atlas/lid_bento_2.png", new RectInt(0, 0, 160, 120), new RectInt(700, 1564, 160, 120)),
+        [Img.StoreLabelMilk] = ("../Store/atlas/label_milk.png", new RectInt(0, 0, 64, 128), new RectInt(868, 1564, 64, 128)),
+        [Img.StoreLabelOnigiri] = ("../Store/atlas/label_onigiri.png", new RectInt(0, 0, 80, 80), new RectInt(936, 1564, 80, 80)),
+        [Img.StoreLabelDrink1] = ("../Store/atlas/label_drink_1.png", new RectInt(0, 0, 128, 64), new RectInt(4, 1728, 128, 64)),
+        [Img.StoreLabelDrink2] = ("../Store/atlas/label_drink_2.png", new RectInt(0, 0, 128, 64), new RectInt(136, 1728, 128, 64)),
+        [Img.StoreLabelDrink3] = ("../Store/atlas/label_drink_3.png", new RectInt(0, 0, 128, 64), new RectInt(268, 1728, 128, 64)),
+        [Img.StoreLabelDrink4] = ("../Store/atlas/label_drink_4.png", new RectInt(0, 0, 128, 64), new RectInt(400, 1728, 128, 64)),
+        [Img.StoreLabelDrink5] = ("../Store/atlas/label_drink_5.png", new RectInt(0, 0, 128, 64), new RectInt(532, 1728, 128, 64)),
+        [Img.StoreLabelDrink6] = ("../Store/atlas/label_drink_6.png", new RectInt(0, 0, 128, 64), new RectInt(664, 1728, 128, 64)),
+        [Img.StoreLabelCup1] = ("../Store/atlas/label_cup_1.png", new RectInt(0, 0, 128, 64), new RectInt(4, 1796, 128, 64)),
+        [Img.StoreLabelCup2] = ("../Store/atlas/label_cup_2.png", new RectInt(0, 0, 128, 64), new RectInt(136, 1796, 128, 64)),
+        [Img.StoreLabelCup3] = ("../Store/atlas/label_cup_3.png", new RectInt(0, 0, 128, 64), new RectInt(268, 1796, 128, 64)),
+        [Img.StoreLabelBread1] = ("../Store/atlas/label_bread_1.png", new RectInt(0, 0, 128, 80), new RectInt(400, 1796, 128, 80)),
+        [Img.StoreLabelBread2] = ("../Store/atlas/label_bread_2.png", new RectInt(0, 0, 128, 80), new RectInt(532, 1796, 128, 80)),
+        [Img.StoreStoreLogo] = ("../Store/atlas/store_logo.png", new RectInt(0, 0, 224, 224), new RectInt(668, 1796, 224, 224)),
+        [Img.StorePoster1] = ("../Store/atlas/poster_1.png", new RectInt(0, 0, 210, 280), new RectInt(1036, 1764, 210, 280)),
+        [Img.StorePoster2] = ("../Store/atlas/poster_2.png", new RectInt(0, 0, 210, 280), new RectInt(1250, 1764, 210, 280)),
+        [Img.StoreNobori1] = ("../Store/atlas/nobori_1.png", new RectInt(0, 0, 70, 280), new RectInt(1464, 1764, 70, 280)),
+        [Img.StoreNobori2] = ("../Store/atlas/nobori_2.png", new RectInt(0, 0, 70, 280), new RectInt(1538, 1764, 70, 280)),
     };
 
     static Material atlasMat, glowMat, neonMat;
@@ -593,6 +623,53 @@ internal static partial class RoomiesCasinoArt
                 Quad(P(inner[i], y0), P(inner[j], y0), P(inner[j], y1), P(inner[i], y1), u, u, u, u, -o, glow);       // 内の側面
                 Quad(P(outer[i], y1), P(outer[j], y1), P(inner[j], y1), P(inner[i], y1), ut, ut, ut, ut, Vector3.up, glow);   // 上の面
             }
+        }
+
+        /// <summary>
+        /// 円柱の帯（半径 r、高さ y0〜y1）に、絵を 1 周巻く（ラベル用）。正面（+Z）に絵の真ん中が来る。
+        /// 帯の外へ少しだけ出す（下の色の帯とちらつかないように）。
+        /// </summary>
+        public void Wrap(float r, float y0, float y1, int sides, Rect img)
+        {
+            sides = Sides(sides);
+            for (int k = 0; k < sides; k++)
+            {
+                // 正面（+Z、角度 π/2）が絵の真ん中（u = 0.5）。手前から見ると +X（角度 0）が左なので、角度が増えるほど u を増やす（左から右へ読める）
+                float a0 = -Mathf.PI / 2 + k * Mathf.PI * 2 / sides, a1 = -Mathf.PI / 2 + (k + 1) * Mathf.PI * 2 / sides;
+                float u0 = img.xMin + img.width * k / sides, u1 = img.xMin + img.width * (k + 1) / sides;
+                Vector3 P(float a, float y) => new Vector3(Mathf.Cos(a) * r, y, Mathf.Sin(a) * r);
+                Vector3 o = P((a0 + a1) / 2, 0);
+                Quad(P(a0, y0), P(a1, y0), P(a1, y1), P(a0, y1), new Vector2(u0, img.yMin), new Vector2(u1, img.yMin), new Vector2(u1, img.yMax), new Vector2(u0, img.yMax), o);
+            }
+        }
+
+        /// <summary>前（+Z）を向いた多角形に絵を貼る。poly は形（x 横、y 上。手前から見ると +X が左）、bounds がその絵の全体に当たる範囲。</summary>
+        public void FaceImage(Vector2[] poly, float z, Rect img, Rect bounds)
+        {
+            Vector2 c = Vector2.zero; foreach (var p in poly) c += p; c /= poly.Length;
+            // 手前から見ると +X が左：絵の左（u の小さいほう）を +X の側にする
+            Vector2 U(Vector2 p) => new Vector2(img.xMin + (bounds.xMax - p.x) / bounds.width * img.width, img.yMin + (p.y - bounds.yMin) / bounds.height * img.height);
+            for (int i = 0; i < poly.Length; i++)
+            {
+                Vector2 p = poly[i], q = poly[(i + 1) % poly.Length];
+                Tri(new Vector3(c.x, c.y, z), new Vector3(p.x, p.y, z), new Vector3(q.x, q.y, z), U(c), U(p), U(q), Vector3.forward);
+            }
+        }
+
+        /// <summary>前（+Z）を向いた長方形の絵（真ん中が center、幅 w・高さ h）。</summary>
+        public void FrontImage(Vector3 center, float w, float h, Rect img)
+        {
+            // 手前から見ると +X が左：絵の左下は +X の側
+            Vector3 a = center + new Vector3(w / 2, -h / 2, 0), b = center + new Vector3(-w / 2, -h / 2, 0), c = center + new Vector3(-w / 2, h / 2, 0), d = center + new Vector3(w / 2, h / 2, 0);
+            Image(a, b, c, d, img, Vector3.forward);
+        }
+
+        /// <summary>上（+Y）を向いた長方形の絵（真ん中が center、x の幅 w・z の奥行き d。絵の上が -Z の側）。</summary>
+        public void TopRectImage(Vector3 center, float w, float d, Rect img)
+        {
+            // 手前（+Z）に立って見下ろすと +X が左：絵の左下は手前の +X の側
+            Vector3 a = center + new Vector3(w / 2, 0, d / 2), b = center + new Vector3(-w / 2, 0, d / 2), c = center + new Vector3(-w / 2, 0, -d / 2), e = center + new Vector3(w / 2, 0, -d / 2);
+            Image(a, b, c, e, img, Vector3.up);
         }
 
         /// <summary>多角形の天面に絵を貼る（真上から見た絵。bounds の範囲が絵の全体に当たる。絵の上が -Z、絵の左が +X の向き）。</summary>

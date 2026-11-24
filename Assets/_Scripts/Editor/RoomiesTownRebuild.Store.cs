@@ -176,6 +176,11 @@ internal static partial class RoomiesTownRebuild
         // 入口のひさしと、その下の明かり（夜だけ。名前の頭が Shop light の光は朝に消える）
         Prop(g, "Store canopy", Art.StoreCanopy(3.6f, 1.3f, .16f), 26.1f, 2.78f, fz);
         PointLight(g, "Shop light - CORNER STORE canopy", new Vector3(26.1f, 2.6f, fz + .7f), 2.4f, 6f, new Color(1f, .9f, .78f));
+        // ガラスの内側に貼ったポスター（外を向く。裏は紙）と、店先ののぼり（Codex の絵）
+        Prop(g, "Store window poster", Art.StorePoster(.5f, .667f, 0), 23.75f, 1.2f, fz - .16f);
+        Prop(g, "Store window poster", Art.StorePoster(.5f, .667f, 1), 28.6f, 1.2f, fz - .16f);
+        Prop(g, "Store nobori", Art.StoreNobori(0), 24.0f, 0, fz + .45f, 12);
+        Prop(g, "Store nobori", Art.StoreNobori(1), 29.3f, 0, fz + .45f, -12);
         // 店先のごみ箱（入口の右。歩道の通り道にはかからない）
         Prop(g, "Store bins", Art.StoreBins(), 32.0f, 0, fz + .03f + .21f);
     }

@@ -74,7 +74,7 @@ internal static partial class RoomiesCasinoArt
         var tri = RoundPoly(new[] { new Vector2(-.045f, 0), new Vector2(.045f, 0), new Vector2(0, .076f) }, .016f, 3);
         StandingSlab(lp, tri, .034f, "rice");
         lp.Box(new Vector3(-.019f, 0, -.0185f), new Vector3(.019f, .035f, .0185f), "nori");                  // のり
-        lp.Box(new Vector3(-.012f, .045f, .0168f), new Vector3(.012f, .056f, .0185f), "label_red");          // ラベル
+        lp.FrontImage(new Vector3(0, .026f, .0192f), .034f, .034f, ImageRect(Img.StoreLabelOnigiri));          // 前のシール（Codex の絵）
         lp.Pop();
     }
 
@@ -84,53 +84,57 @@ internal static partial class RoomiesCasinoArt
         var tray = Chamfer(.17f, .12f, .022f);
         lp.Prism(tray, 0, .024f, "ink");
         lp.Loft(tray, new[] { (.024f, 1f), (.044f, .97f), (.05f, .9f) }, "bento_lid", null, false, .005f);
-        string[] a = { "salmon", "veg_green", "egg" }, b = { "egg", "salmon", "veg_green" };
-        var c = variant % 2 == 0 ? a : b;
-        lp.Box(new Vector3(-.07f, .046f, -.04f), new Vector3(-.01f, .052f, .04f), "rice");
-        lp.Box(new Vector3(.0f, .046f, -.04f), new Vector3(.065f, .052f, -.002f), c[0]);
-        lp.Box(new Vector3(.0f, .046f, .004f), new Vector3(.03f, .052f, .04f), c[1]);
-        lp.Box(new Vector3(.034f, .046f, .004f), new Vector3(.065f, .052f, .04f), c[2]);
+        // ふたを上から見た絵（中身が透けて見える。Codex の絵）
+        lp.TopRectImage(new Vector3(0, .0562f, 0), .16f, .11f, ImageRect(variant % 2 == 0 ? Img.StoreLidBento1 : Img.StoreLidBento2));
         lp.Pop();
     }
 
-    internal static void Bread(Lp lp, Vector3 at, float yaw = 0, string color = "bread")
+    internal static void Bread(Lp lp, Vector3 at, float yaw = 0, string color = "bread", int img = 0)
     {
         lp.Push(at, new Vector3(0, yaw, 0));
         lp.Cushion(Chamfer(.15f, .09f, .035f), 0, .066f, color, color);
-        lp.Box(new Vector3(-.02f, .05f, .04f), new Vector3(.02f, .062f, .047f), "label_yellow");
+        // 袋の上の絵（ふくらみの上へ少しだけ浮かせる。軽い形は平らなので、ほぼ上の面）
+        lp.TopRectImage(new Vector3(0, lp.Lite ? .0668f : .0748f, 0), .124f, .074f, ImageRect(img % 2 == 0 ? Img.StoreLabelBread1 : Img.StoreLabelBread2));
         lp.Pop();
     }
 
-    internal static void Snack(Lp lp, Vector3 at, float yaw = 0, string color = "label_orange")
+    internal static void Snack(Lp lp, Vector3 at, float yaw = 0, string color = "label_orange", int img = 0)
     {
         lp.Push(at, new Vector3(0, yaw, 0));
         lp.Push(Vector3.zero, new Vector3(90, 0, 0));
         lp.Cushion(Offset(Chamfer(.11f, .15f, .03f), new Vector2(0, -.075f)), -.022f, .022f, color, color);
         lp.Pop();
-        lp.Box(new Vector3(-.035f, .06f, .022f), new Vector3(.035f, .095f, .029f), "rice");
+        Img[] art = { Img.StoreLabelSnack1, Img.StoreLabelSnack2, Img.StoreLabelSnack3, Img.StoreLabelSnack4 };
+        lp.FrontImage(new Vector3(0, .075f, lp.Lite ? .0228f : .0276f), .096f, .12f, ImageRect(art[img % art.Length]));
         lp.Pop();
     }
 
-    internal static void CupNoodle(Lp lp, Vector3 at, float yaw = 0, string color = "label_red")
+    internal static void CupNoodle(Lp lp, Vector3 at, float yaw = 0, string color = "label_red", int img = 0)
     {
         lp.Push(at, new Vector3(0, yaw, 0));
         lp.Lathe(new[] { (.031f, 0f), (.036f, .03f), (.04f, .06f), (.043f, .08f), (.046f, .086f) }, 10,
             b => b == 1 ? "shelf_white" : b == 3 ? "milk_white" : color, 0, true, true);
+        Img[] art = { Img.StoreLabelCup1, Img.StoreLabelCup2, Img.StoreLabelCup3 };
+        lp.Wrap(.0436f, .03f, .078f, 10, ImageRect(art[img % art.Length]));
         lp.Pop();
     }
 
-    internal static void Bottle(Lp lp, Vector3 at, string cap = "label_blue", string label = "label_sky", string liquid = "tea")
+    static readonly Img[] DrinkArt = { Img.StoreLabelDrink1, Img.StoreLabelDrink2, Img.StoreLabelDrink3, Img.StoreLabelDrink4, Img.StoreLabelDrink5, Img.StoreLabelDrink6 };
+
+    internal static void Bottle(Lp lp, Vector3 at, string cap = "label_blue", string label = "label_sky", string liquid = "tea", int img = 0)
     {
         lp.Push(at);
         lp.Lathe(new[] { (.025f, 0f), (.028f, .012f), (.028f, .06f), (.028f, .14f), (.02f, .178f), (.011f, .198f), (.011f, .214f) }, 8,
             b => b == 2 ? label : b == 5 ? cap : liquid, 0, true, true);
+        lp.Wrap(.0286f, .062f, .138f, 8, ImageRect(DrinkArt[img % DrinkArt.Length]));      // ラベル（Codex の絵）
         lp.Pop();
     }
 
-    internal static void Can(Lp lp, Vector3 at, string color = "label_red")
+    internal static void Can(Lp lp, Vector3 at, string color = "label_red", int img = 0)
     {
         lp.Push(at);
         lp.Lathe(new[] { (.021f, 0f), (.024f, .007f), (.024f, .084f), (.019f, .092f) }, 8, b => b == 1 ? color : "steel", 0, true, true);
+        lp.Wrap(.0246f, .012f, .08f, 8, ImageRect(DrinkArt[img % DrinkArt.Length]));
         lp.Pop();
     }
 
@@ -139,8 +143,14 @@ internal static partial class RoomiesCasinoArt
         lp.Push(at, new Vector3(0, yaw, 0));
         lp.Sharp = true;
         lp.Box(new Vector3(-.035f, 0, -.035f), new Vector3(.035f, .13f, .035f), "milk_white");
-        lp.Box(new Vector3(-.0355f, .03f, -.0355f), new Vector3(.0355f, .07f, .0355f), band);
         lp.Sharp = false;
+        // 前と後ろの面に、牛乳パックの絵（Codex の絵）
+        foreach (float yawFace in new[] { 0f, 180f })
+        {
+            lp.Push(Vector3.zero, new Vector3(0, yawFace, 0));
+            lp.FrontImage(new Vector3(0, .066f, .0356f), .064f, .118f, ImageRect(Img.StoreLabelMilk));
+            lp.Pop();
+        }
         // 三角の屋根
         foreach (float s in new[] { 1f, -1f })
             lp.Quad(new Vector3(-.035f, .13f, s * .035f), new Vector3(.035f, .13f, s * .035f), new Vector3(.035f, .155f, 0), new Vector3(-.035f, .155f, 0), "milk_white", new Vector3(0, .5f, s));
@@ -171,10 +181,10 @@ internal static partial class RoomiesCasinoArt
         {
             case 0: Onigiri(lp, at, yaw); break;
             case 1: Bento(lp, at, yaw, v); break;
-            case 2: Bread(lp, at, yaw, breads[v % breads.Length]); break;
-            case 3: Snack(lp, at, yaw, snacks[v % snacks.Length]); break;
-            case 4: CupNoodle(lp, at, yaw, cups[v % cups.Length]); break;
-            case 5: if (v % 3 == 2) Can(lp, at, bottles[(v / 3) % bottles.Length]); else Bottle(lp, at, caps[v % caps.Length], bottles[v % bottles.Length], liquids[v % liquids.Length]); break;
+            case 2: Bread(lp, at, yaw, breads[v % breads.Length], v); break;
+            case 3: Snack(lp, at, yaw, snacks[v % snacks.Length], v); break;
+            case 4: CupNoodle(lp, at, yaw, cups[v % cups.Length], v); break;
+            case 5: if (v % 3 == 2) Can(lp, at, bottles[(v / 3) % bottles.Length], v / 3 + 4); else Bottle(lp, at, caps[v % caps.Length], bottles[v % bottles.Length], liquids[v % liquids.Length], v); break;
             case 6: Milk(lp, at, yaw, v % 2 == 0 ? "label_blue" : "label_green"); break;
             case 7: IceCup(lp, at, ices[v % ices.Length]); break;
         }
@@ -451,8 +461,8 @@ internal static partial class RoomiesCasinoArt
             Vector3 a = new Vector3(-.07f, .27f, s * .045f), b = new Vector3(-.05f, .36f, s * .045f), c = new Vector3(.05f, .36f, s * .045f), e = new Vector3(.07f, .27f, s * .045f);
             lp.Bar(a, b, .012f, "milk_white"); lp.Bar(b, c, .012f, "milk_white"); lp.Bar(c, e, .012f, "milk_white");
         }
-        // さんご色の印（店の印の小さい物）
-        lp.Box(new Vector3(-.035f, .1f, .07f), new Vector3(.035f, .17f, .076f), "coral");
+        // 店の印（Codex の絵）
+        lp.FaceImage(Offset(Chamfer(.07f, .07f, .014f), new Vector2(0, .135f)), .0745f, ImageRect(Img.StoreStoreLogo), new Rect(-.035f, .1f, .07f, .07f));
     });
 
     /// <summary>温かい物のケース（ガラスは StoreHotCaseGlass）。</summary>
@@ -585,28 +595,35 @@ internal static partial class RoomiesCasinoArt
         lp.Box(new Vector3(.3f, .95f, .05f), new Vector3(.36f, 1.05f, .09f), "steel");
     });
 
-    /// <summary>お店の印（オリジナル）：角の丸いさんご色の板に、クリームの「角（かど）」の形と、星。正面が +Z。</summary>
+    /// <summary>お店の印（オリジナル。Codex の絵 store_logo）：角の丸い濃いさんご色の板の前に、印の絵を、同じ角丸の形で貼る。正面が +Z。原点は下の真ん中。</summary>
     internal static Mesh StoreEmblem(float size) => Build($"store_emblem_{Mathf.RoundToInt(size * 100)}", lp =>
     {
         float s = size / 2;
-        StandingSlab(lp, Offset(Chamfer(size, size, size * .22f), new Vector2(0, s)), .06f, "coral");
-        lp.Push(new Vector3(0, 0, .03f));
-        // 角の形（右上を囲む太い L）
-        lp.Box(new Vector3(-s * .55f, s * 1.38f, 0), new Vector3(s * .55f, s * 1.6f, .03f), "store_cream");
-        lp.Box(new Vector3(s * .33f, s * .5f, 0), new Vector3(s * .55f, s * 1.6f, .03f), "store_cream");
-        // 星（5 つの頂点）
-        var star = new List<Vector2>();
-        for (int i = 0; i < 10; i++)
-        {
-            float a = Mathf.PI / 2 + i * Mathf.PI / 5, r = i % 2 == 0 ? s * .32f : s * .14f;
-            star.Add(new Vector2(-s * .2f + Mathf.Cos(a) * r, s * .85f + Mathf.Sin(a) * r));
-        }
-        Vector2 u = Sw("store_cream");
-        for (int i = 0; i < 10; i++)
-        {
-            Vector2 p = star[i], q = star[(i + 1) % 10], c = new Vector2(-s * .2f, s * .85f);
-            lp.Tri(new Vector3(c.x, c.y, .031f), new Vector3(p.x, p.y, .031f), new Vector3(q.x, q.y, .031f), u, u, u, Vector3.forward);
-        }
+        StandingSlab(lp, Offset(Chamfer(size * 1.04f, size * 1.04f, size * .22f), new Vector2(0, s)), .05f, "coral_dark");
+        lp.FaceImage(Offset(Chamfer(size, size, size * .2f), new Vector2(0, s)), .0262f, ImageRect(Img.StoreStoreLogo), new Rect(-s, 0, size, size));
+    });
+
+    /// <summary>ポスター（裏はクリームの紙）。原点は下の真ん中、絵は +Z を向く。</summary>
+    internal static Mesh StorePoster(float w, float h, int img) => Build($"store_poster_{img}_{Mathf.RoundToInt(w * 100)}", lp =>
+    {
+        lp.Sharp = true;
+        lp.Box(new Vector3(-w / 2 - .015f, -.015f, -.006f), new Vector3(w / 2 + .015f, h + .015f, 0), "store_cream");
+        lp.Sharp = false;
+        lp.FrontImage(new Vector3(0, h / 2, .001f), w, h, ImageRect(img == 0 ? Img.StorePoster1 : Img.StorePoster2));
+    });
+
+    /// <summary>のぼり（柱・重り・上の横棒・旗）。旗は両面に絵。原点は柱の足元。旗は柱の -X の側（手前から見て右）に下がり、+Z を向く。</summary>
+    internal static Mesh StoreNobori(int img) => Build($"store_nobori_{img}", lp =>
+    {
+        const float h = 2.45f, fw = .46f, fh = 1.84f;
+        lp.Lathe(new[] { (.11f, 0f), (.12f, .05f), (.1f, .14f), (.03f, .18f) }, 16, "ink", 0, true);
+        lp.Lathe(new[] { (.017f, .14f), (.017f, h) }, 10, "steel_dark", 0, true);
+        lp.Bar(new Vector3(0, h - .05f, 0), new Vector3(-(fw + .03f), h - .05f, 0), .016f, "steel_dark");
+        Img art = img == 0 ? Img.StoreNobori1 : Img.StoreNobori2;
+        Vector3 c = new Vector3(-(.03f + fw / 2), h - .07f - fh / 2, 0);
+        lp.FrontImage(c + new Vector3(0, 0, .002f), fw, fh, ImageRect(art));
+        lp.Push(Vector3.zero, new Vector3(0, 180, 0));
+        lp.FrontImage(new Vector3(-c.x, c.y, .002f), fw, fh, ImageRect(art));
         lp.Pop();
     });
 
