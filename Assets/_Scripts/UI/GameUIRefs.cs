@@ -27,6 +27,7 @@ public sealed class GameUIRefs : MonoBehaviour
     [SerializeField] private DayResultUI resultUI;
     [SerializeField] private RentPaymentUI rentPaymentUI;
     [SerializeField] private NightEventUI nightEventUI;
+    [SerializeField] private RoomComputerUI computerUI;
 
     public TextMeshProUGUI DayText => dayText;
     public TextMeshProUGUI TimerText => timerText;
@@ -35,6 +36,7 @@ public sealed class GameUIRefs : MonoBehaviour
     public DayResultUI ResultUI => resultUI;
     public RentPaymentUI RentPaymentUI => rentPaymentUI;
     public NightEventUI NightEventUI => nightEventUI;
+    public RoomComputerUI ComputerUI => computerUI;
 
     /// <summary>
     /// UIが使えるようになったら callback を呼ぶ。すでに読み込み済みならすぐ呼ぶ。

@@ -43254,6 +43254,22 @@ PrefabInstance:
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
+    - target: {fileID: 333609282785205366, guid: a44f793352125864e9309931dc1efecb, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4292933119
+      objectReference: {fileID: 0}
+    - target: {fileID: 333609282785205366, guid: a44f793352125864e9309931dc1efecb, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 1168215932599692700, guid: a44f793352125864e9309931dc1efecb, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4292933119
+      objectReference: {fileID: 0}
+    - target: {fileID: 1168215932599692700, guid: a44f793352125864e9309931dc1efecb, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 1241917157570286849, guid: a44f793352125864e9309931dc1efecb, type: 3}
       propertyPath: m_fontColor32.rgba
       value: 4292933119
@@ -43266,6 +43282,14 @@ PrefabInstance:
       propertyPath: m_Name
       value: StoreShop
       objectReference: {fileID: 0}
+    - target: {fileID: 2750418916620550762, guid: a44f793352125864e9309931dc1efecb, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4292933119
+      objectReference: {fileID: 0}
+    - target: {fileID: 2750418916620550762, guid: a44f793352125864e9309931dc1efecb, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 4018524512802575402, guid: a44f793352125864e9309931dc1efecb, type: 3}
       propertyPath: m_fontColor32.rgba
       value: 4292933119
@@ -43274,11 +43298,27 @@ PrefabInstance:
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
+    - target: {fileID: 4803023346188725355, guid: a44f793352125864e9309931dc1efecb, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4292933119
+      objectReference: {fileID: 0}
+    - target: {fileID: 4803023346188725355, guid: a44f793352125864e9309931dc1efecb, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 4844181452478981583, guid: a44f793352125864e9309931dc1efecb, type: 3}
       propertyPath: m_fontColor32.rgba
       value: 4293325452
       objectReference: {fileID: 0}
     - target: {fileID: 4844181452478981583, guid: a44f793352125864e9309931dc1efecb, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 5112906319024170363, guid: a44f793352125864e9309931dc1efecb, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4292933119
+      objectReference: {fileID: 0}
+    - target: {fileID: 5112906319024170363, guid: a44f793352125864e9309931dc1efecb, type: 3}
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
@@ -43338,6 +43378,14 @@ PrefabInstance:
       propertyPath: clerkBubble
       value: 
       objectReference: {fileID: 1364872226}
+    - target: {fileID: 7587379892044234405, guid: a44f793352125864e9309931dc1efecb, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4292933119
+      objectReference: {fileID: 0}
+    - target: {fileID: 7587379892044234405, guid: a44f793352125864e9309931dc1efecb, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 7950237197342060963, guid: a44f793352125864e9309931dc1efecb, type: 3}
       propertyPath: m_fontColor32.rgba
       value: 4292933119
@@ -43399,6 +43447,14 @@ PrefabInstance:
       value: 4292933119
       objectReference: {fileID: 0}
     - target: {fileID: 8850640652247518076, guid: a44f793352125864e9309931dc1efecb, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 9101286637340354978, guid: a44f793352125864e9309931dc1efecb, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4292933119
+      objectReference: {fileID: 0}
+    - target: {fileID: 9101286637340354978, guid: a44f793352125864e9309931dc1efecb, type: 3}
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
@@ -200343,6 +200399,71 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1515791670}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1001 &1516194487
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 3192946935527593003, guid: 9a46ea36b45e1d341a985a81e1b69ca1, type: 3}
+      propertyPath: GlobalObjectIdHash
+      value: 556252618
+      objectReference: {fileID: 0}
+    - target: {fileID: 3192946935527593003, guid: 9a46ea36b45e1d341a985a81e1b69ca1, type: 3}
+      propertyPath: InScenePlacedSourceGlobalObjectIdHash
+      value: 3067710840
+      objectReference: {fileID: 0}
+    - target: {fileID: 6010561013131923705, guid: 9a46ea36b45e1d341a985a81e1b69ca1, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 22.33
+      objectReference: {fileID: 0}
+    - target: {fileID: 6010561013131923705, guid: 9a46ea36b45e1d341a985a81e1b69ca1, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 3.2725
+      objectReference: {fileID: 0}
+    - target: {fileID: 6010561013131923705, guid: 9a46ea36b45e1d341a985a81e1b69ca1, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 16.9
+      objectReference: {fileID: 0}
+    - target: {fileID: 6010561013131923705, guid: 9a46ea36b45e1d341a985a81e1b69ca1, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: 6010561013131923705, guid: 9a46ea36b45e1d341a985a81e1b69ca1, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6010561013131923705, guid: 9a46ea36b45e1d341a985a81e1b69ca1, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: 6010561013131923705, guid: 9a46ea36b45e1d341a985a81e1b69ca1, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6010561013131923705, guid: 9a46ea36b45e1d341a985a81e1b69ca1, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6010561013131923705, guid: 9a46ea36b45e1d341a985a81e1b69ca1, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6010561013131923705, guid: 9a46ea36b45e1d341a985a81e1b69ca1, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6513274088112658207, guid: 9a46ea36b45e1d341a985a81e1b69ca1, type: 3}
+      propertyPath: m_Name
+      value: RoomComputer
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 9a46ea36b45e1d341a985a81e1b69ca1, type: 3}
 --- !u!1001 &1516491684
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -224209,6 +224330,87 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1695484427}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &1696428719
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1696428721}
+  - component: {fileID: 1696428720}
+  - component: {fileID: 1696428722}
+  m_Layer: 0
+  m_Name: StockMarket
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1696428720
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1696428719}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
+  GlobalObjectIdHash: 730447133
+  InScenePlacedSourceGlobalObjectIdHash: 0
+  DeferredDespawnTick: 0
+  Ownership: 1
+  AlwaysReplicateAsRoot: 0
+  SynchronizeTransform: 1
+  ActiveSceneSynchronization: 0
+  SceneMigrationSynchronization: 0
+  SpawnWithObservers: 1
+  DontDestroyWithOwner: 0
+  AutoObjectParentSync: 1
+  SyncOwnerTransformWhenParented: 1
+  AllowOwnerToParent: 0
+--- !u!4 &1696428721
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1696428719}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1696428722
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1696428719}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f9f093892cf7e004380a7a27178619d3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StockMarket
+  ShowTopMostFoldoutHeaderGroup: 1
+  goodNews:
+  - "{0}\u3001\u65B0\u3057\u3044\u5546\u54C1\u304C\u5927\u5F53\u305F\u308A"
+  - "{0}\u3001\u753A\u306E\u4EBA\u6C17\u30E9\u30F3\u30AD\u30F3\u30B0 1 \u4F4D\u306B"
+  - "{0}\u306E\u793E\u9577\u3001\u30C6\u30EC\u30D3\u3067\u5927\u306F\u3057\u3083\u304E"
+  - "{0}\u3001\u601D\u308F\u306C\u9ED2\u5B57"
+  badNews:
+  - "{0}\u3001\u5009\u5EAB\u304C\u96E8\u3082\u308A"
+  - "{0}\u3001\u793E\u9577\u304C\u5BDD\u574A\u3057\u3066\u4F1A\u8B70\u306B\u9045\u523B"
+  - "{0}\u3001\u3046\u308F\u3055\u306E\u65B0\u5546\u54C1\u304C\u5EF6\u671F"
+  - "{0}\u3001\u30E9\u30A4\u30D0\u30EB\u306B\u5BA2\u3092\u53D6\u3089\u308C\u308B"
 --- !u!1 &1697362836
 GameObject:
   m_ObjectHideFlags: 0
@@ -289194,3 +289396,5 @@ SceneRoots:
   - {fileID: 327591619}
   - {fileID: 45728167}
   - {fileID: 1364872225}
+  - {fileID: 1516194487}
+  - {fileID: 1696428721}

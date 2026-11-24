@@ -45,6 +45,16 @@ public class RoomiesSaveData
     /// <summary>エレベーターの鍵穴に挿した鍵の数（0〜2）。行ける階は 1 + この数。</summary>
     public int casinoKeysUsed;
 
+    [Header("株トレード（部屋の PC）")]
+    /// <summary>銘柄ごとの値段（GameBalance の並び）。項目を足しただけなので、前のセーブでは空（版は上げない。空なら最初の値段から）。</summary>
+    public int[] stockPrices = new int[0];
+
+    /// <summary>銘柄ごとの持ち株（共同）。</summary>
+    public int[] stockHoldings = new int[0];
+
+    /// <summary>銘柄ごとの、持ち株を買うのに払った額（手数料込み。損益の計算に使う）。</summary>
+    public int[] stockCostBasis = new int[0];
+
     [Header("置いてある物")]
     public List<SavedFurniture> furniture = new List<SavedFurniture>();
 

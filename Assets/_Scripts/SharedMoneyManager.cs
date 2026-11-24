@@ -28,7 +28,9 @@ public enum SharedMoneyReason
     CasinoKey,          // カジノの上の階の鍵（買い切り）
     CasinoBet,          // カジノの新しいゲーム（ルーレットなど）の賭け金
     CasinoPayout,       // カジノの新しいゲームの払い戻し
-    StoreWage           // コンビニのレジ打ちのバイト代（朝だけ。お客さん 1 人ごと）
+    StoreWage,          // コンビニのレジ打ちのバイト代（朝だけ。お客さん 1 人ごと）
+    StockBuy,           // 部屋の PC の株トレード：株を買った代金（手数料込み）
+    StockSell           // 部屋の PC の株トレード：株を売った代金（手数料を引いた額）
 }
 
 public class SharedMoneyManager : NetworkBehaviour

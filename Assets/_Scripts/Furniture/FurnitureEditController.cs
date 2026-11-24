@@ -87,7 +87,7 @@ public class FurnitureEditController : MonoBehaviour
     {
         UpdateShopKeyHint();
 
-        if (EscMenuUI.IsOpen) return;
+        if (EscMenuUI.IsOpen || RoomComputerUI.IsOpen) return;
 
         var kb = Keyboard.current;
         if (kb == null) return;

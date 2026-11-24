@@ -201,6 +201,13 @@
   お客さんは NPC だけ（`Pivot_Customer`）。バイト代の数字は `GameBalance` の storeJob〇〇、理由は `SharedMoneyReason.StoreWage`。お客さん用の値段は `StoreShop.kindPrices`（プレイヤーの買い物には使わない）。
   確認は `Roomies/Store/Job Check (Play Mode)`
 
+- 部屋の PC（2026/11/25） … `Roomies/PC/1 Build Prefab`・`2 Place In Open Scene`・`3 Build Desktop UI`（`RoomiesPcBuilder.cs`）。
+  机の見た目は部屋の背景（Build Room の PC desk）。触る所はプレハブ `Assets/_Prefabs/Room/RoomComputer.prefab`（`RoomComputer`、HomeAppliance）。
+  画面は GameRoomUI の `RoomComputerUI`（`GameUIRefs.ComputerUI`）。開いている間は `RoomComputerUI.IsOpen` で、その人の移動・操作・Esc メニュー・P キーが止まる。
+  家具ショップのアプリは前からの注文（`DayManager.BuyFurnitureServerRpc`）を使い、結果は `DayManager.FurniturePurchaseResult` で受け取る（P キーの家具ショップも残っている）。
+  株トレードは `StockMarket`（GameRoom に 1 つ。値段はホストが決めて配る。調整値と銘柄は `GameBalance` の stock〇〇。町の出来事との連動は `ServerNudge`）。
+  確認は `Roomies/PC/Check (Play Mode)`
+
 組み立てのコードは各クラスの `EditorBuildUI()` に `#if UNITY_EDITOR` で残してある。
 実行中は動かないので、置き直したいときだけ配置ツールから呼ぶ。
 参照は `[SerializeField]` でシーンに保存される。

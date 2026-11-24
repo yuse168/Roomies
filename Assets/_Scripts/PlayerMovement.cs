@@ -180,7 +180,7 @@ public class PlayerMovement : NetworkBehaviour
     {
         if (!IsOwner || controller == null) return;
 
-        if (EscMenuUI.IsOpen || CharacterCloset.IsOpen)
+        if (EscMenuUI.IsOpen || CharacterCloset.IsOpen || RoomComputerUI.IsOpen)
         {
             CancelEmoteWheel();
             moveInput = Vector2.zero;

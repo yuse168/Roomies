@@ -395,6 +395,9 @@ public class DayManager : NetworkBehaviour
         isTransitioning.Value = false;
     }
 
+    /// <summary>家具の注文の結果（注文した本人の画面でだけ呼ばれる）：成功したか・カタログの番号・メッセージ。</summary>
+    public static event System.Action<bool, int, string> FurniturePurchaseResult;
+
     /// <summary>家具をネットワーク同期で生成する（サーバー権限・代金もここで引く）。</summary>
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
     public void BuyFurnitureServerRpc(
@@ -505,6 +508,9 @@ public class DayManager : NetworkBehaviour
         if (NetworkManager.Singleton == null ||
             NetworkManager.Singleton.LocalClientId != targetClientId)
             return;
+
+        // 部屋の PC の家具ショップなど、ほかの画面にも結果を知らせる（注文した本人の画面だけ）
+        FurniturePurchaseResult?.Invoke(success, catalogIndex, message);
 
         FurnitureEditController controller =
             FindAnyObjectByType<FurnitureEditController>();

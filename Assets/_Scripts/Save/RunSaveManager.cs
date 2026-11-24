@@ -93,7 +93,8 @@ public class RunSaveManager : MonoBehaviour
 
         // 中身が変わっていないときは書かない（ディスクを触る回数を減らす）
         string signature = $"{data.day}/{data.time}/{data.sharedMoney}/{data.rentSurcharge}/{data.furniture.Count}" +
-                           $"/{data.casinoKeysBought}/{data.casinoKeysUsed}";
+                           $"/{data.casinoKeysBought}/{data.casinoKeysUsed}" +
+                           $"/{string.Join(",", data.stockHoldings)}";   // 株の値段は毎回動くので、持ち株が変わったときだけ（値段はときどき書く保存で残る）
         bool forced = forceSaveInterval > 0f && Time.time >= nextForceSaveTime;
         if (signature == lastSignature && !forced) return;
 
@@ -129,6 +130,10 @@ public class RunSaveManager : MonoBehaviour
         CasinoAccess casino = CasinoAccess.Instance;
         if (casino != null && !casino.IsSpawned) return;
 
+        // 株の市場（シーンにあれば）も準備ができるまで待つ
+        StockMarket stocks = StockMarket.Instance;
+        if (stocks != null && !stocks.IsSpawned) return;
+
         RoomiesSaveData data = SaveSystem.PendingLoad;
         applied = true;
         nextCheckTime = Time.time + checkInterval;
@@ -146,6 +151,7 @@ public class RunSaveManager : MonoBehaviour
         day.ServerApplySavedState(data.day, data.time, data.remainingSeconds, data.rentSurcharge);
         money.ServerRestoreBalance(data.sharedMoney);
         if (casino != null) casino.ServerRestore(data.casinoKeysBought, data.casinoKeysUsed);
+        if (stocks != null) stocks.ServerRestore(data.stockPrices, data.stockHoldings, data.stockCostBasis);
 
         int spawned = 0;
         foreach (SavedFurniture saved in data.furniture)
@@ -229,6 +235,9 @@ public class RunSaveManager : MonoBehaviour
             data.casinoKeysBought = casino.KeysBought;
             data.casinoKeysUsed = casino.KeysUsed;
         }
+
+        StockMarket stocks = StockMarket.Instance;
+        if (stocks != null && stocks.IsSpawned) stocks.ServerCapture(data);
 
         foreach (NetworkFurniture furniture in FindObjectsByType<NetworkFurniture>(FindObjectsSortMode.None))
         {

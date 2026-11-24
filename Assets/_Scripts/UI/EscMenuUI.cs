@@ -130,6 +130,7 @@ public sealed class EscMenuUI : MonoBehaviour
 
         if (!keyboard.escapeKey.wasPressedThisFrame) return;
         if (CharacterCloset.IsOpen || CharacterCloset.ConsumedEscapeThisFrame) return;
+        if (RoomComputerUI.IsOpen || RoomComputerUI.ConsumedEscapeThisFrame) return;   // 部屋の PC は自分で Esc を受ける
 
         if (!IsOpen)
         {

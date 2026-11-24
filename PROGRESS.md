@@ -1,5 +1,30 @@
 # PROGRESS.md
 
+## 2026/11/25｜部屋の PC（デスクトップ・家具ショップのアプリ・株トレードのアプリ）
+
+- 依頼（ゆせさん 11/25 06:21「部屋にあるPCで買い物ができるように。PCの画面が全体で写るようにしてアプリを置く。バフが付く家具を買うアプリ、株トレードのアプリ」）
+- 部屋の PC：`RoomComputer`（HomeAppliance。プレハブ `Assets/_Prefabs/Room/RoomComputer.prefab`、机の位置に置く）。見て E →「パソコンを使う」→ 画面全体に PC のデスクトップ
+  （`RoomComputerUI`、GameRoomUI に置く。`GameUIRefs.ComputerUI` で受け取る）。アイコンでアプリを開閉、Esc か「とじる」で部屋に戻る。
+  開いている間は、その人の移動・視点・操作・Esc メニュー・家具ショップの P キーが止まる（`RoomComputerUI.IsOpen`。手元の画面だけの状態なので、ほかの人には関係ない）。
+  日の切り替え・ゲームオーバーのときは閉じる。ほかのお知らせの帯（9000）より上、日の切り替え（10000）より下に出す（9200）
+- 家具ショップのアプリ：前からの注文の仕組み（`DayManager.BuyFurnitureServerRpc`。代金・配達・夜だけ・残高の確認はサーバー）をそのまま使う。
+  結果を PC の画面にも知らせるため、`DayManager.FurniturePurchaseResult`（その人の画面だけの event）を足した。P キーの家具ショップはそのまま残している
+- 株トレードのアプリ：`StockMarket`（GameRoom に 1 つ）。架空の銘柄 6 つ（ルーミー不動産・ねこ鉱業・アフターアワーズ娯楽・こたつ電機・コーナー商店・ハコビ急便）。
+  値段はホストが `stockTickSeconds` ごとに動かして全員に配る（NetworkList。日の切り替え中・ゲームオーバー中は止まる）。値動き = e^((ドリフト + 変動 × 正規乱数 + ニュース)/100)。
+  ときどきニュースで 1 銘柄が大きく動く。町の出来事と連動させる入口 `StockMarket.ServerNudge(銘柄, %, 見出し)`。
+  売り買いは共同口座（理由 `StockBuy`・`StockSell`、手数料 1%）。持ち株は部屋の全員の共同。持ち株・損益（評価額 − 払った額）・値動きのグラフ（`UILineChart`、40 点）
+- 調整値は `GameBalance`：stockTickSeconds 6・stockFeePercent 1・stockMaxShares 99・stockNewsChance 0.05・stockNewsPercent 6〜16・stockPriceRange 5〜5000・銘柄の表（略号・名前・最初の値段・変動・ドリフト）
+- セーブ：値段・持ち株・払った額（`RoomiesSaveData.stockPrices / stockHoldings / stockCostBasis`。前のセーブでは空 → 最初の値段から。版は上げない）
+- 見た目：art_rules.md の色（UI の黒・紫・紙・ソファの黄・キッチンの緑）、角の丸い板（`Assets/_Art/UI/Pc/` の 9 スライスの絵）、文字は HUD と同じ MPLUSU-Black SDF。
+  配置ツール `Roomies/PC/1 Build Prefab`・`2 Place In Open Scene`・`3 Build Desktop UI`（`RoomiesPcBuilder.cs`）
+- 音：`pc/open`・`pc/close`・`pc/click`（`ArtSource/Room/Audio/make_pc_sfx.py`）。注文・売り買いの成功は store/register・store/coins
+- 確認の道具：`Roomies/PC/Check (Play Mode)`（`RoomiesPcCheck.cs`）→ 20 項目 OK（モニターを見ると「E パソコンを使う」・開く・動かない・家具を 1 つ注文（¥300、家具が 1 つ増える）・
+  値動き・5 株買う・全部売る・持っていない株は売れない・セーブの書き出しと戻し・朝は家具を注文できない・字が欠けていない・閉じる・もう一度開ける）。
+  写真は `Temp/RoomiesPc/shots/`。テキストの枠の高さが足りず、TMP の Ellipsis で行ごと消えていた値段を、Overflow にして直した
+- 確認：EditMode 273 件・失敗 0（テスト 2 件追加）、コンビニ 31 OK・バイト 49 OK、1 人での通し確認（下）。Play Mode のたびにセーブの控えを取って戻した（ハッシュ一致）
+- 未確認：2 人での確認（2 人が同時に PC を開く・値段が同じに見える・片方の売り買いがもう片方の画面に出る）、音を耳で聞くこと、
+  家具の効果の一覧（O キー）を PC へ移すこと
+
 ## 2026/11/24｜制作進捗の動画を撮る道具（今週の変更：カジノ・コンビニ・レジ打ちのバイト）
 
 - 依頼（ゆせさん 21:07「修正したところをメインに。今週もルーミーズの制作進捗確認があるから、動画を撮り直して」）

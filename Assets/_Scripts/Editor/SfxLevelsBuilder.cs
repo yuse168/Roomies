@@ -127,6 +127,10 @@ internal static class SfxLevelsBuilder
         ("store/job_good", 0.50f),
         ("store/job_miss", 0.45f),
         ("store/job_end", 0.55f),
+        // 部屋の PC（ArtSource/Room/Audio/make_pc_sfx.py）
+        ("pc/open", 0.45f),
+        ("pc/close", 0.40f),
+        ("pc/click", 0.35f),
     };
 
     [MenuItem("Roomies/Audio/Rebuild Sfx Levels")]

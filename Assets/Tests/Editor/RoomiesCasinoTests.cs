@@ -287,6 +287,96 @@ public class RoomiesCasinoTests
     }
 
     [Test]
+    public void RoomComputerPrefabAndDesktopAreWired()
+    {
+        // 部屋の PC：ルートに仕組みと当たり判定、Anchor_Screen、Visual。シーンに置いてある
+        Component pc = LoadComponent("Assets/_Prefabs/Room/RoomComputer.prefab", "RoomComputer");
+        Assert.That(pc.GetComponent<BoxCollider>(), Is.Not.Null, "見て E を押す当たり判定");
+        Assert.That(pc.GetComponent("NetworkObject"), Is.Not.Null);
+        var anchor = Field<Transform>(pc, "anchorScreen");
+        Assert.That(anchor, Is.Not.Null);
+        Assert.That(anchor.name, Is.EqualTo("Anchor_Screen"));
+        Assert.That(pc.transform.Find("Visual"), Is.Not.Null);
+        string room = System.IO.File.ReadAllText("Assets/_Scenes/GameRoom.unity");
+        string ui = System.IO.File.ReadAllText("Assets/_Scenes/GameRoomUI.unity");
+        string Guid(string script) => AssetDatabase.AssetPathToGUID(script);
+        Assert.That(room, Does.Contain(Guid("Assets/_Prefabs/Room/RoomComputer.prefab")), "GameRoom に PC が置いてある");
+        Assert.That(room, Does.Contain(Guid("Assets/_Scripts/Stocks/StockMarket.cs")), "GameRoom に株の市場が置いてある");
+        Assert.That(ui, Does.Contain(Guid("Assets/_Scripts/UI/RoomComputerUI.cs")), "GameRoomUI に PC の画面が置いてある（実行時に作らない）");
+        // 開いている間は、移動・操作・Esc メニュー・家具ショップのキーが止まる
+        foreach (string file in new[] { "Assets/_Scripts/PlayerMovement.cs", "Assets/_Scripts/PlayerInteract.cs", "Assets/_Scripts/UI/EscMenuUI.cs", "Assets/_Scripts/Furniture/FurnitureEditController.cs" })
+            Assert.That(System.IO.File.ReadAllText(file), Does.Contain("RoomComputerUI.IsOpen"), file);
+        // 家具の注文は前からの仕組み（DayManager.BuyFurnitureServerRpc）を使う。二重に作らない
+        string computerUi = System.IO.File.ReadAllText("Assets/_Scripts/UI/RoomComputerUI.cs");
+        Assert.That(computerUi, Does.Contain("BuyFurnitureServerRpc"));
+        Assert.That(computerUi, Does.Not.Contain("TrySpend"), "PC の画面はお金を直接動かさない（サーバーが決める）");
+        Assert.That(computerUi, Does.Not.Contain("new GameObject("), "PC の画面は実行時に物を作らない");
+        Assert.That(computerUi, Does.Not.Contain("Instantiate("), "PC の画面は実行時に物を作らない");
+        // 音は PC の音（仮の ui/ の音を使わない）
+        Assert.That(computerUi, Does.Not.Contain("\"ui/"));
+        string levels = System.IO.File.ReadAllText("Assets/Resources/Audio/SfxLevels.asset");
+        foreach (string key in new[] { "pc/open", "pc/close", "pc/click" })
+        {
+            Assert.That(Resources.Load<AudioClip>("Audio/" + key), Is.Not.Null, key);
+            Assert.That(levels, Does.Contain(key), key);
+        }
+    }
+
+    [Test]
+    public void StockMarketRulesHold()
+    {
+        Type t = GameType("StockMarket");
+        int Next(int price, float drift, float vol, float z, float nudge, int min, int max) =>
+            (int)t.GetMethod("NextPrice").Invoke(null, new object[] { price, drift, vol, z, nudge, min, max });
+        Assert.That(Next(100, 0f, 2f, 0f, 0f, 5, 5000), Is.EqualTo(100), "乱数 0・ドリフト 0 なら変わらない");
+        Assert.That(Next(100, 0f, 2f, 1f, 0f, 5, 5000), Is.EqualTo(102), "1σ で約 2% 上がる");
+        Assert.That(Next(100, 0f, 2f, -1f, 0f, 5, 5000), Is.EqualTo(98));
+        Assert.That(Next(100, 0f, 2f, 0f, 10f, 5, 5000), Is.EqualTo(111), "ニュースの +10% が足される（e^0.1）");
+        Assert.That(Next(6, 0f, 20f, -3f, -50f, 5, 5000), Is.EqualTo(5), "下限で止まる");
+        Assert.That(Next(4900, 0f, 20f, 3f, 50f, 5, 5000), Is.EqualTo(5000), "上限で止まる");
+        Assert.That(Next(100, 0f, 2f, 100f, 0f, 5, 5000), Is.EqualTo(Next(100, 0f, 2f, 3f, 0f, 5, 5000)), "乱数は ±3σ で切る");
+
+        int Fee(int amount, float percent) => (int)t.GetMethod("Fee").Invoke(null, new object[] { amount, percent });
+        Assert.That(Fee(1000, 1f), Is.EqualTo(10));
+        Assert.That(Fee(150, 1f), Is.EqualTo(2), "1 円未満は切り上げ");
+        Assert.That(Fee(0, 1f), Is.Zero);
+        Assert.That(Fee(1000, 0f), Is.Zero);
+
+        int Basis(int basis, int holding, int qty) => (int)t.GetMethod("BasisAfterSell").Invoke(null, new object[] { basis, holding, qty });
+        Assert.That(Basis(1000, 10, 5), Is.EqualTo(500), "半分売れば、払った額も半分");
+        Assert.That(Basis(1000, 10, 10), Is.Zero, "全部売れば 0");
+        Assert.That(Basis(1000, 3, 1), Is.EqualTo(667));
+
+        // 銘柄：4〜6 個、略号は重ならない、名前と値段がある
+        var balance = ScriptableObject.CreateInstance(GameType("GameBalance"));
+        var stocks = (Array)balance.GetType().GetField("stocks").GetValue(balance);
+        Assert.That(stocks.Length, Is.InRange(4, 6));
+        var codes = new System.Collections.Generic.HashSet<string>();
+        foreach (object s in stocks)
+        {
+            string code = (string)s.GetType().GetField("code").GetValue(s);
+            string name = (string)s.GetType().GetField("name").GetValue(s);
+            int start = (int)s.GetType().GetField("startPrice").GetValue(s);
+            Assert.That(codes.Add(code), Is.True, "略号が重なっている: " + code);
+            Assert.That(name, Is.Not.Empty);
+            Assert.That(start, Is.GreaterThan(0));
+        }
+        UnityEngine.Object.DestroyImmediate(balance);
+
+        // お金の理由と、セーブの項目
+        Assert.That(Enum.IsDefined(GameType("SharedMoneyReason"), "StockBuy"), Is.True);
+        Assert.That(Enum.IsDefined(GameType("SharedMoneyReason"), "StockSell"), Is.True);
+        var save = Activator.CreateInstance(GameType("RoomiesSaveData"));
+        foreach (string f in new[] { "stockPrices", "stockHoldings", "stockCostBasis" })
+            Assert.That(save.GetType().GetField(f).GetValue(save), Is.Not.Null, f);
+        string json = JsonUtility.ToJson(save);
+        Assert.That(json, Does.Contain("stockHoldings"));
+        // 前のセーブ（株の項目なし）を読んでも壊れない
+        var old = JsonUtility.FromJson("{\"version\":1,\"day\":2,\"sharedMoney\":500}", GameType("RoomiesSaveData"));
+        Assert.That(((int[])old.GetType().GetField("stockHoldings").GetValue(old)).Length, Is.Zero);
+    }
+
+    [Test]
     public void StoreJobIsWiredAndChangeRulesHold()
     {
         // レジ打ちのバイト：見て押す所はトリガー（歩くのをじゃましない）。位置はアンカー、お客さんは Pivot、見た目は Visual の中

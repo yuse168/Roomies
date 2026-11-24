@@ -134,8 +134,41 @@ public class GameBalance : ScriptableObject
     [Tooltip("お客さんが待てる秒数（品物を置いてから。過ぎると帰ってしまい、その人の分は 0）")]
     [Min(5f)] public float storeJobPatienceSeconds = 25f;
 
+    [Header("株トレード（部屋の PC のアプリ。銘柄はゲームの中だけの架空の会社）")]
+    [Tooltip("値段が 1 回動くまでの、ゲームの中の秒数（朝も夜も進む。日の切り替え中とゲームオーバー中は止まる）")]
+    [Min(1f)] public float stockTickSeconds = 6f;
+
+    [Tooltip("売り買いの手数料（取引額の %。1 円未満は切り上げ）")]
+    [Range(0f, 20f)] public float stockFeePercent = 1f;
+
+    [Tooltip("1 つの銘柄を持てる株数の上限（共同の持ち株）")]
+    [Min(1)] public int stockMaxShares = 99;
+
+    [Tooltip("1 回の値動きで、ニュースが出る確率（0〜1）")]
+    [Range(0f, 1f)] public float stockNewsChance = 0.05f;
+
+    [Tooltip("ニュースで動く大きさ（%）の下限と上限")]
+    public Vector2 stockNewsPercent = new Vector2(6f, 16f);
+
+    [Tooltip("値段の下限と上限（円）")]
+    public Vector2Int stockPriceRange = new Vector2Int(5, 5000);
+
+    [Tooltip("銘柄（4〜6 個）。並び順がセーブと通信の番号になるので、途中に足さない（足すときは最後に）")]
+    public StockDefinition[] stocks =
+    {
+        new StockDefinition { code = "RME", name = "ルーミー不動産",       startPrice = 120, volatility = 2.0f, drift = 0.05f },
+        new StockDefinition { code = "NKO", name = "ねこ鉱業",             startPrice = 80,  volatility = 3.5f, drift = 0.00f },
+        new StockDefinition { code = "AFH", name = "アフターアワーズ娯楽", startPrice = 200, volatility = 4.5f, drift = -0.02f },
+        new StockDefinition { code = "KTD", name = "こたつ電機",           startPrice = 150, volatility = 1.5f, drift = 0.04f },
+        new StockDefinition { code = "CNS", name = "コーナー商店",         startPrice = 60,  volatility = 1.2f, drift = 0.03f },
+        new StockDefinition { code = "HKB", name = "ハコビ急便",           startPrice = 90,  volatility = 2.5f, drift = 0.02f },
+    };
+
     /// <summary>その階（2 か 3）へ上がる鍵の値段。</summary>
     public int CasinoKeyPrice(int floor) => floor <= 2 ? casinoKeyPrice2F : casinoKeyPrice3F;
+
+    /// <summary>株の銘柄（資産に項目が無ければ、このクラスの既定の並び）。</summary>
+    public StockDefinition[] Stocks => stocks ?? new StockDefinition[0];
 
     /// <summary>
     /// ぶつかった速さから、減る額を返す（しきい値以下なら 0）。
@@ -170,4 +203,19 @@ public class GameBalance : ScriptableObject
     {
         return Mathf.Max(6, peaceWeightDay1 - peaceWeightDropPerDay * Mathf.Max(0, day - 1));
     }
+}
+
+/// <summary>株の銘柄 1 つ（ゲームの中だけの架空の会社）。</summary>
+[System.Serializable]
+public class StockDefinition
+{
+    [Tooltip("3 文字の略号（画面に出す）")]
+    public string code = "AAA";
+    [Tooltip("会社の名前（実在の会社の名前は使わない）")]
+    public string name = "会社";
+    [Min(1)] public int startPrice = 100;
+    [Tooltip("1 回の値動きの大きさ（%。正規分布の標準偏差）")]
+    [Range(0f, 20f)] public float volatility = 2f;
+    [Tooltip("1 回の値動きの、上がり気味・下がり気味（%）")]
+    [Range(-5f, 5f)] public float drift;
 }

@@ -98,7 +98,7 @@ public class PlayerInteract : NetworkBehaviour
     {
         if (!IsOwner) return;
 
-        if (EscMenuUI.IsOpen || CharacterCloset.IsOpen)
+        if (EscMenuUI.IsOpen || CharacterCloset.IsOpen || RoomComputerUI.IsOpen)
         {
             SetInteractVisible(false);
             return;
