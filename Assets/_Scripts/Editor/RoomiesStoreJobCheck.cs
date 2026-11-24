@@ -129,6 +129,8 @@ internal static partial class RoomiesCasinoDemo
                 float w = 0;
                 while (w < .45f) { yield return new WaitForEndOfFrame(); if (c == 0 && t >= f * .07f) { Shoot(eyeCam, "storejob/scan", $"f_{f:D3}"); f++; } w += Time.deltaTime; t += Time.deltaTime; }
             }
+            // 1 人目：お札を出して「お預かり」の文字が出るところまで撮る（出た瞬間の向きも確かめる）
+            if (c == 0) { float w2 = 0; while (w2 < .9f) { yield return new WaitForEndOfFrame(); if (t >= f * .07f) { Shoot(eyeCam, "storejob/scan", $"f_{f:D3}"); f++; } w2 += Time.deltaTime; t += Time.deltaTime; } }
             Expect(shop.JobScanned == items && shop.CurrentJobPhase == StoreShop.JobPhase.Change, $"customer {c + 1}: all {items} scanned, waiting for change (total ¥{shop.JobTotal:N0}, paid ¥{shop.JobPaid:N0})");
             int correct = shop.JobPaid - shop.JobTotal;
             int[] options = shop.ChangeOptions();

@@ -568,6 +568,9 @@ public partial class StoreShop : CasinoGame
         popUntil = Time.time + 1.1f;
         popText.transform.position = popFrom;
         popText.gameObject.SetActive(true);
+        // 出たその場で、見ている人のほうへ向けて大きさもそろえる（コルーチンから出すと、そのフレームの Update のあとになり、
+        // 前の文字の向きのまま 1 コマ描かれて左右反対に見えることがあった）
+        UpdatePop();
     }
 
     private void UpdatePop()
