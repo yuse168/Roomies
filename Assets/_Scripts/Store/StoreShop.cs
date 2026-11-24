@@ -133,6 +133,7 @@ public partial class StoreShop : CasinoGame
     private float popUntil, popStart;
     private Vector3 popFrom;
     private Color popTint;
+    private float popScale = 1f;
     private int shownTotal;
 
     public Phase CurrentPhase => (Phase)phase.Value;
@@ -555,10 +556,11 @@ public partial class StoreShop : CasinoGame
 
     private void ShowPop(Vector3 at, string text) => ShowPop(at, text, popColor);
 
-    private void ShowPop(Vector3 at, string text, Color color)
+    private void ShowPop(Vector3 at, string text, Color color, float scale = 1f)
     {
         if (popText == null) return;
         popText.text = text;
+        popScale = scale;
         popTint = color;
         popText.color = color;
         popFrom = at + Vector3.up * 0.25f;
@@ -573,13 +575,13 @@ public partial class StoreShop : CasinoGame
         if (popText == null || !popText.gameObject.activeSelf) return;
         float u = Mathf.InverseLerp(popStart, popUntil, Time.time);
         if (u >= 1f) { popText.gameObject.SetActive(false); return; }
-        popText.transform.position = popFrom + Vector3.up * (0.35f * (1f - (1f - u) * (1f - u)));
+        popText.transform.position = popFrom + Vector3.up * (0.35f * popScale * (1f - (1f - u) * (1f - u)));
         var cam = Camera.main;
         if (cam != null) popText.transform.rotation = Quaternion.LookRotation(popText.transform.position - cam.transform.position);
         Color c = popTint; c.a = u < 0.7f ? 1f : Mathf.InverseLerp(1f, 0.7f, u);
         popText.color = c;
         float pop = u < 0.12f ? Mathf.Lerp(0.6f, 1.15f, u / 0.12f) : Mathf.Lerp(1.15f, 1f, Mathf.Clamp01((u - 0.12f) / 0.15f));
-        popText.transform.localScale = Vector3.one * pop;
+        popText.transform.localScale = Vector3.one * (pop * popScale);
     }
 
     [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]

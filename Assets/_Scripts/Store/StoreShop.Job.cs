@@ -71,7 +71,12 @@ public partial class StoreShop
     [SerializeField] private string[] jobStartLines = { "助かる！じゃあ、レジお願いね。", "ありがとう！お客さん来るよ、よろしくね。", "おはよう。今日もレジお願いします！" };
     [SerializeField] private string[] customerHelloLines = { "これ、お願いします。", "お願いしまーす。", "これください。", "あ、袋もお願いします。" };
     [SerializeField] private string[] customerPayLines = { "¥{0:N0} で。", "¥{0:N0} からお願いします。", "じゃあ ¥{0:N0} で。" };
-    [SerializeField] private string[] customerThanksLines = { "どうもー。", "ありがとう！", "はやいね、ありがとう。", "またね。" };
+    [Tooltip("袋を受け取って帰るときのひとこと")]
+    [SerializeField] private string[] customerThanksLines = { "どうもー。", "ありがとう！", "はやいね、ありがとう。", "またね。", "助かりました！", "いい朝だね。がんばって！", "おにいさん、手ぎわいいね。" };
+    [Tooltip("お釣りをまちがえられたあと、帰るときのひとこと")]
+    [SerializeField] private string[] customerLeaveAfterMistakeLines = { "次は気をつけてね。", "まあ、いいですよ。", "お釣り、ちゃんと受け取りました。" };
+    [Tooltip("お客さんの横に出す文字（お預かり・+¥45 など）の大きさ。顔や吹き出しに重ならないよう、少し小さめ")]
+    [SerializeField, Range(0.2f, 1.5f)] private float jobPopScale = 0.45f;
     [SerializeField] private string[] customerWrongLines = { "あれ？お釣り、¥{0:N0} ですよね。", "えっと……お釣りは ¥{0:N0} じゃないですか？" };
     [SerializeField] private string[] clerkWrongLines = { "あっ、すみません！こちらです。", "失礼しました！（落ち着いていこう）" };
     [SerializeField] private string[] customerWaitLines = { "まだかな……。", "あのー、急いでるんですけど……。" };
@@ -415,7 +420,7 @@ public partial class StoreShop
         int pay = jobWrong ? 0 : b.storeJobPayPerCustomer + (fast ? b.storeJobFastBonus : 0);
         if (pay > 0 && !ServerPayWage(pay, $"customer {jobCustomer.Value + 1}")) pay = 0;
         jobServed++;
-        if (!jobWrong && customerBubble != null) customerBubble.ServerSay(Pick(customerThanksLines));
+        if (customerBubble != null) customerBubble.ServerSay(Pick(jobWrong ? customerLeaveAfterMistakeLines : customerThanksLines));
         jobPhase.Value = (byte)JobPhase.Leave;
         jobUntil = ServerNow + customerLeaveSeconds;
         JobBagRpc(pay, fast && !jobWrong, jobWrong);
@@ -589,8 +594,8 @@ public partial class StoreShop
         customerRoutine = null;
     }
 
-    /// <summary>「+¥45」などの文字を出す所：お客さんの横（読み取りの台の上）。顔と吹き出しに重ならないように。</summary>
-    private Vector3 JobPopPoint() => customerPivot.position + transform.TransformDirection(Vector3.right) * 0.8f + Vector3.up * 1.25f;
+    /// <summary>「+¥45」などの文字を出す所：お客さんの手前、カウンターの上（店員から見て、顔の下）。顔と吹き出しに重ならないように。</summary>
+    private Vector3 JobPopPoint() => customerPivot.position + customerPivot.forward * 0.9f + Vector3.up * 0.98f;
 
     /// <summary>歩く：少し上下にはずみ、進む向きを向く。着いたら最後の向きへ。</summary>
     private static IEnumerator Walk(Transform t, Vector3 from, Vector3 to, float seconds, Quaternion endRotation)
@@ -658,7 +663,7 @@ public partial class StoreShop
         yield return new WaitForSeconds(scanSeconds * 0.8f);
         SetDisplay($"合計 ¥{total:N0}\nお預かり ¥{paid:N0}", true);
         Vector3 at = customerPivot != null ? JobPopPoint() : transform.position;
-        ShowPop(at, $"¥{paid:N0} お預かり", popColor);
+        ShowPop(at, $"¥{paid:N0} お預かり", popColor, jobPopScale);
         GameAudio.PlayAt("store/receipt", at, 0.5f, 0.05f, 10f);
     }
 
@@ -678,12 +683,12 @@ public partial class StoreShop
         Vector3 popAt = customerPivot != null ? JobPopPoint() : at;
         if (ok)
         {
-            ShowPop(popAt, $"お釣り ¥{given:N0}　OK", wageColor);
+            ShowPop(popAt, $"お釣り ¥{given:N0}　OK", wageColor, jobPopScale);
             SetDisplay($"お釣り\n¥{given:N0}", true);
         }
         else
         {
-            ShowPop(popAt, $"お釣りミス（正しくは ¥{correct:N0}）", missColor);
+            ShowPop(popAt, $"お釣りミス（正しくは ¥{correct:N0}）", missColor, jobPopScale);
             SetDisplay($"お釣り\n¥{correct:N0}", true);
             GameAudio.PlayAt("store/job_miss", popAt, 1f, 0f, 10f);
         }
@@ -713,10 +718,10 @@ public partial class StoreShop
         Vector3 popAt = customerPivot != null ? JobPopPoint() : hand;
         if (pay > 0)
         {
-            ShowPop(popAt, fast ? $"+¥{pay:N0}　はやい！" : $"+¥{pay:N0}", wageColor);
+            ShowPop(popAt, fast ? $"+¥{pay:N0}　はやい！" : $"+¥{pay:N0}", wageColor, jobPopScale);
             GameAudio.PlayAt("store/job_good", popAt, 1f, 0f, 10f);
         }
-        else ShowPop(popAt, "¥0（お釣りミス）", missColor);
+        else ShowPop(popAt, "¥0（お釣りミス）", missColor, jobPopScale);
         if (receiptPivot != null) { receiptPivot.localScale = new Vector3(1f, 0.01f, 1f); receiptPivot.gameObject.SetActive(true); }
         GameAudio.PlayAt("store/receipt", receiptPivot != null ? receiptPivot.position : hand, 0.6f, 0.05f, 10f);
         if (bagPivot != null && bagPivot.gameObject.activeSelf)
@@ -780,7 +785,7 @@ public partial class StoreShop
     private IEnumerator JobGiveUpRoutine()
     {
         Vector3 popAt = customerPivot != null ? JobPopPoint() : transform.position;
-        ShowPop(popAt, "お客さんが帰ってしまった", missColor);
+        ShowPop(popAt, "お客さんが帰ってしまった", missColor, jobPopScale);
         GameAudio.PlayAt("store/job_miss", popAt, 1f, 0f, 10f);
         foreach (var s in counterItems) if (s.pivot != null) s.pivot.gameObject.SetActive(false);
         if (bagPivot != null) bagPivot.gameObject.SetActive(false);

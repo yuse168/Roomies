@@ -86,12 +86,18 @@ internal static partial class RoomiesCasinoDemo
 
         Camera sideCam = NewCamera(runner.transform, W(3.3f, 1.75f, 3.9f), W(5.5f, 1.05f, 1.4f), 58);
         Camera eyeCam = NewCamera(runner.transform, W(5.5f, 1.95f, .45f), W(5.45f, 1.15f, 2.2f), 66);
+        // 吹き出しと浮く文字は Camera.main（ふだんはプレイヤーのカメラ）のほうを向く。写真のカメラから見て表になるよう、撮る間だけ写真のカメラを Main にする
+        var mainCams = new System.Collections.Generic.List<Camera>();
+        foreach (var mc in Camera.allCameras) if (mc.CompareTag("MainCamera")) mainCams.Add(mc);
+        void AsMain(Camera cam) { foreach (var mc in mainCams) if (mc != null) mc.tag = "Untagged"; sideCam.tag = "Untagged"; eyeCam.tag = "Untagged"; sideCam.enabled = false; eyeCam.enabled = false; cam.tag = "MainCamera"; cam.enabled = true; }   // Camera.main は、有効なカメラしか返さない
+        void RestoreMain() { sideCam.tag = "Untagged"; eyeCam.tag = "Untagged"; sideCam.enabled = false; eyeCam.enabled = false; foreach (var mc in mainCams) if (mc != null) mc.tag = "MainCamera"; }
         int customers = StoreShop.JobCustomers;
         int expectedEarn = 0, expectedMistakes = 0;
         for (int c = 0; c < customers; c++)
         {
             bool wrong = c == 1, giveUp = c == 3;
             if (giveUp) balance.storeJobPatienceSeconds = 5f;
+            AsMain(sideCam);
             float t = 0; int f = 0;
             while (t < 8f && shop.CurrentJobPhase != StoreShop.JobPhase.Scan)
             {
@@ -115,6 +121,7 @@ internal static partial class RoomiesCasinoDemo
             string scanLabel = shop.GetLabel(shop.TillCollider, me);
             Expect(scanLabel != null && scanLabel.Contains("読み取る"), $"customer {c + 1}: label says scan ('{Strip(scanLabel)}')");
             int items = shop.JobItemCount;
+            AsMain(eyeCam);
             t = 0; f = 0;
             for (int i = 0; i < items; i++)
             {
@@ -138,9 +145,11 @@ internal static partial class RoomiesCasinoDemo
             Expect(shop.CurrentJobPhase == StoreShop.JobPhase.Bag && shop.JobMistakes == expectedMistakes + (wrong ? 1 : 0),
                 $"customer {c + 1}: change {(wrong ? "is wrong (counted as a mistake)" : "is right")} (mistakes {shop.JobMistakes})");
             if (wrong) { expectedMistakes++; Expect(shop.CustomerBubble != null && shop.CustomerBubble.IsShowing && shop.CustomerBubble.CurrentLine.Contains(correct.ToString("N0")), $"customer {c + 1}: the customer points out the right change ('{shop.CustomerBubble?.CurrentLine}')"); }
+            AsMain(sideCam);
             shop.Interact(shop.TillCollider, earning);
             t = 0; f = 0;
             while (t < 1.6f) { yield return new WaitForEndOfFrame(); if (c == 0 && t >= f * .08f) { Shoot(sideCam, "storejob/bag", $"f_{f:D3}"); f++; } t += Time.deltaTime; }
+            Expect(shop.CustomerBubble != null && shop.CustomerBubble.IsShowing && shop.CustomerBubble.CurrentLine.Length > 0, $"customer {c + 1}: says a word when leaving with the bag ('{shop.CustomerBubble?.CurrentLine}')");
             int pay = wrong ? 0 : balance.storeJobPayPerCustomer + balance.storeJobFastBonus;
             expectedEarn += pay;
             Expect(money.CurrentMoney == moneyBefore + pay, $"customer {c + 1}: wage ¥{pay} (shared money {moneyBefore} -> {money.CurrentMoney})");
@@ -153,6 +162,7 @@ internal static partial class RoomiesCasinoDemo
         Expect(shop.CurrentJobPhase == StoreShop.JobPhase.Off && shop.Cashier == ulong.MaxValue && !InArea(), $"end: the shift is over and the player is back in the shop ({shop.transform.InverseTransformPoint(cc.transform.position):F2})");
         Expect(money.CurrentMoney - moneyStart == expectedEarn && expectedMistakes == 2, $"end: total wage ¥{money.CurrentMoney - moneyStart} = expected ¥{expectedEarn}, no perfect bonus with 2 mistakes");
         Expect(earning == null || earning.GetEarning() - earnStart == expectedEarn, $"end: the player's own earning counts the wage (+¥{(earning != null ? earning.GetEarning() - earnStart : 0)})");
+        RestoreMain();
         Object.Destroy(sideCam.gameObject);
         Object.Destroy(eyeCam.gameObject);
 
