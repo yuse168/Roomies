@@ -82,16 +82,22 @@ def place(buf, sound, at, gain=1.0):
         buf[i:j] += sound[: j - i] * gain
 
 
-def save(name, x, peak=0.85):
+def save(name, x, peak=0.85, fade=0.0, loop=False):
+    """fade：最後の fade 秒をなめらかに小さくしていく（音が鳴っているうちに切れて、プツッと鳴るのを防ぐ）。
+    loop：頭と最後がつながる音（くり返し鳴らす音）。頭と終わりの 3ms のつなぎをしない（つなぎ目で音がへこむため）。"""
     x = np.asarray(x, dtype=np.float64)
     x = x - x.mean()
     m = np.abs(x).max()
     if m > 0:
         x = x / m * peak
-    # 頭と終わりを 3ms でつなぐ（プチッという音を防ぐ）
-    f = int(SR * 0.003)
-    x[:f] *= np.linspace(0, 1, f)
-    x[-f:] *= np.linspace(1, 0, f)
+    if fade > 0:
+        n = int(SR * fade)
+        x[-n:] *= np.cos(np.linspace(0, np.pi / 2, n)) ** 2
+    if not loop:
+        # 頭と終わりを 3ms でつなぐ（プチッという音を防ぐ）
+        f = int(SR * 0.003)
+        x[:f] *= np.linspace(0, 1, f)
+        x[-f:] *= np.linspace(1, 0, f)
     os.makedirs(OUT, exist_ok=True)
     with wave.open(os.path.join(OUT, name + ".wav"), "wb") as w:
         w.setnchannels(1)
@@ -205,7 +211,10 @@ def roulette_stop():
         gap *= 0.62
         gain *= 0.6
     place(y, lowpass(noise(0.3), 700) * decay(0.3, 0.08), at, 0.25)
-    return y
+    # 出だしのはねる音の鋭い山を、やわらかく抑える（山の高さをそろえたまま、全体の大きさを上げる。直前の回転音と同じくらいに聞こえるように）
+    y = y / np.abs(y).max()
+    drive = 2.6     # 2.6 で、全体の大きさが約 +6 dB（9 にすると +13 dB で大きすぎた）
+    return np.tanh(y * drive) / np.tanh(drive)
 
 
 def chip():
@@ -314,14 +323,32 @@ def slot_start():
 
 
 def slot_reel():
-    """回っている間（0.9 秒ごとに鳴らし直す）：カラカラという細かい音。"""
-    sec = 1.0
-    y = lowpass(noise(sec), 1200) * 0.25
+    """
+    回っている間：カラカラという細かい音。SlotScreen が 0.9 秒ごとに頭から鳴らし直すので、長さは 0.9 秒で、最後が頭へ自然につながる形にする
+    （0.045 秒おきのカチカチは 0.9 秒でちょうど 20 回。最後の 0.06 秒を頭へ重ねて、つなぎ目の音の大きさと流れをそろえる）。
+    """
+    # 前の作り方と同じだけ乱数を使っておく（このあとで作る音が変わらないように）。音そのものは、別の乱数で作る
+    _ = lowpass(noise(1.0), 1200)
     at = 0.0
-    while at < sec - 0.03:
-        place(y, click(rng.uniform(1400, 1900), 0.03, 0.004, 0.5), at, rng.uniform(0.25, 0.4))
+    while at < 1.0 - 0.03:
+        click(rng.uniform(1400, 1900), 0.03, 0.004, 0.5); rng.uniform(0.25, 0.4)
         at += 0.045
-    return y * env(len(y), 0.03, 0.12)
+    own = np.random.default_rng(20261124)
+    sec, overlap, step = 0.9, 0.06, 0.045
+    n, k = int(SR * sec), int(SR * overlap)
+    y = lowpass(own.uniform(-1, 1, n + k), 1200) * 0.25
+    for i in range(int(round((sec + overlap) / step)) + 1):
+        f = own.uniform(1400, 1900); g = own.uniform(0.25, 0.4)
+        n_click = int(SR * 0.03)
+        xc = np.arange(n_click) / SR
+        body = np.sin(2 * np.pi * f * xc) + 0.5 * np.sin(2 * np.pi * f * 2.37 * xc)
+        c = (body * 0.5 + highpass(own.uniform(-1, 1, n_click), 2500) * 0.5) * np.exp(-xc / 0.004)
+        place(y, c, i * step, g)
+    # 最後の overlap 秒（0.9〜0.96 秒）を、頭の 0〜0.06 秒へ重ねる（頭は大きくなりながら、重ねた側は小さくなりながら）
+    head = y[:k].copy(); tail = y[n:n + k]
+    w = np.linspace(0, 1, k)
+    y[:k] = head * np.sqrt(w) + tail * np.sqrt(1 - w)
+    return y[:n]
 
 
 def slot_stop(pitch):
@@ -374,7 +401,7 @@ def slot_win_big():
     """大当たり：ファンファーレ（約 1.8 秒）。"""
     n = [(0, C5, 0.12, 1), (0.12, C5, 0.12, 1), (0.24, C5, 0.12, 1), (0.36, E5, 0.24, 1), (0.36, G5, 0.24, 0.6),
          (0.62, D5, 0.14, 1), (0.78, E5, 0.14, 1), (0.94, G5, 0.7, 1), (0.94, C6, 0.7, 0.8), (0.94, E5, 0.7, 0.6)]
-    y = melody(n, "brass", 0.3)
+    y = melody(n, "brass", 0.5)     # 余韻を 0.5 秒（最後は save の fade で消していく）
     place(y, melody([(0.94 + i * 0.06, f, 0.1, 0.5) for i, f in enumerate([C6, E6, G6, E6, C6, E6, G6])]), 0, 0.6)
     return y
 
@@ -384,7 +411,7 @@ def slot_jackpot():
     n = [(0, G5, 0.1, 1), (0.1, G5, 0.1, 1), (0.2, G5, 0.1, 1), (0.3, C6, 0.3, 1), (0.3, E5, 0.3, 0.6),
          (0.66, G5, 0.1, 1), (0.76, C6, 0.1, 1), (0.86, E6, 0.4, 1), (0.86, G5, 0.4, 0.6),
          (1.32, D6, 0.12, 1), (1.46, E6, 0.12, 1), (1.6, G6, 1.2, 1), (1.6, C6, 1.2, 0.8), (1.6, E6, 1.2, 0.7), (1.6, G5, 1.2, 0.6)]
-    y = melody(n, "brass", 0.4)
+    y = melody(n, "brass", 0.6)     # 余韻を 0.6 秒（最後は save の fade で消していく）
     x = t(len(y) / SR)[: len(y)]
     siren = np.sin(2 * np.pi * np.cumsum(900 + 300 * np.sin(2 * np.pi * 3.2 * x)) / SR) * 0.18 * env(len(x), 0.2, 0.6)
     y += siren
@@ -417,9 +444,9 @@ if __name__ == "__main__":
     save("elevator_open", elevator_door(True), 0.7)
     save("elevator_close", elevator_door(False), 0.7)
     save("elevator_move", elevator_move(), 0.6)
-    save("elevator_ding", elevator_ding(), 0.8)
+    save("elevator_ding", elevator_ding(), 0.8, fade=0.15)
     save("roulette_spin", roulette_spin(), 0.8)
-    save("roulette_stop", roulette_stop(), 0.85)
+    save("roulette_stop", roulette_stop(), 0.85, fade=0.04)
     save("chip", chip(), 0.8)
     save("card", card(), 0.8)
     save("win", win(), 0.8)
@@ -427,17 +454,17 @@ if __name__ == "__main__":
     save("cash", cash(), 0.8)
     save("dice", dice(), 0.85)
     save("slot_start", slot_start(), 0.75)
-    save("slot_reel", slot_reel(), 0.45)
+    save("slot_reel", slot_reel(), 0.45, loop=True)
     save("slot_stopa", slot_stop(1.0), 0.8)
     save("slot_stopb", slot_stop(1.12), 0.8)
     save("slot_stopc", slot_stop(1.26), 0.85)
     save("slot_reach", slot_reach(), 0.8)
-    save("slot_reach_miss", slot_reach_miss(), 0.6)
-    save("slot_lose", slot_lose(), 0.4)
+    save("slot_reach_miss", slot_reach_miss(), 0.6, fade=0.045)
+    save("slot_lose", slot_lose(), 0.4, fade=0.05)
     save("slot_win_small", slot_win_small(), 0.6)
     save("slot_win_mid", slot_win_mid(), 0.75)
-    save("slot_win_big", slot_win_big(), 0.9)
-    save("slot_jackpot", slot_jackpot(), 0.95)
+    save("slot_win_big", slot_win_big(), 0.9, fade=0.09)
+    save("slot_jackpot", slot_jackpot(), 0.95, fade=0.1)
     save("slot_coin", slot_coin(), 0.6)
     save("slot_tick", slot_tick(), 0.5)
     save("chips_slide", chips_slide(), 0.7)

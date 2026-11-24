@@ -71,6 +71,18 @@
 | `casino/dice` | サイコロがどんぶりで転がる | チンチロでふるたび |
 | `casino/win` `casino/lose` | 当たり・外れ | ルーレット（自分の結果だけ）・ハイ＆ロー・チンチロ |
 | `casino/cash` | 手持ちを受け取る | ハイ＆ローで F を押したとき |
+| `casino/chips_slide` | チップの山が台の上を滑ってくる | ブラックジャック・ハイ＆ローで、賭け金を置く・払い戻し・負けて下がるとき |
+| `casino/slot_start` | レバーを引く | スロットを回しはじめたとき（筐体の位置から） |
+| `casino/slot_reel` | リールが回っている間 | 回っている間、0.9 秒ごとに頭から鳴らし直す（長さ 0.9 秒。最後が頭へつながる音） |
+| `casino/slot_stopa` `casino/slot_stopb` `casino/slot_stopc` | リールが止まる | 左・中・右のリールが止まるとき（右ほど高い） |
+| `casino/slot_reach` | リーチ | 2 つそろって、最後のリールがゆっくり止まりはじめたとき |
+| `casino/slot_reach_miss` | リーチが外れる | リーチのあとで、そろわなかったとき |
+| `casino/slot_lose` | 外れ | そろわなかったとき（毎回鳴るので控えめ） |
+| `casino/slot_win_small` `casino/slot_win_mid` | 小当たり・中当たり | 当たりの大きさに合わせて |
+| `casino/slot_win_big` | 大当たり | BAR・王冠など大きい当たり（約 2.1 秒のファンファーレ） |
+| `casino/slot_jackpot` | 7 ぞろい | ジャックポット（約 3.4 秒） |
+| `casino/slot_coin` | コイン 1 枚 | 当たりでコインが噴き出すたび |
+| `casino/slot_tick` | 数字が回る | 払い出しの数字が 1 目盛り進むたび |
 
 ## 足音の材質ごとの違い
 
