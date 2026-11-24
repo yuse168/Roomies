@@ -115,6 +115,25 @@ public class GameBalance : ScriptableObject
     [Tooltip("3 階へ上がる鍵の値段（2 階の店の人から買う。買い切り）")]
     [Min(0)] public int casinoKeyPrice3F = 10000;
 
+    [Header("コンビニのレジ打ち（朝だけのバイト）")]
+    [Tooltip("1 回のバイトで来るお客さんの数")]
+    [Min(1)] public int storeJobCustomers = 5;
+
+    [Tooltip("お客さん 1 人のお会計を最後までやったときのバイト代")]
+    [Min(0)] public int storeJobPayPerCustomer = 30;
+
+    [Tooltip("速さのボーナス（品物を置いてから袋を渡すまでが storeJobFastSeconds 以内のとき）")]
+    [Min(0)] public int storeJobFastBonus = 15;
+
+    [Tooltip("速さのボーナスがつく秒数")]
+    [Min(1f)] public float storeJobFastSeconds = 10f;
+
+    [Tooltip("全員ミスなしで終えたときのボーナス")]
+    [Min(0)] public int storeJobPerfectBonus = 30;
+
+    [Tooltip("お客さんが待てる秒数（品物を置いてから。過ぎると帰ってしまい、その人の分は 0）")]
+    [Min(5f)] public float storeJobPatienceSeconds = 25f;
+
     /// <summary>その階（2 か 3）へ上がる鍵の値段。</summary>
     public int CasinoKeyPrice(int floor) => floor <= 2 ? casinoKeyPrice2F : casinoKeyPrice3F;
 

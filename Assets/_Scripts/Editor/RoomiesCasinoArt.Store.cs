@@ -750,5 +750,86 @@ internal static partial class RoomiesCasinoArt
         lp.Pop();
         lp.Box(new Vector3(-.5f, .1f, .3f), new Vector3(-.2f, .7f, .31f), "steel_dark");
     });
+
+    // ================================================================ レジ打ちのバイト（2026/11/24）
+    /// <summary>お客さん（NPC）。店の人と同じ丸い体で、服・顔・帽子の色と形を変えた 3 人（look 0〜2）。原点は足元、+Z が正面。</summary>
+    internal static Mesh StoreShopper(int look) => Build($"store_shopper_{look}", lp =>
+    {
+        string[] coats = { "label_blue", "label_green", "label_purple" };
+        string[] faces = { "teal_pale", "coral_pale", "label_sky" };
+        string coat = coats[look % 3], face = faces[look % 3];
+        lp.Lathe(new[] { (.22f, 0f), (.36f, .08f), (.44f, .38f), (.45f, .72f), (.42f, 1.0f), (.34f, 1.24f), (.2f, 1.4f), (0f, 1.46f) }, 10,
+            b => b == 0 ? "ink" : b <= 2 ? coat : face, Mathf.PI / 10, false, true);
+        // 上着の前の合わせと、ポケット
+        lp.Box(new Vector3(-.015f, .14f, .43f), new Vector3(.015f, .8f, .455f), "ink");
+        foreach (float x in new[] { -.22f, .22f }) lp.Box(new Vector3(x - .07f, .3f, .4f), new Vector3(x + .07f, .4f, .43f), "ink");
+        // 目とほっぺ
+        foreach (float x in new[] { -.14f, .14f })
+        {
+            lp.Box(new Vector3(x - .03f, 1.08f, .4f), new Vector3(x + .03f, 1.2f, .43f), "black");
+            lp.Box(new Vector3(x * 1.75f - .035f, 1.0f, .37f), new Vector3(x * 1.75f + .035f, 1.04f, .4f), "pink_pale");
+        }
+        if (look % 3 == 0)
+        {
+            // つば付きの帽子
+            lp.Lathe(new[] { (.37f, 1.27f), (.36f, 1.37f), (.28f, 1.46f), (.14f, 1.51f), (0f, 1.52f) }, 10, "label_red", Mathf.PI / 10, true);
+            lp.Push(new Vector3(0, 1.29f, .22f), new Vector3(8, 0, 0));
+            lp.Prism(Offset(Ellipse(.3f, .2f, 8), new Vector2(0, .14f)), 0, .025f, "label_red", "label_red", true);
+            lp.Pop();
+        }
+        else if (look % 3 == 1)
+        {
+            // ニット帽と、てっぺんの玉
+            lp.Lathe(new[] { (.38f, 1.24f), (.38f, 1.32f), (.33f, 1.44f), (.2f, 1.53f), (0f, 1.56f) }, 10, "store_cream", Mathf.PI / 10, true);
+            lp.Lathe(new[] { (.39f, 1.22f), (.39f, 1.3f) }, 10, "label_orange", Mathf.PI / 10, false);
+            lp.Lathe(new[] { (0f, 1.54f), (.07f, 1.57f), (.08f, 1.62f), (.06f, 1.67f), (0f, 1.69f) }, 8, "label_orange", 0, true);
+        }
+        else
+        {
+            // マフラー（首に巻いて、前に垂らす）
+            lp.Lathe(new[] { (.43f, .96f), (.45f, 1.0f), (.43f, 1.06f) }, 10, "label_yellow", Mathf.PI / 10, false);
+            lp.Box(new Vector3(.08f, .7f, .4f), new Vector3(.2f, .98f, .45f), "label_yellow");
+        }
+        // 短い手
+        foreach (float sd in new[] { -1f, 1f })
+        {
+            lp.Push(new Vector3(sd * .44f, .72f, .1f), new Vector3(-30, 0, sd * -28));
+            lp.Lathe(new[] { (.075f, 0f), (.09f, .1f), (.08f, .22f), (0f, .27f) }, 6, b => b == 2 ? face : coat, 0, false, true);
+            lp.Pop();
+        }
+    });
+
+    /// <summary>タイムカードの機械（時計の窓・カードの差し口・横にカード差し）。原点は下の真ん中、+Z が正面。</summary>
+    internal static Mesh StoreTimeCard() => Build("store_timecard", lp =>
+    {
+        lp.Box(new Vector3(-.13f, 0, -.09f), new Vector3(.13f, .34f, .09f), "store_cream");
+        lp.Box(new Vector3(-.13f, 0, -.09f), new Vector3(.13f, .05f, .092f), "coral");
+        lp.Box(new Vector3(-.1f, .2f, .085f), new Vector3(.1f, .31f, .1f), "ink");
+        lp.Box(new Vector3(-.075f, .225f, .1f), new Vector3(.075f, .285f, .104f), "label_sky", true);
+        lp.Box(new Vector3(-.07f, .13f, .085f), new Vector3(.07f, .155f, .1f), "black");
+        lp.Box(new Vector3(-.035f, .145f, .09f), new Vector3(.035f, .2f, .095f), "white");
+        lp.Box(new Vector3(.14f, 0, -.07f), new Vector3(.25f, .24f, .07f), "steel_dark");
+        string[] cards = { "white", "label_yellow", "white", "coral_pale" };
+        for (int i = 0; i < cards.Length; i++)
+            lp.Box(new Vector3(.152f + i * .024f, .14f, -.05f), new Vector3(.166f + i * .024f, .31f + (i % 2) * .02f, .05f), cards[i]);
+    });
+
+    /// <summary>店員の側の小さな画面（お釣りの候補を出す）。原点は画面の真ん中、-Z が表（店員の側）。下に支え。</summary>
+    internal static Mesh StoreJobScreen() => Build("store_job_screen", lp =>
+    {
+        lp.Box(new Vector3(-.25f, -.13f, 0), new Vector3(.25f, .13f, .035f), "ink");
+        lp.Sharp = true;
+        lp.Box(new Vector3(-.02f, -.3f, .01f), new Vector3(.02f, -.13f, .03f), "steel_dark");
+        lp.Box(new Vector3(-.08f, -.31f, -.04f), new Vector3(.08f, -.29f, .08f), "steel_dark");
+    });
+
+    /// <summary>「アルバイト募集」の札（さんご色の板と柱）。原点は柱の下、+Z が表。文字は別に置く。</summary>
+    internal static Mesh StoreJobSign() => Build("store_job_sign", lp =>
+    {
+        lp.Box(new Vector3(-.28f, .32f, -.015f), new Vector3(.28f, .66f, .015f), "coral");
+        lp.Box(new Vector3(-.25f, .35f, .015f), new Vector3(.25f, .63f, .02f), "store_cream");
+        lp.Bar(new Vector3(0, 0, -.02f), new Vector3(0, .33f, -.02f), .025f, "steel_dark");
+        lp.Box(new Vector3(-.08f, 0, -.08f), new Vector3(.08f, .02f, .04f), "steel_dark");
+    });
 }
 #endif

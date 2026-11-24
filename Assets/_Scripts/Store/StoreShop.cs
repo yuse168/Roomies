@@ -21,8 +21,10 @@ using UnityEngine;
 ///  ・Visual：棚・冷蔵ケース・レジ・商品など見た目だけ（ぶつかるだけの当たり判定は Visual/Collision）
 ///  ・Pivot_Fly_〇・Pivot_Item_〇・Pivot_Bag・Pivot_Drawer・Pivot_Receipt・Pivot_ScanGlow：動かす物（中の Visual が見た目）
 ///  ・Anchor_Shelf_〇・Anchor_Pop・Anchor_Display・Anchor_Lane_〇：位置と文字
+///
+/// 朝のレジ打ちのバイトは StoreShop.Job.cs（同じレジと動かす物を、店員の側から使う）。
 /// </summary>
-public class StoreShop : CasinoGame
+public partial class StoreShop : CasinoGame
 {
     public enum Phase : byte { Idle, Scanning, Pay, Bag }
 
@@ -130,6 +132,7 @@ public class StoreShop : CasinoGame
     private bool homesTaken;
     private float popUntil, popStart;
     private Vector3 popFrom;
+    private Color popTint;
     private int shownTotal;
 
     public Phase CurrentPhase => (Phase)phase.Value;
@@ -178,11 +181,13 @@ public class StoreShop : CasinoGame
     {
         phase.OnValueChanged += OnPhaseChanged;
         SnapToPhase();
+        JobOnSpawn();
     }
 
     public override void OnNetworkDespawn()
     {
         phase.OnValueChanged -= OnPhaseChanged;
+        JobOnDespawn();
     }
 
     private void OnPhaseChanged(byte oldValue, byte newValue)
@@ -193,6 +198,8 @@ public class StoreShop : CasinoGame
     // ================================================================ 案内（各画面）
     public override string GetLabel(Collider lookedAt, ulong clientId)
     {
+        string job = JobLabel(lookedAt, clientId);
+        if (job != null) return job;
         int s = SectionOf(lookedAt);
         if (s >= 0) return SectionLabel(sections[s].kind, clientId);
         if (lookedAt == registerCollider) return RegisterLabel(clientId);
@@ -252,6 +259,7 @@ public class StoreShop : CasinoGame
     public override void Interact(Collider lookedAt, PlayerEarning earning)
     {
         if (!IsSpawned) return;
+        if (JobInteract(lookedAt)) return;
         int s = SectionOf(lookedAt);
         if (s >= 0) PickServerRpc(s);
         else if (lookedAt == registerCollider) RegisterServerRpc();
@@ -260,6 +268,7 @@ public class StoreShop : CasinoGame
     public override void Secondary(Collider lookedAt, PlayerEarning earning)
     {
         if (!IsSpawned) return;
+        if (JobSecondary(lookedAt)) return;
         int s = SectionOf(lookedAt);
         if (s >= 0) PutBackServerRpc(s);
         else if (lookedAt == registerCollider) ClearCartServerRpc();
@@ -429,7 +438,9 @@ public class StoreShop : CasinoGame
             }
             // お会計中の人がいなくなった
             if (p != Phase.Idle && !ConnectedNow(buyer.Value)) ServerCancel(false);
+            JobServerUpdate();
         }
+        JobClientUpdate();
         UpdatePop();
     }
 
@@ -542,11 +553,14 @@ public class StoreShop : CasinoGame
         slot.pivot.localScale = Vector3.one;
     }
 
-    private void ShowPop(Vector3 at, string text)
+    private void ShowPop(Vector3 at, string text) => ShowPop(at, text, popColor);
+
+    private void ShowPop(Vector3 at, string text, Color color)
     {
         if (popText == null) return;
         popText.text = text;
-        popText.color = popColor;
+        popTint = color;
+        popText.color = color;
         popFrom = at + Vector3.up * 0.25f;
         popStart = Time.time;
         popUntil = Time.time + 1.1f;
@@ -562,7 +576,7 @@ public class StoreShop : CasinoGame
         popText.transform.position = popFrom + Vector3.up * (0.35f * (1f - (1f - u) * (1f - u)));
         var cam = Camera.main;
         if (cam != null) popText.transform.rotation = Quaternion.LookRotation(popText.transform.position - cam.transform.position);
-        Color c = popColor; c.a = u < 0.7f ? 1f : Mathf.InverseLerp(1f, 0.7f, u);
+        Color c = popTint; c.a = u < 0.7f ? 1f : Mathf.InverseLerp(1f, 0.7f, u);
         popText.color = c;
         float pop = u < 0.12f ? Mathf.Lerp(0.6f, 1.15f, u / 0.12f) : Mathf.Lerp(1.15f, 1f, Mathf.Clamp01((u - 0.12f) / 0.15f));
         popText.transform.localScale = Vector3.one * pop;

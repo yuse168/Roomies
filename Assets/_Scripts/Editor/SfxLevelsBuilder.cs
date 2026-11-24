@@ -123,6 +123,10 @@ internal static class SfxLevelsBuilder
         ("store/coins", 0.50f),
         ("store/receipt", 0.40f),
         ("store/bag", 0.50f),
+        ("store/timecard", 0.55f),
+        ("store/job_good", 0.50f),
+        ("store/job_miss", 0.45f),
+        ("store/job_end", 0.55f),
     };
 
     [MenuItem("Roomies/Audio/Rebuild Sfx Levels")]

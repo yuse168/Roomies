@@ -231,6 +231,7 @@ public class DailyRequestManager : NetworkBehaviour
             case SharedMoneyReason.BlackjackPayout:
             case SharedMoneyReason.CasinoPayout:
             case SharedMoneyReason.MiningSale:
+            case SharedMoneyReason.StoreWage:
                 return true;
             default:
                 return false;

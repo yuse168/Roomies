@@ -27,7 +27,8 @@ public enum SharedMoneyReason
     FoodBill,           // 夜の食費（共同口座から払う）
     CasinoKey,          // カジノの上の階の鍵（買い切り）
     CasinoBet,          // カジノの新しいゲーム（ルーレットなど）の賭け金
-    CasinoPayout        // カジノの新しいゲームの払い戻し
+    CasinoPayout,       // カジノの新しいゲームの払い戻し
+    StoreWage           // コンビニのレジ打ちのバイト代（朝だけ。お客さん 1 人ごと）
 }
 
 public class SharedMoneyManager : NetworkBehaviour

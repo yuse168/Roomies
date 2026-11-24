@@ -1,5 +1,26 @@
 # PROGRESS.md
 
+## 2026/11/24｜コンビニ：レジ打ちのバイト（朝だけ・NPC のお客さん 5 人）
+
+- 依頼（ゆせさん 17:03「コンビニでレジ打ちのバイトもできるようにして」）。設計は報告ページ conbini の「レジ打ちのバイト」の章
+- 始め方：カウンターの左の端のタイムカード（「アルバイト募集」の札つき）を見て E → レジの中（`Anchor_Cashier`）へ移る。R でいつでも終える（`Anchor_JobExit` へ戻る）。
+  朝だけ（夜・日の切り替え・ゲームオーバーで、その場で終わる）。レジに入れるのは 1 人だけ。お客さん役は NPC だけ
+- 1 人のお客さん：とびらから歩いてきて品物を 1〜3 個置く → E で 1 つずつ読み取る（ピッ・金額が回る・袋へ）→ お札を受け取り、ホイールでお釣りの候補 3 つから選んで E
+  （引き出し・チャリン）→ E で袋を渡す（お客さんが袋を持って出ていく）。品物の置き方・読み取り・袋・引き出しは、買い物のお会計と同じ物と音を使う
+- バイト代（GameBalance、サーバーが決める）：1 人 ¥30、品物を置いてから 10 秒以内に袋を渡すと +¥15、5 人全員ミスなしで終わりに +¥30（最大 ¥255）。
+  お釣りをまちがえる・25 秒待たせて帰らせると、その人の分は 0（お金は減らない）。1 人ずつ共同口座へ（理由 `StoreWage`）と本人の稼ぎへ。「今日のおねがい」の稼ぎにも数える
+- お客さん用の値段は `StoreShop.kindPrices`（おにぎり ¥140 など）。プレイヤーの買い物（夜・¥300・食材 1 回分）は変えていない
+- コード：`StoreShop.Job.cs`（StoreShop を partial にして、同じレジを店員の側から使う）・`GameBalance`（storeJob〇〇）・`SharedMoneyReason.StoreWage`・`DailyRequestManager`
+- プレハブ（`Roomies/Store/2 Build Gimmick Prefabs` → `3 Place In Open Scene`）：`Pick_TimeCard`・`Pick_Till`（トリガー）・`Pivot_Customer`（見た目 3 人は Visual/Look_〇、吹き出しは Anchor_Bubble）・
+  `Anchor_Cashier`・`Anchor_JobExit`・`Anchor_CustomerDoor`・`Anchor_CustomerCounter`・`Anchor_JobScreen`（店員の側の小さな画面）。形は `RoomiesCasinoArt.Store.cs`（`StoreShopper`・`StoreTimeCard`・`StoreJobScreen`・`StoreJobSign`）。新しい絵は使っていない
+- 音 4 つ（`ArtSource/Store/Audio/make_store_sfx.py` の最後に追加。前の音は変わっていない）：`store/timecard`・`job_good`・`job_miss`・`job_end`。音量の表と Audio の README に行を足した
+- 確認の道具：`Roomies/Store/Job Check (Play Mode)`（`RoomiesStoreJobCheck.cs`。結果は `Temp/RoomiesStore/job_check.txt`、写真は `Temp/RoomiesCasino/frames/storejob/`）
+- 確認：バイトの確認 45 項目 OK（3 回とおして同じ。夜は断る・5 人・お釣りのミス・待たせて帰る・バイト代 ¥135 が共同口座と本人の稼ぎに入る・ミスがあるとボーナスなし・R で終える・夜になると終わる）、
+  コンビニの確認 31 項目 OK、1 人での通し確認 133 項目 OK（歩行の NG は配達ゾーン 1 か所で前と同じ）、EditMode 271 件・失敗 0（テストを 1 件追加）。
+  重さ：同じ手順の通りから 1,440,986 → 1,442,316 三角形・描画 1,750 → 1,759。Play Mode のたびにセーブの控えを取って戻した（ハッシュ一致）
+- 写真で見て直したこと：「+¥45」などの文字がお客さんの顔に重なっていた → 横へ。店員の側の画面が真ん中をふさいでいた → 左の端へ。◀▶ の字がフォントになく □ になっていた → ＜＞ に
+- 未確認：2 人での確認、新しい音を耳で聞くこと。作っていない：制服に着替える見た目（着替えの仕組みに関わるため）。あれば良くなる絵：「アルバイト募集」のはり紙 1 枚（Codex）
+
 ## 2026/11/24｜コンビニ：レジの裏の棚にラベルを貼る／ポスターを専用のテクスチャにする／EditMode の後始末を直す
 
 - レジの裏の棚（入口の左から見える棚と同じ物）：色の棒だった小物を、届いた 24 枚のラベルの使い回しに替えた

@@ -197,6 +197,56 @@ internal static partial class RoomiesCasinoBuilder
             popAnchor.gameObject.SetActive(true);
             pop.gameObject.SetActive(false);
 
+            // ---- レジ打ちのバイト（StoreShop.Job.cs）：タイムカードと募集の札（カウンターの左の端。売り場の側から届く）
+            Put("Time card", Art.StoreTimeCard(), new Vector3(2.72f, StoreCounterH, .55f), -90);
+            Put("Job sign", Art.StoreJobSign(), new Vector3(2.8f, StoreCounterH, .02f), -90);
+            var jobSign = Label(signs, "Job sign text", "アルバイト募集\nレジ打ち・朝だけ", new Vector3(2.774f, StoreCounterH + .49f, .02f), .5f, new Color(.66f, .26f, .18f));
+            jobSign.transform.localRotation = Quaternion.Euler(0, 90, 0);
+            ((RectTransform)jobSign.transform).sizeDelta = new Vector2(.46f, .24f);
+            jobSign.enableAutoSizing = true; jobSign.fontSizeMin = .1f; jobSign.fontSizeMax = .5f;
+            jobSign.fontStyle = FontStyles.Bold;
+            // 見て E・R を押す所（トリガー。歩くのはじゃましない）
+            var cardPick = Child(root.transform, "Pick_TimeCard");
+            var cardCollider = cardPick.gameObject.AddComponent<BoxCollider>();
+            cardCollider.isTrigger = true; cardCollider.center = new Vector3(2.72f, StoreCounterH + .2f, .45f); cardCollider.size = new Vector3(.45f, .55f, .7f);
+            var tillPick = Child(root.transform, "Pick_Till");
+            var tillCollider = tillPick.gameObject.AddComponent<BoxCollider>();
+            tillCollider.isTrigger = true; tillCollider.center = new Vector3(5.05f, StoreCounterH + .35f, .86f); tillCollider.size = new Vector3(4.3f, .9f, .16f);
+            // 立つ所・出る所・お客さんの通り道
+            var cashierAt = Child(root.transform, "Anchor_Cashier", new Vector3(5.62f, .32f, .3f));
+            var exitAt = Child(root.transform, "Anchor_JobExit", new Vector3(1.9f, .05f, .55f));
+            exitAt.localRotation = Quaternion.Euler(0, 90, 0);
+            Vector3 floorCenter = Town.StoreFloorCenter;
+            var custDoor = Child(root.transform, "Anchor_CustomerDoor", new Vector3((Town.SDoorX0 + Town.SDoorX1) / 2f - floorCenter.x, 0, Town.SZ1 - floorCenter.z - .7f));
+            var custCounter = Child(root.transform, "Anchor_CustomerCounter", new Vector3(5.62f, 0, 2.3f));
+            custCounter.localRotation = Quaternion.Euler(0, 180, 0);
+            // お客さん（NPC）：見た目 3 人。吹き出しは頭の上（Pivot_Customer/Anchor_Bubble）
+            var customer = Child(root.transform, "Pivot_Customer", custCounter.localPosition);
+            customer.localRotation = custCounter.localRotation;
+            var customerVisual = Child(customer, "Visual");
+            var looks = new GameObject[3];
+            for (int i = 0; i < looks.Length; i++)
+            {
+                looks[i] = Art.Place(customerVisual, "Look_" + i, Art.StoreShopper(i), default, 0, false, false);
+                looks[i].SetActive(i == 0);
+            }
+            var customerSpeech = BuildSpeechBubble(root, 2.0f);
+            var customerBubbleAnchor = root.transform.Find("Anchor_Bubble");
+            customerBubbleAnchor.SetParent(customer, false);
+            customerBubbleAnchor.localPosition = new Vector3(0, 2.0f, 0);
+            customerBubbleAnchor.localRotation = Quaternion.identity;
+            customerBubbleAnchor.localScale = Vector3.one * .8f;
+            customer.gameObject.SetActive(false);
+            // 店員の側の小さな画面（レジと読み取りの台の間。お客さんの顔は隠さない高さ）
+            var jobScreenAnchor = Child(root.transform, "Anchor_JobScreen", new Vector3(4.98f, StoreCounterH + .34f, .97f));
+            jobScreenAnchor.localRotation = Quaternion.Euler(10, -30, 0);   // 左の端から、店員のほうを向く
+            var jobScreenMesh = Put("Job screen", Art.StoreJobScreen(), jobScreenAnchor.localPosition);
+            jobScreenMesh.transform.localRotation = jobScreenAnchor.localRotation;
+            var jobScreen = Label(jobScreenAnchor, "Text_JobScreen", "アルバイト募集中\n朝だけ・レジ打ち", new Vector3(0, 0, -.006f), .5f, new Color(.55f, .95f, .9f));
+            jobScreen.transform.localRotation = Quaternion.identity;   // 店員の側（-Z）を向く
+            ((RectTransform)jobScreen.transform).sizeDelta = new Vector2(.46f, .22f);
+            jobScreen.enableAutoSizing = true; jobScreen.fontSizeMin = .08f; jobScreen.fontSizeMax = .5f;
+
             // ---- 参照の割り当て
             var so = new SerializedObject(shop);
             so.FindProperty("bodyCollider").objectReferenceValue = regCollider;
@@ -234,6 +284,16 @@ internal static partial class RoomiesCasinoBuilder
             so.FindProperty("scanGlow").objectReferenceValue = glow.gameObject;
             so.FindProperty("displayText").objectReferenceValue = display;
             so.FindProperty("popText").objectReferenceValue = pop;
+            so.FindProperty("timeCardCollider").objectReferenceValue = cardCollider;
+            so.FindProperty("tillCollider").objectReferenceValue = tillCollider;
+            so.FindProperty("anchorCashier").objectReferenceValue = cashierAt;
+            so.FindProperty("anchorJobExit").objectReferenceValue = exitAt;
+            so.FindProperty("customerPivot").objectReferenceValue = customer;
+            SetObjects(so.FindProperty("customerLooks"), looks);
+            so.FindProperty("anchorCustomerDoor").objectReferenceValue = custDoor;
+            so.FindProperty("anchorCustomerCounter").objectReferenceValue = custCounter;
+            so.FindProperty("customerBubble").objectReferenceValue = customerSpeech;
+            so.FindProperty("jobScreenText").objectReferenceValue = jobScreen;
             so.ApplyModifiedPropertiesWithoutUndo();
 
             PrefabUtility.SaveAsPrefabAsset(root, StoreShopPath);
@@ -305,6 +365,7 @@ internal static partial class RoomiesCasinoBuilder
         "向かいのカジノ帰りの人、だいたい肉まんを買っていきます。",
         "この前、警察の人がコーヒーを 3 杯買っていきました。",
         "雨の日は、カップめんがよく出ます。",
+        "朝はレジのバイトも募集してます。タイムカードはカウンターの左の端ですよ。",
         "家賃の日の前は、みなさん節約モードですね。",
         "お弁当、温めますか？……あ、いまは温める機械が休憩中でした。",
     };

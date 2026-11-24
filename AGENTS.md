@@ -197,6 +197,9 @@
   自動ドアは `StoreAutoDoor`（サーバーが人の位置だけを見て開け閉めを決める。とびらに当たり判定はない）。店の人は `CasinoClerk`（鍵を売らない設定）と、
   レジの `StoreShop.clerkBubble` が同じ吹き出しで話す。棚にたくさん並ぶ商品は、形を作る道具の軽い形（`lp.Lite`）で作る。店の中の物は影を落とさない。
   音は `Assets/Resources/Audio/store/`（`ArtSource/Store/Audio/make_store_sfx.py`）。通し確認は Play Mode で `Town/Walk - Enter GameRoom As Host` → `Roomies/Store/Check (Play Mode)`
+  レジ打ちのバイト（2026/11/24）：朝だけ。`StoreShop.Job.cs`（StoreShop を partial にして、同じレジを店員の側から使う）。タイムカード `Pick_TimeCard` で始め、R で終える。
+  お客さんは NPC だけ（`Pivot_Customer`）。バイト代の数字は `GameBalance` の storeJob〇〇、理由は `SharedMoneyReason.StoreWage`。お客さん用の値段は `StoreShop.kindPrices`（プレイヤーの買い物には使わない）。
+  確認は `Roomies/Store/Job Check (Play Mode)`
 
 組み立てのコードは各クラスの `EditorBuildUI()` に `#if UNITY_EDITOR` で残してある。
 実行中は動かないので、置き直したいときだけ配置ツールから呼ぶ。

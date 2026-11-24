@@ -43274,6 +43274,14 @@ PrefabInstance:
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
+    - target: {fileID: 4844181452478981583, guid: a44f793352125864e9309931dc1efecb, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4293325452
+      objectReference: {fileID: 0}
+    - target: {fileID: 4844181452478981583, guid: a44f793352125864e9309931dc1efecb, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 5477942556069206517, guid: a44f793352125864e9309931dc1efecb, type: 3}
       propertyPath: m_fontSize
       value: 0.35
@@ -43307,6 +43315,14 @@ PrefabInstance:
       value: 4292933119
       objectReference: {fileID: 0}
     - target: {fileID: 5842552812763044572, guid: a44f793352125864e9309931dc1efecb, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 6935095566093254225, guid: a44f793352125864e9309931dc1efecb, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4281221800
+      objectReference: {fileID: 0}
+    - target: {fileID: 6935095566093254225, guid: a44f793352125864e9309931dc1efecb, type: 3}
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
@@ -43393,43 +43409,43 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 3613460539839244754, guid: a44f793352125864e9309931dc1efecb, type: 3}
       insertIndex: -1
       addedObject: {fileID: 0}
-    - targetCorrespondingSourceObject: {fileID: 2760052499395571108, guid: a44f793352125864e9309931dc1efecb, type: 3}
+    - targetCorrespondingSourceObject: {fileID: 3044830842231225561, guid: a44f793352125864e9309931dc1efecb, type: 3}
       insertIndex: -1
       addedObject: {fileID: 0}
     - targetCorrespondingSourceObject: {fileID: 6573429581935600080, guid: a44f793352125864e9309931dc1efecb, type: 3}
       insertIndex: -1
       addedObject: {fileID: 0}
-    - targetCorrespondingSourceObject: {fileID: 7696214737423634463, guid: a44f793352125864e9309931dc1efecb, type: 3}
+    - targetCorrespondingSourceObject: {fileID: 6489739622368854758, guid: a44f793352125864e9309931dc1efecb, type: 3}
       insertIndex: -1
       addedObject: {fileID: 0}
     - targetCorrespondingSourceObject: {fileID: 5137175144790514255, guid: a44f793352125864e9309931dc1efecb, type: 3}
       insertIndex: -1
       addedObject: {fileID: 0}
-    - targetCorrespondingSourceObject: {fileID: 8432075907969851268, guid: a44f793352125864e9309931dc1efecb, type: 3}
+    - targetCorrespondingSourceObject: {fileID: 6169015073830211493, guid: a44f793352125864e9309931dc1efecb, type: 3}
       insertIndex: -1
       addedObject: {fileID: 0}
     - targetCorrespondingSourceObject: {fileID: 8282867695244545519, guid: a44f793352125864e9309931dc1efecb, type: 3}
       insertIndex: -1
       addedObject: {fileID: 0}
-    - targetCorrespondingSourceObject: {fileID: 3007396891234792938, guid: a44f793352125864e9309931dc1efecb, type: 3}
+    - targetCorrespondingSourceObject: {fileID: 3967548327767973519, guid: a44f793352125864e9309931dc1efecb, type: 3}
       insertIndex: -1
       addedObject: {fileID: 0}
     - targetCorrespondingSourceObject: {fileID: 5763944057918155216, guid: a44f793352125864e9309931dc1efecb, type: 3}
       insertIndex: -1
       addedObject: {fileID: 0}
-    - targetCorrespondingSourceObject: {fileID: 723377323661467639, guid: a44f793352125864e9309931dc1efecb, type: 3}
+    - targetCorrespondingSourceObject: {fileID: 5075096798944520274, guid: a44f793352125864e9309931dc1efecb, type: 3}
       insertIndex: -1
       addedObject: {fileID: 0}
     - targetCorrespondingSourceObject: {fileID: 7878801393065981399, guid: a44f793352125864e9309931dc1efecb, type: 3}
       insertIndex: -1
       addedObject: {fileID: 0}
-    - targetCorrespondingSourceObject: {fileID: 8225012645868305631, guid: a44f793352125864e9309931dc1efecb, type: 3}
+    - targetCorrespondingSourceObject: {fileID: 1164711760736239134, guid: a44f793352125864e9309931dc1efecb, type: 3}
       insertIndex: -1
       addedObject: {fileID: 0}
     - targetCorrespondingSourceObject: {fileID: 1298469183980107402, guid: a44f793352125864e9309931dc1efecb, type: 3}
       insertIndex: -1
       addedObject: {fileID: 0}
-    - targetCorrespondingSourceObject: {fileID: 8522584482137566102, guid: a44f793352125864e9309931dc1efecb, type: 3}
+    - targetCorrespondingSourceObject: {fileID: 5229600499337222458, guid: a44f793352125864e9309931dc1efecb, type: 3}
       insertIndex: -1
       addedObject: {fileID: 0}
     - targetCorrespondingSourceObject: {fileID: 1269226009168806639, guid: a44f793352125864e9309931dc1efecb, type: 3}
@@ -43438,7 +43454,13 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 4494111258594801201, guid: a44f793352125864e9309931dc1efecb, type: 3}
       insertIndex: -1
       addedObject: {fileID: 0}
+    - targetCorrespondingSourceObject: {fileID: 1445946740022194901, guid: a44f793352125864e9309931dc1efecb, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 0}
     - targetCorrespondingSourceObject: {fileID: 6692870559559009560, guid: a44f793352125864e9309931dc1efecb, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 0}
+    - targetCorrespondingSourceObject: {fileID: 1295893219500674023, guid: a44f793352125864e9309931dc1efecb, type: 3}
       insertIndex: -1
       addedObject: {fileID: 0}
   m_SourcePrefab: {fileID: 100100000, guid: a44f793352125864e9309931dc1efecb, type: 3}
@@ -287217,6 +287239,10 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 961342503797607222, guid: 75930c696c3022e48a5ea054d435b41d, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 1064026360806152381, guid: 75930c696c3022e48a5ea054d435b41d, type: 3}
       propertyPath: m_IsActive
       value: 0
@@ -287309,6 +287335,10 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: 76074eb2cf50cc0469f5eb0202f1d725, type: 2}
+    - target: {fileID: 1552581586115982752, guid: 75930c696c3022e48a5ea054d435b41d, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 1655152940713303975, guid: 75930c696c3022e48a5ea054d435b41d, type: 3}
       propertyPath: m_TextStyleHashCode
       value: -1183493901

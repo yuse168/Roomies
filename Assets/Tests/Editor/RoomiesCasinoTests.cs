@@ -287,6 +287,54 @@ public class RoomiesCasinoTests
     }
 
     [Test]
+    public void StoreJobIsWiredAndChangeRulesHold()
+    {
+        // レジ打ちのバイト：見て押す所はトリガー（歩くのをじゃましない）。位置はアンカー、お客さんは Pivot、見た目は Visual の中
+        Component shop = LoadComponent("Assets/_Prefabs/Store/StoreShop.prefab", "StoreShop");
+        foreach (string f in new[] { "timeCardCollider", "tillCollider" })
+        {
+            var c = Field<Collider>(shop, f);
+            Assert.That(c, Is.Not.Null, f);
+            Assert.That(c.isTrigger, Is.True, f);
+            Assert.That(c.transform.parent, Is.SameAs(shop.transform), f);
+        }
+        foreach (string f in new[] { "anchorCashier", "anchorJobExit", "anchorCustomerDoor", "anchorCustomerCounter" })
+            Assert.That(Field<Transform>(shop, f).name, Does.StartWith("Anchor_"), f);
+        var customer = Field<Transform>(shop, "customerPivot");
+        Assert.That(customer.name, Is.EqualTo("Pivot_Customer"));
+        Assert.That(customer.gameObject.activeSelf, Is.False, "お客さんは、ふだんは隠してある");
+        var looks = Field<GameObject[]>(shop, "customerLooks");
+        Assert.That(looks.Length, Is.GreaterThanOrEqualTo(3));
+        foreach (var look in looks) Assert.That(look.transform.parent.name, Is.EqualTo("Visual"));
+        Assert.That(Field<Component>(shop, "customerBubble"), Is.Not.Null);
+        Assert.That(Field<int[]>(shop, "kindPrices").Length, Is.EqualTo(8), "お客さん用の値段が、売っている物の数だけある");
+        Assert.That(Field<Component>(shop, "jobScreenText"), Is.Not.Null);
+
+        // お客さんが出す額：合計以上のいちばん小さいお札。小銭を足すとお釣りがきりのいい額になる
+        Type t = GameType("StoreShop");
+        int Pay(int total, bool coins) => (int)t.GetMethod("PickPayment").Invoke(null, new object[] { total, new[] { 500, 1000, 2000, 5000 }, coins });
+        Assert.That(Pay(210, false), Is.EqualTo(500));
+        Assert.That(Pay(740, false), Is.EqualTo(1000));
+        Assert.That(Pay(740, true), Is.EqualTo(1040));
+        Assert.That(Pay(1000, true), Is.EqualTo(1000), "ちょうどのときは、そのまま");
+        Assert.That(Pay(5600, false), Is.EqualTo(6000), "お札の表より大きいときは、千円単位");
+        // お釣りの候補：3 つ、正しい額が 1 つだけ、どれも 0 以上
+        MethodInfo make = t.GetMethod("MakeChangeOptions");
+        for (int seed = 0; seed < 50; seed++)
+            foreach (int change in new[] { 0, 10, 60, 300, 1290 })
+            {
+                var o = (int[])make.Invoke(null, new object[] { change, new System.Random(seed) });
+                Assert.That(o.Length, Is.EqualTo(3));
+                Assert.That(o.Count(v => v == change), Is.EqualTo(1));
+                Assert.That(o.Distinct().Count(), Is.EqualTo(3));
+                Assert.That(o.All(v => v >= 0), Is.True);
+            }
+        // バイト代の理由は「今日のおねがい」の稼ぎに数える
+        Assert.That(Enum.IsDefined(GameType("SharedMoneyReason"), "StoreWage"), Is.True);
+        Assert.That(System.IO.File.ReadAllText("Assets/_Scripts/Night/DailyRequestManager.cs"), Does.Contain("SharedMoneyReason.StoreWage"));
+    }
+
+    [Test]
     public void ChinchiroHandsAreRecognised()
     {
         Type rules = GameType("ChinchiroRules");

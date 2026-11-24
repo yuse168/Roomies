@@ -190,6 +190,47 @@ def bag():
     return y
 
 
+# ---- レジ打ちのバイト（2026/11/24 夕方に足した。前の音の乱数の順を変えないよう、いちばん最後に作る）
+def timecard():
+    """タイムカードを押す：差しこむすべり → ガチャン（金属の打刻）→ 小さなベル。"""
+    y = np.zeros(int(SR * 0.7))
+    x = t(0.09)
+    place(y, highpass(lowpass(noise(0.09), 4000), 700) * np.sin(np.pi * x / 0.09) * 0.5, 0, 1.0)
+    place(y, click(300, 0.1, 0.02, 0.35), 0.09, 1.0)
+    place(y, click(1500, 0.05, 0.006, 0.6), 0.1, 0.6)
+    place(y, tone(1760.0, 0.5, 0.14, ((1, 1.0), (2.76, 0.25))), 0.13, 0.35)
+    return y
+
+
+def job_good():
+    """お会計がうまくいった：明るく上がる 2 音（ポロン）。"""
+    y = np.zeros(int(SR * 0.5))
+    for i, f in enumerate((1318.5, 1975.5)):
+        place(y, tone(f, 0.32, 0.08, BELL), i * 0.075, 1.0 - i * 0.15)
+    return y
+
+
+def job_miss():
+    """ミス：低く下がる、やわらかいブブー（責めすぎない短さ）。"""
+    sec = 0.38
+    x = t(sec)
+    f = 220 - 70 * (x / sec)
+    ph = 2 * np.pi * np.cumsum(f) / SR
+    y = (np.sign(np.sin(ph)) * 0.4 + np.sin(ph) * 0.6) * np.exp(-x / 0.18)
+    return lowpass(y, 1800)
+
+
+def job_end():
+    """バイト終了：上がっていく 4 音と、最後の和音。"""
+    y = np.zeros(int(SR * 1.3))
+    notes = (783.99, 987.77, 1174.66, 1567.98)
+    for i, f in enumerate(notes):
+        place(y, tone(f, 0.4, 0.1, BELL), i * 0.09, 0.8)
+    for f in (1174.66, 1567.98, 1975.53):
+        place(y, tone(f, 0.9, 0.32, BELL), 0.4, 0.45)
+    return lowpass(y, 6000)
+
+
 if __name__ == "__main__":
     save("door_chime", door_chime(), 0.75, fade=0.15)
     save("door_slide", door_slide(), 0.55)
@@ -203,3 +244,7 @@ if __name__ == "__main__":
     save("coins", coins(), 0.7, fade=0.06)
     save("receipt", receipt(), 0.5)
     save("bag", bag(), 0.6)
+    save("timecard", timecard(), 0.75, fade=0.1)
+    save("job_good", job_good(), 0.7, fade=0.08)
+    save("job_miss", job_miss(), 0.6, fade=0.06)
+    save("job_end", job_end(), 0.75, fade=0.2)
