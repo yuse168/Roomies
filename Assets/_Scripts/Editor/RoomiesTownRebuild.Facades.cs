@@ -64,13 +64,17 @@ internal static partial class RoomiesTownRebuild
     static IEnumerable<Facade> Facades()
     {
         // CORNER STORE：正面（+z 向き）。1階は5区画（真ん中が扉）、2階は部屋の窓
-        var corner = new Facade { name = "CORNER STORE front", wall = "wall_corner", frame = "frame_corner", origin = new Vector3(18.6f, 0, -8.7f), yaw = 0, width = 15f, height = 5.38f };
-        Storefront(corner, 5, .5f, 2, 3.7f, 4.95f);
-        yield return corner;
+        // （2026/11/24 から、CORNER STORE はコンビニとして Roomies/Store/1 Build Building が建てる。StoreBuiltSeparately の間は作らない）
+        if (!StoreBuiltSeparately)
+        {
+            var corner = new Facade { name = "CORNER STORE front", wall = "wall_corner", frame = "frame_corner", origin = new Vector3(18.6f, 0, -8.7f), yaw = 0, width = 15f, height = 5.38f };
+            Storefront(corner, 5, .5f, 2, 3.7f, 4.95f);
+            yield return corner;
+        }
         var cornerSide = new Facade { name = "CORNER STORE west side", wall = "wall_corner", frame = "frame_corner", origin = new Vector3(18.6f, 0, -18.7f), yaw = -90, width = 10f, height = 5.9f, thick = .2f };
         foreach (float x in new[] { 2.2f, 5f, 7.8f }) cornerSide.openings.Add(new Opening(x - .65f, x + .65f, 3.7f, 4.95f, Kind.Window, x < 4 ? "glass_home_dark" : "glass_home_lit"));
         cornerSide.openings.Add(new Opening(6.9f, 8.7f, .9f, 2.4f, Kind.Window, "glass_shop"));
-        yield return cornerSide;
+        if (!StoreBuiltSeparately) yield return cornerSide;
 
         // NEIGHBORHOOD WORKS：正面。1階は5区画（2番目が扉）、上は小さな明かり取り
         var works = new Facade { name = "NEIGHBORHOOD WORKS front", wall = "wall_works", frame = "frame_works", origin = new Vector3(-14.1f, 0, -9.2f), yaw = 0, width = 12f, height = 4.38f };
@@ -228,7 +232,7 @@ internal static partial class RoomiesTownRebuild
             var go = new GameObject(name) { isStatic = true }; go.transform.SetParent(host, false);
             var c = go.AddComponent<BoxCollider>(); c.center = (min + max) / 2; c.size = max - min;
         }
-        Body("CORNER STORE body", new Vector3(18.4f, 0, -18.7f), new Vector3(33.6f, 6f, -8.7f));
+        if (!StoreBuiltSeparately) Body("CORNER STORE body", new Vector3(18.4f, 0, -18.7f), new Vector3(33.6f, 6f, -8.7f));
         Body("NEIGHBORHOOD WORKS body", new Vector3(-14.1f, 0, -18.2f), new Vector3(-2.1f, 5f, -9.2f));
     }
 

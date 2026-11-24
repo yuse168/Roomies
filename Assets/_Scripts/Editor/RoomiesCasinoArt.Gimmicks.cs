@@ -239,11 +239,14 @@ internal static partial class RoomiesCasinoArt
     });
 
     // ================================================================ 店の人（Bob とは別のキャラ。丸い体・短い手・単純な目）
-    internal static Mesh Clerk() => Build("clerk", lp =>
+    internal static Mesh Clerk() => Clerk("clerk", "purple_dark", "felt", "felt_dark");
+
+    /// <summary>店の人（制服の色と、ひさしの色を変えられる。key は形の名前）。カジノは Clerk()、コンビニは制服をさんご色にした物。</summary>
+    internal static Mesh Clerk(string key, string vest, string visor, string visorDark) => Build(key, lp =>
     {
         // 体：下からズボン・ベスト・顔
         lp.Lathe(new[] { (.22f, 0f), (.36f, .08f), (.44f, .38f), (.45f, .72f), (.42f, 1.0f), (.34f, 1.24f), (.2f, 1.4f), (0f, 1.46f) }, 10,
-            b => b == 0 ? "ink" : b <= 2 ? "purple_dark" : "teal_pale", Mathf.PI / 10, false, true);
+            b => b == 0 ? "ink" : b <= 2 ? vest : "teal_pale", Mathf.PI / 10, false, true);
         // シャツの前とボタン、蝶ネクタイ
         lp.Box(new Vector3(-.1f, .42f, .4f), new Vector3(.1f, .78f, .455f), "white");
         foreach (float y in new[] { .5f, .62f }) lp.Box(new Vector3(-.02f, y, .455f), new Vector3(.02f, y + .04f, .47f), "gold");
@@ -261,9 +264,9 @@ internal static partial class RoomiesCasinoArt
             lp.Box(new Vector3(x * 1.75f - .035f, 1.0f, .37f), new Vector3(x * 1.75f + .035f, 1.04f, .4f), "pink_pale");
         }
         // 緑のひさし（サンバイザー）
-        lp.Lathe(new[] { (.37f, 1.3f), (.37f, 1.36f), (.3f, 1.4f) }, 10, "felt", Mathf.PI / 10, true);
+        lp.Lathe(new[] { (.37f, 1.3f), (.37f, 1.36f), (.3f, 1.4f) }, 10, visor, Mathf.PI / 10, true);
         lp.Push(new Vector3(0, 1.3f, .2f), new Vector3(12, 0, 0));
-        lp.Prism(Offset(Ellipse(.36f, .26f, 8), new Vector2(0, .16f)), 0, .03f, "felt_dark", "felt", true);
+        lp.Prism(Offset(Ellipse(.36f, .26f, 8), new Vector2(0, .16f)), 0, .03f, visorDark, visor, true);
         lp.Pop();
         // 短い手
         foreach (float s in new[] { -1f, 1f })

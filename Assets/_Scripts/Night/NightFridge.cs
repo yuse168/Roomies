@@ -113,6 +113,30 @@ public class NightFridge : HomeAppliance
         Announce("食材を買い込んだ", "次の食費はこれでしのげる。", NightEventManager.StyleFun);
     }
 
+    // ---- コンビニのレジから（2026/11/24）。決まりは、冷蔵庫の前で E を押して補充するときと同じ ----
+
+    /// <summary>食材を入れられない理由。</summary>
+    public enum StockBlock { None, NotNight, Broken, AlreadyStocked }
+
+    /// <summary>いま食材を入れられるか（入れられないときは、その理由）。どの画面でも読める（夜・故障・在庫は全員に届いている値）。</summary>
+    public StockBlock CurrentStockBlock =>
+        !IsNight ? StockBlock.NotNight : broken.Value ? StockBlock.Broken : stocked.Value ? StockBlock.AlreadyStocked : StockBlock.None;
+
+    /// <summary>食材 1 回分の値段（冷蔵庫の前で補充するときと同じ）。</summary>
+    public int StockCost => stockCost;
+
+    /// <summary>
+    /// コンビニで代金を払い終えた食材を入れる（サーバーのみ）。お金はレジの側が払う（同じ値段・同じ理由）。
+    /// 入れられないとき（夜でない・壊れている・入っている）は false。
+    /// </summary>
+    public bool ServerStockBought()
+    {
+        if (!IsServer || CurrentStockBlock != StockBlock.None) return false;
+        stocked.Value = true;
+        OpenDoorRpc();
+        return true;
+    }
+
     /// <summary>食費イベントから呼ぶ。在庫があれば使い切って true を返す（サーバーのみ）。</summary>
     public bool ServerConsumeStock()
     {

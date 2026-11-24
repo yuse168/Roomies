@@ -367,8 +367,10 @@ internal static partial class RoomiesTownRebuild
     static IEnumerable<Rooftop> Rooftops()
     {
         // 外形は Demo の箱（pCube1/3/4）。正面（+z）は外壁が厚くなった分だけ前に出ている
-        yield return new Rooftop { name = "CORNER STORE", wall = "wall_corner", x0 = 18.6f, x1 = 33.6f, z0 = -18.7f, z1 = -8.46f, top = 6f, frontOut = .55f, tank = true, hatch = true,
-            units = new[] { (.25f, .35f, 1.3f, .9f), (.42f, .35f, 1.3f, .9f), (.75f, .6f, 1.6f, 1.1f) } };
+        // CORNER STORE の屋上は、コンビニの建物の側（Roomies/Store/1 Build Building）
+        if (!StoreBuiltSeparately)
+            yield return new Rooftop { name = "CORNER STORE", wall = "wall_corner", x0 = 18.6f, x1 = 33.6f, z0 = -18.7f, z1 = -8.46f, top = 6f, frontOut = .55f, tank = true, hatch = true,
+                units = new[] { (.25f, .35f, 1.3f, .9f), (.42f, .35f, 1.3f, .9f), (.75f, .6f, 1.6f, 1.1f) } };
         yield return new Rooftop { name = "NEIGHBORHOOD WORKS", wall = "wall_works", x0 = -14.1f, x1 = -2.1f, z0 = -18.2f, z1 = -8.96f, top = 5f, parapet = .6f, frontOut = .5f, hatch = true,
             units = new[] { (.3f, .4f, 1.2f, .9f), (.66f, .3f, 1.2f, .9f) } };
         yield return new Rooftop { name = "ROOMIES EXPRESS", wall = "wall_express", x0 = -32.4f, x1 = -18.5f, z0 = -20.2f, z1 = -9.2f, top = 10.2f, parapet = .8f, frontOut = .35f, tank = true,

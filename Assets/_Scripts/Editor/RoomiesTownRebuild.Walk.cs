@@ -19,7 +19,8 @@ internal static partial class RoomiesTownRebuild
         ("road", new[] { new Vector2(-38, 0), new Vector2(38, 0) }, true),
         ("CORNER STORE front apron", new[] { new Vector2(19.3f, -7.6f), new Vector2(33f, -7.6f) }, true),
         ("NEIGHBORHOOD WORKS front apron", new[] { new Vector2(-13.5f, -8.1f), new Vector2(-2.5f, -8.1f) }, true),
-        ("CORNER STORE door (body is solid)", new[] { new Vector2(26.1f, -6f), new Vector2(26.1f, -9.5f) }, false),
+        // 2026/11/24 から、コンビニの中に入れる（自動ドアのとびらには当たり判定がない）
+        ("CORNER STORE door (walk into the store)", new[] { new Vector2(26.1f, -6f), new Vector2(26.1f, -10.6f) }, true),
         ("EXPRESS loading dock", new[] { new Vector2(-27.5f, -5.5f), new Vector2(-27.5f, -17.2f) }, true),
         ("gap between WORKS and EXPRESS", new[] { new Vector2(-16.3f, -5.5f), new Vector2(-16.3f, -21f) }, true),
         ("gap between arcade and CORNER", new[] { new Vector2(17.6f, -5.5f), new Vector2(17.6f, -21f) }, true),

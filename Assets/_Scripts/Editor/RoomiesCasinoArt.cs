@@ -51,6 +51,19 @@ internal static partial class RoomiesCasinoArt
         ("lamp_under", "AD854F"),
         // 吹き出しの板（光る面。夜の外でも読めるように自分で光らせる。2.6 倍で光らせるとクリーム色になる暗さ）
         ("bubble_glow", "A19C8F"),
+        // ---- コンビニ（2026/11/24）。店の色はさんご色・クリーム・墨色（実在の店の色の組み合わせは使わない）
+        ("coral", "E06A52"), ("coral_dark", "A8432F"), ("coral_pale", "F2A895"), ("store_cream", "F4ECDA"),
+        ("steel", "C3C7CD"), ("steel_dark", "6E747E"), ("shelf_white", "EDEBE6"),
+        // 商品の色
+        ("rice", "F6F2E8"), ("nori", "1F2B25"), ("bread", "D99A52"), ("bread_dark", "A86A32"), ("bento_lid", "D6E4E7"),
+        ("veg_green", "6DAA4B"), ("egg", "F4CE4A"), ("salmon", "F08A6B"), ("milk_white", "F7F7F2"),
+        ("label_blue", "3D78C9"), ("label_red", "D8433E"), ("label_yellow", "F2C230"), ("label_green", "48A05A"),
+        ("label_orange", "F08A2E"), ("label_purple", "8A5AC4"), ("label_sky", "7CC3E8"), ("tea", "B5782F"),
+        ("ice_pink", "F4A6C0"), ("ice_choc", "6B4A35"),
+        // 光る面：天井の明かり（2.6 倍で白に近い）、冷蔵ケースの中（少し青い白）、看板の板（クリーム）、レジの読み取りの光（赤）
+        ("panel_glow", "B9B8B2"), ("cooler_glow", "93A9B4"), ("sign_glow", "C9C2B2"), ("scan_glow", "C0302B"),
+        // 店の天井（少しだけ光る白。天井には明かりの光がほとんど届かないので、自分で光らせて明るい天井に見せる）
+        ("ceiling_glow", "5C5C59"),
     };
     const int SwatchCell = 32, SwatchCols = 16;
     static readonly RectInt SwatchBlock = new RectInt(1036, 1500, 512, 256);   // アトラスの中の場所（左上が原点の px）
@@ -385,6 +398,14 @@ internal static partial class RoomiesCasinoArt
         /// <summary>true の間は、箱の角を丸めず、柱の上の角も落とさない（伸ばして使う箱・薄い板・絵を貼る面のまわり用）。</summary>
         public bool Sharp;
 
+        /// <summary>
+        /// true の間は、軽い形にする（棚にたくさん並ぶ小さな商品用。2026/11/24）：丸い物は 6 角、箱と柱の角は丸めない、クッションはふくらませない。
+        /// 手に取ったときに飛ぶ物など、近くで 1 つだけ見る物には使わない。
+        /// </summary>
+        public bool Lite;
+
+        int Sides(int sides) => Lite ? 6 : RoundSides(sides);
+
         /// <summary>このあと置く形を、移して回す（Pop で戻す）。入れ子にできる。</summary>
         public void Push(Vector3 position, Vector3 euler = default, Vector3? scale = null)
         {
@@ -426,7 +447,7 @@ internal static partial class RoomiesCasinoArt
             Vector2 u = Sw(color);
             Vector3 h = new Vector3(Mathf.Abs(size.x), Mathf.Abs(size.y), Mathf.Abs(size.z)) * .5f;
             float shortest = Mathf.Min(h.x, Mathf.Min(h.y, h.z)) * 2f;
-            float r = Sharp || shortest < .012f ? 0f : Mathf.Min(shortest * .22f, .025f);
+            float r = Sharp || Lite || shortest < .012f ? 0f : Mathf.Min(shortest * .22f, .025f);
             Vector3 W(Vector3 local) => center + rot * local;
 
             if (r <= 0f)
@@ -492,7 +513,7 @@ internal static partial class RoomiesCasinoArt
             float reach = float.MaxValue;
             foreach (var p in poly) reach = Mathf.Min(reach, (p - c2).magnitude);
             float height = Mathf.Abs(y1 - y0);
-            float bevel = Sharp || !Mathf.Approximately(topScale, 1f) || height < .015f ? 0f : Mathf.Min(.02f, Mathf.Min(height * .3f, reach * .25f));
+            float bevel = Sharp || Lite || !Mathf.Approximately(topScale, 1f) || height < .015f ? 0f : Mathf.Min(.02f, Mathf.Min(height * .3f, reach * .25f));
             float inset = bevel > 0f ? 1f - bevel / Mathf.Max(reach, 1e-4f) : 1f;
             float yEdge = y1 - Mathf.Sign(y1 - y0) * bevel;
             Vector3 Edge(Vector2 p) => new Vector3(p.x + topShift.x, yEdge, p.y + topShift.y);
@@ -551,6 +572,7 @@ internal static partial class RoomiesCasinoArt
         /// <summary>ふっくらしたクッション（下は少し絞り、上の角は大きく丸め、真ん中が盛り上がる）。</summary>
         public void Cushion(Vector2[] poly, float y0, float y1, string color, string topColor = null, bool bottom = false)
         {
+            if (Lite) { Prism(poly, y0, y1, color, topColor, bottom); return; }
             float h = y1 - y0;
             Loft(poly, new[] { (y0, .94f), (y0 + h * .2f, 1f), (y0 + h * .55f, 1f), (y0 + h * .82f, .95f), (y1, .8f) }, color, topColor, bottom, h * .12f);
         }
@@ -589,7 +611,7 @@ internal static partial class RoomiesCasinoArt
         public void Lathe((float r, float y)[] rings, int sides, Func<int, string> colorOfBand, float phase = 0, bool capTop = true, bool capBottom = false, bool glow = false)
         {
             int capSides = sides;                 // ふたは Cap の中で同じ数に増える
-            sides = RoundSides(sides);
+            sides = Sides(sides);
             Vector3 R(float r, float y, float a) => new Vector3(Mathf.Cos(a) * r, y, Mathf.Sin(a) * r);
             for (int b = 0; b < rings.Length - 1; b++)
             {
@@ -637,7 +659,7 @@ internal static partial class RoomiesCasinoArt
         public void Cap(float r, float y, int sides, string color, bool up, float phase = 0, bool glow = false)
         {
             if (r <= 1e-5f) return;
-            sides = RoundSides(sides);
+            sides = Sides(sides);
             Vector2 u = Sw(color);
             var c = new Vector3(0, y, 0);
             for (int k = 0; k < sides; k++)

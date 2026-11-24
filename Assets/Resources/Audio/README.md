@@ -84,6 +84,23 @@
 | `casino/slot_coin` | コイン 1 枚 | 当たりでコインが噴き出すたび |
 | `casino/slot_tick` | 数字が回る | 払い出しの数字が 1 目盛り進むたび |
 
+## コンビニ（`store/`）
+
+計算で作った音（録音や外部の素材は使っていない）。作り直すときは、プロジェクト直下で
+`python ArtSource/Store/Audio/make_store_sfx.py`。入店のチャイムはオリジナルの 2 音（実在の店のメロディーはまねしない）。
+
+| 置き場所 | 用途 | 鳴るタイミング |
+|---|---|---|
+| `store/door_chime` | 入店のチャイム | 自動ドアが開いたとき |
+| `store/door_slide` | 自動ドアが動く | 開くとき・閉まるとき |
+| `store/pick` `store/putback` | 商品を手に取る・戻す | 棚を見て E・R |
+| `store/basket_full` | カゴがいっぱい | 3 つ目を入れたとき |
+| `store/putdown` | カウンターに置く | お会計で商品が並ぶとき |
+| `store/scan` | 読み取り（ピッ） | 商品が読み取りの台を通るとき |
+| `store/tick` | 金額が回る | 1 つ読み取って、金額が止まったとき |
+| `store/register` `store/coins` `store/receipt` | 引き出し・おつり・レシート | 支払ったとき |
+| `store/bag` | レジ袋 | 袋に入れる・袋が滑ってくる・受け取るとき |
+
 ## 足音の材質ごとの違い
 
 足音の素材は1つのまま、`Resources/Audio/FootstepSurfaces.asset` で

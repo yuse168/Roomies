@@ -13,7 +13,7 @@ using UnityEngine.Rendering.Universal;
 ///   Roomies/Casino/Demo/Capture Blackjack Frames … 本当に 4 回遊んで撮る（お金が動く。確認のときはセーブの控えを取ること）
 /// 写真は Temp/RoomiesCasino/frames/ の下。終わると done.txt を書く。ゲームには何も残さない。
 /// </summary>
-internal static class RoomiesCasinoDemo
+internal static partial class RoomiesCasinoDemo
 {
     const string OutDir = "Temp/RoomiesCasino/frames";
     const int Width = 960, Height = 540;

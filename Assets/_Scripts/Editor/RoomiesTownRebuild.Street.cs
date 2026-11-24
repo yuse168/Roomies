@@ -58,6 +58,8 @@ internal static partial class RoomiesTownRebuild
             ("NEIGHBORHOOD WORKS", 5.05f, -8.96f, new[] { -11.0f, -5.2f }),
         })
         {
+            // CORNER STORE の看板の灯具と正面の光は、コンビニの建物の側（Roomies/Store/1 Build Building）
+            if (shop == "CORNER STORE" && StoreBuiltSeparately) continue;
             foreach (float x in xs) Gooseneck(g, new Vector3(x, y, front));
             float cx = xs.Average();
             SpotLight(g, "Shop light - " + shop, new Vector3(cx, y + 1.4f, front + 3.2f), new Vector3(cx, y - 2.4f, front), 7f, 11f, 115f, LampColor);

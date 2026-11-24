@@ -121,6 +121,12 @@ internal static partial class RoomiesMaterialFinishBuilder
             case "bottle_red": return V(Tpl.Emissive, C(.7f, .1f, .15f), v => v.SetColor("_EmissionColor", new Color(.7f, .1f, .15f) * .5f));
             // カジノ（3 階建て・木とレンガの見た目。2026/11/23）
             case "casino_brick": return V(Tpl.Brick, C(.60f, .30f, .22f));
+            // コンビニ（2026/11/24）：外と中の塗り壁（あたたかいクリーム）、床のタイル（明るい灰）、天井（白）、看板の帯（さんご色）
+            case "store_wall": return V(Tpl.Plaster, C(.90f, .85f, .76f));
+            case "store_floor": return V(Tpl.Ceramic, C(.80f, .79f, .76f), v => v.SetFloat("_Smoothness", .45f));
+            // 天井は、明かりの光が届きにくいので、少しだけ自分で光らせる（実際の店の明るい天井に近づける）
+            case "store_ceiling": return V(Tpl.Plaster, C(.93f, .93f, .91f), v => { v.EnableKeyword("_EMISSION"); v.SetColor("_EmissionColor", new Color(.42f, .42f, .41f)); });
+            case "store_coral": return V(Tpl.PaintedMetal, C(.95f, .50f, .38f));
             case "casino_timber": return V(Tpl.Wood, C(.30f, .20f, .17f));
             case "casino_wainscot": return V(Tpl.Wood, C(.47f, .31f, .23f));
             case "casino_plaster": return V(Tpl.Plaster, C(.72f, .66f, .54f));

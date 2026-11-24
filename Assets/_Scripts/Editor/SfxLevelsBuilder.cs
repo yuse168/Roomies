@@ -110,6 +110,19 @@ internal static class SfxLevelsBuilder
         ("casino/slot_coin", 0.45f),
         ("casino/slot_tick", 0.35f),
         ("casino/chips_slide", 0.55f),
+        // コンビニ（計算で作った音。ArtSource/Store/Audio/make_store_sfx.py）
+        ("store/door_chime", 0.50f),
+        ("store/door_slide", 0.35f),
+        ("store/pick", 0.55f),
+        ("store/putback", 0.45f),
+        ("store/basket_full", 0.50f),
+        ("store/putdown", 0.50f),
+        ("store/scan", 0.45f),
+        ("store/tick", 0.30f),
+        ("store/register", 0.55f),
+        ("store/coins", 0.50f),
+        ("store/receipt", 0.40f),
+        ("store/bag", 0.50f),
     };
 
     [MenuItem("Roomies/Audio/Rebuild Sfx Levels")]

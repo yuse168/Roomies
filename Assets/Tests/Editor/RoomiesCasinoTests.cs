@@ -214,6 +214,79 @@ public class RoomiesCasinoTests
     }
 
     [Test]
+    public void StorePrefabsAreWired()
+    {
+        // 売り場：売り場 8 つ（種類 0〜7 が 1 つずつ）。見て E を押す所は Visual の外。動かす物も Visual の外
+        Component shop = LoadComponent("Assets/_Prefabs/Store/StoreShop.prefab", "StoreShop");
+        var sections = Field<Array>(shop, "sections");
+        Assert.That(sections.Length, Is.EqualTo(8));
+        var kinds = new System.Collections.Generic.HashSet<int>();
+        foreach (object sec in sections)
+        {
+            var c = (Collider)sec.GetType().GetField("collider").GetValue(sec);
+            var anchor = (Transform)sec.GetType().GetField("anchor").GetValue(sec);
+            Assert.That(c, Is.Not.Null); Assert.That(anchor, Is.Not.Null);
+            Assert.That(c.transform.parent, Is.SameAs(shop.transform), "売り場の当たり判定はルートの直下（Visual の外）");
+            Assert.That(c.name, Does.StartWith("Pick_"));
+            kinds.Add((int)sec.GetType().GetField("kind").GetValue(sec));
+        }
+        Assert.That(kinds.Count, Is.EqualTo(8), "売っている物の種類が 1 つずつ");
+        Assert.That(Field<Collider>(shop, "registerCollider"), Is.Not.Null);
+        foreach (string slots in new[] { "flySlots", "counterItems" })
+        {
+            var arr = Field<Array>(shop, slots);
+            Assert.That(arr.Length, Is.EqualTo(Field<int>(shop, "itemsPerSet")), slots);
+            foreach (object slot in arr)
+            {
+                var pivot = (Transform)slot.GetType().GetField("pivot").GetValue(slot);
+                var k = (GameObject[])slot.GetType().GetField("kinds").GetValue(slot);
+                Assert.That(pivot.parent, Is.SameAs(shop.transform), "動かす軸はルートの直下");
+                Assert.That(pivot.name, Does.StartWith("Pivot_"));
+                Assert.That(k.Length, Is.EqualTo(8));
+                Assert.That(pivot.gameObject.activeSelf, Is.False, "ふだんは隠してある");
+            }
+        }
+        foreach (string pivot in new[] { "bagPivot", "drawerPivot", "receiptPivot" })
+        {
+            var t = Field<Transform>(shop, pivot);
+            Assert.That(t, Is.Not.Null, pivot);
+            Assert.That(t.parent, Is.SameAs(shop.transform), pivot);
+        }
+        Assert.That(shop.transform.Find("Visual"), Is.Not.Null);
+        Assert.That(shop.transform.Find("Visual").GetComponentsInChildren<MonoBehaviour>(true).Length, Is.Zero, "Visual の中にスクリプトがない");
+        // 値段は冷蔵庫の補充と同じ（店の側には値段を持たない）。合計を分けても合計は変わらない
+        var split = (int[])GameType("StoreShop").GetMethod("SplitPrice").Invoke(null, new object[] { 300, 3 });
+        Assert.That(split, Is.EqualTo(new[] { 100, 100, 100 }));
+        var odd = (int[])GameType("StoreShop").GetMethod("SplitPrice").Invoke(null, new object[] { 301, 3 });
+        Assert.That(odd.Sum(), Is.EqualTo(301));
+        // 自動ドア：左右のとびらの軸と、感知の位置
+        Component door = LoadComponent("Assets/_Prefabs/Store/StoreDoor.prefab", "StoreAutoDoor");
+        foreach (string f in new[] { "leftDoor", "rightDoor", "sensor" }) Assert.That(Field<Transform>(door, f), Is.Not.Null, f);
+        Assert.That(door.GetComponentsInChildren<Collider>(true).Length, Is.Zero, "とびらに当たり判定はない（通れなくならないように）");
+        // 店の人：鍵は売らず、話すだけ。吹き出しがある
+        Component clerk = LoadComponent("Assets/_Prefabs/Store/StoreClerk.prefab", "CasinoClerk");
+        Assert.That(Field<int>(clerk, "sellsFloor"), Is.Zero);
+        Assert.That(Field<Component>(clerk, "bubble"), Is.Not.Null);
+        Assert.That(Field<string[]>(clerk, "smallTalk").Length, Is.GreaterThanOrEqualTo(6));
+    }
+
+    [Test]
+    public void EveryStoreSoundUsedInCodeHasAFileAndALevel()
+    {
+        var keys = new System.Collections.Generic.SortedSet<string>();
+        foreach (string file in System.IO.Directory.GetFiles("Assets/_Scripts/Store", "*.cs", System.IO.SearchOption.AllDirectories))
+            foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(System.IO.File.ReadAllText(file), "\"(store/[a-z_0-9]+)\""))
+                keys.Add(m.Groups[1].Value);
+        Assert.That(keys.Count, Is.GreaterThanOrEqualTo(10));
+        string levels = System.IO.File.ReadAllText("Assets/Resources/Audio/SfxLevels.asset");
+        foreach (string key in keys)
+        {
+            Assert.That(Resources.Load<AudioClip>("Audio/" + key), Is.Not.Null, "音のファイルが無い: " + key);
+            Assert.That(levels, Does.Contain(key), "音量の表（SfxLevels）に行が無い: " + key);
+        }
+    }
+
+    [Test]
     public void ChinchiroHandsAreRecognised()
     {
         Type rules = GameType("ChinchiroRules");

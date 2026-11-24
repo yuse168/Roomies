@@ -105,7 +105,10 @@ internal static partial class RoomiesCasinoBuilder
         }
         sb.AppendLine($"bounds: checked {boundsChecked}, wrong {boundsBad}.  LODGroups in the building: {lodGroups}.  shadow-casting tris: {shadowTris}");
         sb.AppendLine();
-        foreach (string path in new[] { SlotBasePath, BlackjackBasePath, RoulettePath, ElevatorPath, ClerkPath })
+        // コンビニ（建物のグループと、売り場・自動ドア・店の人のプレハブ）
+        var storeGroup = town.transform.Find(RoomiesTownRebuild.StoreGroup);
+        if (storeGroup != null) Count(RoomiesTownRebuild.StoreGroup, storeGroup.gameObject);
+        foreach (string path in new[] { SlotBasePath, BlackjackBasePath, RoulettePath, ElevatorPath, ClerkPath, StoreShopPath, StoreDoorPath, StoreClerkPath })
         {
             var p = AssetDatabase.LoadAssetAtPath<GameObject>(path);
             if (p != null) Count(System.IO.Path.GetFileNameWithoutExtension(path) + ".prefab", p);
