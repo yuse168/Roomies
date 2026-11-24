@@ -1,5 +1,19 @@
 # PROGRESS.md
 
+## 2026/11/24｜コンビニ：レジの裏の棚にラベルを貼る／ポスターを専用のテクスチャにする／EditMode の後始末を直す
+
+- レジの裏の棚（入口の左から見える棚と同じ物）：色の棒だった小物を、届いた 24 枚のラベルの使い回しに替えた
+  （上の段：小さいボトル、中：小さいカップめん、下：お菓子のラベルの小箱）。新しい絵は増やしていない。数が多いので軽い形（`lp.Lite`）
+- ポスター 2 枚：アトラス（210×280）から外して、専用の 1 枚にした。`ArtSource/Store/make_store_art.py` が `atlas/store_posters.png`
+  （1024×1024 に 512×683 を左右 2 枚）を作り、`Roomies/Store/1 Build Building` が `Assets/_Art/Store/store_posters.png` に写す
+  （最大 1024・ミップマップ・トライリニア・異方性 8・高品質の圧縮）。マテリアルは `Assets/_Materials/Store/store_posters.mat` の 1 個だけふえた。
+  ポスターは「台紙（アトラスの色）」と「絵の面（専用のマテリアル）」の 2 つに分けた（`StorePoster`・`StorePosterFace`・`StorePosterMaterial`）
+- `RoomiesRegressionTests` の後始末：`NetworkManager.Shutdown` が残った NetworkObject を `Object.Destroy` で消し、EditMode のエラーのログで
+  13 件が落ちることがあった（Play Mode のあとに続けて回したとき）。Shutdown の前に「消さずに」Despawn して、あとで DestroyImmediate するようにした
+- 確認：コンビニの確認 31 項目 OK、1 人での通し確認 133 項目 OK（Play Mode のたびにセーブの控えを取って戻した。ハッシュ一致）、
+  EditMode 270 件・失敗 0（2 回続けて）。同じ角度の写真で、裏の棚のラベルと、ポスターの文字がくっきりしたことを見た
+- 未確認：2 人での確認、音
+
 ## 2026/11/24｜コンビニ：Codex の絵 24 枚を、商品・看板・ポスター・のぼりに貼る
 
 - 届いた 24 枚（`D:\\TK230088\\Leica\\brain\\tmp_roomies_store_art_20261124`）を `ArtSource/Store/codex/` に置いた。透明のある 4 枚（店の印・おにぎり・お弁当 2 枚）は、ふちを直した 15:25 の物を使った

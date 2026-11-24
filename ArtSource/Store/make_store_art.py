@@ -56,5 +56,24 @@ def main():
         print(name, small.size)
 
 
+POSTER_SHEET = os.path.join(OUT, "store_posters.png")
+POSTER_SIZE = (512, 683)       # 1 枚の大きさ（元の 768×1024 の 2/3）。1024×1024 の 1 枚に、左右に 2 枚並べる（上は余白）
+
+
+def make_poster_sheet():
+    """ポスター 2 枚だけの 1 枚（近くで見てもくっきりするように、アトラスとは別にする）。Unity の側は Assets/_Art/Store/store_posters.png に写す。"""
+    sheet = Image.new("RGB", (1024, 1024), (244, 236, 218))
+    for i in range(2):
+        p = os.path.join(SRC, f"poster_{i + 1}.png")
+        if not os.path.exists(p):
+            print("missing", p)
+            continue
+        img = Image.open(p).convert("RGB").resize(POSTER_SIZE, Image.LANCZOS)
+        sheet.paste(img, (i * 512, 1024 - POSTER_SIZE[1]))
+    sheet.save(POSTER_SHEET)
+    print("store_posters", sheet.size)
+
+
 if __name__ == "__main__":
     main()
+    make_poster_sheet()

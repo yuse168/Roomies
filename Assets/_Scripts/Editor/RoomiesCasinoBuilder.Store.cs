@@ -77,8 +77,12 @@ internal static partial class RoomiesCasinoBuilder
             Put("Partition", Art.Build("store_partition", lp => lp.Box(new Vector3(-.075f, 0, -2.175f), new Vector3(.075f, 2.6f, 2.175f), "store_cream")), new Vector3(2.575f, 0, -2.575f));
             Put("Staff door", Art.StoreStaffDoor(), new Vector3(2.49f, 0, -2.2f), -90);
             // 仕切りのポスター（売り場の側を向く。Codex の絵）
-            Put("Poster meat buns", Art.StorePoster(.6f, .8f, 0), new Vector3(2.494f, 1.25f, -.95f), -90);
-            Put("Poster ice", Art.StorePoster(.6f, .8f, 1), new Vector3(2.494f, 1.25f, -3.55f), -90);
+            var posterMat = Art.StorePosterMaterial();
+            foreach (var (name, z, img) in new[] { ("meat buns", -.95f, 0), ("ice", -3.55f, 1) })
+            {
+                Put("Poster board " + name, Art.StorePoster(.6f, .8f), new Vector3(2.494f, 1.25f, z), -90);
+                Put("Poster " + name, Art.StorePosterFace(.6f, .8f, img), new Vector3(2.494f, 1.25f, z), -90, posterMat);
+            }
             Put("Register", Art.StoreRegister(), new Vector3(5.2f, StoreCounterH, 1.25f));
             Put("Scanner", Art.StoreScanner(), new Vector3(6.05f, StoreCounterH, 1.45f));
             Put("Hot case", Art.StoreHotCase(), new Vector3(3.3f, StoreCounterH, 1.25f));

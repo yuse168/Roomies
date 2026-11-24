@@ -190,6 +190,7 @@
 - コンビニ（2026/11/24。CORNER STORE。平屋の、中に入れる店） … `Roomies/Store/1 Build Building`（建物。町のプレハブの「Town store」。`RoomiesTownRebuild.Store.cs`）・
   `2 Build Gimmick Prefabs`（`Assets/_Prefabs/Store/` の `StoreShop`・`StoreDoor`・`StoreClerk`。`RoomiesCasinoBuilder.Store.cs`）・`3 Place In Open Scene`（2 のあとに実行）。
   形と色は `RoomiesCasinoArt.Store.cs`（カジノと同じ道具・アトラス・マテリアル。店の色はさんご色・クリーム・墨色。実在の店の色・ロゴはまねしない）。
+  絵は `ArtSource/Store/`（Codex の 24 枚。説明は同じフォルダの README.md）。ポスター 2 枚だけは専用のテクスチャとマテリアル（`Assets/_Art/Store/store_posters.png`・`Assets/_Materials/Store/store_posters.mat`）。
   前の店（2 階建ての箱）は、町の作り直しの表から外した（`RoomiesTownRebuild.StoreBuiltSeparately`）。シーンの Demo/pCube1 は表示だけ切っている。
   買える物は「食材 1 回分」だけ（`StoreShop`）。値段と決まりは冷蔵庫の前で補充するときと同じ（`NightFridge.StockCost`・`CurrentStockBlock`・`ServerStockBought`）。
   店の側には値段を持たない。棚を見て E でカゴへ（R で戻す）→ レジで E（お会計・支払う・袋を受け取る）。カゴと段階はサーバーが決めて全員に配り、動きは RPC。

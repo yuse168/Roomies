@@ -495,18 +495,49 @@ internal static partial class RoomiesCasinoArt
         lp.Box(new Vector3(x0, 0, -d / 2), new Vector3(x1, .9f, d / 2), "store_cream");
         lp.Box(new Vector3(x0 - .01f, .9f, -d / 2), new Vector3(x1 + .01f, .94f, d / 2 + .02f), "shelf_white");
         lp.Box(new Vector3(x0, h - .14f, -d / 2), new Vector3(x1, h, d / 2 - .1f), "coral");
-        string[] colors = { "label_blue", "label_red", "label_yellow", "label_green", "label_purple", "label_orange", "label_sky", "milk_white" };
+        // 3 段：小箱（お菓子のラベル）・小さいカップめん・小さいボトル（届いた絵を使い回す）。たくさん並ぶので軽い形
+        Img[] snackArt = { Img.StoreLabelSnack1, Img.StoreLabelSnack2, Img.StoreLabelSnack3, Img.StoreLabelSnack4 };
+        string[] boxColors = { "label_orange", "label_red", "label_yellow", "coral_pale" };
+        lp.Lite = true;
         for (int row = 0; row < 3; row++)
         {
             float y = 1.0f + row * .24f;
             lp.Box(new Vector3(x0 + .03f, y - .015f, -d / 2 + .04f), new Vector3(x1 - .03f, y, -d / 2 + .22f), "shelf_white");
-            for (int i = 0; i < (int)((len - .1f) / .07f); i++)
+            lp.Box(new Vector3(x0 + .03f, y - .035f, -d / 2 + .215f), new Vector3(x1 - .03f, y + .008f, -d / 2 + .225f), "label_yellow");
+            float zc = -d / 2 + .13f;
+            if (row == 0)
             {
-                float x = x0 + .07f + i * .07f;
-                float hh = .08f + (i * 7 + row * 3) % 4 * .02f;
-                lp.Box(new Vector3(x - .025f, y, -d / 2 + .08f), new Vector3(x + .025f, y + hh, -d / 2 + .17f), colors[(i + row * 3) % colors.Length]);
+                int n = (int)((len - .1f) / .07f);
+                for (int k = 0; k < n; k++)
+                {
+                    float x = x0 + .08f + k * .07f;
+                    int v = (k / 2 + 3) % 4;
+                    lp.Box(new Vector3(x - .027f, y, zc - .04f), new Vector3(x + .027f, y + .075f, zc + .04f), boxColors[v]);
+                    lp.FrontImage(new Vector3(x, y + .0375f, zc + .0405f), .054f, .07f, ImageRect(snackArt[v]));
+                }
+            }
+            else if (row == 1)
+            {
+                int n = (int)((len - .1f) / .075f);
+                for (int k = 0; k < n; k++)
+                {
+                    lp.Push(new Vector3(x0 + .08f + k * .075f, y, zc), default, Vector3.one * .78f);
+                    CupNoodle(lp, Vector3.zero, 0, new[] { "label_red", "label_orange", "label_yellow" }[(k / 2) % 3], k / 2);
+                    lp.Pop();
+                }
+            }
+            else
+            {
+                int n = (int)((len - .1f) / .055f);
+                for (int k = 0; k < n; k++)
+                {
+                    lp.Push(new Vector3(x0 + .07f + k * .055f, y, zc), default, Vector3.one * .62f);
+                    Bottle(lp, Vector3.zero, new[] { "label_blue", "label_red", "milk_white" }[k % 3], "label_sky", new[] { "tea", "label_sky", "label_orange" }[(k / 2) % 3], k / 2);
+                    lp.Pop();
+                }
             }
         }
+        lp.Lite = false;
     });
 
     /// <summary>セルフのコーヒーの台（台・機械・カップ）。</summary>
@@ -603,14 +634,50 @@ internal static partial class RoomiesCasinoArt
         lp.FaceImage(Offset(Chamfer(size, size, size * .2f), new Vector2(0, s)), .0262f, ImageRect(Img.StoreStoreLogo), new Rect(-s, 0, size, size));
     });
 
-    /// <summary>ポスター（裏はクリームの紙）。原点は下の真ん中、絵は +Z を向く。</summary>
-    internal static Mesh StorePoster(float w, float h, int img) => Build($"store_poster_{img}_{Mathf.RoundToInt(w * 100)}", lp =>
+    // ---- ポスター（2026/11/24）：近くで見てもくっきりするよう、ポスター 2 枚だけを別のテクスチャにする（1024×1024 に左右 2 枚、512×683）
+    const string PosterTexturePath = "Assets/_Art/Store/store_posters.png";
+    const string PosterSheetSource = "ArtSource/Store/atlas/store_posters.png";
+
+    /// <summary>ポスターの台紙（クリームの紙。アトラスの色）。原点は下の真ん中、+Z が表。絵の面は StorePosterFace で別に置く。</summary>
+    internal static Mesh StorePoster(float w, float h) => Build($"store_poster_board_{Mathf.RoundToInt(w * 100)}", lp =>
     {
         lp.Sharp = true;
         lp.Box(new Vector3(-w / 2 - .015f, -.015f, -.006f), new Vector3(w / 2 + .015f, h + .015f, 0), "store_cream");
-        lp.Sharp = false;
-        lp.FrontImage(new Vector3(0, h / 2, .001f), w, h, ImageRect(img == 0 ? Img.StorePoster1 : Img.StorePoster2));
     });
+
+    /// <summary>ポスターの絵の面（StorePosterMaterial で置く）。img は 0 か 1。</summary>
+    internal static Mesh StorePosterFace(float w, float h, int img) => Build($"store_poster_face_{img}_{Mathf.RoundToInt(w * 100)}", lp =>
+    {
+        const float inset = 2f / 1024f, v1 = 683f / 1024f;
+        var r = new Rect(img * .5f + inset, inset, .5f - inset * 2, v1 - inset * 2);
+        lp.FrontImage(new Vector3(0, h / 2, .001f), w, h, r);
+    });
+
+    /// <summary>ポスター専用のマテリアル（Assets/_Materials/Store/store_posters.mat）。絵は ArtSource/Store/make_store_art.py が作った 1 枚を写す。</summary>
+    internal static Material StorePosterMaterial()
+    {
+        System.IO.Directory.CreateDirectory("Assets/_Art/Store");
+        System.IO.Directory.CreateDirectory("Assets/_Materials/Store");
+        if (System.IO.File.Exists(PosterSheetSource)) CopyIfChanged(PosterSheetSource, PosterTexturePath);
+        var importer = (UnityEditor.TextureImporter)UnityEditor.AssetImporter.GetAtPath(PosterTexturePath);
+        if (importer != null && (importer.maxTextureSize != 1024 || !importer.mipmapEnabled || importer.anisoLevel != 8 || importer.filterMode != FilterMode.Trilinear
+            || importer.wrapMode != TextureWrapMode.Clamp || importer.textureCompression != UnityEditor.TextureImporterCompression.CompressedHQ))
+        {
+            importer.maxTextureSize = 1024; importer.mipmapEnabled = true; importer.anisoLevel = 8; importer.filterMode = FilterMode.Trilinear;
+            importer.wrapMode = TextureWrapMode.Clamp; importer.textureCompression = UnityEditor.TextureImporterCompression.CompressedHQ;
+            importer.SaveAndReimport();
+        }
+        const string path = "Assets/_Materials/Store/store_posters.mat";
+        var mat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (mat == null) { mat = new Material(Shader.Find("Universal Render Pipeline/Lit")); UnityEditor.AssetDatabase.CreateAsset(mat, path); }
+        mat.SetTexture("_BaseMap", UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(PosterTexturePath));
+        mat.SetColor("_BaseColor", Color.white);
+        mat.SetFloat("_Smoothness", .18f); mat.SetFloat("_Metallic", 0);
+        mat.SetFloat("_EnvironmentReflections", 0); mat.EnableKeyword("_ENVIRONMENTREFLECTIONS_OFF");
+        mat.enableInstancing = true;
+        UnityEditor.EditorUtility.SetDirty(mat);
+        return mat;
+    }
 
     /// <summary>のぼり（柱・重り・上の横棒・旗）。旗は両面に絵。原点は柱の足元。旗は柱の -X の側（手前から見て右）に下がり、+Z を向く。</summary>
     internal static Mesh StoreNobori(int img) => Build($"store_nobori_{img}", lp =>

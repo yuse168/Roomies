@@ -123,6 +123,10 @@ public class RoomiesRegressionTests
     [UnityTearDown]
     public IEnumerator TearDown()
     {
+        // Shutdown は残っている NetworkObject を Object.Destroy で消す（EditMode ではエラーのログになる）。先に「消さずに」Despawn しておき、下で DestroyImmediate する
+        if (network != null && network.SpawnManager != null)
+            foreach (var no in new List<NetworkObject>(network.SpawnManager.SpawnedObjectsList))
+                if (no != null && no.IsSpawned) { no.Despawn(false); if (!objects.Contains(no.gameObject)) objects.Add(no.gameObject); }
         if (network != null) network.Shutdown();
         double deadline = EditorApplication.timeSinceStartup + 5;
         while (network != null && network.ShutdownInProgress && EditorApplication.timeSinceStartup < deadline)
