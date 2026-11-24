@@ -1,5 +1,19 @@
 # PROGRESS.md
 
+## 2026/11/24｜制作進捗の動画を撮る道具（今週の変更：カジノ・コンビニ・レジ打ちのバイト）
+
+- 依頼（ゆせさん 21:07「修正したところをメインに。今週もルーミーズの制作進捗確認があるから、動画を撮り直して」）
+- 動画：`D:\TK230088\Leica\research\roomies\20261124_progress\roomies_progress_20261124.mp4`（2 分 53 秒・1920×1080・30fps・音あり）。場面の時間は同じフォルダの `notes.md`
+- 撮る道具（ゲームのコードは変えていない。エディタの道具だけ）：`RoomiesProgressVideo.cs`（録る仕組み）・`RoomiesProgressVideo.Scenes.cs`（場面）。
+  メニュー `Roomies/Video/Test Capture (Play Mode)`・`Record Progress (Play Mode)`。Game ビューを 1920×1080 に固定して（終わったら戻す）、毎フレームの絵（HUD も含む）を ffmpeg に渡す。
+  時間は 1/30 秒ずつ（Time.captureFramerate）、音は AudioRenderer。録る間だけエディタの音量（AudioListener.volume。この PC では 0 になっていた）を 1 にして、終わったら戻す。
+  映像は `Temp/RoomiesVideo/clips/`。撮り直す場面だけを `Temp/RoomiesVideo/scenes.txt` に書ける。新しいパッケージは入れていない（Unity Recorder は使っていない）
+- 映画のカメラの場面は、吹き出しや浮かぶ文字がそのカメラを向くよう、撮る間だけそのカメラを MainCamera にする
+- 字幕・カード・つなぎ・音の大きさ（-16 LUFS）は Leica のフォルダの `work/build_video.py`（先週の動画と同じ形の字幕。字のないフォントは止める）
+- バイトは撮る間だけお客さん 2 人（GameBalance はメモリの上だけ変えて、終わったら戻した。資産は変わっていない）
+- 確認：Play Mode のたびにセーブの控えを取って戻した（ハッシュ一致、5 回）、EditMode 271 件・失敗 0
+- 未確認：動画を音を出して通しで見ること（波形と音の大きさだけ測った）、2 人での確認
+
 ## 2026/11/24｜コンビニ：浮かぶ文字が出た瞬間に 1 コマ左右反対になるのを直す
 
 - Leica の指摘（strip_job_scan の「¥560 お預かり」が左右反対）。写真だけの問題ではなかった：浮かぶ文字（`StoreShop.popText`）は毎フレーム Update で
