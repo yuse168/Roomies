@@ -131,6 +131,14 @@ internal static partial class RoomiesCasinoDemo
         Expect(dayLabel.Contains("夜だけ") && shop.CurrentPhase == StoreShop.Phase.Idle && shop.CartOf(me).Count == 3, $"register: refuses in the daytime and keeps the basket ('{Strip(dayLabel)}')");
         dm.ServerApplySavedState(dm.CurrentDay, 1, 0, 0);
         yield return new WaitForSeconds(.6f);
+        // 夜になると、ときどき夜の出来事で冷蔵庫が壊れる（NightEventManager）。お会計の確認の前に、もう一度直しておく
+        if (fridge.IsBroken)
+        {
+            var nv2 = (NetworkVariable<bool>)typeof(NightFridge).GetField("broken", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(fridge);
+            nv2.Value = false;
+            log.AppendLine("      (a night event broke the fridge; repaired for the check)");
+        }
+        if (fridge.IsStocked) fridge.ServerConsumeStock();
 
         // ---- お会計：読み取り → 支払い → 袋
         int price = shop.SetPrice;

@@ -43,6 +43,9 @@ public static class GameSettings
     const string QualityKey = "Settings.Quality";
     const string CameraMotionKey = "Settings.CameraMotion";
     const string BindingKeyPrefix = "Settings.Binding.";
+    const string BindingVersionKey = "Settings.BindingVersion";
+    /// <summary>キーの割り当ての版。2（2026/11/25）：エモートがダッシュの Shift に重なっていたら、Shift をダッシュに戻し、エモートを空いているキーへ。</summary>
+    const int BindingVersion = 2;
 
     const float DefaultSensitivity = 0.22f;
     const float DefaultVolume = 1f;
@@ -126,6 +129,38 @@ public static class GameSettings
                 ? key
                 : pair.Value;
         }
+        MigrateKeyBindings();
+    }
+
+    /// <summary>
+    /// 前の割り当てを直す（1 回だけ）。キーの設定でエモートに Shift を選ぶと、入れ替わりでダッシュが別のキーへ移り、
+    /// 「Shift でダッシュしたつもりが、エモートの輪が開いて、離したときにエモートが出る」ことがあった。
+    /// エモートが Shift なら、Shift はダッシュに戻し、エモートは空いているキー（G から順に）にする。
+    /// </summary>
+    static void MigrateKeyBindings()
+    {
+        if (PlayerPrefs.GetInt(BindingVersionKey, 1) >= BindingVersion) return;
+        Key emote = keyBindings[GameAction.Emote];
+        if (emote == Key.LeftShift || emote == Key.RightShift)
+        {
+            Key sprintBefore = keyBindings[GameAction.Sprint];
+            keyBindings[GameAction.Sprint] = Key.LeftShift;
+            keyBindings[GameAction.Emote] = Key.None;
+            Key free = Key.None;
+            foreach (Key candidate in new[] { Key.G, sprintBefore, Key.T, Key.B, Key.V, Key.X })
+            {
+                if (candidate == Key.None || candidate == Key.LeftShift || candidate == Key.RightShift) continue;
+                bool used = false;
+                foreach (var pair in keyBindings) if (pair.Value == candidate) { used = true; break; }
+                if (!used) { free = candidate; break; }
+            }
+            keyBindings[GameAction.Emote] = free != Key.None ? free : Key.G;
+            PlayerPrefs.SetString(BindingKeyPrefix + GameAction.Sprint, keyBindings[GameAction.Sprint].ToString());
+            PlayerPrefs.SetString(BindingKeyPrefix + GameAction.Emote, keyBindings[GameAction.Emote].ToString());
+            Debug.Log($"[Settings] エモートがダッシュの Shift に重なっていたので、ダッシュ = Shift、エモート = {keyBindings[GameAction.Emote]} に戻しました");
+        }
+        PlayerPrefs.SetInt(BindingVersionKey, BindingVersion);
+        PlayerPrefs.Save();
     }
 
     static void BuildResolutionOptions()

@@ -151,7 +151,8 @@ internal static partial class RoomiesCasinoDemo
         Expect(market.Holding(2) == 5 && money.CurrentMoney == m1 - expectedCost && market.CostBasis(2) == expectedCost,
             $"stocks: bought 5 shares at ¥{price} (money {m1} -> {money.CurrentMoney}, expected -¥{expectedCost}; '{ui.StockStatusLine}')");
         // 買った直後の写真（値段は買った値段のまま。前は、このあと値動きを 4 回進めてから撮っていた）
-        Expect(market.Price(2) == price && ui.DetailPriceLine == $"¥{price:N0}", $"stocks: right after buying, the screen shows the price it was bought at ('{ui.DetailPriceLine}' / ¥{price})");
+        // ゲームの 6 秒ごとの値動きが、買ってから写真までの間に入ることがある。画面は、そのときの値段と同じであればよい
+        Expect(ui.DetailPriceLine == $"¥{market.Price(2):N0}", $"stocks: right after buying, the screen shows the current price ('{ui.DetailPriceLine}' / now ¥{market.Price(2)}, bought at ¥{price})");
         yield return Snap("5_stocks_bought");
         // 値動きを 4 回。毎回、グラフのいちばん新しい点・画面の値段・前回比が、同じ値段から出ているか
         var log2 = new System.Text.StringBuilder();

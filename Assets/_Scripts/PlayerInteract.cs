@@ -11,6 +11,7 @@ public class PlayerInteract : NetworkBehaviour
 
     [Header("UI")]
     public TextMeshProUGUI interactText;
+    private PlayerMovement playerMovement;
 
     [Header("持つ設定")]
     public float holdDistance = 2f;
@@ -99,6 +100,15 @@ public class PlayerInteract : NetworkBehaviour
         if (!IsOwner) return;
 
         if (EscMenuUI.IsOpen || CharacterCloset.IsOpen || RoomComputerUI.IsOpen)
+        {
+            SetInteractVisible(false);
+            return;
+        }
+
+        // エモートの三人称の視点の間は、案内も操作も出さない（カメラが体の外にあり、狙った物と違う物に当たるため）。
+        // E・F などを押すと PlayerMovement がエモートを止め、一人称に戻ってから使える
+        if (playerMovement == null) playerMovement = GetComponent<PlayerMovement>();
+        if (playerMovement != null && playerMovement.IsEmoteCameraActive)
         {
             SetInteractVisible(false);
             return;

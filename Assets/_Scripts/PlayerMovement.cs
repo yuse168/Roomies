@@ -74,6 +74,20 @@ public class PlayerMovement : NetworkBehaviour
     [Header("カメラ設定")]
     public Transform cameraTransform;
 
+    [Header("エモート中の三人称の視点（自分の画面だけ）")]
+    [Tooltip("キャラからカメラまでの距離（壁があれば縮む）")]
+    [SerializeField, Min(0.5f)] private float emoteCameraDistance = 3.0f;
+    [Tooltip("回る中心の高さ（キャラの真ん中から上へ）")]
+    [SerializeField] private float emoteCameraPivotHeight = 0.45f;
+    [SerializeField, Min(0.1f)] private float emoteCameraMinDistance = 0.6f;
+    [Tooltip("壁に当たったとき、カメラを壁から離す太さ")]
+    [SerializeField, Min(0.01f)] private float emoteCameraRadius = 0.22f;
+    [Tooltip("一人称と三人称を行き来する秒数")]
+    [SerializeField, Min(0.05f)] private float emoteCameraBlendSeconds = 0.35f;
+    [Tooltip("はじめの見下ろしの角度（度）")]
+    [SerializeField] private float emoteCameraStartPitch = 12f;
+    [SerializeField] private Vector2 emoteCameraPitchRange = new Vector2(-20f, 60f);
+
     private CharacterController controller;
     private PlayerInteract playerInteract;
     private SmugglingPlayer smugglingPlayer;
@@ -104,6 +118,16 @@ public class PlayerMovement : NetworkBehaviour
     private int currentEmoteIndex;
 
     private Vector3 cameraBaseLocalPosition;
+    private Vector3 firstPersonLocalPosition;
+    private bool emoteCamera;             // エモートの三人称の視点を使っている（自分の画面だけ）
+    private float emoteCameraWeight;      // 0 = 一人称、1 = 三人称
+    private float orbitYaw, orbitPitch, emoteStartTime;
+    private readonly RaycastHit[] cameraHits = new RaycastHit[16];
+
+    /// <summary>エモートの三人称の視点が出ているか（行き来の途中も含む）。PlayerInteract はこの間、案内と操作を止める。</summary>
+    public bool IsEmoteCameraActive => emoteCamera || emoteCameraWeight > 0.01f;
+    public bool IsEmoting => isEmoting;
+    public float EmoteCameraWeight => emoteCameraWeight;
     private float baseFieldOfView = 60f;
     private float bobTimer;
     private float landingDip;
@@ -147,6 +171,7 @@ public class PlayerMovement : NetworkBehaviour
         if (cameraTransform != null)
         {
             cameraBaseLocalPosition = cameraTransform.localPosition;
+            firstPersonLocalPosition = cameraBaseLocalPosition;
             playerCamera = cameraTransform.GetComponent<Camera>();
             if (playerCamera != null)
             {
@@ -210,8 +235,9 @@ public class PlayerMovement : NetworkBehaviour
         }
 
         ReadInput();
+        UpdateEmoteCameraInput();
         Move();
-        Look();
+        if (emoteCamera) OrbitLook(); else Look();
         UpdateStance();
         UpdateAnimation();
     }
@@ -630,10 +656,12 @@ public class PlayerMovement : NetworkBehaviour
         Vector3 targetPosition = cameraBaseLocalPosition
             + new Vector3(bobX, bobY + crouchOffset - landingDip, 0f);
         float positionLerp = 1f - Mathf.Exp(-cameraMotionSmoothness * Time.deltaTime);
-        cameraTransform.localPosition = Vector3.Lerp(
-            cameraTransform.localPosition,
+        // 一人称の位置は自分で持つ（三人称の視点でカメラを動かしても、ここが引っぱられないように）
+        firstPersonLocalPosition = Vector3.Lerp(
+            firstPersonLocalPosition,
             targetPosition,
             positionLerp);
+        cameraTransform.localPosition = firstPersonLocalPosition;
 
         float localStrafeSpeed = transform.InverseTransformDirection(horizontalVelocity).x;
         float tilt = enableCameraMotion
@@ -647,7 +675,87 @@ public class PlayerMovement : NetworkBehaviour
             float fovLerp = 1f - Mathf.Exp(-fieldOfViewSmoothness * Time.deltaTime);
             playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, targetFov, fovLerp);
         }
+
+        ApplyEmoteCamera();
     }
+
+    // ================================================================ エモート中の三人称の視点
+    /// <summary>エモート中のキー：ほかの操作をしたらエモートを止める（歩く・跳ぶは Move の中で止まる）。一回きりのエモートが終わったら戻す。</summary>
+    void UpdateEmoteCameraInput()
+    {
+        if (!emoteCamera) return;
+        if (GameSettings.WasPressedThisFrame(GameAction.Interact) || GameSettings.WasPressedThisFrame(GameAction.Carry) ||
+            GameSettings.WasPressedThisFrame(GameAction.Rotate) || GameSettings.WasPressedThisFrame(GameAction.Crouch) ||
+            GameSettings.WasPressedThisFrame(GameAction.Sprint))
+        {
+            StopEmoteRpc();
+            return;
+        }
+        // 一回きりのエモート（ダンス以外）は、動きが終わったら一人称に戻す
+        if (animator != null && Time.time - emoteStartTime > 0.8f && !InEmoteState()) emoteCamera = false;
+    }
+
+    bool InEmoteState()
+    {
+        if (animator == null) return false;
+        if (animator.IsInTransition(0) && IsEmoteState(animator.GetNextAnimatorStateInfo(0))) return true;
+        return IsEmoteState(animator.GetCurrentAnimatorStateInfo(0));
+    }
+
+    static readonly int[] EmoteStateHashes =
+    {
+        Animator.StringToHash("Emote_1"), Animator.StringToHash("Emote_2"), Animator.StringToHash("Emote_3"),
+        Animator.StringToHash("Emote_4"), Animator.StringToHash("Emote_5"), Animator.StringToHash("Emote_6"),
+    };
+
+    static bool IsEmoteState(AnimatorStateInfo info)
+    {
+        foreach (int h in EmoteStateHashes) if (info.shortNameHash == h) return true;
+        return false;
+    }
+
+    /// <summary>三人称の間は、マウスで体ではなくカメラを回す（キャラはエモートを続ける）。</summary>
+    void OrbitLook()
+    {
+        orbitYaw += lookInput.x * mouseSensitivity;
+        orbitPitch = Mathf.Clamp(orbitPitch - lookInput.y * mouseSensitivity, emoteCameraPitchRange.x, emoteCameraPitchRange.y);
+    }
+
+    /// <summary>一人称のカメラの位置・向きに、三人称の位置・向きを重みで混ぜる（重みはなめらかに行き来する）。</summary>
+    void ApplyEmoteCamera()
+    {
+        float target = emoteCamera ? 1f : 0f;
+        emoteCameraWeight = Mathf.MoveTowards(emoteCameraWeight, target, Time.deltaTime / emoteCameraBlendSeconds);
+        if (emoteCameraWeight <= 0.0001f) return;
+
+        Vector3 pivot = transform.position + Vector3.up * emoteCameraPivotHeight;
+        Vector3 dir = Quaternion.Euler(orbitPitch, orbitYaw, 0f) * Vector3.back;
+        float distance = emoteCameraDistance;
+        // 壁や家具にめり込まないよう、当たったところまで縮める（自分の体と、通り抜けられる判定は数えない）
+        int n = Physics.SphereCastNonAlloc(pivot, emoteCameraRadius, dir, cameraHits, emoteCameraDistance, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < n; i++)
+        {
+            var c = cameraHits[i].collider;
+            if (c == null || c.transform.IsChildOf(transform)) continue;
+            if (cameraHits[i].distance <= 0f) continue;   // 始まりから重なっている物（体のそばの小物）は数えない
+            distance = Mathf.Min(distance, cameraHits[i].distance);
+        }
+        distance = Mathf.Max(emoteCameraMinDistance, distance - 0.05f);
+        Vector3 thirdPos = pivot + dir * distance;
+        Quaternion thirdRot = Quaternion.LookRotation(pivot - thirdPos, Vector3.up);
+
+        float w = Mathf.SmoothStep(0f, 1f, emoteCameraWeight);
+        cameraTransform.SetPositionAndRotation(
+            Vector3.Lerp(cameraTransform.position, thirdPos, w),
+            Quaternion.Slerp(cameraTransform.rotation, thirdRot, w));
+    }
+
+    /// <summary>確認の道具から：三人称のカメラの向きを直接決める。</summary>
+    public void DebugSetOrbit(float yaw, float pitch) { orbitYaw = yaw; orbitPitch = pitch; }
+
+    /// <summary>確認の道具から：エモートを始める・止める（ふつうはエモートの輪から）。</summary>
+    public void DebugPlayEmote(int index) { if (IsOwner) PlayEmoteRpc(index); }
+    public void DebugStopEmote() { if (IsOwner) StopEmoteRpc(); }
     void UpdateAnimation()
     {
         if (animator == null || controller == null)
@@ -699,9 +807,20 @@ public class PlayerMovement : NetworkBehaviour
         currentEmoteIndex = emoteIndex;
         isEmoting = (emoteIndex > 0);
 
+        // 自分の画面だけ：三人称の視点にする（はじめはキャラの正面、少し上から）。相手の画面には関係ない
+        if (IsOwner && isEmoting)
+        {
+            emoteCamera = true;
+            emoteStartTime = Time.time;
+            orbitYaw = transform.eulerAngles.y + 180f;
+            orbitPitch = emoteCameraStartPitch;
+        }
+
         if (animator != null)
         {
             animator.SetInteger(EmoteIndexHash, emoteIndex);
+            // 前に止めたときの「やめる」の合図が残っていると、始めたエモートがすぐ止まってしまう（一回きりのエモートが終わったあとに歩いたときなど）
+            animator.ResetTrigger(EmoteCancelHash);
             animator.SetTrigger(EmoteHash);
         }
 
@@ -714,6 +833,7 @@ public class PlayerMovement : NetworkBehaviour
     {
         currentEmoteIndex = 0;
         isEmoting = false;
+        if (IsOwner) emoteCamera = false;
 
         if (animator != null)
         {

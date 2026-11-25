@@ -336,6 +336,52 @@ public class RoomiesCasinoTests
     }
 
     [Test]
+    public void EmoteKeyIsMovedOffTheDashKey()
+    {
+        // 前の割り当て（キーの設定でエモートに Shift を選ぶと、入れ替わりでダッシュが G になる）を直す移行。
+        // PlayerPrefs を一時的に書き換えて読み直し、終わったら元の値に戻す
+        Type settings = GameType("GameSettings");
+        Type action = GameType("GameAction");
+        string[] keys = { "Settings.Binding.Sprint", "Settings.Binding.Emote", "Settings.BindingVersion" };
+        var had = keys.Select(PlayerPrefs.HasKey).ToArray();
+        string sprint0 = PlayerPrefs.GetString(keys[0], null), emote0 = PlayerPrefs.GetString(keys[1], null);
+        int version0 = PlayerPrefs.GetInt(keys[2], 1);
+        FieldInfo initialized = settings.GetField("initialized", BindingFlags.Static | BindingFlags.NonPublic);
+        object Binding(string name) => settings.GetMethod("GetKeyBinding").Invoke(null, new[] { Enum.Parse(action, name) });
+        try
+        {
+            PlayerPrefs.SetString(keys[0], "G");
+            PlayerPrefs.SetString(keys[1], "LeftShift");
+            PlayerPrefs.DeleteKey(keys[2]);
+            initialized.SetValue(null, false);
+            settings.GetMethod("EnsureInitialized").Invoke(null, null);
+            Assert.That(Binding("Sprint").ToString(), Is.EqualTo("LeftShift"), "ダッシュは Shift に戻る");
+            Assert.That(Binding("Emote").ToString(), Is.EqualTo("G"), "エモートは空いている G へ");
+            var all = Enum.GetValues(action).Cast<object>().Select(a => settings.GetMethod("GetKeyBinding").Invoke(null, new[] { a }).ToString()).ToArray();
+            Assert.That(all.Distinct().Count(), Is.EqualTo(all.Length), "どの操作も、ほかと重ならない");
+            Assert.That(PlayerPrefs.GetInt(keys[2], 1), Is.EqualTo(2), "移行は 1 回だけ（版を書く）");
+            // 2 回目は何もしない（あとで自分でエモートを Shift にしても、勝手に戻さない）
+            PlayerPrefs.SetString(keys[1], "LeftShift"); PlayerPrefs.SetString(keys[0], "G");
+            initialized.SetValue(null, false);
+            settings.GetMethod("EnsureInitialized").Invoke(null, null);
+            Assert.That(Binding("Emote").ToString(), Is.EqualTo("LeftShift"));
+        }
+        finally
+        {
+            if (had[0]) PlayerPrefs.SetString(keys[0], sprint0); else PlayerPrefs.DeleteKey(keys[0]);
+            if (had[1]) PlayerPrefs.SetString(keys[1], emote0); else PlayerPrefs.DeleteKey(keys[1]);
+            if (had[2]) PlayerPrefs.SetInt(keys[2], version0); else PlayerPrefs.DeleteKey(keys[2]);
+            PlayerPrefs.Save();
+            initialized.SetValue(null, false);
+        }
+        // エモートの三人称の視点は、自分の画面だけ（カメラの切り替えは IsOwner のときだけ）。相手に送るのは前からのエモートの RPC だけ
+        string movement = System.IO.File.ReadAllText("Assets/_Scripts/PlayerMovement.cs");
+        Assert.That(movement, Does.Contain("if (IsOwner && isEmoting)"));
+        Assert.That(movement, Does.Contain("animator.ResetTrigger(EmoteCancelHash)"), "前に止めたときの合図が残って、次のエモートがすぐ止まらない");
+        Assert.That(System.IO.File.ReadAllText("Assets/_Scripts/PlayerInteract.cs"), Does.Contain("IsEmoteCameraActive"));
+    }
+
+    [Test]
     public void StockMarketRulesHold()
     {
         Type t = GameType("StockMarket");
