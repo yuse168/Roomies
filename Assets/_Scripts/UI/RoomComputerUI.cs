@@ -10,7 +10,9 @@ using UnityEngine.UI;
 ///
 /// ・部屋の PC（<see cref="RoomComputer"/>）を見て E → この画面が全体に出る。Esc か「とじる」で部屋に戻る。
 /// ・開いている間は、その人の移動・視点・操作・Esc メニュー・家具ショップのキーが止まる（<see cref="IsOpen"/>。ほかの人には関係ない）。
-/// ・アプリ：家具ショップ（前からの家具の注文の仕組み DayManager.BuyFurnitureServerRpc をそのまま使う）、株トレード（<see cref="StockMarket"/>）。
+/// ・アプリ：家具ショップ（前からの家具の注文の仕組み DayManager.BuyFurnitureServerRpc をそのまま使う）、株トレード（<see cref="StockMarket"/>）、
+///   家具の効果（置いてある家具と、いま効いている効果の一覧。前の O キーの一覧から移した）。
+/// ・開くと、ROOMIES OS の起動の画面が少し出てから、ホーム画（時計・口座・アイコン）になる。
 /// ・ボタンの反応は Awake で、インスペクターの参照からつなぐ（名前で探さない）。
 /// </summary>
 public class RoomComputerUI : MonoBehaviour
@@ -36,6 +38,15 @@ public class RoomComputerUI : MonoBehaviour
     }
 
     [Serializable]
+    public class EffectRow
+    {
+        public GameObject root;
+        public TMP_Text title;
+        public TMP_Text effect;
+        public TMP_Text state;
+    }
+
+    [Serializable]
     public class StockRow
     {
         public Button button;
@@ -56,7 +67,28 @@ public class RoomComputerUI : MonoBehaviour
     [SerializeField] private TMP_Text clockText;
     [SerializeField] private TMP_Text moneyText;
 
-    [Header("アプリ（0 = 家具ショップ、1 = 株トレード）")]
+    [Header("起動の画面（開いたとき、少しだけ出る）")]
+    [SerializeField] private CanvasGroup boot;
+    [Tooltip("起動の画面の、進み具合の棒（横に伸びる）")]
+    [SerializeField] private RectTransform bootBar;
+    [SerializeField, Min(0f)] private float bootSeconds = 0.7f;
+
+    [Header("壁紙（「壁紙」のボタンで順に変わる。選んだ壁紙は、その人の PC にだけ覚える）")]
+    [SerializeField] private Image wallpaper;
+    [SerializeField] private Sprite[] wallpapers = new Sprite[0];
+    [SerializeField] private Button wallpaperButton;
+    private const string WallpaperPref = "Roomies.PcWallpaper";
+
+    [Header("ホーム画のウィジェット")]
+    [SerializeField] private TMP_Text homeClock;
+    [SerializeField] private TMP_Text homeDay;
+    [SerializeField] private TMP_Text homeMoney;
+    [SerializeField] private TMP_Text homeRent;
+    [SerializeField] private TMP_Text homeHint;
+    [Tooltip("アプリの窓が開くときの動きの秒数")]
+    [SerializeField, Min(0.01f)] private float windowSeconds = 0.14f;
+
+    [Header("アプリ（0 = 家具ショップ、1 = 株トレード、2 = 家具の効果）")]
     [SerializeField] private Button[] appIcons = new Button[0];
     [SerializeField] private GameObject[] appWindows = new GameObject[0];
     [SerializeField] private Button[] windowCloseButtons = new Button[0];
@@ -66,6 +98,13 @@ public class RoomComputerUI : MonoBehaviour
     [Header("家具ショップ")]
     [SerializeField] private FurnitureCard[] furnitureCards = new FurnitureCard[0];
     [SerializeField] private TMP_Text furnitureStatus;
+
+    [Header("家具の効果")]
+    [SerializeField] private TMP_Text effectSpeed;
+    [SerializeField] private TMP_Text effectIncome;
+    [SerializeField] private TMP_Text effectCount;
+    [SerializeField] private EffectRow[] effectRows = new EffectRow[0];
+    [SerializeField] private TMP_Text effectNote;
 
     [Header("株トレード")]
     [SerializeField] private StockRow[] stockRows = new StockRow[0];
@@ -94,7 +133,7 @@ public class RoomComputerUI : MonoBehaviour
     private int openApp = -1;
     private int selectedStock;
     private bool furniturePending, tradePending;
-    private float refreshTimer, animTime;
+    private float refreshTimer, animTime, bootTime, windowTime;
     private bool closing;
     private StockMarket market;
     private bool stocksDirty = true;
@@ -117,6 +156,8 @@ public class RoomComputerUI : MonoBehaviour
         if (sellOne != null) sellOne.onClick.AddListener(() => Trade(false, 1));
         if (sellFive != null) sellFive.onClick.AddListener(() => Trade(false, 5));
         if (sellAll != null) sellAll.onClick.AddListener(() => Trade(false, 0));
+        if (wallpaperButton != null) wallpaperButton.onClick.AddListener(NextWallpaper);
+        ApplyWallpaper(LoadWallpaperIndex());
         SetVisible(false);
         IsOpen = false;
     }
@@ -142,8 +183,10 @@ public class RoomComputerUI : MonoBehaviour
         IsOpen = true;
         closing = false;
         animTime = 0f;
+        bootTime = 0f;
         HideApp();
         SetVisible(true);
+        if (boot != null) { boot.alpha = 1f; boot.blocksRaycasts = true; boot.gameObject.SetActive(bootSeconds > 0f); }
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
         RefreshAll();
@@ -199,6 +242,24 @@ public class RoomComputerUI : MonoBehaviour
             if (monitor != null) monitor.localScale = Vector3.one * Mathf.Lerp(0.94f, 1f, e);
         }
 
+        // 起動の画面：棒が伸びてから、ふわっと消えてホーム画へ
+        if (boot != null && boot.gameObject.activeSelf)
+        {
+            bootTime += Time.unscaledDeltaTime;
+            float b = Mathf.Clamp01(bootTime / Mathf.Max(0.01f, bootSeconds));
+            if (bootBar != null) bootBar.localScale = new Vector3(Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(b / 0.75f)), 1f, 1f);
+            boot.alpha = b < 0.75f ? 1f : 1f - (b - 0.75f) / 0.25f;
+            if (b >= 1f) { boot.gameObject.SetActive(false); boot.blocksRaycasts = false; }
+        }
+        // アプリの窓：少し小さい所から、ぽんと開く
+        if (openApp >= 0 && openApp < appWindows.Length && appWindows[openApp] != null && windowTime < windowSeconds)
+        {
+            windowTime += Time.unscaledDeltaTime;
+            float w = Mathf.Clamp01(windowTime / windowSeconds);
+            float pop = w < 1f ? Mathf.Lerp(0.92f, 1f, 1f - (1f - w) * (1f - w)) : 1f;
+            appWindows[openApp].transform.localScale = Vector3.one * pop;
+        }
+
         var kb = Keyboard.current;
         if (kb != null && kb.escapeKey.wasPressedThisFrame)
         {
@@ -219,11 +280,35 @@ public class RoomComputerUI : MonoBehaviour
         if (dm != null && (dm.IsGameOver || dm.IsTransitioning)) Close();
     }
 
+    // ================================================================ 壁紙
+    public int WallpaperIndex { get; private set; }
+
+    private static int LoadWallpaperIndex()
+    {
+        try { return PlayerPrefs.GetInt(WallpaperPref, 0); } catch { return 0; }
+    }
+
+    private void ApplyWallpaper(int index)
+    {
+        if (wallpapers.Length == 0) return;
+        WallpaperIndex = ((index % wallpapers.Length) + wallpapers.Length) % wallpapers.Length;
+        if (wallpaper != null && wallpapers[WallpaperIndex] != null) wallpaper.sprite = wallpapers[WallpaperIndex];
+    }
+
+    /// <summary>壁紙を次へ（ボタン・確認の道具から）。</summary>
+    public void NextWallpaper()
+    {
+        ApplyWallpaper(WallpaperIndex + 1);
+        try { PlayerPrefs.SetInt(WallpaperPref, WallpaperIndex); } catch { }
+        GameAudio.Play("pc/click", 0.5f);
+    }
+
     // ================================================================ アプリ
     public void ShowApp(int index)
     {
         openApp = index;
-        for (int i = 0; i < appWindows.Length; i++) if (appWindows[i] != null) appWindows[i].SetActive(i == index);
+        windowTime = 0f;
+        for (int i = 0; i < appWindows.Length; i++) if (appWindows[i] != null) { appWindows[i].SetActive(i == index); appWindows[i].transform.localScale = Vector3.one * 0.92f; }
         for (int i = 0; i < taskbarMarks.Length; i++) if (taskbarMarks[i] != null) taskbarMarks[i].SetActive(i == index);
         GameAudio.Play("pc/click", 0.5f);
         RefreshAll();
@@ -246,8 +331,19 @@ public class RoomComputerUI : MonoBehaviour
             clockText.text = $"DAY {dm.CurrentDay} {(dm.IsNight ? "夜" : "朝")}  {sec / 60:00}:{sec % 60:00}";
         }
         if (moneyText != null && money != null) moneyText.text = $"共同口座  ¥{money.CurrentMoney:N0}";
+        // ホーム画のウィジェット（時計・日・口座・家賃）
+        if (dm != null)
+        {
+            int sec = Mathf.Max(0, Mathf.CeilToInt(dm.RemainingSeconds));
+            if (homeClock != null) homeClock.text = $"{sec / 60:00}:{sec % 60:00}";
+            if (homeDay != null) homeDay.text = $"DAY {dm.CurrentDay}  {(dm.IsNight ? "夜" : "朝")}　のこり";
+            if (homeRent != null) homeRent.text = $"家賃 ¥{dm.CurrentRentTotal:N0}　あと {dm.DaysUntilRent} 日";
+            if (homeHint != null) homeHint.text = dm.IsNight ? "夜：家具を注文できます" : "朝：家具の注文は夜だけ";
+        }
+        if (homeMoney != null && money != null) homeMoney.text = $"¥{money.CurrentMoney:N0}";
         if (openApp == 0) RefreshFurniture();
         if (openApp == 1) RefreshStocks();
+        if (openApp == 2) RefreshEffects();
         stocksDirty = false;
     }
 
@@ -313,6 +409,49 @@ public class RoomComputerUI : MonoBehaviour
     }
 
     private void SetFurnitureStatus(string line) { if (furnitureStatus != null) furnitureStatus.text = line; }
+
+    // ---------------------------------------------------------------- 家具の効果
+    public int EffectRowsShown { get; private set; }
+
+    private void RefreshEffects()
+    {
+        var fem = FurnitureEffectManager.InstanceOrNull;
+        int placed = 0;
+        if (effectSpeed != null) effectSpeed.text = fem != null ? $"×{fem.MoveSpeedMultiplier:0.00}" : "×1.00";
+        if (effectIncome != null) effectIncome.text = fem != null ? $"¥{fem.PassiveIncomeTotal:N0}" : "¥0";
+        int shown = 0;
+        if (fem != null)
+            foreach (var f in fem.Registered)
+            {
+                if (f == null) continue;
+                placed++;
+                if (shown >= effectRows.Length) continue;
+                var row = effectRows[shown++];
+                if (row.root != null) row.root.SetActive(true);
+                if (row.title != null) row.title.text = string.IsNullOrEmpty(f.displayName) ? f.itemId : f.displayName;
+                if (row.effect != null) row.effect.text = EffectLine(f.effect, f.effectValue);
+                if (row.state != null)
+                {
+                    row.state.text = !f.IsOnRoom ? "部屋の外（効かない）" : f.EffectActive ? "効いている" : "翌朝から効く";
+                    row.state.color = !f.IsOnRoom ? downColor : f.EffectActive ? new Color(0.25f, 0.6f, 0.35f) : flatColor;
+                }
+            }
+        for (int i = shown; i < effectRows.Length; i++) if (effectRows[i].root != null) effectRows[i].root.SetActive(false);
+        EffectRowsShown = shown;
+        if (effectCount != null) effectCount.text = placed == 0 ? "置いてある家具：まだありません" : placed > shown ? $"置いてある家具：{placed} 個（ほか {placed - shown} 個）" : $"置いてある家具：{placed} 個";
+        if (effectNote != null) effectNote.text = placed == 0 ? "夜に「家具ショップ」で注文して、部屋の床に置くと、翌朝から効きます。" : "家具は部屋の床に置くと、翌朝から効きます。部屋の外に置くと効きません。";
+    }
+
+    private static string EffectLine(FurnitureEffect e, float v)
+    {
+        switch (e)
+        {
+            case FurnitureEffect.MoveSpeed: return $"移動 +{v:0}%";
+            case FurnitureEffect.PassiveIncome: return $"毎朝 ¥{v:0}";
+            case FurnitureEffect.Bounce: return "跳ねられる";
+            default: return "効果なし（見た目）";
+        }
+    }
 
     // ---------------------------------------------------------------- 株トレード
     private void Watch(StockMarket m)

@@ -49,15 +49,66 @@ internal static class RoomiesPcBuilder
             var anchor = new GameObject("Anchor_Screen").transform;
             anchor.SetParent(root.transform, false);
             anchor.localPosition = new Vector3(-.1f, 1.085f, -.131f);
-            new GameObject("Visual").transform.SetParent(root.transform, false);
+            var visual = new GameObject("Visual").transform;
+            visual.SetParent(root.transform, false);
+            // モニターの待ち受け（Codex の monitor_home。絵の縦横 1.6 : 1 のまま、画面の高さに合わせる）
+            var screen = new GameObject("Screen", typeof(MeshFilter), typeof(MeshRenderer));
+            screen.transform.SetParent(visual, false);
+            screen.transform.localPosition = new Vector3(-.1f, 1.085f, -.128f);
+            screen.transform.localRotation = Quaternion.Euler(0, 180, 0);   // Quad の表は -Z。机の前（+Z）から見えるように
+            screen.transform.localScale = new Vector3(.385f * 1.6f, .385f, 1f);
+            screen.GetComponent<MeshFilter>().sharedMesh = Resources.GetBuiltinResource<Mesh>("Quad.fbx");
+            var sr = screen.GetComponent<MeshRenderer>();
+            sr.sharedMaterial = StandbyMaterial();
+            sr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            sr.receiveShadows = false;
+            // 待ち受けの右上の時計（ゲームの残り時間）
+            font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FontPath);
+            TextMeshPro ScreenText(string name, string text, Vector3 at, float size, Vector2 box)
+            {
+                var go = new GameObject(name, typeof(RectTransform));
+                go.transform.SetParent(anchor, false);
+                go.transform.localPosition = at;
+                go.transform.localRotation = Quaternion.Euler(0, 180, 0);
+                var t = go.AddComponent<TextMeshPro>();
+                t.font = font; t.text = text; t.fontSize = size; t.color = Cream; t.alignment = TextAlignmentOptions.Right;
+                t.textWrappingMode = TextWrappingModes.NoWrap;
+                ((RectTransform)go.transform).sizeDelta = box;
+                go.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                return t;
+            }
+            var clock = ScreenText("Clock", "03:00", new Vector3(-.21f, .14f, .006f), .5f, new Vector2(.16f, .06f));
+            var day = ScreenText("Day", "DAY 1 朝", new Vector3(-.21f, .1f, .006f), .22f, new Vector2(.16f, .03f));
             var so = new SerializedObject(pc);
             so.FindProperty("anchorScreen").objectReferenceValue = anchor;
+            so.FindProperty("screenClock").objectReferenceValue = clock;
+            so.FindProperty("screenDay").objectReferenceValue = day;
             so.FindProperty("interactDistance").floatValue = 2.5f;
             so.ApplyModifiedPropertiesWithoutUndo();
             PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
         }
         finally { Object.DestroyImmediate(root); }
         Debug.Log("[PC] prefab built");
+    }
+
+    /// <summary>モニターの待ち受けの材質（光を受けない絵。明るすぎて白く飛ばないよう、色を少し落とす）。</summary>
+    static Material StandbyMaterial()
+    {
+        const string texPath = ArtDir + "/pc_standby.png", matPath = "Assets/_Materials/Room/pc_standby.mat";
+        var imp = (TextureImporter)AssetImporter.GetAtPath(texPath);
+        if (imp != null && (imp.maxTextureSize != 1024 || !imp.mipmapEnabled || imp.anisoLevel != 4))
+        {
+            imp.textureType = TextureImporterType.Default; imp.maxTextureSize = 1024; imp.mipmapEnabled = true; imp.anisoLevel = 4;
+            imp.wrapMode = TextureWrapMode.Clamp; imp.textureCompression = TextureImporterCompression.CompressedHQ;
+            imp.SaveAndReimport();
+        }
+        System.IO.Directory.CreateDirectory("Assets/_Materials/Room");
+        var mat = AssetDatabase.LoadAssetAtPath<Material>(matPath);
+        if (mat == null) { mat = new Material(Shader.Find("Universal Render Pipeline/Unlit")); AssetDatabase.CreateAsset(mat, matPath); }
+        mat.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(texPath));
+        mat.SetColor("_BaseColor", new Color(.82f, .8f, .84f));
+        EditorUtility.SetDirty(mat);
+        return mat;
     }
 
     // ================================================================ 2. シーンに置く
@@ -74,6 +125,24 @@ internal static class RoomiesPcBuilder
         if (market.GetComponent<NetworkObject>() == null) market.AddComponent<NetworkObject>();
         if (market.GetComponent<StockMarket>() == null) market.AddComponent<StockMarket>();
         EditorUtility.SetDirty(market);
+
+        // 部屋の背景のモニター：前の「バイト中… 稼ぎ ¥18,000」の飾りを外す（何の仕組みともつながっていない飾り。部屋の作り直しの表からも外した）
+        var restyle = scene.GetRootGameObjects().FirstOrDefault(g => g.name == "Roomies_RoomRestyle");
+        var desk = restyle != null ? restyle.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "PC desk") : null;
+        if (desk != null)
+        {
+            Material black = desk.GetComponentsInChildren<MeshRenderer>(true).FirstOrDefault(m => m.name == "Monitor")?.sharedMaterial;
+            foreach (Transform t in desk.Cast<Transform>().ToArray())
+            {
+                var tmp = t.GetComponent<TMP_Text>();
+                bool bait = t.name == "Progress track" || t.name == "Progress fill" || (tmp != null && (tmp.text.Contains("バイト中") || tmp.text.Contains("稼ぎ")));
+                if (bait) { Object.DestroyImmediate(t.gameObject); continue; }
+                if (t.name == "Screen" && black != null) t.GetComponent<MeshRenderer>().sharedMaterial = black;
+            }
+            var glow = restyle.GetComponentsInChildren<Light>(true).FirstOrDefault(l => l.name == "Monitor glow");
+            if (glow != null) glow.color = new Color(1f, .78f, .62f);
+        }
+        else Debug.LogWarning("[PC] 部屋の背景（Roomies_RoomRestyle/PC desk）が見つからない");
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
         Debug.Log("[PC] placed in GameRoom");
@@ -96,6 +165,26 @@ internal static class RoomiesPcBuilder
             imp.alphaIsTransparency = true;
             imp.filterMode = FilterMode.Bilinear;
             imp.textureCompression = TextureImporterCompression.Uncompressed;
+            imp.SaveAndReimport();
+        }
+        return AssetDatabase.LoadAssetAtPath<Sprite>(path);
+    }
+
+    /// <summary>Codex の絵（Assets/_Art/UI/Pc/。無ければ null）を UI の Sprite として読む。maxSize は取り込みの最大の大きさ。</summary>
+    static Sprite LoadArt(string file, int maxSize)
+    {
+        string path = $"{ArtDir}/{file}";
+        var imp = (TextureImporter)AssetImporter.GetAtPath(path);
+        if (imp == null) return null;
+        if (imp.textureType != TextureImporterType.Sprite || imp.maxTextureSize != maxSize || imp.mipmapEnabled)
+        {
+            imp.textureType = TextureImporterType.Sprite;
+            imp.spriteImportMode = SpriteImportMode.Single;
+            imp.mipmapEnabled = false;
+            imp.alphaIsTransparency = true;
+            imp.maxTextureSize = maxSize;
+            imp.filterMode = FilterMode.Bilinear;
+            imp.textureCompression = TextureImporterCompression.CompressedHQ;
             imp.SaveAndReimport();
         }
         return AssetDatabase.LoadAssetAtPath<Sprite>(path);
@@ -184,60 +273,98 @@ internal static class RoomiesPcBuilder
         var dim = Stretch(root.transform, "Dim");
         Panel(dim, new Color(Ink.r, Ink.g, Ink.b, .86f), null).raycastTarget = true;
 
-        // モニターの枠と画面
+        // モニターの枠と画面（画面は角の丸い板で切り抜く。壁紙は Codex の絵）
         var monitor = Rect(root.transform, "Monitor", new Vector2(.5f, .5f), Vector2.zero, new Vector2(1840, 1010));
         Panel(monitor, Hex("1E1C26"), roundL);
         so.FindProperty("monitor").objectReferenceValue = monitor;
         var screen = Stretch(monitor, "Screen", 22);
         Panel(screen, Wall, roundL, 1.3f);
-        // 壁紙：部屋の暖色の明かりの帯と、ゆるい字
-        var glow = Rect(screen, "Wallpaper glow", new Vector2(.5f, 0f), new Vector2(0, 150), new Vector2(1796, 300));
-        Panel(glow, new Color(Warm.r, Warm.g, Warm.b, .07f), roundL, 1.3f);
-        Text(screen, "Wallpaper logo", "ROOMIES OS", 120, new Color(1f, 1f, 1f, .06f), TextAlignmentOptions.BottomRight, new Vector2(1f, 0f), new Vector2(-50, 110), new Vector2(1000, 160), new Vector2(1f, 0f));
+        screen.gameObject.AddComponent<Mask>().showMaskGraphic = true;
+        var wallSprites = new[] { LoadArt("pc_wallpaper_room.png", 2048), LoadArt("pc_wallpaper_town.png", 2048) }.Where(x => x != null).ToArray();
+        var wall = Stretch(screen, "Wallpaper");
+        var wallImg = wall.gameObject.AddComponent<Image>();
+        wallImg.raycastTarget = false;
+        wallImg.sprite = wallSprites.Length > 0 ? wallSprites[0] : null;
+        wallImg.color = wallSprites.Length > 0 ? Color.white : Wall;
+        so.FindProperty("wallpaper").objectReferenceValue = wallImg;
+        SetArray(so.FindProperty("wallpapers"), wallSprites);
+        // 左の端だけ少し暗くして、アイコンの字を読みやすく（絵の上にべったり塗らない）
+        var shade = Rect(screen, "Icon shade", new Vector2(0f, .5f), new Vector2(150, 0), new Vector2(300, 1000));
+        Panel(shade, new Color(Ink.r, Ink.g, Ink.b, .28f), roundL, 1.2f);
 
-        // デスクトップのアイコン（左上に縦に並べる）
-        string[] appNames = { "家具ショップ", "株トレード" };
-        string[] appGlyph = { "家", "株" };
-        Color[] appColor = { Sofa, Kitchen };
-        var icons = new Button[2];
-        for (int i = 0; i < 2; i++)
+        // デスクトップのアイコン（左上に縦に並べる。絵は Codex、名前の字はゲームの側）
+        string[] appNames = { "家具ショップ", "株トレード", "家具の効果" };
+        string[] appGlyph = { "家", "株", "効" };
+        string[] appArt = { "pc_icon_furniture.png", "pc_icon_stocks.png", "pc_icon_effects.png" };
+        Color[] appColor = { Sofa, Kitchen, Purple };
+        var icons = new Button[3];
+        for (int i = 0; i < 3; i++)
         {
-            var icon = Rect(screen, "Icon " + appNames[i], new Vector2(0f, 1f), new Vector2(110, -120 - i * 210), new Vector2(150, 190));
+            var icon = Rect(screen, "Icon " + appNames[i], new Vector2(0f, 1f), new Vector2(150, -130 - i * 230), new Vector2(200, 210));
             var hit = icon.gameObject.AddComponent<Image>(); hit.color = new Color(1, 1, 1, 0); hit.raycastTarget = true;
-            var tile = Rect(icon, "Tile", new Vector2(.5f, 1f), new Vector2(0, -60), new Vector2(120, 120));
-            Panel(tile, appColor[i], roundL, 1.6f);
-            Text(tile, "Glyph", appGlyph[i], 70, Cream, TextAlignmentOptions.Center, new Vector2(.5f, .5f), new Vector2(0, 2), new Vector2(120, 120));
-            Text(icon, "Name", appNames[i], 22, Cream, TextAlignmentOptions.Center, new Vector2(.5f, 0f), new Vector2(0, 18), new Vector2(170, 34));
+            var tile = Rect(icon, "Tile", new Vector2(.5f, 1f), new Vector2(0, -74), new Vector2(148, 148));
+            Sprite art = LoadArt(appArt[i], 256);
+            Image tileImg;
+            if (art != null)
+            {
+                tileImg = tile.gameObject.AddComponent<Image>();
+                tileImg.sprite = art; tileImg.preserveAspect = true; tileImg.raycastTarget = false;
+            }
+            else
+            {
+                tileImg = Panel(tile, appColor[i], roundL, 1.6f);
+                Text(tile, "Glyph", appGlyph[i], 76, Cream, TextAlignmentOptions.Center, new Vector2(.5f, .5f), new Vector2(0, 2), new Vector2(148, 148));
+            }
+            var name = Rect(icon, "Name", new Vector2(.5f, 0f), new Vector2(0, 22), new Vector2(176, 40));
+            Panel(name, new Color(Ink.r, Ink.g, Ink.b, .62f), circle);
+            Text(name, "Label", appNames[i], 22, Cream, TextAlignmentOptions.Center, new Vector2(.5f, .5f), Vector2.zero, new Vector2(176, 40));
             var b = icon.gameObject.AddComponent<Button>();
-            b.targetGraphic = tile.GetComponent<Image>();
+            b.targetGraphic = tileImg;
+            var cb = b.colors; cb.highlightedColor = new Color(1f, .95f, .86f); cb.pressedColor = new Color(.82f, .78f, .76f); cb.fadeDuration = .06f; b.colors = cb;
             icons[i] = b;
         }
         SetArray(so.FindProperty("appIcons"), icons);
 
+        // ホーム画のウィジェット（右上）：時計と日、口座と家賃
+        var clockCard = Rect(screen, "Clock widget", new Vector2(1f, 1f), new Vector2(-40, -36), new Vector2(380, 186), new Vector2(1f, 1f));
+        Panel(clockCard, new Color(Ink.r, Ink.g, Ink.b, .62f), roundL, 1.6f);
+        so.FindProperty("homeDay").objectReferenceValue = Text(clockCard, "Day", "DAY 1  朝　のこり", 24, Hex("D8CEB5"), TextAlignmentOptions.Right, new Vector2(1f, 1f), new Vector2(-30, -40), new Vector2(330, 34), new Vector2(1f, .5f));
+        so.FindProperty("homeClock").objectReferenceValue = Text(clockCard, "Clock", "03:00", 96, Cream, TextAlignmentOptions.Right, new Vector2(1f, 0f), new Vector2(-28, 64), new Vector2(330, 110), new Vector2(1f, .5f));
+        var moneyCard = Rect(screen, "Money widget", new Vector2(1f, 1f), new Vector2(-40, -238), new Vector2(380, 186), new Vector2(1f, 1f));
+        Panel(moneyCard, new Color(Ink.r, Ink.g, Ink.b, .62f), roundL, 1.6f);
+        Text(moneyCard, "Caption", "共同口座", 24, Hex("D8CEB5"), TextAlignmentOptions.Right, new Vector2(1f, 1f), new Vector2(-30, -40), new Vector2(330, 34), new Vector2(1f, .5f));
+        so.FindProperty("homeMoney").objectReferenceValue = Text(moneyCard, "Money", "¥0", 64, Hex("9BE38B"), TextAlignmentOptions.Right, new Vector2(1f, 1f), new Vector2(-28, -98), new Vector2(330, 74), new Vector2(1f, .5f));
+        so.FindProperty("homeRent").objectReferenceValue = Text(moneyCard, "Rent", "家賃 ¥500　あと 3 日", 22, Cream, TextAlignmentOptions.Right, new Vector2(1f, 0f), new Vector2(-30, 30), new Vector2(330, 32), new Vector2(1f, .5f));
+        var hintPill = Rect(screen, "Hint", new Vector2(1f, 1f), new Vector2(-40, -440), new Vector2(380, 48), new Vector2(1f, 1f));
+        Panel(hintPill, new Color(Ink.r, Ink.g, Ink.b, .62f), circle);
+        so.FindProperty("homeHint").objectReferenceValue = Text(hintPill, "Text", "", 20, Warm, TextAlignmentOptions.Center, new Vector2(.5f, .5f), Vector2.zero, new Vector2(360, 44));
+
         // タスクバー
         var bar = Rect(screen, "Taskbar", new Vector2(.5f, 0f), new Vector2(0, 46), new Vector2(1740, 72));
-        Panel(bar, new Color(Ink.r, Ink.g, Ink.b, .92f), circle);
+        Panel(bar, new Color(Ink.r, Ink.g, Ink.b, .9f), circle);
         var os = Rect(bar, "OS", new Vector2(0f, .5f), new Vector2(120, 0), new Vector2(200, 52));
         Panel(os, Purple, circle);
         Text(os, "Label", "ROOMIES OS", 22, Cream, TextAlignmentOptions.Center, new Vector2(.5f, .5f), Vector2.zero, new Vector2(200, 52));
-        var marks = new GameObject[2];
-        for (int i = 0; i < 2; i++)
+        var marks = new GameObject[3];
+        for (int i = 0; i < 3; i++)
         {
-            var m = Rect(bar, "Running " + appNames[i], new Vector2(0f, .5f), new Vector2(330 + i * 200, 0), new Vector2(180, 48));
+            var m = Rect(bar, "Running " + appNames[i], new Vector2(0f, .5f), new Vector2(300 + i * 160, 0), new Vector2(150, 48));
             Panel(m, new Color(appColor[i].r, appColor[i].g, appColor[i].b, .9f), circle);
-            Text(m, "Label", appNames[i], 20, Cream, TextAlignmentOptions.Center, new Vector2(.5f, .5f), Vector2.zero, new Vector2(180, 48));
+            Text(m, "Label", appNames[i], 19, Cream, TextAlignmentOptions.Center, new Vector2(.5f, .5f), Vector2.zero, new Vector2(150, 48));
             m.gameObject.SetActive(false);
             marks[i] = m.gameObject;
         }
         SetArray(so.FindProperty("taskbarMarks"), marks);
-        so.FindProperty("moneyText").objectReferenceValue = Text(bar, "Money", "共同口座  ¥0", 24, Hex("9BE38B"), TextAlignmentOptions.Right, new Vector2(1f, .5f), new Vector2(-560, 0), new Vector2(380, 50), new Vector2(1f, .5f));
+        var wallButton = Pill(bar, "Wallpaper", "壁紙", new Color(1, 1, 1, .16f), Cream, new Vector2(1f, .5f), new Vector2(-985, 0), new Vector2(100, 48), 20);
+        so.FindProperty("wallpaperButton").objectReferenceValue = wallButton.button;
+        so.FindProperty("moneyText").objectReferenceValue = Text(bar, "Money", "共同口座  ¥0", 24, Hex("9BE38B"), TextAlignmentOptions.Right, new Vector2(1f, .5f), new Vector2(-548, 0), new Vector2(370, 50), new Vector2(1f, .5f));
         so.FindProperty("clockText").objectReferenceValue = Text(bar, "Clock", "DAY 1 朝  03:00", 24, Cream, TextAlignmentOptions.Right, new Vector2(1f, .5f), new Vector2(-250, 0), new Vector2(290, 50), new Vector2(1f, .5f));
         var close = Pill(bar, "Close", "とじる  Esc", Pink, Cream, new Vector2(1f, .5f), new Vector2(-118, 0), new Vector2(210, 52), 22);
         so.FindProperty("closeButton").objectReferenceValue = close.button;
 
         // アプリの窓（真ん中）
-        var windows = new GameObject[2];
-        var windowClose = new Button[2];
+        var windows = new GameObject[3];
+        var windowClose = new Button[3];
         RectTransform Window(int i, string title, Color color)
         {
             var w = Rect(screen, "Window " + title, new Vector2(.5f, .5f), new Vector2(70, 30), new Vector2(1560, 820));
@@ -250,7 +377,15 @@ internal static class RoomiesPcBuilder
             Panel(head, color, roundL, 1.2f);
             var headFill = Rect(head, "Title bar fill", new Vector2(.5f, 0f), new Vector2(0, 14), new Vector2(1560, 28));   // 下側の角は四角に
             Panel(headFill, color, null);
-            Text(head, "Title", title, 32, Cream, TextAlignmentOptions.Left, new Vector2(0f, .5f), new Vector2(36, 0), new Vector2(800, 60), new Vector2(0f, .5f));
+            Sprite art = LoadArt(appArt[i], 256);
+            float titleX = 36;
+            if (art != null)
+            {
+                var ic = Rect(head, "Icon", new Vector2(0f, .5f), new Vector2(58, 0), new Vector2(60, 60));
+                var img = ic.gameObject.AddComponent<Image>(); img.sprite = art; img.preserveAspect = true; img.raycastTarget = false;
+                titleX = 100;
+            }
+            Text(head, "Title", title, 32, Cream, TextAlignmentOptions.Left, new Vector2(0f, .5f), new Vector2(titleX, 0), new Vector2(1100, 60), new Vector2(0f, .5f));
             var x = Pill(head, "Close", "×", new Color(1, 1, 1, .25f), Cream, new Vector2(1f, .5f), new Vector2(-46, 0), new Vector2(52, 52), 30);
             windowClose[i] = x.button;
             windows[i] = w.gameObject;
@@ -290,7 +425,7 @@ internal static class RoomiesPcBuilder
         so.FindProperty("furnitureStatus").objectReferenceValue = Text(shopStatus, "Text", "", 22, Ink, TextAlignmentOptions.Center, new Vector2(.5f, .5f), Vector2.zero, new Vector2(1440, 50));
 
         // ---- 株トレード：左に銘柄の表、右に選んだ銘柄
-        var st = Window(1, "株トレード　─　町の会社の株を、共同口座で売り買い", Purple);
+        var st = Window(1, "株トレード　─　町の会社の株を、共同口座で売り買い", Kitchen);
         var news = Rect(st, "News", new Vector2(.5f, 1f), new Vector2(0, -112), new Vector2(1480, 50));
         Panel(news, Ink, circle);
         so.FindProperty("newsText").objectReferenceValue = Text(news, "Text", "ニュース：", 21, Warm, TextAlignmentOptions.Left, new Vector2(0f, .5f), new Vector2(28, 0), new Vector2(1420, 46), new Vector2(0f, .5f));
@@ -338,6 +473,61 @@ internal static class RoomiesPcBuilder
         Panel(total, PaperDark, circle);
         so.FindProperty("totalText").objectReferenceValue = Text(total, "Text", "", 24, Ink, TextAlignmentOptions.Left, new Vector2(0f, .5f), new Vector2(30, 0), new Vector2(900, 50), new Vector2(0f, .5f));
         so.FindProperty("feeNote").objectReferenceValue = Text(total, "Fee", "", 16, InkSoft, TextAlignmentOptions.Right, new Vector2(1f, .5f), new Vector2(-30, 0), new Vector2(640, 40), new Vector2(1f, .5f));
+
+        // ---- 家具の効果：いま効いている効果の合計と、置いてある家具の一覧（前の O キーの一覧）
+        var fx = Window(2, "家具の効果　─　部屋の床に置いた家具は、翌朝から効く", Purple);
+        RectTransform Stat(string name, string caption, Vector2 pos)
+        {
+            var c = Rect(fx, name, new Vector2(0f, 1f), pos, new Vector2(470, 150), new Vector2(0f, 1f));
+            Panel(c, Cream, roundL, 1.6f);
+            Text(c, "Caption", caption, 24, InkSoft, TextAlignmentOptions.Left, new Vector2(0f, 1f), new Vector2(30, -36), new Vector2(420, 34), new Vector2(0f, .5f));
+            return c;
+        }
+        var speed = Stat("Speed", "みんなの移動の速さ", new Vector2(40, -110));
+        so.FindProperty("effectSpeed").objectReferenceValue = Text(speed, "Value", "×1.00", 64, Kitchen, TextAlignmentOptions.Left, new Vector2(0f, 0f), new Vector2(30, 50), new Vector2(420, 76), new Vector2(0f, .5f));
+        var income = Stat("Income", "毎朝の収入（共同口座へ）", new Vector2(40, -284));
+        so.FindProperty("effectIncome").objectReferenceValue = Text(income, "Value", "¥0", 64, Hex("B8552E"), TextAlignmentOptions.Left, new Vector2(0f, 0f), new Vector2(30, 50), new Vector2(420, 76), new Vector2(0f, .5f));
+        var count = Rect(fx, "Count", new Vector2(0f, 1f), new Vector2(40, -458), new Vector2(470, 60), new Vector2(0f, 1f));
+        Panel(count, PaperDark, circle);
+        so.FindProperty("effectCount").objectReferenceValue = Text(count, "Text", "置いてある家具：まだありません", 22, Ink, TextAlignmentOptions.Center, new Vector2(.5f, .5f), Vector2.zero, new Vector2(450, 56));
+        var listBox = Rect(fx, "List", new Vector2(1f, 1f), new Vector2(-40, -110), new Vector2(960, 560), new Vector2(1f, 1f));
+        Panel(listBox, Cream, roundL, 1.4f);
+        var effectRows = so.FindProperty("effectRows");
+        effectRows.arraySize = 10;
+        for (int i = 0; i < 10; i++)
+        {
+            int col = i / 5, rowIdx = i % 5;
+            var r = Rect(listBox, "Row " + i, new Vector2(0f, 1f), new Vector2(20 + col * 470, -20 - rowIdx * 106), new Vector2(450, 96), new Vector2(0f, 1f));
+            Panel(r, new Color(1, 1, 1, .7f), roundL, 2.2f);
+            var e = effectRows.GetArrayElementAtIndex(i);
+            e.FindPropertyRelative("root").objectReferenceValue = r.gameObject;
+            e.FindPropertyRelative("title").objectReferenceValue = Text(r, "Name", "家具", 24, Ink, TextAlignmentOptions.Left, new Vector2(0f, 1f), new Vector2(22, -30), new Vector2(260, 34), new Vector2(0f, .5f));
+            e.FindPropertyRelative("effect").objectReferenceValue = Text(r, "Effect", "効果", 18, InkSoft, TextAlignmentOptions.Left, new Vector2(0f, 0f), new Vector2(22, 26), new Vector2(260, 28), new Vector2(0f, .5f));
+            e.FindPropertyRelative("state").objectReferenceValue = Text(r, "State", "", 18, InkSoft, TextAlignmentOptions.Right, new Vector2(1f, .5f), new Vector2(-20, 0), new Vector2(170, 30), new Vector2(1f, .5f));
+            r.gameObject.SetActive(false);
+        }
+        var fxNote = Rect(fx, "Note", new Vector2(.5f, 0f), new Vector2(0, 48), new Vector2(1480, 56));
+        Panel(fxNote, PaperDark, circle);
+        so.FindProperty("effectNote").objectReferenceValue = Text(fxNote, "Text", "", 22, Ink, TextAlignmentOptions.Center, new Vector2(.5f, .5f), Vector2.zero, new Vector2(1440, 50));
+
+        // ---- 起動の画面（開いたとき、しるしと ROOMIES OS の字、伸びる棒。いちばん上に重ねる）
+        var bootRt = Stretch(screen, "Boot");
+        Panel(bootRt, Hex("1E1A2B"), null).raycastTarget = true;
+        var bootGroup = bootRt.gameObject.AddComponent<CanvasGroup>();
+        Sprite mark = LoadArt("pc_boot_mark.png", 512);
+        if (mark != null)
+        {
+            var mk = Rect(bootRt, "Mark", new Vector2(.5f, .5f), new Vector2(0, 90), new Vector2(330, 330));
+            var mi = mk.gameObject.AddComponent<Image>(); mi.sprite = mark; mi.preserveAspect = true; mi.raycastTarget = false;
+        }
+        Text(bootRt, "Name", "ROOMIES OS", 72, Cream, TextAlignmentOptions.Center, new Vector2(.5f, .5f), new Vector2(0, -130), new Vector2(900, 90));
+        var track = Rect(bootRt, "Bar track", new Vector2(.5f, .5f), new Vector2(0, -214), new Vector2(360, 14));
+        Panel(track, new Color(1, 1, 1, .14f), circle);
+        var fill = Rect(track, "Bar fill", new Vector2(0f, .5f), Vector2.zero, new Vector2(360, 14), new Vector2(0f, .5f));
+        Panel(fill, Hex("D3A843"), circle);
+        so.FindProperty("boot").objectReferenceValue = bootGroup;
+        so.FindProperty("bootBar").objectReferenceValue = fill;
+        bootRt.gameObject.SetActive(false);
 
         SetArray(so.FindProperty("appWindows"), windows);
         SetArray(so.FindProperty("windowCloseButtons"), windowClose);

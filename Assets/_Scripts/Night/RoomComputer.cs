@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 
 /// <summary>
@@ -6,16 +7,32 @@ using UnityEngine;
 ///
 /// プレハブ：Assets/_Prefabs/Room/RoomComputer.prefab（Roomies/PC/1 Build Prefab）。机とモニターの見た目は部屋の背景（Roomies_RoomRestyle の PC desk）。
 ///  ・ルート：NetworkObject・このスクリプト・見て E を押す当たり判定（モニターとキーボードのまわり）
-///  ・Anchor_Screen：モニターの画面の真ん中（開く動きの基準）
-///  ・Visual：空（見た目は背景の机。差し替えるときはここへ）
+///  ・Anchor_Screen：モニターの画面の真ん中。中の Clock・Day は、待ち受けの上に出す時計（このスクリプトが書き換える）
+///  ・Visual/Screen：モニターに映す待ち受けの絵（Codex の monitor_home。机とモニターの本体は部屋の背景）
 /// </summary>
 public class RoomComputer : HomeAppliance
 {
     [Tooltip("モニターの画面の真ん中（Anchor_Screen）")]
     [SerializeField] private Transform anchorScreen;
     [SerializeField] private string label = "パソコンを使う";
+    [Header("待ち受けの時計（その人の画面で、ゲームの残り時間を出す）")]
+    [SerializeField] private TMP_Text screenClock;
+    [SerializeField] private TMP_Text screenDay;
+    private float clockTimer;
 
     public Transform AnchorScreen => anchorScreen;
+
+    private void Update()
+    {
+        clockTimer -= Time.unscaledDeltaTime;
+        if (clockTimer > 0f) return;
+        clockTimer = 0.5f;
+        var dm = DayManager.Instance;
+        if (dm == null) return;
+        int sec = Mathf.Max(0, Mathf.CeilToInt(dm.RemainingSeconds));
+        if (screenClock != null) screenClock.text = $"{sec / 60:00}:{sec % 60:00}";
+        if (screenDay != null) screenDay.text = $"DAY {dm.CurrentDay} {(dm.IsNight ? "夜" : "朝")}";
+    }
 
     public override bool CanInteract()
     {

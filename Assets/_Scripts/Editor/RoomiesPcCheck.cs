@@ -78,14 +78,38 @@ internal static partial class RoomiesCasinoDemo
         Expect(prompt.Contains("パソコンを使う"), $"pc: looking at the monitor shows the prompt '{System.Text.RegularExpressions.Regex.Replace(prompt, "<[^>]+>", "")}'");
         Expect(pc.CanInteract() && pc.Label == "パソコンを使う", $"pc: label '{pc.Label}'");
         yield return Snap("0_room_pc");
+        // 机の少しうしろから、モニターの待ち受け（Codex の絵と時計）を撮る
+        Teleport(r.cc, pc.transform.TransformPoint(new Vector3(1.6f, 0, 2.4f)));   // 写真の手前をふさがないよう、少しよける
+        Vector3 back = pc.transform.TransformPoint(new Vector3(.35f, 1.45f, 1.55f));
+        Place(r, back, pc.AnchorScreen.position + Vector3.down * .05f, 46);
+        UseCine(r, true);
+        yield return WaitUntil(() => false, .6f);
+        yield return Snap("0b_desk_monitor");
+        UseCine(r, false);
+        Teleport(r.cc, front);
+        yield return WaitUntil(() => false, .3f);
+        for (int k = 0; k < 3; k++) { Aim(r, pc.AnchorScreen.position); yield return null; yield return null; }
+        var screenClock = pc.GetComponentsInChildren<TMPro.TMP_Text>(true).FirstOrDefault(t => t.name == "Clock");
+        Expect(screenClock != null && screenClock.text.Contains(":") && pc.transform.Find("Visual/Screen") != null, $"desk: the monitor shows the standby picture and the clock ('{screenClock?.text}')");
+        var restyle = UnityEngine.SceneManagement.SceneManager.GetSceneByName("GameRoom").GetRootGameObjects().FirstOrDefault(g => g.name == "Roomies_RoomRestyle");
+        bool oldText = restyle != null && restyle.GetComponentsInChildren<TMPro.TMP_Text>(true).Any(t => t.text.Contains("バイト中") || t.text.Contains("稼ぎ"));
+        Expect(restyle != null && !oldText, "desk: the old 'part-time job' text is gone from the monitor");
 
         // ---- 開く
         Vector3 before = r.cc.transform.position;
+        int wallpaperBefore = ui.WallpaperIndex;
         pc.Interact();
-        yield return WaitUntil(() => false, .5f);
+        yield return WaitUntil(() => false, .25f);
+        yield return Snap("1a_boot");
+        yield return WaitUntil(() => false, .8f);
         Expect(RoomComputerUI.IsOpen && Cursor.lockState == CursorLockMode.None, "open: the desktop is shown and the cursor is free");
         Expect(!pc.CanInteract(), "open: the PC cannot be opened twice");
         yield return Snap("1_desktop");
+        ui.NextWallpaper();
+        yield return WaitUntil(() => false, .3f);
+        Expect(ui.WallpaperIndex != wallpaperBefore, $"desktop: the wallpaper button switches the wallpaper ({wallpaperBefore} -> {ui.WallpaperIndex})");
+        yield return Snap("1b_desktop_town");
+        while (ui.WallpaperIndex != wallpaperBefore) ui.NextWallpaper();   // 元の壁紙に戻す（その PC に覚える値も）
         Expect((r.cc.transform.position - before).magnitude < .05f && !EscMenuUI.IsOpen, "open: the player does not move, the pause menu stays closed");
 
         // ---- 家具ショップで 1 つ注文
@@ -103,6 +127,12 @@ internal static partial class RoomiesCasinoDemo
         Expect(money.CurrentMoney == m0 - item.cost && furnitureAfter == furnitureBefore + 1,
             $"shop: bought '{item.displayName}' with the existing order flow (money {m0} -> {money.CurrentMoney}, furniture {furnitureBefore} -> {furnitureAfter}, '{ui.FurnitureStatusLine}')");
         yield return Snap("3_shop_bought");
+
+        // ---- 家具の効果（前の O キーの一覧）：買った家具が並ぶ
+        ui.ShowApp(2);
+        yield return WaitUntil(() => false, .4f);
+        Expect(ui.OpenApp == 2 && ui.EffectRowsShown >= 1, $"effects: the furniture effects app lists the placed furniture ({ui.EffectRowsShown} rows)");
+        yield return Snap("3b_effects");
 
         // ---- 株：値動きを何回か進めて、買って、売る
         ui.ShowApp(1);

@@ -339,11 +339,8 @@ internal static partial class RoomiesRoomRestyleBuilder
         Cyl(d, "Monitor base", V(-.1f, .775f, -.16f), .2f, .015f, black);
         Box(d, "Monitor neck", V(-.1f, .86f, -.18f), V(.04f, .18f, .03f), black);
         RBox(d, "Monitor", V(-.1f, 1.08f, -.15f), V(.72f, .44f, .035f), .01f, black);
-        Plane(d, "Screen", V(-.1f, 1.085f, -.131f), new Vector2(.67f, .385f), screenGreen);
-        Text(d, "バイト中…", V(-.1f, 1.17f, -.129f), new Vector2(.5f, .09f), Color.white, 1.1f, default, glowWhite);
-        Plane(d, "Progress track", V(-.1f, 1.075f, -.1295f), new Vector2(.5f, .04f), black);
-        Plane(d, "Progress fill", V(-.02f, 1.075f, -.129f), new Vector2(.34f, .028f), barLime);
-        Text(d, "稼ぎ：¥18,000", V(-.1f, .99f, -.129f), new Vector2(.5f, .06f), new Color(1, .95f, .7f), .7f, default, glowWhite);
+        // 画面：2026/11/25 から、部屋の PC（RoomComputer のプレハブ）の待ち受けの絵を前に重ねる。ここは消えている画面の色だけ
+        Plane(d, "Screen", V(-.1f, 1.085f, -.131f), new Vector2(.67f, .385f), black);
         RBox(d, "Keyboard", V(-.12f, .775f, .12f), V(.44f, .02f, .15f), .008f, black);
         RBox(d, "Mouse", V(.2f, .78f, .14f), V(.06f, .03f, .1f), .014f, black);
         Box(d, "Mouse pad", V(.2f, .767f, .14f), V(.22f, .004f, .18f), purpleDark);
@@ -613,7 +610,7 @@ internal static partial class RoomiesRoomRestyleBuilder
 
         Lamp(g, "Entry fill", V(20.9f, F + 2.2f, 15.2f), new Color(1f, .78f, .55f), 1.6f, 5.5f);
         Lamp(g, "Neon glow", V(17.35f, F + 1.7f, 22.95f), new Color(.72f, .36f, 1f), 2.6f, 5f);
-        Lamp(g, "Monitor glow", V(21.95f, F + 1.1f, 16.8f), new Color(.75f, 1f, .62f), 1.6f, 2.6f);
+        Lamp(g, "Monitor glow", V(21.95f, F + 1.1f, 16.8f), new Color(1f, .78f, .62f), 1.6f, 2.6f);   // 待ち受けの暖かい部屋の色（2026/11/25 まで緑）
         Lamp(g, "TV glow", V(16.4f, F + .9f, 18.25f), new Color(.45f, .62f, 1f), 2.2f, 3.2f);
         Lamp(g, "Aquarium glow", V(17.3f, F + 1.25f, 22.85f), new Color(.35f, .8f, 1f), 1.8f, 2.6f);
         Lamp(g, "Slot glow", V(22.0f, F + 1.75f, 18.85f), new Color(1f, .7f, .25f), 1.8f, 2.6f);

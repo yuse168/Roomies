@@ -509,16 +509,8 @@ public class DayManager : NetworkBehaviour
             NetworkManager.Singleton.LocalClientId != targetClientId)
             return;
 
-        // 部屋の PC の家具ショップなど、ほかの画面にも結果を知らせる（注文した本人の画面だけ）
+        // 部屋の PC の家具ショップ（RoomComputerUI）に結果を知らせる（注文した本人の画面だけ）
         FurniturePurchaseResult?.Invoke(success, catalogIndex, message);
-
-        FurnitureEditController controller =
-            FindAnyObjectByType<FurnitureEditController>();
-        if (controller != null)
-            controller.OnServerPurchaseResult(
-                success,
-                catalogIndex,
-                message);
     }
 
     /// <summary>朝に全ての同期家具の効果を有効化する（サーバー）。</summary>

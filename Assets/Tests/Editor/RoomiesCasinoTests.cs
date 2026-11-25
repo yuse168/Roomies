@@ -297,6 +297,14 @@ public class RoomiesCasinoTests
         Assert.That(anchor, Is.Not.Null);
         Assert.That(anchor.name, Is.EqualTo("Anchor_Screen"));
         Assert.That(pc.transform.Find("Visual"), Is.Not.Null);
+        // 机のモニター：待ち受けの絵（Visual/Screen）と時計（Anchor_Screen の下）。前の「バイト中…」の飾りは部屋の作り直しの表から外した
+        Assert.That(pc.transform.Find("Visual/Screen"), Is.Not.Null);
+        Assert.That(Field<Component>(pc, "screenClock"), Is.Not.Null);
+        Assert.That(Field<Component>(pc, "screenClock").transform.parent, Is.SameAs(anchor), "時計は Visual の外（スクリプトが書き換える物）");
+        Assert.That(System.IO.File.ReadAllText("Assets/_Scripts/Editor/RoomiesRoomRestyleBuilder.cs"), Does.Not.Contain("バイト中…"));
+        // ホーム画の絵（Codex）：壁紙 2 枚・アイコン 3 つ・待ち受け・起動のしるし
+        foreach (string art in new[] { "pc_wallpaper_room", "pc_wallpaper_town", "pc_icon_furniture", "pc_icon_stocks", "pc_icon_effects", "pc_standby", "pc_boot_mark" })
+            Assert.That(System.IO.File.Exists($"Assets/_Art/UI/Pc/{art}.png"), Is.True, art);
         string room = System.IO.File.ReadAllText("Assets/_Scenes/GameRoom.unity");
         string ui = System.IO.File.ReadAllText("Assets/_Scenes/GameRoomUI.unity");
         string Guid(string script) => AssetDatabase.AssetPathToGUID(script);
@@ -304,8 +312,13 @@ public class RoomiesCasinoTests
         Assert.That(room, Does.Contain(Guid("Assets/_Scripts/Stocks/StockMarket.cs")), "GameRoom に株の市場が置いてある");
         Assert.That(ui, Does.Contain(Guid("Assets/_Scripts/UI/RoomComputerUI.cs")), "GameRoomUI に PC の画面が置いてある（実行時に作らない）");
         // 開いている間は、移動・操作・Esc メニュー・家具ショップのキーが止まる
-        foreach (string file in new[] { "Assets/_Scripts/PlayerMovement.cs", "Assets/_Scripts/PlayerInteract.cs", "Assets/_Scripts/UI/EscMenuUI.cs", "Assets/_Scripts/Furniture/FurnitureEditController.cs" })
+        foreach (string file in new[] { "Assets/_Scripts/PlayerMovement.cs", "Assets/_Scripts/PlayerInteract.cs", "Assets/_Scripts/UI/EscMenuUI.cs" })
             Assert.That(System.IO.File.ReadAllText(file), Does.Contain("RoomComputerUI.IsOpen"), file);
+        // 家具の注文は PC にまとめた：P キーのショップと O キーの一覧（実行時に作る UI）は無い
+        string edit = System.IO.File.ReadAllText("Assets/_Scripts/Furniture/FurnitureEditController.cs");
+        foreach (string gone in new[] { "pKey", "oKey", "new GameObject(", "Canvas", "BuyFurnitureServerRpc(" })
+            Assert.That(edit, Does.Not.Contain(gone), "FurnitureEditController に残っている: " + gone);
+        Assert.That(System.IO.File.ReadAllText("Assets/_Scripts/DayManager.cs"), Does.Not.Contain("OnServerPurchaseResult"));
         // 家具の注文は前からの仕組み（DayManager.BuyFurnitureServerRpc）を使う。二重に作らない
         string computerUi = System.IO.File.ReadAllText("Assets/_Scripts/UI/RoomComputerUI.cs");
         Assert.That(computerUi, Does.Contain("BuyFurnitureServerRpc"));
