@@ -150,9 +150,29 @@ internal static partial class RoomiesCasinoDemo
         int expectedCost = price * 5 + StockMarket.Fee(price * 5, GameBalance.Current.stockFeePercent);
         Expect(market.Holding(2) == 5 && money.CurrentMoney == m1 - expectedCost && market.CostBasis(2) == expectedCost,
             $"stocks: bought 5 shares at ¥{price} (money {m1} -> {money.CurrentMoney}, expected -¥{expectedCost}; '{ui.StockStatusLine}')");
-        for (int i = 0; i < 4; i++) { market.ServerTick(); yield return null; }
-        yield return WaitUntil(() => false, .3f);
+        // 買った直後の写真（値段は買った値段のまま。前は、このあと値動きを 4 回進めてから撮っていた）
+        Expect(market.Price(2) == price && ui.DetailPriceLine == $"¥{price:N0}", $"stocks: right after buying, the screen shows the price it was bought at ('{ui.DetailPriceLine}' / ¥{price})");
         yield return Snap("5_stocks_bought");
+        // 値動きを 4 回。毎回、グラフのいちばん新しい点・画面の値段・前回比が、同じ値段から出ているか
+        var log2 = new System.Text.StringBuilder();
+        bool consistent = true;
+        for (int i = 0; i < 4; i++)
+        {
+            market.ServerTick();
+            yield return null; yield return null;
+            ui.SelectStock(2);
+            for (int s = 0; s < market.Count; s++)
+            {
+                int[] h = market.History(s);
+                float expect = h[h.Length - 2] > 0 ? (h[h.Length - 1] - h[h.Length - 2]) * 100f / h[h.Length - 2] : 0f;
+                if (h[h.Length - 1] != market.Price(s) || Mathf.Abs(expect - market.ChangePercent(s)) > .001f) consistent = false;
+            }
+            int[] a = market.History(2);
+            log2.Append($" {a[a.Length - 2]}->{a[a.Length - 1]} ({market.ChangePercent(2):+0.0;-0.0}%, screen {ui.DetailPriceLine} {ui.DetailChangeLine.Split('（')[0]})");
+            if (ui.DetailPriceLine != $"¥{market.Price(2):N0}") consistent = false;
+        }
+        Expect(consistent, "stocks: after every price step, the newest chart point, the shown price and the change all come from the same price;" + log2);
+        yield return Snap("5b_stocks_after_ticks");
         int sellPrice = market.Price(2);
         int m2 = money.CurrentMoney;
         ui.Trade(false, 0);
@@ -166,7 +186,22 @@ internal static partial class RoomiesCasinoDemo
         yield return WaitUntil(() => ui.StockStatusLine.Length > 0 && !ui.StockStatusLine.Contains("注文を出して"), 3f);
         Expect(market.Holding(2) == 0, $"stocks: selling without shares is refused ('{ui.StockStatusLine}')");
 
+        // ---- ニュース：出た回の値動きで、その銘柄が動く。画面には何回前のニュースかを出す
+        int before0 = market.Price(0);
+        market.ServerNudge(0, -20f, "確認用のニュース");
+        market.ServerTick();
+        yield return null; yield return null;
+        ui.SelectStock(0);
+        yield return WaitUntil(() => false, .3f);
+        Expect(market.NewsStock == 0 && market.NewsAge == 0 && market.ChangePercent(0) < -10f && ui.NewsLine.Contains("いまの値動き"),
+            $"news: a news item moves its stock in the same price step ({before0} -> {market.Price(0)}, {market.ChangePercent(0):0.0}%; '{ui.NewsLine}')");
+        market.ServerTick();
+        yield return null; yield return null;
+        yield return WaitUntil(() => false, .3f);
+        Expect(market.NewsAge == 1 && ui.NewsLine.Contains("1 回前"), $"news: one step later the screen says the news is from 1 step ago ('{ui.NewsLine}')");
+
         // ---- セーブ：持ち株と値段が書けて、戻せる
+        ui.SelectStock(2);   // ニュースの確認で選んだ銘柄を、もとの銘柄に戻す
         market.ServerTick();
         ui.Trade(true, 1);
         yield return WaitUntil(() => market.Holding(2) == 1, 3f);

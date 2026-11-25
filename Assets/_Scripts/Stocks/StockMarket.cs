@@ -38,6 +38,8 @@ public class StockMarket : NetworkBehaviour
     private readonly NetworkVariable<int> head = new(0);
     private readonly NetworkVariable<int> tickCount = new(0);
     private readonly NetworkVariable<FixedString128Bytes> news = new(new FixedString128Bytes());
+    private readonly NetworkVariable<int> newsTick = new(-1);     // ニュースが効いた値動きの回（tickCount の値）
+    private readonly NetworkVariable<int> newsStock = new(-1);
 
     // ---- サーバーだけ ----
     private float tickTimer;
@@ -56,6 +58,10 @@ public class StockMarket : NetworkBehaviour
     public int CostBasis(int s) => costBasis != null && s >= 0 && s < costBasis.Count ? costBasis[s] : 0;
     public int TickCount => tickCount.Value;
     public string News => news.Value.ToString();
+    /// <summary>ニュースが効いたのは何回前の値動きか（0 = いちばん新しい値動き。ニュースが無ければ -1）。</summary>
+    public int NewsAge => newsTick.Value < 0 ? -1 : Mathf.Max(0, tickCount.Value - newsTick.Value);
+    /// <summary>ニュースの銘柄（無ければ -1）。</summary>
+    public int NewsStock => newsStock.Value;
     public StockDefinition Definition(int s)
     {
         var defs = GameBalance.Current.Stocks;
@@ -213,6 +219,8 @@ public class StockMarket : NetworkBehaviour
         {
             string arrow = percent >= 0 ? "▲" : "▼";
             news.Value = new FixedString128Bytes(Truncate($"{arrow} {headline}", 40));
+            newsTick.Value = tickCount.Value + 1;   // 次の値動き（ServerTick の中から呼ぶときは、その回）に効く
+            newsStock.Value = stock;
         }
     }
 

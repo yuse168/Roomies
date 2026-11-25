@@ -142,6 +142,9 @@ public class RoomComputerUI : MonoBehaviour
     public int SelectedStock => selectedStock;
     public string FurnitureStatusLine => furnitureStatus != null ? furnitureStatus.text : "";
     public string StockStatusLine => stockStatus != null ? stockStatus.text : "";
+    public string DetailPriceLine => detailPrice != null ? detailPrice.text : "";
+    public string DetailChangeLine => detailChange != null ? detailChange.text : "";
+    public string NewsLine => newsText != null ? newsText.text : "";
 
     // ================================================================ 起動
     private void Awake()
@@ -521,7 +524,12 @@ public class RoomComputerUI : MonoBehaviour
             detailProfit.text = hold > 0 ? $"損益 {(pl >= 0 ? "+" : "−")}¥{Mathf.Abs(pl):N0}" : "";
             detailProfit.color = pl > 0 ? upColor : pl < 0 ? downColor : flatColor;
         }
-        if (newsText != null) newsText.text = string.IsNullOrEmpty(market.News) ? "ニュース：まだありません" : "ニュース：" + market.News;
+        if (newsText != null)
+        {
+            int age = market.NewsAge;
+            string when = age <= 0 ? "いまの値動き" : $"{age} 回前の値動き";
+            newsText.text = string.IsNullOrEmpty(market.News) ? "ニュース：まだありません" : $"ニュース（{when}）：{market.News}";
+        }
         if (totalText != null)
             totalText.text = $"持ち株の評価額 ¥{totalValue:N0}　損益 <color=#{ColorUtility.ToHtmlStringRGB(totalProfit > 0 ? upColor : totalProfit < 0 ? downColor : flatColor)}>{(totalProfit >= 0 ? "+" : "−")}¥{Mathf.Abs(totalProfit):N0}</color>";
         var b = GameBalance.Current;
