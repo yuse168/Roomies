@@ -207,6 +207,8 @@
   家具ショップのアプリは前からの注文（`DayManager.BuyFurnitureServerRpc`）を使い、結果は `DayManager.FurniturePurchaseResult` で受け取る。
   P キーのショップと O キーの効果の一覧は 11/25 に消した（`FurnitureEditController` はカタログを持つだけ）。効果の一覧は「家具の効果」アプリ。
   机のモニターの待ち受け・壁紙・アイコン・起動のしるしは Codex の絵（`ArtSource/Room/pc/make_pc_art.py` で取り込む）。
+  家具ショップのカードと家具の効果の行の絵（家具 12 種）は `ArtSource/Room/pc/make_furniture_art.py` で取り込む（家具の id で引く。絵が無い家具は色の板と頭の字）。
+  株のニュースは `GameBalance.stockNewsShowSteps` 回の値動きまで出す。
   株トレードは `StockMarket`（GameRoom に 1 つ。値段はホストが決めて配る。調整値と銘柄は `GameBalance` の stock〇〇。町の出来事との連動は `ServerNudge`）。
   確認は `Roomies/PC/Check (Play Mode)`
 

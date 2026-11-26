@@ -150,6 +150,9 @@ public class GameBalance : ScriptableObject
     [Tooltip("ニュースで動く大きさ（%）の下限と上限")]
     public Vector2 stockNewsPercent = new Vector2(6f, 16f);
 
+    [Tooltip("ニュースを画面に出しておく値動きの回数（出た回を含む。3 なら、出た回とそのあと 2 回）。過ぎると「ニュース：いまはありません」")]
+    [Min(1)] public int stockNewsShowSteps = 3;
+
     [Tooltip("値段の下限と上限（円）")]
     public Vector2Int stockPriceRange = new Vector2Int(5, 5000);
 

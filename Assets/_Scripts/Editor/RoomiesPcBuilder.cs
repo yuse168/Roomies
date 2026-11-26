@@ -406,6 +406,10 @@ internal static class RoomiesPcBuilder
             var sw = Rect(card, "Swatch", new Vector2(0f, .5f), new Vector2(70, 18), new Vector2(104, 104));
             var swImg = Panel(sw, Sofa, roundL, 2.4f);
             var initial = Text(sw, "Initial", "?", 52, new Color(1, 1, 1, .92f), TextAlignmentOptions.Center, new Vector2(.5f, .5f), Vector2.zero, new Vector2(104, 104));
+            var photoRt = Rect(sw, "Photo", new Vector2(.5f, .5f), Vector2.zero, new Vector2(96, 96));
+            var photo = photoRt.gameObject.AddComponent<Image>();
+            photo.preserveAspect = true; photo.raycastTarget = false;
+            photoRt.gameObject.SetActive(false);
             var title = Text(card, "Name", "家具", 24, Ink, TextAlignmentOptions.Left, new Vector2(0f, 1f), new Vector2(136, -40), new Vector2(205, 36), new Vector2(0f, .5f));
             var eff = Text(card, "Effect", "効果", 16, InkSoft, TextAlignmentOptions.Left, new Vector2(0f, 1f), new Vector2(136, -78), new Vector2(205, 28), new Vector2(0f, .5f));
             var price = Text(card, "Price", "¥0", 26, Hex("B8552E"), TextAlignmentOptions.Left, new Vector2(0f, 1f), new Vector2(136, -114), new Vector2(205, 36), new Vector2(0f, .5f));
@@ -414,11 +418,27 @@ internal static class RoomiesPcBuilder
             e.FindPropertyRelative("root").objectReferenceValue = card.gameObject;
             e.FindPropertyRelative("swatch").objectReferenceValue = swImg;
             e.FindPropertyRelative("initial").objectReferenceValue = initial;
+            e.FindPropertyRelative("photo").objectReferenceValue = photo;
             e.FindPropertyRelative("title").objectReferenceValue = title;
             e.FindPropertyRelative("price").objectReferenceValue = price;
             e.FindPropertyRelative("effect").objectReferenceValue = eff;
             e.FindPropertyRelative("buy").objectReferenceValue = buy.button;
             e.FindPropertyRelative("buyLabel").objectReferenceValue = buy.label;
+        }
+        // 家具の絵（Codex。Assets/_Art/UI/Pc/Furniture/pc_furn_<id>.png。無い家具は、色の板と頭の字のまま）
+        var photos = new System.Collections.Generic.List<(string id, Sprite sprite)>();
+        foreach (var item in FurnitureCatalog.Items)
+        {
+            if (item == null || string.IsNullOrEmpty(item.id)) continue;
+            Sprite sp = LoadArt($"Furniture/pc_furn_{item.id}.png", 256);
+            if (sp != null) photos.Add((item.id, sp));
+        }
+        var photoProp = so.FindProperty("furniturePhotos");
+        photoProp.arraySize = photos.Count;
+        for (int i = 0; i < photos.Count; i++)
+        {
+            photoProp.GetArrayElementAtIndex(i).FindPropertyRelative("id").stringValue = photos[i].id;
+            photoProp.GetArrayElementAtIndex(i).FindPropertyRelative("sprite").objectReferenceValue = photos[i].sprite;
         }
         var shopStatus = Rect(shop, "Status", new Vector2(.5f, 0f), new Vector2(0, 42), new Vector2(1480, 54));
         Panel(shopStatus, PaperDark, circle);
@@ -501,9 +521,14 @@ internal static class RoomiesPcBuilder
             Panel(r, new Color(1, 1, 1, .7f), roundL, 2.2f);
             var e = effectRows.GetArrayElementAtIndex(i);
             e.FindPropertyRelative("root").objectReferenceValue = r.gameObject;
-            e.FindPropertyRelative("title").objectReferenceValue = Text(r, "Name", "家具", 24, Ink, TextAlignmentOptions.Left, new Vector2(0f, 1f), new Vector2(22, -30), new Vector2(260, 34), new Vector2(0f, .5f));
-            e.FindPropertyRelative("effect").objectReferenceValue = Text(r, "Effect", "効果", 18, InkSoft, TextAlignmentOptions.Left, new Vector2(0f, 0f), new Vector2(22, 26), new Vector2(260, 28), new Vector2(0f, .5f));
-            e.FindPropertyRelative("state").objectReferenceValue = Text(r, "State", "", 18, InkSoft, TextAlignmentOptions.Right, new Vector2(1f, .5f), new Vector2(-20, 0), new Vector2(170, 30), new Vector2(1f, .5f));
+            var rowPhotoRt = Rect(r, "Photo", new Vector2(0f, .5f), new Vector2(50, 0), new Vector2(72, 72));
+            var rowPhoto = rowPhotoRt.gameObject.AddComponent<Image>();
+            rowPhoto.preserveAspect = true; rowPhoto.raycastTarget = false;
+            rowPhotoRt.gameObject.SetActive(false);
+            e.FindPropertyRelative("photo").objectReferenceValue = rowPhoto;
+            e.FindPropertyRelative("title").objectReferenceValue = Text(r, "Name", "家具", 24, Ink, TextAlignmentOptions.Left, new Vector2(0f, 1f), new Vector2(96, -30), new Vector2(330, 34), new Vector2(0f, .5f));
+            e.FindPropertyRelative("effect").objectReferenceValue = Text(r, "Effect", "効果", 18, InkSoft, TextAlignmentOptions.Left, new Vector2(0f, 0f), new Vector2(96, 26), new Vector2(140, 28), new Vector2(0f, .5f));
+            e.FindPropertyRelative("state").objectReferenceValue = Text(r, "State", "", 17, InkSoft, TextAlignmentOptions.Right, new Vector2(1f, 0f), new Vector2(-18, 26), new Vector2(190, 28), new Vector2(1f, .5f));   // 右下（名前と重ならない）
             r.gameObject.SetActive(false);
         }
         var fxNote = Rect(fx, "Note", new Vector2(.5f, 0f), new Vector2(0, 48), new Vector2(1480, 56));

@@ -1,5 +1,18 @@
 # PROGRESS.md
 
+## 2026/11/26｜部屋の PC：株のニュースを数回で控えめに・家具 12 種の絵
+
+- ゆせさんの返事（11/26 11:14）の 2 つ
+- 株のニュース：出た回から `GameBalance.stockNewsShowSteps`（3）回の値動きまで出し、そのあとは帯を残したまま、薄い字の「ニュース：いまはありません」
+  （消すと帯の位置が動くので、控えめな表示にした）。全員が同じ tickCount と newsTick を見るので、2 人でも同じに見える（`StockMarket.NewsVisible`・`IsNewsVisible`）
+- 町の出来事のニュース（`ServerNudge` の見出し）がその回に決まっているときは、たまたまのニュースを出さない（前は同じ回に上書きされることがあった）
+- 家具の絵：Codex の 12 枚（D:\TK230088\Leica\brain\tmp_roomies_furniture_art_20261126）を `ArtSource/Room/pc/make_furniture_art.py` で取り込み
+  （README の表と家具の名前で対応。ArtSource/Room/pc/codex_furniture に控え、Assets/_Art/UI/Pc/Furniture/pc_furn_<id>.png）。元のファイルは消していない。
+  家具ショップのカードは頭の字のタイルを絵に（家具の id で引く。絵が無い家具はタイルのまま）。家具の効果のアプリの行にも小さな絵
+- 確認の道具：PC の確認 30 項目 OK（12 枚の絵が出る・ニュースが 3 回まで出てから「いまはありません」など）。ニュースの確認の間は、ゲームの 6 秒ごとの値動きとたまたまのニュースを止める
+  （`StockMarket.DebugHoldAutoTicks`、確認の道具だけが使う。終わったら戻す）。EditMode にニュースの回数のテストを足した。EditMode 274 件・失敗 0。セーブの控えを取って戻した（ハッシュ一致）
+- 未確認：2 人での確認
+
 ## 2026/11/25｜エモート：ダッシュの Shift と分ける・エモート中は三人称の視点
 
 - 依頼（ゆせさん 21:46「シフトダッシュのエモート別にして。エモート中は tps みたいな周りが見れるような視点にして」）

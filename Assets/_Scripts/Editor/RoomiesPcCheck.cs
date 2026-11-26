@@ -117,6 +117,8 @@ internal static partial class RoomiesCasinoDemo
         yield return WaitUntil(() => false, .4f);
         Expect(ui.OpenApp == 0, "shop: furniture shop app is open");
         yield return Snap("2_shop");
+        int photoFiles = System.IO.Directory.Exists("Assets/_Art/UI/Pc/Furniture") ? System.IO.Directory.GetFiles("Assets/_Art/UI/Pc/Furniture", "pc_furn_*.png").Length : 0;
+        Expect(ui.FurniturePhotosShown == photoFiles, $"shop: furniture cards show the Codex pictures that exist ({ui.FurniturePhotosShown} of {photoFiles} files; the rest keep the letter tile)");
         int furnitureBefore = Object.FindObjectsByType<NetworkFurniture>().Length;
         int m0 = money.CurrentMoney;
         FurnitureItem item = FurnitureCatalog.Get(0);
@@ -188,6 +190,10 @@ internal static partial class RoomiesCasinoDemo
         Expect(market.Holding(2) == 0, $"stocks: selling without shares is refused ('{ui.StockStatusLine}')");
 
         // ---- ニュース：出た回の値動きで、その銘柄が動く。画面には何回前のニュースかを出す
+        // ここからは値動きを手で進める（ゲームの 6 秒ごとの値動きと、たまたま出るニュースを止める。終わったら戻す）
+        market.DebugHoldAutoTicks = true;
+        float newsChanceBefore = GameBalance.Current.stockNewsChance;
+        GameBalance.Current.stockNewsChance = 0f;
         int before0 = market.Price(0);
         market.ServerNudge(0, -20f, "確認用のニュース");
         market.ServerTick();
@@ -200,6 +206,21 @@ internal static partial class RoomiesCasinoDemo
         yield return null; yield return null;
         yield return WaitUntil(() => false, .3f);
         Expect(market.NewsAge == 1 && ui.NewsLine.Contains("1 回前"), $"news: one step later the screen says the news is from 1 step ago ('{ui.NewsLine}')");
+        // 出た回から stockNewsShowSteps 回（3 回）の値動きまで出し、そのあとは控えめな「いまはありません」
+        int steps = GameBalance.Current.stockNewsShowSteps;
+        for (int k = market.NewsAge + 1; k < steps; k++) { market.ServerTick(); yield return null; yield return null; }
+        yield return WaitUntil(() => false, .3f);
+        string lastShown = ui.NewsLine;
+        bool stillShown = market.NewsVisible && lastShown.Contains("確認用のニュース");
+        market.ServerTick();
+        yield return null; yield return null;
+        yield return WaitUntil(() => false, .3f);
+        Expect(stillShown && !market.NewsVisible && ui.NewsLine.Contains("いまはありません") && !ui.NewsLine.Contains("確認用"),
+            $"news: shown for {steps} price steps, then a quiet 'no news' ('{lastShown}' -> '{ui.NewsLine}')");
+        yield return Snap("6b_news_quiet");
+
+        market.DebugHoldAutoTicks = false;
+        GameBalance.Current.stockNewsChance = newsChanceBefore;
 
         // ---- セーブ：持ち株と値段が書けて、戻せる
         ui.SelectStock(2);   // ニュースの確認で選んだ銘柄を、もとの銘柄に戻す

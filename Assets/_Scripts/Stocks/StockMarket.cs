@@ -42,6 +42,8 @@ public class StockMarket : NetworkBehaviour
     private readonly NetworkVariable<int> newsStock = new(-1);
 
     // ---- サーバーだけ ----
+    /// <summary>確認の道具だけが使う：ゲームの時間で値段を動かすのを止める（ServerTick を手で呼ぶ間）。</summary>
+    [System.NonSerialized] public bool DebugHoldAutoTicks;
     private float tickTimer;
     private float[] pendingNudge = new float[0];
     private System.Random random;
@@ -60,6 +62,12 @@ public class StockMarket : NetworkBehaviour
     public string News => news.Value.ToString();
     /// <summary>ニュースが効いたのは何回前の値動きか（0 = いちばん新しい値動き。ニュースが無ければ -1）。</summary>
     public int NewsAge => newsTick.Value < 0 ? -1 : Mathf.Max(0, tickCount.Value - newsTick.Value);
+    /// <summary>ニュースを画面に出すか（出た回から stockNewsShowSteps 回の値動きまで）。全員が同じ tickCount と newsTick を見るので、2 人でも同じになる。</summary>
+    public bool NewsVisible => IsNewsVisible(NewsAge, GameBalance.Current.stockNewsShowSteps);
+
+    /// <summary>何回前のニュースを出すか（age：0 = いまの値動き、-1 = ニュースなし）。</summary>
+    public static bool IsNewsVisible(int age, int showSteps) => age >= 0 && age < Mathf.Max(1, showSteps);
+
     /// <summary>ニュースの銘柄（無ければ -1）。</summary>
     public int NewsStock => newsStock.Value;
     public StockDefinition Definition(int s)
@@ -168,7 +176,7 @@ public class StockMarket : NetworkBehaviour
     {
         if (!IsSpawned || !IsServer) return;
         DayManager dm = DayManager.Instance;
-        if (dm == null || !dm.IsSpawned || dm.IsTransitioning || dm.IsGameOver) return;
+        if (dm == null || !dm.IsSpawned || dm.IsTransitioning || dm.IsGameOver || DebugHoldAutoTicks) return;
         tickTimer += Time.deltaTime;
         if (tickTimer < GameBalance.Current.stockTickSeconds) return;
         tickTimer = 0f;
@@ -184,8 +192,9 @@ public class StockMarket : NetworkBehaviour
         int n = Mathf.Min(defs.Length, prices.Count);
         if (pendingNudge.Length != defs.Length) Array.Resize(ref pendingNudge, defs.Length);
 
-        // ときどきニュース：1 つの銘柄が大きく動く
-        if (n > 0 && random.NextDouble() < b.stockNewsChance)
+        // ときどきニュース：1 つの銘柄が大きく動く（町の出来事のニュースがこの回に決まっていれば、そちらを優先して出さない）
+        bool headlineQueued = newsTick.Value == tickCount.Value + 1;
+        if (n > 0 && !headlineQueued && random.NextDouble() < b.stockNewsChance)
         {
             int s = random.Next(n);
             bool up = random.NextDouble() < 0.5;

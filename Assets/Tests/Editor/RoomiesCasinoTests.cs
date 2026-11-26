@@ -406,6 +406,19 @@ public class RoomiesCasinoTests
         Assert.That(Basis(1000, 10, 10), Is.Zero, "全部売れば 0");
         Assert.That(Basis(1000, 3, 1), Is.EqualTo(667));
 
+        // ニュース：出た回（0）から stockNewsShowSteps 回まで出す。そのあとと、ニュースが無いとき（-1）は出さない
+        bool Visible(int age, int steps) => (bool)t.GetMethod("IsNewsVisible").Invoke(null, new object[] { age, steps });
+        Assert.That(Visible(0, 3) && Visible(1, 3) && Visible(2, 3), Is.True, "3 回の値動きまで出す");
+        Assert.That(Visible(3, 3), Is.False, "4 回目からは出さない");
+        Assert.That(Visible(-1, 3), Is.False, "ニュースが無いとき");
+        Assert.That(Visible(0, 0), Is.True, "回数は 1 より小さくしない");
+        var gb = ScriptableObject.CreateInstance(GameType("GameBalance"));
+        Assert.That((int)gb.GetType().GetField("stockNewsShowSteps").GetValue(gb), Is.EqualTo(3));
+        UnityEngine.Object.DestroyImmediate(gb);
+        // 家具ショップのカード：絵を出す所（id で引く。無ければ頭の字のタイル）
+        Assert.That(GameType("RoomComputerUI").GetMethod("PhotoFor"), Is.Not.Null);
+        Assert.That(GameType("RoomComputerUI+FurnitureCard").GetField("photo"), Is.Not.Null);
+
         // 銘柄：4〜6 個、略号は重ならない、名前と値段がある
         var balance = ScriptableObject.CreateInstance(GameType("GameBalance"));
         var stocks = (Array)balance.GetType().GetField("stocks").GetValue(balance);

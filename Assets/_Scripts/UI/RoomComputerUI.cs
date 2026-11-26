@@ -30,6 +30,8 @@ public class RoomComputerUI : MonoBehaviour
         public GameObject root;
         public Image swatch;
         public TMP_Text initial;
+        [Tooltip("家具の絵を出す所（絵が無ければ隠して、色の板と頭の字）")]
+        public Image photo;
         public TMP_Text title;
         public TMP_Text price;
         public TMP_Text effect;
@@ -41,6 +43,8 @@ public class RoomComputerUI : MonoBehaviour
     public class EffectRow
     {
         public GameObject root;
+        [Tooltip("家具の小さな絵（無ければ隠す）")]
+        public Image photo;
         public TMP_Text title;
         public TMP_Text effect;
         public TMP_Text state;
@@ -98,6 +102,25 @@ public class RoomComputerUI : MonoBehaviour
     [Header("家具ショップ")]
     [SerializeField] private FurnitureCard[] furnitureCards = new FurnitureCard[0];
     [SerializeField] private TMP_Text furnitureStatus;
+    [Tooltip("家具の絵（家具の id → 絵）。Roomies/PC/3 Build Desktop UI が Assets/_Art/UI/Pc/Furniture/ から入れる")]
+    [SerializeField] private FurniturePhoto[] furniturePhotos = new FurniturePhoto[0];
+    [SerializeField] private Color photoBackColor = new Color(1f, 0.96f, 0.88f);
+
+    [Serializable]
+    public class FurniturePhoto
+    {
+        public string id;
+        public Sprite sprite;
+    }
+
+    /// <summary>その家具の絵（無ければ null）。</summary>
+    public Sprite PhotoFor(string id)
+    {
+        foreach (var p in furniturePhotos) if (p != null && p.id == id) return p.sprite;
+        return null;
+    }
+
+    public int FurniturePhotosShown { get; private set; }
 
     [Header("家具の効果")]
     [SerializeField] private TMP_Text effectSpeed;
@@ -128,6 +151,8 @@ public class RoomComputerUI : MonoBehaviour
     [SerializeField] private Color chartFlatColor = new Color(0.8f, 0.76f, 0.9f);
     [SerializeField] private Color rowColor = new Color(1f, 1f, 1f, 0.6f);
     [SerializeField] private Color rowSelectedColor = new Color(1f, 0.86f, 0.6f, 1f);
+    [SerializeField] private Color newsColor = new Color(1f, 0.70f, 0.36f);
+    [SerializeField] private Color newsQuietColor = new Color(1f, 0.97f, 0.92f, 0.38f);
 
     private Canvas canvas;
     private int openApp = -1;
@@ -356,6 +381,7 @@ public class RoomComputerUI : MonoBehaviour
         var dm = DayManager.Instance;
         var money = SharedMoneyManager.Instance;
         bool night = dm != null && dm.CanBuyFurniture;
+        int photos = 0;
         for (int i = 0; i < furnitureCards.Length; i++)
         {
             var card = furnitureCards[i];
@@ -366,11 +392,16 @@ public class RoomComputerUI : MonoBehaviour
             if (card.price != null) card.price.text = $"¥{item.cost:N0}";
             if (card.effect != null) card.effect.text = EffectText(item);
             if (card.initial != null) card.initial.text = item.displayName.Length > 0 ? item.displayName.Substring(0, 1) : "?";
-            if (card.swatch != null) card.swatch.color = item.placeholderColor;
+            Sprite pic = PhotoFor(item.id);
+            if (card.photo != null) { card.photo.sprite = pic; card.photo.gameObject.SetActive(pic != null); }
+            if (card.initial != null) card.initial.gameObject.SetActive(pic == null);
+            if (card.swatch != null) card.swatch.color = pic != null ? photoBackColor : item.placeholderColor;
+            if (pic != null) photos++;
             bool canPay = money != null && money.CanPay(item.cost);
             if (card.buy != null) card.buy.interactable = night && canPay && !furniturePending;
             if (card.buyLabel != null) card.buyLabel.text = !night ? "夜だけ" : !canPay ? "お金が足りない" : "注文する";
         }
+        FurniturePhotosShown = photos;
         if (!furniturePending && furnitureStatus != null && string.IsNullOrEmpty(furnitureStatus.text))
             furnitureStatus.text = night ? "注文すると、家具は玄関の配達の場所に届きます（効果は翌朝から）。" : "家具の注文は、夜の自由行動の間だけできます。";
     }
@@ -432,6 +463,7 @@ public class RoomComputerUI : MonoBehaviour
                 var row = effectRows[shown++];
                 if (row.root != null) row.root.SetActive(true);
                 if (row.title != null) row.title.text = string.IsNullOrEmpty(f.displayName) ? f.itemId : f.displayName;
+                if (row.photo != null) { Sprite pic = PhotoFor(f.itemId); row.photo.sprite = pic; row.photo.gameObject.SetActive(pic != null); }
                 if (row.effect != null) row.effect.text = EffectLine(f.effect, f.effectValue);
                 if (row.state != null)
                 {
@@ -526,9 +558,12 @@ public class RoomComputerUI : MonoBehaviour
         }
         if (newsText != null)
         {
+            // ニュースは出た回から数回だけ。過ぎたら消さずに、控えめな「いまはありません」にする（帯の位置が動かないように）
             int age = market.NewsAge;
+            bool show = !string.IsNullOrEmpty(market.News) && market.NewsVisible;
             string when = age <= 0 ? "いまの値動き" : $"{age} 回前の値動き";
-            newsText.text = string.IsNullOrEmpty(market.News) ? "ニュース：まだありません" : $"ニュース（{when}）：{market.News}";
+            newsText.text = show ? $"ニュース（{when}）：{market.News}" : "ニュース：いまはありません";
+            newsText.color = show ? newsColor : newsQuietColor;
         }
         if (totalText != null)
             totalText.text = $"持ち株の評価額 ¥{totalValue:N0}　損益 <color=#{ColorUtility.ToHtmlStringRGB(totalProfit > 0 ? upColor : totalProfit < 0 ? downColor : flatColor)}>{(totalProfit >= 0 ? "+" : "−")}¥{Mathf.Abs(totalProfit):N0}</color>";
